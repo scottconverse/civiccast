@@ -1,3 +1,31 @@
+# Cross-machine pickup — October 31, 2026
+
+Repository: https://github.com/scottconverse/civiccast-native
+Feature branch: `feat/local-audio-description`
+Feature implementation commit: `43f6080fd0dd6b48e9deb615a17b1cf99b7dbf56`.
+Use the latest feature-branch HEAD for this handoff update. This branch is separate
+from the release candidate; do not merge into or change the RC as part of pickup.
+
+Scott has handed this work to the CivicCast coder on another machine. Delivery
+is the feature branch only; no merge, tag, release or production activation.
+The earlier local-only delivery statements below describe the prior checkpoint.
+
+Start with `docs/ops/evidence/audio-description-film-fixes.md`, then the source
+under `civiccast/audio_description` and the public portal `RecordingPlayer.tsx`.
+All code, regression tests, lockfile, operational guide, manual source and generated
+built-in Help are committed. Machine-local evidence paths and localhost preview
+URLs below belong to the original Windows machine and will not work remotely.
+Raw test media, model weights, output MP4s, detailed provider traces and local
+fixture servers are not part of this source handoff. The committed evidence
+summary records what was run and its limits; it is historical evidence, not a
+claim that the receiving machine has run the checks.
+
+Remaining product limitation: visual agreement is intentionally conservative and
+omits substantial action, particularly Bunny. Comprehensive AD coverage and WCAG
+compliance have not been established. Scott requested no further work from this
+session; the receiving coder should take over from this state.
+
+---
 # Audio-description film corrections — October 31, 2026
 
 Completed locally on `feat/local-audio-description` in the independent clone
