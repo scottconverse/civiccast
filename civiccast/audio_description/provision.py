@@ -50,6 +50,31 @@ def provision(destination: Path) -> None:
         with target.open("rb") as stream:
             if hashlib.file_digest(stream, "sha256").hexdigest() != expected:
                 raise ValueError(f"Existing narrator asset failed verification: {name}")
+    from civiccast.audio_description.sound import MODEL_SHA256, MODEL_URL
+
+    sound = destination / "yamnet.onnx"
+    if not sound.is_file():
+        partial = sound.with_suffix(".partial")
+        with (
+            urllib.request.urlopen(MODEL_URL, timeout=120) as response,  # noqa: S310 - fixed pinned HTTPS model URL
+            partial.open("wb") as output,
+        ):
+            while data := response.read(4 * 1024 * 1024):
+                output.write(data)
+        with partial.open("rb") as stream:
+            if hashlib.file_digest(stream, "sha256").hexdigest() != MODEL_SHA256:
+                raise ValueError("Speech classifier download failed verification")
+        partial.replace(sound)
+    with sound.open("rb") as stream:
+        if hashlib.file_digest(stream, "sha256").hexdigest() != MODEL_SHA256:
+            raise ValueError("Existing speech classifier hash mismatch")
+    (destination / "YAMNET-NOTICE.txt").write_text(
+        "Google YAMNet (AudioSet), Apache License 2.0.\n"
+        "Source: https://github.com/tensorflow/models/tree/master/research/audioset/yamnet\n"
+        "License: https://www.apache.org/licenses/LICENSE-2.0\n"
+        f"Pinned ONNX conversion: {MODEL_URL}\nSHA-256: {MODEL_SHA256}\n",
+        encoding="utf-8",
+    )
     config = yaml.safe_load(
         (Path(pocket_tts.__file__).parent / "config/english.yaml").read_text(encoding="utf-8")
     )

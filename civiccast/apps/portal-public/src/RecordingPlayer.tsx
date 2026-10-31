@@ -48,6 +48,8 @@ function DescribedRecording({ description, handleRef, startSeconds, posterUrl, i
   const video = useRef<HTMLVideoElement>(null)
   const narration = useRef<HTMLAudioElement>(null)
   const played = useRef(new Set<number>())
+  const cursor = useRef(startSeconds ?? 0)
+  const pending = useRef<PauseDescription[]>([])
   const active = useRef<PauseDescription | null>(null)
   const resume = useRef(false)
   const position = useRef({ time: startSeconds ?? 0, playing: initiallyPlaying })
@@ -63,12 +65,18 @@ function DescribedRecording({ description, handleRef, startSeconds, posterUrl, i
     active.current = null
     resume.current = false
     setSpeaking(false)
+    if (continueVideo && pending.current.length) {
+      const next = pending.current.shift()!
+      void speak(next, shouldResume)
+      return
+    }
+    pending.current = []
     if (shouldResume) void video.current?.play().catch(() => setStatus('Press Play to continue.'))
   }
 
-  async function speak(item: PauseDescription) {
+  async function speak(item: PauseDescription, continueProgram?: boolean) {
     if (!video.current || !narration.current || active.current) return
-    resume.current = !video.current.paused
+    resume.current = continueProgram ?? !video.current.paused
     active.current = item
     played.current.add(item.id)
     video.current.pause()
@@ -81,9 +89,19 @@ function DescribedRecording({ description, handleRef, startSeconds, posterUrl, i
 
   function checkDescriptions() {
     const media = video.current
-    if (!media || media.paused || !pauseEnabled || active.current) return
-    const item = description.pause_descriptions.find((entry) => !played.current.has(entry.id) && entry.time <= media.currentTime && media.currentTime <= entry.until)
-    if (item) void speak(item)
+    if (!media || (media.paused && !media.ended) || !pauseEnabled || active.current) return
+    // timeupdate is sparse: queue all cues crossed since the preceding tick,
+    // rather than hoping one tick lands inside a 40ms window. Seeking resets
+    // the cursor explicitly so a deliberate jump does not narrate old scenes.
+    const now = media.currentTime
+    const due = description.pause_descriptions.filter((entry) => !played.current.has(entry.id) && (
+      (cursor.current < entry.time && entry.time <= now) || (entry.time <= now && now <= entry.until)
+    )).sort((a, b) => a.time - b.time || a.id - b.id)
+    cursor.current = now
+    if (due.length) {
+      pending.current = due.slice(1)
+      void speak(due[0], !media.paused)
+    }
   }
 
   useEffect(() => {
@@ -120,6 +138,7 @@ function DescribedRecording({ description, handleRef, startSeconds, posterUrl, i
     const media = video.current
     if (!media) return
     media.currentTime = Math.max(0, Math.min(position.current.time, media.duration))
+    cursor.current = media.currentTime
     if (media.textTracks[0]) media.textTracks[0].mode = captions ? 'showing' : 'disabled'
     if (position.current.playing) void media.play().catch(() => setStatus('Press Play to continue.'))
   }
@@ -127,21 +146,23 @@ function DescribedRecording({ description, handleRef, startSeconds, posterUrl, i
   return <section aria-label="Recording with audio descriptions" className="grid gap-3 rounded-lg bg-stone-950 p-3 text-white">
     <video ref={video} controls playsInline poster={posterUrl} aria-label="Meeting video player" className="w-full"
       src={described ? description.described_url : description.original_url}
-      onLoadedMetadata={loaded} onTimeUpdate={checkDescriptions}
+      onLoadedMetadata={loaded} onTimeUpdate={checkDescriptions} onEnded={checkDescriptions} onSeeked={checkDescriptions}
       onPlay={() => { if (active.current) video.current?.pause(); else checkDescriptions() }}
       onSeeking={() => {
+        pending.current = []
         finish(false)
+        cursor.current = video.current?.currentTime ?? 0
         for (const item of description.pause_descriptions) if (item.time >= (video.current?.currentTime ?? 0)) played.current.delete(item.id)
       }}
       onError={() => setStatus('The recording could not play. Retry or select the original audio.')}
     ><track kind="captions" src={description.captions_url} srcLang="en" label="English" /></video>
     <fieldset className="grid gap-3 border border-stone-500 p-3"><legend>Listening options</legend>
       <label><input type="checkbox" checked={described} onChange={(event) => switchSource(event.target.checked)} /> Audio descriptions in safe pauses</label>
-      <label><input type="checkbox" checked={pauseEnabled} onChange={(event) => { setPauseEnabled(event.target.checked); if (!event.target.checked) finish(true) }} /> Pause the video to hear descriptions that do not fit between dialogue</label>
+      <label><input type="checkbox" checked={pauseEnabled} onChange={(event) => { cursor.current = video.current?.currentTime ?? 0; pending.current = []; setPauseEnabled(event.target.checked); if (!event.target.checked) finish(true) }} /> Pause the video to hear descriptions that do not fit between dialogue</label>
       <label><input type="checkbox" checked={captions} onChange={(event) => setCaptions(event.target.checked)} /> Show English captions</label>
     </fieldset>
     <p role="status" aria-live="polite">{status}</p>
-    {speaking && <button type="button" className="min-h-11 rounded border p-2" onClick={() => { finish(true); setStatus('Description skipped.') }}>Skip description and resume video</button>}
+    {speaking && <button type="button" className="min-h-11 rounded border p-2" onClick={() => { setStatus('Description skipped.'); finish(true) }}>Skip description and resume video</button>}
     <p>{description.coverage.in_gap} descriptions fit safe pauses; {description.coverage.requires_pause} require pausing; {description.coverage.uncertain_visuals} visual observations contain uncertainty.</p>
     <p>Pause descriptions play here only; the downloadable described video contains in-gap descriptions.</p>
     <a className="underline" href={description.described_url} download>Download described video</a>
@@ -153,6 +174,6 @@ function DescribedRecording({ description, handleRef, startSeconds, posterUrl, i
       <ul>{description.limitations.map((item) => <li key={item}>{item}</li>)}</ul>
       <p className="text-sm">{description.credits.join(' ')}</p>
     </details>
-    <audio ref={narration} preload="none" onEnded={() => { finish(true); setStatus('Description complete.') }} onError={() => { finish(false); setStatus('Description audio failed. The video remains paused.') }} />
+    <audio ref={narration} preload="none" onEnded={() => { setStatus('Description complete.'); finish(true) }} onError={() => { finish(false); setStatus('Description audio failed. The video remains paused.') }} />
   </section>
 }

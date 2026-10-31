@@ -13,6 +13,58 @@ const description = {
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
 
 describe('Recording audio descriptions', () => {
+  it.each([false, true])('queues every crossed cue (video ended=%s)', async (ended) => {
+    const payload = { ...description, pause_descriptions: [
+      { id: 1, time: 2, until: 2.04, text: 'First short cue.', audio: '/one.wav' },
+      { id: 2, time: 2.05, until: 2.09, text: 'Second short cue.', audio: '/two.wav' },
+    ] }
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(payload))))
+    vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {})
+    vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue()
+    const { container } = render(<RecordingPlayer assetId="meeting-123" manifestUrl="/playlist.m3u8" />)
+    fireEvent.click(await screen.findByLabelText('Use audio-described playback'))
+    const video = screen.getByLabelText('Meeting video player') as HTMLVideoElement
+    Object.defineProperty(video, 'duration', { value: 2.4, configurable: true })
+    Object.defineProperty(video, 'paused', { value: ended, configurable: true })
+    Object.defineProperty(video, 'ended', { value: ended, configurable: true })
+    fireEvent.loadedMetadata(video)
+    fireEvent.click(screen.getByLabelText('Pause the video to hear descriptions that do not fit between dialogue'))
+    video.currentTime = 2.4
+    if (ended) fireEvent.ended(video)
+    else fireEvent.timeUpdate(video)
+    await screen.findByText('Description: First short cue.')
+    const audio = container.querySelector('audio')!
+    expect(audio.getAttribute('src')).toBe('/one.wav')
+    fireEvent.ended(audio)
+    await screen.findByText('Description: Second short cue.')
+    expect(audio.getAttribute('src')).toBe('/two.wav')
+    fireEvent.ended(audio)
+    fireEvent.timeUpdate(video)
+    expect(screen.queryByRole('button', { name: 'Skip description and resume video' })).toBeNull()
+  })
+
+  it('does not replay cues jumped over by a seek, but permits replay after seeking back', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(description))))
+    vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {})
+    vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue()
+    render(<RecordingPlayer assetId="meeting-123" manifestUrl="/playlist.m3u8" />)
+    fireEvent.click(await screen.findByLabelText('Use audio-described playback'))
+    const video = screen.getByLabelText('Meeting video player') as HTMLVideoElement
+    Object.defineProperty(video, 'duration', { value: 30, configurable: true })
+    Object.defineProperty(video, 'paused', { value: false, configurable: true })
+    fireEvent.loadedMetadata(video)
+    fireEvent.click(screen.getByLabelText('Pause the video to hear descriptions that do not fit between dialogue'))
+    video.currentTime = 12
+    fireEvent.seeking(video)
+    fireEvent.timeUpdate(video)
+    expect(screen.queryByRole('button', { name: 'Skip description and resume video' })).toBeNull()
+    video.currentTime = 1
+    fireEvent.seeking(video)
+    video.currentTime = 2.3
+    fireEvent.timeUpdate(video)
+    await screen.findByText('Description: The map shows a park.')
+  })
+
   it('preserves existing HLS when there is no described derivative', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{}', { status: 404 })))
     render(<RecordingPlayer assetId="meeting-123" manifestUrl="/playlist.m3u8" />)

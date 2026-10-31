@@ -88,7 +88,8 @@ dependencies = [
 [project.optional-dependencies]
 audio-description = [
   "pocket-tts==4.0.1",
-  "webrtcvad-wheels==2.0.14",
+  "onnxruntime>=1.22,<2",
+  "Pillow==13.0.0",
   "webvtt-py==0.5.1",
 ]
 

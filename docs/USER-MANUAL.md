@@ -10489,7 +10489,9 @@ Covered in Part II, [Chapter 10](#ch-installing) (Installing, first run, upgradi
 
 **Feature branch availability:** this feature is on `feat/local-audio-description`;
 it is not in the current RC2 installer. IT must install the audio-description
-dependencies, provision the local narrator and make the local vision model available.
+dependencies, provision the local narrator and Google YAMNet sound classifier,
+and make the local vision model available. Existing narrator-only setups must run
+provisioning again to add the pinned classifier; processing never downloads it.
 
 Open **Review Records → Assets → the recording → Audio description**. The recording
 must already be packaged with its English caption track. A records clerk, meeting
@@ -10498,6 +10500,19 @@ description**. CivicCast identifies visual information missing from the dialogue
 narrates it locally, and keeps a separate described edition. There is no new
 description-approval queue. Existing caption and recording publication permissions
 still apply.
+
+The worker checks each current frame once without prior descriptions and again
+with recent text for continuity. It keeps only content supported by both readings,
+omits conflicting labels and unreadable printed claims, and merges repeated
+observations. Disagreements are counted as uncertain, so a difficult visual may
+remain undescribed rather than receive a guessed label. Agreement between two
+calls to the same model is still not proof of factual accuracy. Uncertain material
+or species comparisons use a broader label, with the omitted comparison counted
+as uncertain. Shortening retains headline attribution; if the wording cannot fit
+safely, the player offers the complete description while paused. Caption times and locally detected speech/vocal sounds are
+protected. Background music alone does not block description: music is lowered by
+12 dB during inserted narration. These automated safeguards reduce errors, but do
+not guarantee that every visual interpretation or detected speech boundary is right.
 
 Only one recording is described at a time. You may leave the page while it runs.
 Background inference waits at safe boundaries while channels are on air. Use
@@ -10513,7 +10528,9 @@ certify legal compliance. Originals are not overwritten.
 
 Published recordings expose **Use audio-described playback** in the resident player
 and asset embed. That player provides in-gap narration, optional pause-to-describe,
-English captions, manual listening and skip/resume. Playback position is retained
+English captions, manual listening and skip/resume. Brief cue windows crossed
+between player updates are queued; deliberately seeking skips older descriptions
+instead of playing a backlog. Playback position is retained
 when switching editions. The original HLS player remains available with its existing
 caption options. Downloaded described MP4s contain only descriptions that fit safe
 pauses; pause-to-describe requires the browser player. Automatic descriptions can
@@ -10529,8 +10546,9 @@ IT setup, model/voice notices and API routes are documented in
 flowchart LR
   A[Asset + packaged English captions] --> B[Staff role and source checks]
   B --> C[One durable background job]
-  C --> D[Local Gemma visual extraction and dialogue comparison]
-  D --> E[Speech protection + fixed-voice Pocket TTS]
+  C --> D[Local Gemma unanchored and context-aware frame readings]
+  D --> J[Consolidate repeated facts and compare caption dialogue]
+  J --> E[Google YAMNet and captions protect speech; Pocket TTS narrates]
   E --> F[Measured fit or explicit pause description]
   F --> G[Separate source-bound MP4, VTT and manifest]
   G --> H[Private operator preview]
@@ -10540,6 +10558,8 @@ flowchart LR
 The API owns the durable job pointer and a single worker process. Checkpoints bind
 to source/captions, runtime/model digest, narrator files and implementation. A
 single-process storage lock prevents two API owners from sharing this job directory.
+The vision model stays warm between requests under a bounded five-minute lease,
+then is explicitly released when the job ends. ONNX Runtime telemetry is disabled.
 Worker sockets and FFmpeg inputs are confined to local processing; model provisioning
 is a separate explicit step. Live state defers work at safe boundaries and cancellation
 is cooperative. Existing recording publication and viewer access gates cover every

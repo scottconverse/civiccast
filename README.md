@@ -222,5 +222,8 @@ The isolated `feat/local-audio-description` branch adds local, automatic descrip
 of visual information missing from a recording's dialogue. Operators generate and
 resume from the asset page; residents choose original or described playback, with
 optional pause-to-describe. Originals, caption/summary models and publication
-permissions are preserved. See [setup, API, playback and limits](docs/ops/audio-description.md).
+permissions are preserved. Separate current-frame readings must agree on retained content; conflicting labels
+are omitted and recorded as uncertainty. Duplicate consolidation reduces repetition; local sound classification distinguishes
+dialogue from music, with short pause cues queued reliably by the player. See
+[setup, API, playback and limits](docs/ops/audio-description.md).
 This source feature is not part of the current RC2 installer or release.

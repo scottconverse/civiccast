@@ -88,10 +88,17 @@ class DescriptionService:
             if shutil.which(tool) is None:
                 raise ValueError(f"{tool} is missing. Repair the station media tools.")
         if any(
-            importlib.util.find_spec(name) is None for name in ("pocket_tts", "webvtt", "webrtcvad")
+            importlib.util.find_spec(name) is None
+            for name in ("pocket_tts", "webvtt", "onnxruntime", "PIL")
         ):
             raise ValueError(
                 "Audio-description dependencies are missing. Install civiccast[audio-description]."
+            )
+        # Validate without importing a model runtime or loading weights in the API.
+        sound_root = Path(os.environ.get("CIVICCAST_AD_SOUND_DIR", str(self.voice)))
+        if not (sound_root / "yamnet.onnx").is_file():
+            raise ValueError(
+                "Local speech classifier missing. Provision audio-description assets first."
             )
         for name in ("local.yaml", "model.safetensors", "tokenizer.json", "alba.safetensors"):
             if not (self.voice / name).is_file():

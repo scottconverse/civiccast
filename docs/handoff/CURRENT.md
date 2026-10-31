@@ -1,3 +1,45 @@
+# Audio-description film corrections — October 31, 2026
+
+Completed locally on `feat/local-audio-description` in the independent clone
+`C:\Users\scott\Desktop\Code\civiccast-audio-description`. No RC checkout, live
+station data, provider/default model, release version, installer or remote refs changed.
+
+Fixed the five observed film issues: guarded current-frame visual reads and
+uncertainty; conservative repetition consolidation; pinned offline YAMNet speech
+protection with music ducking; queued pause cues that cannot be missed between
+sparse browser updates; bounded Gemma lease and explicit unload on job exit.
+Shortening preserves headline attribution and broadens speculative object labels.
+
+Verified on the same three 120-second excerpts: Tears 2 in-gap/6 pause descriptions;
+Sintel 1/4; Bunny 2/0. All six MP4s decode, output hashes match, original source and
+excerpt hashes unchanged; no exact repeated narration or computed protected-span
+overlaps. Inspected accepted text against exact sampled frames. Actual fixed-player
+playback delivered all 43 original Tears pause cues, including former short misses.
+
+33 backend regression/feature tests, five player tests, strict mypy (15 modules),
+Ruff, affected frontend lint, TypeScript/Vite build, offline lock check and manual
+freshness pass locally. No new GitHub CI or installed station acceptance claimed.
+Fresh uncached runs took 270.899s/351.420s/240.958s. Final source-bound regeneration
+reused validated model responses only, never checkpoints; changed-context requests
+were recomputed. It is not a second fresh benchmark.
+
+Important: conservative output omits substantial visual action, especially Bunny
+(only two descriptions). These reproduced errors are guarded; comprehensive visual
+coverage and WCAG compliance are not established. No new validation project begun.
+
+Details: `docs/ops/evidence/audio-description-film-fixes.md`. Original integration
+and earlier acceptance evidence below remain historical. Existing state and exact
+candidate/process ownership:
+`C:\Users\scott\Documents\Codex\2026-09-21\re\outputs\civiccast-blender-20261031\STATE.json`.
+Evidence: adjacent `fix-verification\REPORT.md` and JSON/logs/review artifacts.
+Final disposable preview remains on 8795; original film preview 8794 and budget
+preview 8793 are untouched. Isolated inference jobs terminal and model unloaded;
+model server 11439 is stopped after verification. No background inference remains.
+
+Next boundary: finished local branch for review. No push, PR, merge, release,
+production activation, additional integration or RC PDF/DOCX regeneration authorized.
+
+---
 # Audio-description integration — October 31, 2026
 
 Local implementation is complete on `feat/local-audio-description`, in an independent
