@@ -35,8 +35,8 @@ function tier(overrides: Partial<ModelTier> = {}): ModelTier {
 }
 
 describe('ai-models-format', () => {
-  it('orders features captions, summary, translation', () => {
-    expect(FEATURE_ORDER).toEqual(['captions', 'summary', 'translation'])
+  it('orders the supported feature entries', () => {
+    expect(FEATURE_ORDER).toEqual(['captions', 'summary', 'translation', 'audio_description'])
   })
 
   it('labels features in plain English', () => {

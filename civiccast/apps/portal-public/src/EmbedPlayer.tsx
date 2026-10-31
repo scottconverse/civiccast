@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { HlsPlayer } from './HlsPlayer'
+import { RecordingPlayer } from './RecordingPlayer'
 import { fetchJson } from './api'
 
 interface Playback { title: string; manifest_url: string | null; poster_url?: string | null }
@@ -22,7 +23,7 @@ export function EmbedPlayer({ kind, identity }: { kind: 'asset' | 'channel'; ide
     return () => { alive = false; window.clearInterval(timer) }
   }, [kind, identity])
   return <main aria-label="Embedded station player" className="min-h-screen bg-stone-950 p-2 text-white">
-    {playback?.manifest_url ? <HlsPlayer key={`${identity}:${playback.manifest_url}`} manifestUrl={playback.manifest_url} posterUrl={playback.poster_url ?? undefined} /> : <p role="status">{error ?? (playback ? 'This channel is standing by. Playback will appear when web output is available.' : 'Loading playback…')}</p>}
+    {playback?.manifest_url ? kind === 'asset' ? <RecordingPlayer key={identity} assetId={identity} manifestUrl={playback.manifest_url} posterUrl={playback.poster_url ?? undefined} /> : <HlsPlayer key={`${identity}:${playback.manifest_url}`} manifestUrl={playback.manifest_url} posterUrl={playback.poster_url ?? undefined} /> : <p role="status">{error ?? (playback ? 'This channel is standing by. Playback will appear when web output is available.' : 'Loading playback…')}</p>}
     <a className="text-sm underline" href={kind === 'asset' ? `/#/watch/${encodeURIComponent(identity)}` : '/'} target="_blank" rel="noreferrer">Open {playback?.title ?? 'the station portal'}</a>
   </main>
 }

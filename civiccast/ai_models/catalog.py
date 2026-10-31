@@ -40,7 +40,12 @@ from civiccast.ai_models.models import (
 )
 
 # Every feature the catalog covers (the operator-controllable AI surfaces).
-CATALOG_FEATURES: tuple[AiFeature, ...] = ("captions", "summary", "translation")
+CATALOG_FEATURES: tuple[AiFeature, ...] = (
+    "captions",
+    "summary",
+    "translation",
+    "audio_description",
+)
 
 _GEMMA4_LICENSE = "https://ai.google.dev/gemma/terms"
 _WHISPER_LICENSE = "https://github.com/openai/whisper/blob/main/LICENSE"
@@ -67,6 +72,16 @@ _GEMMA4_31B_CLOUD = ModelTier(
 # Per-feature tier lists. ``key`` is the stable registry slug the operator/API
 # references; ``model_id`` is the runtime tag the adapter loads (§3.1.1).
 _CATALOG: dict[AiFeature, list[ModelTier]] = {
+    "audio_description": [
+        ModelTier(
+            key="gemma4-12b-ollama",
+            provider="ollama",
+            model_id="gemma4:12b",
+            min_ram_gb=16,
+            license_url=_GEMMA4_LICENSE,
+            notes="Local vision for recording audio descriptions. GPU recommended. No cloud fallback; caption and summary selections remain independent.",
+        ),
+    ],
     "summary": [
         ModelTier(
             key="gemma4-12b-ollama",
@@ -213,6 +228,7 @@ _DEFAULT_KEY: dict[AiFeature, str] = {
     "captions": "whisper-medium-faster",
     "summary": "gemma4-12b-ollama",  # placeholder; overridden by detect_summary_model_default
     "translation": "translategemma-4b-ollama",
+    "audio_description": "gemma4-12b-ollama",
 }
 
 

@@ -21734,7 +21734,7 @@
             }
           },
           "404": {
-            "description": "Unknown AI feature (no such captions/summary/translation registry)."
+            "description": "Unknown AI feature (no such captions/summary/translation/audio_description registry)."
           },
           "503": {
             "description": "Durable storage is not ready yet."
@@ -21820,7 +21820,7 @@
             "description": "Unknown model key for this feature, or cloud consent not accepted."
           },
           "404": {
-            "description": "Unknown AI feature (no such captions/summary/translation registry)."
+            "description": "Unknown AI feature (no such captions/summary/translation/audio_description registry)."
           },
           "503": {
             "description": "Durable storage is not ready yet."
@@ -21905,7 +21905,7 @@
             "description": "Unknown model key for this feature, or cloud consent not accepted."
           },
           "404": {
-            "description": "Unknown AI feature (no such captions/summary/translation registry)."
+            "description": "Unknown AI feature (no such captions/summary/translation/audio_description registry)."
           },
           "409": {
             "description": "First-run adaptive default is not seeded yet; finish commissioning first."
@@ -21946,6 +21946,353 @@
             "CivicCastStaffBearer": []
           }
         ]
+      }
+    },
+    "/api/staff/assets/{asset_id}/audio-description": {
+      "get": {
+        "tags": [
+          "audio-description"
+        ],
+        "summary": "Status",
+        "operationId": "status_api_staff_assets__asset_id__audio_description_get",
+        "parameters": [
+          {
+            "name": "asset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Asset Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AudioDescriptionJob"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, revoked, or misconfigured CivicCast staff bearer token."
+          },
+          "429": {
+            "description": "The observed peer exceeded the failed staff authentication budget. Wait for Retry-After before another invalid attempt; valid staff tokens remain accepted.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the failure window reopens.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "CivicCastStaffBearer": []
+          }
+        ]
+      }
+    },
+    "/api/staff/assets/{asset_id}/audio-description/resume": {
+      "post": {
+        "tags": [
+          "audio-description"
+        ],
+        "summary": "Generate",
+        "operationId": "generate_api_staff_assets__asset_id__audio_description_resume_post",
+        "parameters": [
+          {
+            "name": "asset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Asset Id"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AudioDescriptionJob"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, revoked, or misconfigured CivicCast staff bearer token."
+          },
+          "429": {
+            "description": "The observed peer exceeded the failed staff authentication budget. Wait for Retry-After before another invalid attempt; valid staff tokens remain accepted.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the failure window reopens.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "CivicCastStaffBearer": []
+          }
+        ]
+      }
+    },
+    "/api/staff/assets/{asset_id}/audio-description/generate": {
+      "post": {
+        "tags": [
+          "audio-description"
+        ],
+        "summary": "Generate",
+        "operationId": "generate_api_staff_assets__asset_id__audio_description_generate_post",
+        "parameters": [
+          {
+            "name": "asset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Asset Id"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AudioDescriptionJob"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, revoked, or misconfigured CivicCast staff bearer token."
+          },
+          "429": {
+            "description": "The observed peer exceeded the failed staff authentication budget. Wait for Retry-After before another invalid attempt; valid staff tokens remain accepted.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the failure window reopens.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "CivicCastStaffBearer": []
+          }
+        ]
+      }
+    },
+    "/api/staff/assets/{asset_id}/audio-description/cancel": {
+      "post": {
+        "tags": [
+          "audio-description"
+        ],
+        "summary": "Cancel",
+        "operationId": "cancel_api_staff_assets__asset_id__audio_description_cancel_post",
+        "parameters": [
+          {
+            "name": "asset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Asset Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AudioDescriptionJob"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, revoked, or misconfigured CivicCast staff bearer token."
+          },
+          "429": {
+            "description": "The observed peer exceeded the failed staff authentication budget. Wait for Retry-After before another invalid attempt; valid staff tokens remain accepted.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the failure window reopens.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "CivicCastStaffBearer": []
+          }
+        ]
+      }
+    },
+    "/api/staff/assets/{asset_id}/audio-description/preview-session": {
+      "post": {
+        "tags": [
+          "audio-description"
+        ],
+        "summary": "Preview Session",
+        "operationId": "preview_session_api_staff_assets__asset_id__audio_description_preview_session_post",
+        "parameters": [
+          {
+            "name": "asset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Asset Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DescriptionPreviewSession"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, revoked, or misconfigured CivicCast staff bearer token."
+          },
+          "429": {
+            "description": "The observed peer exceeded the failed staff authentication budget. Wait for Retry-After before another invalid attempt; valid staff tokens remain accepted.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the failure window reopens.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "CivicCastStaffBearer": []
+          }
+        ]
+      }
+    },
+    "/api/public/assets/{asset_id}/audio-description": {
+      "get": {
+        "tags": [
+          "public"
+        ],
+        "summary": "Public Manifest",
+        "operationId": "public_manifest_api_public_assets__asset_id__audio_description_get",
+        "parameters": [
+          {
+            "name": "asset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Asset Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DescriptionPlayback"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/staff/custom-fields": {
@@ -37912,6 +38259,87 @@
         "title": "AudienceReport",
         "description": "Top-level audience report \u2014 the franchise-deliverable shape.\n\nA franchise authority typically wants: \"in the period from X to Y, how\nmany people watched, on which channels, of which assets, from which\ngeographies, on which devices.\" That's exactly what this surface answers,\nin a single document the operator can hand off."
       },
+      "AudioDescriptionJob": {
+        "properties": {
+          "asset_id": {
+            "type": "string",
+            "title": "Asset Id"
+          },
+          "job_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Id"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "not_generated",
+              "queued",
+              "running",
+              "complete",
+              "interrupted",
+              "failed",
+              "cancelled"
+            ],
+            "title": "State"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "coverage": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DescriptionCoverage"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "asset_id",
+          "state"
+        ],
+        "title": "AudioDescriptionJob"
+      },
       "AudioProgramTrack": {
         "properties": {
           "track_id": {
@@ -45656,6 +46084,98 @@
         "title": "DeliveryRetryRecord",
         "description": "A failed delivery queued for retry (Stage F retry worker)."
       },
+      "DescriptionCoverage": {
+        "properties": {
+          "in_gap": {
+            "type": "integer",
+            "title": "In Gap"
+          },
+          "requires_pause": {
+            "type": "integer",
+            "title": "Requires Pause"
+          },
+          "uncertain_visuals": {
+            "type": "integer",
+            "title": "Uncertain Visuals"
+          }
+        },
+        "type": "object",
+        "required": [
+          "in_gap",
+          "requires_pause",
+          "uncertain_visuals"
+        ],
+        "title": "DescriptionCoverage"
+      },
+      "DescriptionPlayback": {
+        "properties": {
+          "coverage": {
+            "$ref": "#/components/schemas/DescriptionCoverage"
+          },
+          "limitations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Limitations"
+          },
+          "credits": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Credits"
+          },
+          "original_url": {
+            "type": "string",
+            "title": "Original Url"
+          },
+          "described_url": {
+            "type": "string",
+            "title": "Described Url"
+          },
+          "captions_url": {
+            "type": "string",
+            "title": "Captions Url"
+          },
+          "descriptions_url": {
+            "type": "string",
+            "title": "Descriptions Url"
+          },
+          "pause_descriptions": {
+            "items": {
+              "$ref": "#/components/schemas/PauseDescription"
+            },
+            "type": "array",
+            "title": "Pause Descriptions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "coverage",
+          "limitations",
+          "credits",
+          "original_url",
+          "described_url",
+          "captions_url",
+          "descriptions_url",
+          "pause_descriptions"
+        ],
+        "title": "DescriptionPlayback"
+      },
+      "DescriptionPreviewSession": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "title": "DescriptionPreviewSession"
+      },
       "DevicePortProbe": {
         "properties": {
           "port": {
@@ -48368,7 +48888,8 @@
             "enum": [
               "captions",
               "summary",
-              "translation"
+              "translation",
+              "audio_description"
             ],
             "title": "Feature"
           },
@@ -48484,7 +49005,8 @@
             "enum": [
               "captions",
               "summary",
-              "translation"
+              "translation",
+              "audio_description"
             ],
             "title": "Feature"
           },
@@ -53975,6 +54497,39 @@
         ],
         "title": "OverlayLayer",
         "description": "One composited visual layer."
+      },
+      "PauseDescription": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "time": {
+            "type": "number",
+            "title": "Time"
+          },
+          "until": {
+            "type": "number",
+            "title": "Until"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "audio": {
+            "type": "string",
+            "title": "Audio"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "time",
+          "until",
+          "text",
+          "audio"
+        ],
+        "title": "PauseDescription"
       },
       "PaywallConfigInput": {
         "properties": {

@@ -14,14 +14,15 @@ import type { FeatureModelAvailability, ModelTier } from '../types/api.generated
 
 export type Tone = 'neutral' | 'ok' | 'warn' | 'info'
 
-// Fixed render order for the three operator-controllable AI features.
-export const FEATURE_ORDER = ['captions', 'summary', 'translation'] as const
+// Fixed render order for the operator-controllable AI features.
+export const FEATURE_ORDER = ['captions', 'summary', 'translation', 'audio_description'] as const
 export type AiFeature = (typeof FEATURE_ORDER)[number]
 
 const FEATURE_LABELS: Record<string, string> = {
   captions: 'Captions',
   summary: 'Summary',
   translation: 'Translation',
+  audio_description: 'Audio description',
 }
 
 /** Human label for a feature; never throws on an unexpected value. */

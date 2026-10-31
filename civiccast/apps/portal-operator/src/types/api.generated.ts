@@ -578,6 +578,16 @@ export interface AudienceReport {
   privacy_boundary: string
 }
 
+export interface AudioDescriptionJob {
+  asset_id: string
+  job_id?: string | null
+  state: 'not_generated' | 'queued' | 'running' | 'complete' | 'interrupted' | 'failed' | 'cancelled'
+  message?: string | null
+  coverage?: DescriptionCoverage | null
+  created_at?: string | null
+  updated_at?: string | null
+}
+
 export interface AudioProgramTrack {
   track_id: string
   scope: 'asset' | 'channel'
@@ -1781,6 +1791,27 @@ export interface DeliveryRetryRecord {
   updated_at: string
 }
 
+export interface DescriptionCoverage {
+  in_gap: number
+  requires_pause: number
+  uncertain_visuals: number
+}
+
+export interface DescriptionPlayback {
+  coverage: DescriptionCoverage
+  limitations: Array<string>
+  credits: Array<string>
+  original_url: string
+  described_url: string
+  captions_url: string
+  descriptions_url: string
+  pause_descriptions: Array<PauseDescription>
+}
+
+export interface DescriptionPreviewSession {
+  url: string
+}
+
 export interface DevicePortProbe {
   port: number
   reachable: boolean
@@ -2197,7 +2228,7 @@ export interface ExternalMeetingSummary {
 }
 
 export interface FeatureModelAvailability {
-  feature: 'captions' | 'summary' | 'translation'
+  feature: 'captions' | 'summary' | 'translation' | 'audio_description'
   effective_model_key: string
   band: 'local' | 'cloud' | 'frontier'
   requires_network: boolean
@@ -2211,7 +2242,7 @@ export interface FeatureModelAvailability {
 }
 
 export interface FeatureModelRegistry {
-  feature: 'captions' | 'summary' | 'translation'
+  feature: 'captions' | 'summary' | 'translation' | 'audio_description'
   default_key: string
   adaptive_default?: boolean
   available_tiers?: Array<ModelTier>
@@ -3096,6 +3127,14 @@ export interface OverlayLayer {
   content_ref?: string | null
   opacity?: number
   enabled?: boolean
+}
+
+export interface PauseDescription {
+  id: number
+  time: number
+  until: number
+  text: string
+  audio: string
 }
 
 export interface PaywallConfigInput {

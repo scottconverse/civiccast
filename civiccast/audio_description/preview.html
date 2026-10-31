@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CivicCast recording audio-description preview</title>
+<style>
+:root{color-scheme:dark;font:18px/1.55 system-ui;background:#101820;color:#f5f7fa}
+body{max-width:1200px;margin:auto;padding:1.5rem}h1{font-size:1.8rem}video{width:100%;max-height:65vh;background:#000}
+fieldset{border:1px solid #8292a4;margin:1rem 0}label{display:block;padding:.3rem}button{font:inherit;padding:.6rem 1rem;background:#d4eaff;color:#102030;border:2px solid #8fc7f5;border-radius:.25rem;cursor:pointer}
+button:focus-visible,input:focus-visible,video:focus-visible{outline:4px solid #ffce56;outline-offset:4px}
+.note{color:#d4dce6}.card{padding:1rem;border:1px solid #788899;margin:.8rem 0}a{color:#9ed5ff}
+#status{min-height:1.5em} summary{cursor:pointer} .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+</style>
+<h1>Civic audio description</h1>
+<p class="note">Recording preview. Your original video is preserved. Automatic descriptions can be incomplete; this is not a compliance certification.</p>
+<video id="video" controls preload="metadata"><track id="captions" kind="captions" src="captions.vtt" srclang="en" label="English captions"></video>
+<fieldset><legend>Listening options</legend>
+<label><input id="ad" type="checkbox"> Audio descriptions in safe pauses</label>
+<label><input id="pause" type="checkbox"> Pause the video to hear descriptions that do not fit between dialogue</label>
+<label><input id="cc" type="checkbox"> Show captions</label>
+</fieldset>
+<p id="status" role="status" aria-live="polite">Loading local output…</p>
+<button id="skip" hidden>Skip this description and resume video</button>
+<h2>Description coverage</h2><p id="coverage"></p>
+<p><a href="described.mp4" download>Save video with in-gap descriptions</a> · <a href="descriptions.vtt" download>Save description captions</a></p>
+<p class="note">Descriptions requiring a pause are played by this page only. They are not included in the downloaded in-gap video.</p>
+<details open><summary>Description script and limitations</summary><div id="script"></div><ul id="limitations"></ul><p id="credits" class="note"></p></details>
+<audio id="narration" preload="none"></audio>
+<script>
+const video=document.querySelector('#video'), narration=document.querySelector('#narration');
+const ad=document.querySelector('#ad'), pause=document.querySelector('#pause'), cc=document.querySelector('#cc');
+const status=document.querySelector('#status'), skip=document.querySelector('#skip');
+let manifest, played=new Set(), describing=false, switching=false, resumeAfter=false, currentDescription=null, lastTime=0, switchEpoch=0;
+function say(text){status.textContent=text}
+function cancelDescription(resume){
+  const shouldResume=resumeAfter; narration.pause(); narration.removeAttribute('src'); narration.load();
+  describing=false;resumeAfter=false;currentDescription=null;skip.hidden=true;
+  if(resume && shouldResume)video.play().catch(()=>say('Press Play to resume the video.'));
+}
+async function playDescription(item,manual=false){
+  if(describing||switching)return;
+  played.add(item.id); describing=true;currentDescription=item;resumeAfter=!video.paused;
+  video.pause();narration.src=item.audio;skip.hidden=false;say('Description: '+item.text);
+  try{await narration.play()}catch(e){cancelDescription(false);say('Narration could not play. Use its Listen button to retry.')}
+}
+function applyCaptions(){if(video.textTracks.length)video.textTracks[0].mode=cc.checked?'showing':'disabled'}
+ad.addEventListener('change',async()=>{
+  const epoch=++switchEpoch,time=video.currentTime,wasPlaying=!video.paused||resumeAfter;
+  switching=true;cancelDescription(false);video.pause();video.src=ad.checked?'described.mp4':'original.mp4';
+  try{
+    await new Promise((resolve,reject)=>{video.addEventListener('loadedmetadata',resolve,{once:true});video.addEventListener('error',reject,{once:true})});
+    if(epoch!==switchEpoch)return;
+    video.currentTime=Math.min(time,video.duration);applyCaptions();say(ad.checked?'In-gap audio descriptions enabled.':'Original audio selected.');
+    switching=false;if(wasPlaying)await video.play();
+  }catch(e){switching=false;say('The selected video could not play.')}
+});
+pause.addEventListener('change',()=>{if(!pause.checked)cancelDescription(true);say(pause.checked?'Pause-to-describe enabled.':'Pause-to-describe disabled.')});
+cc.addEventListener('change',applyCaptions);
+skip.addEventListener('click',()=>{cancelDescription(true);say('Description skipped.');video.focus()});
+narration.addEventListener('ended',()=>{cancelDescription(true);say('Description complete.')});
+narration.addEventListener('error',()=>{if(describing){cancelDescription(false);say('Narration failed. The video remains paused.')}});
+video.addEventListener('seeking',()=>{
+  if(!switching){cancelDescription(false);for(const item of manifest?.pause_descriptions||[])if(item.time>=video.currentTime)played.delete(item.id)}
+});
+video.addEventListener('play',()=>{
+  if(describing){video.pause();return;}
+  checkDescriptions();
+});
+function checkDescriptions(){
+  if(!manifest||!pause.checked||video.paused||switching||describing)return;
+  const time=video.currentTime;
+  const item=manifest.pause_descriptions.find(x=>!played.has(x.id)&&x.time<=time+.15&&time<=x.until);
+  if(item)playDescription(item);
+}
+video.addEventListener('timeupdate',()=>{checkDescriptions();lastTime=video.currentTime});
+fetch('manifest.json').then(r=>{if(!r.ok)throw Error('manifest');return r.json()}).then(data=>{
+  manifest=data;video.src='original.mp4';
+  document.querySelector('#coverage').textContent=data.coverage.in_gap+' descriptions fit safe pauses; '+data.coverage.requires_pause+' require pausing; '+data.coverage.uncertain_visuals+' visual events contain uncertainty.';
+  const target=document.querySelector('#script');
+  for(const item of [...data.placed,...data.pause_descriptions].sort((a,b)=>(a.start??a.time)-(b.start??b.time))){
+    const div=document.createElement('div');div.className='card';
+    const text=document.createElement('p');text.textContent=(item.start===undefined?'Pause at ':'In gap at ')+(item.start??item.time).toFixed(1)+' seconds: '+item.text;
+    const button=document.createElement('button');button.textContent='Listen to this description';button.addEventListener('click',()=>playDescription(item,true));div.append(text,button);target.append(div);
+  }
+  for(const message of data.limitations){const li=document.createElement('li');li.textContent=message;document.querySelector('#limitations').append(li)}
+  document.querySelector('#credits').textContent=(data.credits||[]).join(' ');
+  say('Ready. Choose listening options, then press Play.');
+}).catch(()=>say('Could not load the local output. Keep this page with its manifest and media.'));
+</script></html>

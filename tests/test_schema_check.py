@@ -119,14 +119,14 @@ def test_expected_head_matches_the_single_migration_head() -> None:
     # 0090 indexes consumed egress commands for bounded history pruning.
     # Beta 19 advances through 0092 notification delivery outcomes, 0093 board
     # audio gain and 0094 board live-video zones, retaining one exact head.
-    assert expected_migration_head() == "0098_channel_repeat_schedule"
+    assert expected_migration_head() == "0099_audio_description_model"
 
 
 def test_expected_head_does_not_depend_on_current_working_directory(tmp_path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
     expected_migration_head.cache_clear()
     monkeypatch.chdir(tmp_path)
     try:
-        assert expected_migration_head() == "0098_channel_repeat_schedule"
+        assert expected_migration_head() == "0099_audio_description_model"
     finally:
         expected_migration_head.cache_clear()
 
@@ -141,7 +141,7 @@ def test_schema_check_reports_current_from_non_repo_working_directory(
         conn.execute("CREATE TABLE alembic_version (version_num VARCHAR(255) NOT NULL)")
         conn.execute(
             "INSERT INTO alembic_version (version_num) VALUES (?)",
-            ("0098_channel_repeat_schedule",),
+            ("0099_audio_description_model",),
         )
         conn.commit()
 
@@ -154,8 +154,8 @@ def test_schema_check_reports_current_from_non_repo_working_directory(
 
     assert status == SchemaStatus(
         state="current",
-        db_revision="0098_channel_repeat_schedule",
-        expected_head="0098_channel_repeat_schedule",
+        db_revision="0099_audio_description_model",
+        expected_head="0099_audio_description_model",
     )
 
 

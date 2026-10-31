@@ -19,8 +19,8 @@ from civiccast.ai_models.catalog import (
 from civiccast.ai_models.models import ModelTier
 
 
-def test_catalog_covers_the_three_features() -> None:
-    assert set(CATALOG_FEATURES) == {"captions", "summary", "translation"}
+def test_catalog_covers_the_supported_features() -> None:
+    assert set(CATALOG_FEATURES) == {"captions", "summary", "translation", "audio_description"}
 
 
 def test_section_3_1_1_key_to_tag_mapping_is_exact() -> None:

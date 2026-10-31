@@ -1,3 +1,4 @@
+import type { AudioDescriptionJob } from '../types/api.generated'
 import type { AgendaMinutesCreateRequest, AgendaMinutesEditRequest } from '../types/api.generated'
 import type { AssetMetadataUpdate, AssetRow } from '../types/asset'
 import type { NetworkSettings, NetworkSettingsResponse } from '../types/network'
@@ -4200,4 +4201,18 @@ export function createAgendaMinutes(agendaId: string, payload: AgendaMinutesCrea
 
 export function editAgendaMinutes(summaryId: string, payload: AgendaMinutesEditRequest): Promise<SummaryDraft> {
   return request<SummaryDraft>(`/api/staff/summaries/${encodeURIComponent(summaryId)}/minutes`, { method: 'PATCH', body: payload })
+}
+
+
+
+export function getAudioDescription(assetId: string): Promise<AudioDescriptionJob> {
+  return request(`/api/staff/assets/${encodeURIComponent(assetId)}/audio-description`)
+}
+
+export function runAudioDescription(assetId: string, action: 'generate' | 'resume' | 'cancel'): Promise<AudioDescriptionJob> {
+  return request(`/api/staff/assets/${encodeURIComponent(assetId)}/audio-description/${action}`, { method: 'POST' })
+}
+
+export function prepareAudioDescriptionPreview(assetId: string): Promise<{ url: string }> {
+  return request(`/api/staff/assets/${encodeURIComponent(assetId)}/audio-description/preview-session`, { method: 'POST' })
 }

@@ -95,6 +95,9 @@ from civiccast.app_platform.build_router import (
 )
 from civiccast.app_platform.router import public_router as app_platform_public_router
 from civiccast.app_platform.router import staff_router as app_platform_staff_router
+from civiccast.audio_description.router import preview_router as audio_description_preview_router
+from civiccast.audio_description.router import public_router as audio_description_public_router
+from civiccast.audio_description.router import staff_router as audio_description_staff_router
 from civiccast.auth.cors import cors_allowed_origins
 from civiccast.auth.middleware import staff_auth_middleware
 from civiccast.auth.rate_limit import AuthRateLimiter, validate_auth_rate_limit_config
@@ -800,6 +803,9 @@ async def _app_lifespan(app: FastAPI) -> AsyncIterator[None]:
         yield
     finally:
         app.state.lifespan_started = False
+        description_service = getattr(app.state, "audio_description_service", None)
+        if description_service is not None:
+            description_service.close()
         youtube_output = getattr(app.state, "youtube_live_output", None)
         if youtube_output is not None:
             youtube_output.close()
@@ -2731,6 +2737,9 @@ def create_app() -> FastAPI:
     app.include_router(recorded_caption_settings_router)
     app.include_router(summary_staff_router)
     app.include_router(ai_models_staff_router)
+    app.include_router(audio_description_staff_router)
+    app.include_router(audio_description_preview_router)
+    app.include_router(audio_description_public_router)
     app.include_router(metadata_staff_router)
     app.include_router(metadata_public_router)
     app.include_router(reporting_staff_router)

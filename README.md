@@ -215,3 +215,12 @@ result remains Beta 11 evidence and does not qualify later packages.
 
 This project adheres to the [Contributor Covenant 2.1](CODE_OF_CONDUCT.md).
 By participating, you agree to abide by its terms.
+
+### Recording audio descriptions (feature branch)
+
+The isolated `feat/local-audio-description` branch adds local, automatic descriptions
+of visual information missing from a recording's dialogue. Operators generate and
+resume from the asset page; residents choose original or described playback, with
+optional pause-to-describe. Originals, caption/summary models and publication
+permissions are preserved. See [setup, API, playback and limits](docs/ops/audio-description.md).
+This source feature is not part of the current RC2 installer or release.

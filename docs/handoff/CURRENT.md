@@ -1,3 +1,51 @@
+# Audio-description integration — October 31, 2026
+
+Local implementation is complete on `feat/local-audio-description`, in an independent
+clone based on GitHub main `4fa8a4c3f4858b5c6253fd8d0299209b79bfacba`:
+`C:\Users\scott\Desktop\Code\civiccast-audio-description`.
+
+Delivered locally: actual asset job API and operator controls; local Gemma vision
+and fixed-voice Pocket TTS; speech protection and measured narration placement;
+explicit pause descriptions; source-bound checkpoints, resume and cancellation;
+independent local-only model registry and 0099 migration; private preview grants;
+resident/asset-embed playback with original HLS retained; source/publication/viewer
+access checks; README, operational/API docs, manual source and built-in manual.
+No new description-approval queue. No RC version bump, installer, push or release.
+
+Evidence: `C:\Users\scott\Documents\Codex\2026-09-21\re\outputs\civiccast-ad-checks`.
+- Real integrated `ad-budget-demo` job `73761da5b1a049318703e5754cfe97cc`: completed
+  in 87.2 seconds; two pause descriptions, zero safe-gap descriptions in this excerpt.
+- Original source hash unchanged. Actual operator preview and resident playback
+  observed; video paused while local narration played, English captions showing.
+- Backend feature/model run: 210 passed plus one test's missing Path import;
+  corrected migration test rerun passed (1/1). All 211 affected cases now have
+  passing evidence. Separate schema/head run: 29 passed.
+- Public player/caption tests: 13 passed; affected operator tests: 27 passed.
+  Both production frontend builds, public lint, affected operator lint, Ruff,
+  strict feature mypy and in-product manual freshness checks pass.
+- Migration upgrade/downgrade preserves the previous summary selection. Role,
+  viewer-access revocation, publication, source/trim changes, single ownership,
+  checkpoint corruption and cancellable live deferral have regression coverage.
+
+Development runtime: loopback 8793, disposable public clip, isolated roots and
+explicit test identity/access fixtures. This is a development preview, not installed
+station behavior or a production auth acceptance. Original live data/config and
+RC checkout were not used. Model server 11439 was stopped after generation;
+no inference or worker remains. Current preview process ownership and launch
+helper are recorded in `owned-processes.json` and the adjacent
+`audio-description-feasibility-20261030/accept-feature-app.py`.
+
+Next action boundary: local review only. Push/PR/merge/release, production activation,
+installer provisioning and Townlight/Records integration need authorization. The
+existing RC PDF/DOCX release files remain untouched; feature documentation is in
+manual source, built-in manual and the operational guide. No new long soak or blind
+listener validation is claimed. Automatic coverage is not legal certification.
+Existing completed prototype evidence remains available; do not restart that work.
+
+The RC2 release handoff below is preserved historical context for this branch.
+
+---
+
 # CURRENT — ACTIVE: RC2 R7/R9 operator corrections — October 30, 2026
 
 Scott resumed RC2 after the complete read-only R7 results review. One candidate

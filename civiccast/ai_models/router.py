@@ -44,7 +44,9 @@ from civiccast.auth.models import OperatorIdentity
 from civiccast.auth.roles import require_any_role
 
 _DB_NOT_READY = "Durable storage is not ready yet."
-_UNKNOWN_FEATURE = "Unknown AI feature (no such captions/summary/translation registry)."
+_UNKNOWN_FEATURE = (
+    "Unknown AI feature (no such captions/summary/translation/audio_description registry)."
+)
 _UNKNOWN_MODEL = "Unknown model key for this feature, or cloud consent not accepted."
 _NOT_SEEDED = "First-run adaptive default is not seeded yet; finish commissioning first."
 _UNKNOWN_PROVIDER = "Unknown cloud provider (expected ollama-cloud or openrouter)."

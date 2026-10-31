@@ -4,7 +4,8 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { fetchJson, FetchError, formatDateTime, formatDuration, formatTranscriptTime } from '../api'
-import { HlsPlayer, type HlsPlayerHandle } from '../HlsPlayer'
+import { type HlsPlayerHandle } from '../HlsPlayer'
+import { RecordingPlayer } from '../RecordingPlayer'
 import { MeetingAgendaSidebar } from '../MeetingAgendaSidebar'
 import { PaywallGate } from '../PaywallGate'
 import { buildRecordingsHash, buildWatchHash } from '../router'
@@ -148,7 +149,8 @@ export function WatchScreen({ assetId, startSeconds }: { assetId: string; startS
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_minmax(320px,440px)]">
             <PaywallGate assetId={asset.asset_id}>
               <div className="min-w-0">
-              <HlsPlayer
+              <RecordingPlayer
+                assetId={asset.asset_id}
                 key={`${asset.asset_id}:${asset.manifest_url}`}
                 manifestUrl={asset.manifest_url}
                 analytics={{ contentId: asset.asset_id }}

@@ -40,7 +40,7 @@ _WP05_TABLES = {"notification_delivery_outcomes", "notification_delivery_attempt
 _PRIOR_TABLE = "subscription_webhook_retries"
 _REVISION = "0092_notification_delivery_outcomes"
 _PARENT = "0091_programlog_local_anchor"
-_CURRENT_HEAD = "0098_channel_repeat_schedule"
+_CURRENT_HEAD = "0099_audio_description_model"
 
 
 def _cfg(url: str) -> Config:

@@ -270,6 +270,15 @@ Get a single asset by id.
 - Request body: none
 - Responses: 200 `AssetMetadata`; 404 Asset not found
 
+### `GET /api/public/assets/{asset_id}/audio-description`
+
+Public Manifest.
+
+- Access: public
+- Parameters: `asset_id` (path, required): `string`
+- Request body: none
+- Responses: 200 `DescriptionPlayback`
+
 ### `GET /api/public/assets/{asset_id}/transcript`
 
 Read the current published reviewed transcript.
@@ -1087,7 +1096,7 @@ Catalog tiers + the operator selection for one feature.
 - Access: staff bearer token required; keep loopback or reverse-proxy network protection enabled; requires one of these CivicCast roles: setup_admin or meeting_operator
 - Parameters: `feature` (path, required): `string`
 - Request body: none
-- Responses: 200 `FeatureModelRegistry`; 401 Missing, invalid, revoked, or misconfigured CivicCast staff bearer token.; 404 Unknown AI feature (no such captions/summary/translation registry).; 429 The observed peer exceeded the failed staff authentication budget. Wait for Retry-After before another invalid attempt; valid staff tokens remain accepted.; 503 Durable storage is not ready yet.
+- Responses: 200 `FeatureModelRegistry`; 401 Missing, invalid, revoked, or misconfigured CivicCast staff bearer token.; 404 Unknown AI feature (no such captions/summary/translation/audio_description registry).; 429 The observed peer exceeded the failed staff authentication budget. Wait for Retry-After before another invalid attempt; valid staff tokens remain accepted.; 503 Durable storage is not ready yet.
 
 ### `PUT /api/staff/ai-models/{feature}/first-run-override`
 
@@ -1096,7 +1105,7 @@ Set/clear the commissioning-wizard first-run model override for one feature.
 - Access: staff bearer token required; keep loopback or reverse-proxy network protection enabled; requires one of these CivicCast roles: setup_admin
 - Parameters: `feature` (path, required): `string`
 - Request body: `FirstRunOverrideRequest`
-- Responses: 200 `FeatureModelRegistry`; 400 Unknown model key for this feature, or cloud consent not accepted.; 401 Missing, invalid, revoked, or misconfigured CivicCast staff bearer token.; 404 Unknown AI feature (no such captions/summary/translation registry).; 409 First-run adaptive default is not seeded yet; finish commissioning first.; 422 `HTTPValidationError`; 429 The observed peer exceeded the failed staff authentication budget. Wait for Retry-After before another invalid attempt; valid staff tokens remain accepted.; 503 Durable storage is not ready yet.
+- Responses: 200 `FeatureModelRegistry`; 400 Unknown model key for this feature, or cloud consent not accepted.; 401 Missing, invalid, revoked, or misconfigured CivicCast staff bearer token.; 404 Unknown AI feature (no such captions/summary/translation/audio_description registry).; 409 First-run adaptive default is not seeded yet; finish commissioning first.; 422 `HTTPValidationError`; 429 The observed peer exceeded the failed staff authentication budget. Wait for Retry-After before another invalid attempt; valid staff tokens remain accepted.; 503 Durable storage is not ready yet.
 
 ### `POST /api/staff/ai-models/{feature}/select`
 
@@ -1105,7 +1114,7 @@ Record the operator AI-model selection for one feature.
 - Access: staff bearer token required; keep loopback or reverse-proxy network protection enabled; requires one of these CivicCast roles: setup_admin
 - Parameters: `feature` (path, required): `string`
 - Request body: `ModelSelectionRequest`
-- Responses: 200 `FeatureModelRegistry`; 400 Unknown model key for this feature, or cloud consent not accepted.; 401 Missing, invalid, revoked, or misconfigured CivicCast staff bearer token.; 404 Unknown AI feature (no such captions/summary/translation registry).; 422 `HTTPValidationError`; 429 The observed peer exceeded the failed staff authentication budget. Wait for Retry-After before another invalid attempt; valid staff tokens remain accepted.; 503 Durable storage is not ready yet.
+- Responses: 200 `FeatureModelRegistry`; 400 Unknown model key for this feature, or cloud consent not accepted.; 401 Missing, invalid, revoked, or misconfigured CivicCast staff bearer token.; 404 Unknown AI feature (no such captions/summary/translation/audio_description registry).; 422 `HTTPValidationError`; 429 The observed peer exceeded the failed staff authentication budget. Wait for Retry-After before another invalid attempt; valid staff tokens remain accepted.; 503 Durable storage is not ready yet.
 
 ### `GET /api/staff/alert-channels`
 
@@ -1385,6 +1394,51 @@ Update an asset's metadata (title, description, trim, chapters, retention).
 - Parameters: `asset_id` (path, required): `string`
 - Request body: `AssetMetadataUpdate`
 - Responses: 200 `StaffAssetRow`; 401 Missing, invalid, revoked, or misconfigured CivicCast staff bearer token.; 404 Asset not found; 409 Optimistic concurrency conflict -- the asset has been updated by another writer since the version the client submitted. Refetch and retry.; 422 Invalid payload (trim ordering, retention enum, chapter past duration); 429 The observed peer exceeded the failed staff authentication budget. Wait for Retry-After before another invalid attempt; valid staff tokens remain accepted.; 503 Durable storage not ready -- run Setup storage or set DATABASE_URL
+
+### `GET /api/staff/assets/{asset_id}/audio-description`
+
+Status.
+
+- Access: staff bearer token required; keep loopback or reverse-proxy network protection enabled
+- Parameters: `asset_id` (path, required): `string`
+- Request body: none
+- Responses: 200 `AudioDescriptionJob`; 401 Missing, invalid, revoked, or misconfigured CivicCast staff bearer token.; 429 The observed peer exceeded the failed staff authentication budget. Wait for Retry-After before another invalid attempt; valid staff tokens remain accepted.
+
+### `POST /api/staff/assets/{asset_id}/audio-description/cancel`
+
+Cancel.
+
+- Access: staff bearer token required; keep loopback or reverse-proxy network protection enabled
+- Parameters: `asset_id` (path, required): `string`
+- Request body: none
+- Responses: 200 `AudioDescriptionJob`; 401 Missing, invalid, revoked, or misconfigured CivicCast staff bearer token.; 429 The observed peer exceeded the failed staff authentication budget. Wait for Retry-After before another invalid attempt; valid staff tokens remain accepted.
+
+### `POST /api/staff/assets/{asset_id}/audio-description/generate`
+
+Generate.
+
+- Access: staff bearer token required; keep loopback or reverse-proxy network protection enabled
+- Parameters: `asset_id` (path, required): `string`
+- Request body: none
+- Responses: 202 `AudioDescriptionJob`; 401 Missing, invalid, revoked, or misconfigured CivicCast staff bearer token.; 429 The observed peer exceeded the failed staff authentication budget. Wait for Retry-After before another invalid attempt; valid staff tokens remain accepted.
+
+### `POST /api/staff/assets/{asset_id}/audio-description/preview-session`
+
+Preview Session.
+
+- Access: staff bearer token required; keep loopback or reverse-proxy network protection enabled
+- Parameters: `asset_id` (path, required): `string`
+- Request body: none
+- Responses: 200 `DescriptionPreviewSession`; 401 Missing, invalid, revoked, or misconfigured CivicCast staff bearer token.; 429 The observed peer exceeded the failed staff authentication budget. Wait for Retry-After before another invalid attempt; valid staff tokens remain accepted.
+
+### `POST /api/staff/assets/{asset_id}/audio-description/resume`
+
+Generate.
+
+- Access: staff bearer token required; keep loopback or reverse-proxy network protection enabled
+- Parameters: `asset_id` (path, required): `string`
+- Request body: none
+- Responses: 202 `AudioDescriptionJob`; 401 Missing, invalid, revoked, or misconfigured CivicCast staff bearer token.; 429 The observed peer exceeded the failed staff authentication budget. Wait for Retry-After before another invalid attempt; valid staff tokens remain accepted.
 
 ### `GET /api/staff/assets/{asset_id}/custom-fields`
 
@@ -5529,6 +5583,16 @@ Read CivicCast local federation metadata.
 - `total_view_seconds` (required): `number`
 - `total_views` (required): `number`
 
+### `AudioDescriptionJob`
+
+- `asset_id` (required): `string`
+- `coverage` (optional): `DescriptionCoverage | null`
+- `created_at` (optional): `string | null`
+- `job_id` (optional): `string | null`
+- `message` (optional): `string | null`
+- `state` (required): `'not_generated' | 'queued' | 'running' | 'complete' | 'interrupted' | 'failed' | 'cancelled'`
+- `updated_at` (optional): `string | null`
+
 ### `AudioProgramTrack`
 
 - `created_at` (optional): `string`
@@ -6732,6 +6796,27 @@ Read CivicCast local federation metadata.
 - `state` (required): `'pending' | 'delivered' | 'dead_letter'`
 - `updated_at` (required): `string`
 
+### `DescriptionCoverage`
+
+- `in_gap` (required): `number`
+- `requires_pause` (required): `number`
+- `uncertain_visuals` (required): `number`
+
+### `DescriptionPlayback`
+
+- `captions_url` (required): `string`
+- `coverage` (required): `DescriptionCoverage`
+- `credits` (required): `Array<string>`
+- `described_url` (required): `string`
+- `descriptions_url` (required): `string`
+- `limitations` (required): `Array<string>`
+- `original_url` (required): `string`
+- `pause_descriptions` (required): `Array<PauseDescription>`
+
+### `DescriptionPreviewSession`
+
+- `url` (required): `string`
+
 ### `DevicePortProbe`
 
 - `port` (required): `number`
@@ -7152,7 +7237,7 @@ Read CivicCast local federation metadata.
 - `band` (required): `'local' | 'cloud' | 'frontier'`
 - `detail` (optional): `string`
 - `effective_model_key` (required): `string`
-- `feature` (required): `'captions' | 'summary' | 'translation'`
+- `feature` (required): `'captions' | 'summary' | 'translation' | 'audio_description'`
 - `live_runtime_model_key` (optional): `string | null`
 - `live_runtime_model_loaded_at_startup` (optional): `boolean | null`
 - `model_present` (optional): `boolean | null`
@@ -7171,7 +7256,7 @@ Read CivicCast local federation metadata.
 Exposed as a computed field so the wire payload carries the resolved key
 and the operator console does not re-implement the override-else-default
 rule (S13 §5.1).
-- `feature` (required): `'captions' | 'summary' | 'translation'`
+- `feature` (required): `'captions' | 'summary' | 'translation' | 'audio_description'`
 - `operator_selected_key` (optional): `string | null`
 
 ### `FeedInput`
@@ -8052,6 +8137,14 @@ rule (S13 §5.1).
 - `label` (required): `string`
 - `layer_id` (required): `string`
 - `opacity` (optional): `number`
+
+### `PauseDescription`
+
+- `audio` (required): `string`
+- `id` (required): `number`
+- `text` (required): `string`
+- `time` (required): `number`
+- `until` (required): `number`
 
 ### `PaywallConfigInput`
 

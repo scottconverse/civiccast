@@ -907,3 +907,26 @@ The project records its major decisions as *architecture decision records* (ADRs
 <!-- SOURCES: docs/adr/0001, 0008, 0010, 0011, 0013, 0014, 0015, 0016, 0017, 0018, 0020 (via civiccast/stream/cdn/factory.py), 0021, 0022, 0023 (both), 0024, 0025; docs/releases/v1.0.0-beta.10-verification.md (known limits 1-6, what is not proven); ops/docs-sprint/inventory/screens/installer-install-layout.md (HELP-102); inventory/screens/recording.md and guide.md (UTC); civiccast/installer/station_state.py:216-258 (station time zone); civiccast/native/upgrade/orchestrator.py:410-445, 530-560; civiccast/dr/backup.py; civiccast/egress/daemon.py:436-500; civiccast/egress/store.py:436-458 (at-most-once); civiccast/egress/preparer.py:23, 144; civiccast/egress/hls_relay.py (log cap); app-auth-db fact sheet sections 2, 5, 6 -->
 
 <!-- Current correction sources: civiccast/native/supervisor/service.py:1582-1620 (optional Ollama); civiccast/summary/store.py:103-119,275-299 and summary/router.py:211-242 (conditional approval); civiccast/egress/gst/bridge.py:99-133 (per-output loudness); civiccast/egress/loudness_ride.py:326-335 (ride defaults); civiccast/egress/ts_relay.py:64-96,200-246 (relay scope); civiccast/records/exporter.py:22-42 (TSA opt-in); civiccast/egress/gst/encoder_probe.py (automatic H.264). -->
+
+## Recording audio-description worker (isolated feature branch)
+
+```mermaid
+flowchart LR
+  A[Asset + packaged English captions] --> B[Staff role and source checks]
+  B --> C[One durable background job]
+  C --> D[Local Gemma visual extraction and dialogue comparison]
+  D --> E[Speech protection + fixed-voice Pocket TTS]
+  E --> F[Measured fit or explicit pause description]
+  F --> G[Separate source-bound MP4, VTT and manifest]
+  G --> H[Private operator preview]
+  G --> I[Published resident and embed player]
+```
+
+The API owns the durable job pointer and a single worker process. Checkpoints bind
+to source/captions, runtime/model digest, narrator files and implementation. A
+single-process storage lock prevents two API owners from sharing this job directory.
+Worker sockets and FFmpeg inputs are confined to local processing; model provisioning
+is a separate explicit step. Live state defers work at safe boundaries and cancellation
+is cooperative. Existing recording publication and viewer access gates cover every
+public derivative request. The primary recording and all RC/live data stay independent.
+See `docs/ops/audio-description.md` for configuration and operational limits.

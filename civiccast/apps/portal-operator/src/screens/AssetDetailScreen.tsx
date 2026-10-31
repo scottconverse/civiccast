@@ -20,6 +20,7 @@ import { ConfirmDialog } from '../components/ConfirmDialog'
 import { RadioCardGroup } from '../components/RadioCardGroup'
 import { AssetCustomFieldsEditor } from './AssetCustomFieldsEditor'
 import { OfflineCaptionJobsPanel } from './OfflineCaptionJobsPanel'
+import { AudioDescriptionPanel } from './AudioDescriptionPanel'
 import { GenerateSummaryPanel } from './GenerateSummaryPanel'
 import { MediaLifecyclePanel } from './MediaLifecyclePanel'
 import { hasRole } from './contribution-format'
@@ -940,6 +941,7 @@ function DetailEditor({ asset, onClose, onEditTrim }: DetailEditorProps) {
         {asset.published_at && <EmbedCopyPanel key={asset.asset_id} kind="asset" identity={asset.asset_id} />}
         <OfflineCaptionJobsPanel assetId={asset.asset_id} />
         <GenerateSummaryPanel assetId={asset.asset_id} />
+        <AudioDescriptionPanel assetId={asset.asset_id} />
       </div>
 
       {confirmingUnpublish && (

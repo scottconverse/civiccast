@@ -86,6 +86,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+audio-description = [
+  "pocket-tts==4.0.1",
+  "webrtcvad-wheels==2.0.14",
+  "webvtt-py==0.5.1",
+]
+
 # Cloudflare R2 CDN adapter — alternative to BunnyCDN per ADR 0006.
 # Install with `pip install 'civiccast[cloudflare-r2]'` (or
 # `uv add civiccast[cloudflare-r2]`). Default install does not pull boto3

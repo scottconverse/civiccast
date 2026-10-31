@@ -163,7 +163,7 @@ def test_list_all_models_allowed_for_meeting_operator() -> None:
     r = _client(scopes=("meeting_operator",)).get("/api/staff/ai-models")
     assert r.status_code == 200, r.text
     body = r.json()
-    assert set(body["features"]) == {"captions", "summary", "translation"}
+    assert set(body["features"]) == {"captions", "summary", "translation", "audio_description"}
 
 
 def test_list_all_models_forbidden_for_records_clerk() -> None:
@@ -299,7 +299,7 @@ def test_availability_endpoint_reports_per_feature_state() -> None:
     r = _client(scopes=("setup_admin",)).get("/api/staff/ai-models/availability")
     assert r.status_code == 200, r.text
     features = r.json()["features"]
-    assert set(features) == {"captions", "summary", "translation"}
+    assert set(features) == {"captions", "summary", "translation", "audio_description"}
     assert features["summary"]["band"] == "local"
 
 

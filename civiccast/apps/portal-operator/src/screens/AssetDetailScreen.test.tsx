@@ -26,6 +26,7 @@ vi.mock('../api/client', () => ({
 vi.mock('./MediaLifecyclePanel', () => ({ MediaLifecyclePanel: () => null }))
 vi.mock('./OfflineCaptionJobsPanel', () => ({ OfflineCaptionJobsPanel: () => null }))
 vi.mock('./GenerateSummaryPanel', () => ({ GenerateSummaryPanel: () => null }))
+vi.mock('./AudioDescriptionPanel', () => ({ AudioDescriptionPanel: () => null }))
 vi.mock('./AssetCustomFieldsEditor', () => ({ AssetCustomFieldsEditor: () => null }))
 
 import {

@@ -19,7 +19,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from civiccast.db import Base
 
-AiFeature = Literal["captions", "summary", "translation"]
+AiFeature = Literal["captions", "summary", "translation", "audio_description"]
 ModelProvider = Literal["ollama", "ollama-cloud", "openrouter", "external"]
 # Computed tier band stored alongside a selection (local on-box, hosted Ollama
 # Cloud, or an OpenRouter frontier route). NULL until the operator selects.
@@ -233,7 +233,7 @@ class FeatureModelRegistryDb(Base):
     __tablename__ = "feature_model_registry"
     __table_args__ = (
         CheckConstraint(
-            "feature IN ('captions', 'summary', 'translation')",
+            "feature IN ('captions', 'summary', 'translation', 'audio_description')",
             name="feature_model_registry_feature_check",
         ),
         CheckConstraint(

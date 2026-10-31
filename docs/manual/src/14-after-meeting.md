@@ -374,3 +374,41 @@ After human approval, the signed record export includes the agenda discussion, c
 - [When something looks wrong](#ch-something-wrong)
 
 <!-- SOURCES: inventory/screens/assets.md; inventory/screens/review.md; inventory/screens/summary.md; inventory/screens/missingmedia.md; inventory/screens/medialifecycle.md; civiccast/apps/portal-operator/src/screens/{AssetsScreen,AssetDetailScreen,TrimEditorScreen,ReviewQueueScreen,SummaryReviewScreen,GenerateSummaryPanel,OfflineCaptionJobsPanel,MediaLifecyclePanel,MissingMediaScreen,MediaLifecycleSettingsScreen}.tsx; civiccast/summary/router.py:111-186 (SummaryApprovalRequest extra=forbid; approve_summary); civiccast/apps/portal-operator/src/screens/SummaryReviewScreen.tsx:10-14,234 (OPERATOR payload); civiccast/captions/review.py:318-345 and civiccast/captions/persistence.py:291-335 (approve keeps stored reviewed_text; reject clears it); civiccast/captions/vod.py:430-480 (approved/edited become cues, pending counted, rejected dropped); civiccast/captions/vod_job.py:893-1010 and 100-165 (Spanish required, hold reasons); civiccast/schedule/router.py:245-280 (limit 50, X-Total-Count), 372-470 (package uses trim_in/out); civiccast/schedule/media_lifecycle_store.py:395-460 (replace-source leaves manifest_url and published_at); civiccast/egress/source_plan.py:1092 (trim used on air); civiccast/schedule/media_lifecycle_worker.py:141-145 (-16 LUFS, tolerance 1); civiccast/publish/router.py:442-480 (caption job queued before publish) -->
+
+## Generate audio descriptions for a recording {#audio-descriptions}
+
+**Feature branch availability:** this feature is on `feat/local-audio-description`;
+it is not in the current RC2 installer. IT must install the audio-description
+dependencies, provision the local narrator and make the local vision model available.
+
+Open **Review Records → Assets → the recording → Audio description**. The recording
+must already be packaged with its English caption track. A records clerk, meeting
+operator, setup administrator or support administrator can choose **Generate audio
+description**. CivicCast identifies visual information missing from the dialogue,
+narrates it locally, and keeps a separate described edition. There is no new
+description-approval queue. Existing caption and recording publication permissions
+still apply.
+
+Only one recording is described at a time. You may leave the page while it runs.
+Background inference waits at safe boundaries while channels are on air. Use
+**Cancel generation** to stop at a safe boundary, or **Resume generation** after an
+interruption. Resume reuses verified work; a changed source, trim, model or processing
+implementation can require **Generate again** instead. Repackage changed trims first.
+
+When complete, **Show described recording preview** opens a private preview. Its
+access expires after fifteen minutes; reopen it from the asset page if necessary.
+It reports descriptions that fit safe pauses, those that require pausing, and visual
+observations containing uncertainty. The counts do not measure completeness or
+certify legal compliance. Originals are not overwritten.
+
+Published recordings expose **Use audio-described playback** in the resident player
+and asset embed. That player provides in-gap narration, optional pause-to-describe,
+English captions, manual listening and skip/resume. Playback position is retained
+when switching editions. The original HLS player remains available with its existing
+caption options. Downloaded described MP4s contain only descriptions that fit safe
+pauses; pause-to-describe requires the browser player. Automatic descriptions can
+miss or misinterpret visuals. Unreadable and unplaced information remains a stated
+limitation, not a claim of full accessibility.
+
+IT setup, model/voice notices and API routes are documented in
+[Audio-description operations](../../ops/audio-description.md).

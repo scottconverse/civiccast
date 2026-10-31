@@ -283,7 +283,7 @@ def test_frontier_provider_records_frontier_tier(service: AiModelService) -> Non
 
 def test_get_configuration_lists_all_features(service: AiModelService) -> None:
     cfg = service.get_configuration()
-    assert set(cfg.features) == {"captions", "summary", "translation"}
+    assert set(cfg.features) == {"captions", "summary", "translation", "audio_description"}
     # OWNER-DECISION-caption-adaptive-tier.md (2026-07-30, BINDING): the caption FLOOR
     # tier (medium) is the mandatory CPU-only baseline and catalog default; large-v3 is
     # now the optional quality tier (auto-selected only when hardware allows).
