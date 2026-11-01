@@ -21,7 +21,7 @@ schema_version: 1
 repository: scottconverse/civiccast-native
 
 # The tag that public surfaces may present as the current install target.
-current: v1.0.0-rc.2
+current: v1.0.0-rc.3
 # Live tags matching these regexes predate this manifest and are exempt from
 # per-entry listing (they remain visible on GitHub as history). Anything else
 # unlisted is drift.
@@ -37,8 +37,18 @@ historical_unlisted_patterns:
   - '^v4\.0\.0-rc\.'
 
 entries:
-  - tag: v1.0.0-rc.2
+  - tag: v1.0.0-rc.3
     status: current
+    notes: >-
+      Published November 1, 2026 at 06:00:18 UTC, signed source
+      97aba8a11819cda7c2c388106953039a4c6d0f34. Existing release assets are unchanged.
+      R9 clean installation and encrypted backup verification passed; viewer
+      picture/label and caption timing findings remain under investigation.
+      The local Beta20 upgrade failed its pre-migration backup and recovered;
+      do not infer all historical upgrade paths passed from clean installation.
+  - tag: v1.0.0-rc.2
+    status: superseded
+    superseded_by: v1.0.0-rc.3
     notes: >-
       Published October 30, 2026 at 20:22:55 UTC. Existing public release,
       verified against GitHub release metadata; this reconciliation does not replace assets.

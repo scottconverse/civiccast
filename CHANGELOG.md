@@ -2,7 +2,15 @@
 
 ## [Unreleased]
 
-Unpublished candidate `v1.0.0-rc.3` incorporates the 31 R7/R9 operator findings.
+Local RC3 correction pending merge/installed acceptance: separate backup connection
+timeouts from the full post-dump consistency scan, preserve seconds in approval,
+and correct operator setup/help and release download guidance. This does not
+replace the published RC3 assets or resolve the outstanding R9 viewer findings.
+
+## [1.0.0-rc.3] - 2026-11-01
+
+Published signed RC3 for operator testing. The changes below address the R7/R9
+findings in source; they are not a claim that all 31 findings passed field testing.
 
 - Close malformed credential logging/response paths and isolate installer identity probes.
 - Prepare model permissions before upgrade startup; preserve explicit restore targets, local secrets and effective configuration.
@@ -11,7 +19,10 @@ Unpublished candidate `v1.0.0-rc.3` incorporates the 31 R7/R9 operator findings.
 - Correct HLS snapshot ownership, stale health presentation, actionable setup/backup/install errors, and download reuse/accounting.
 - Update the manual and built-in Help for the changed operator actions and measurement limits.
 
-This is source development, not a signed or installed RC3 acceptance claim.
+R9 clean installation and online encrypted backups passed. Viewer timing/labels
+and caption coverage remain unresolved; the local Beta20 upgrade failed its
+post-dump backup consistency deadline and recovered. See the RC3 verification
+record for passed, failed and unexecuted outcomes.
 
 ## [1.0.0-rc.2] - 2026-10-30
 

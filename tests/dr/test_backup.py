@@ -42,6 +42,24 @@ def test_snapshot_matches_between_source_and_backup_copy(
         assert backup_snapshot[name].checksum_sha256 == source_snapshot[name].checksum_sha256
 
 
+def test_snapshot_reuses_the_supplied_connection_for_metadata_and_rows(
+    seeded_station_db: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    engine = build_sqlite_engine(seeded_station_db)
+    try:
+        with engine.connect() as connection:
+
+            def refuse_extra_connection() -> None:
+                pytest.fail("snapshot opened a second connection outside the connection bound")
+
+            monkeypatch.setattr(engine, "connect", refuse_extra_connection)
+            tables = {table.name: table for table in snapshot_tables(engine, connection=connection)}
+            assert tables["assets"].row_count == 2
+            assert tables["schedule_items"].row_count == 1
+    finally:
+        engine.dispose()
+
+
 def test_backup_is_not_a_raw_copy_of_a_live_writer(seeded_station_db: Path, tmp_path: Path) -> None:
     """The backup API must produce a valid, openable snapshot even with a concurrent writer.
 

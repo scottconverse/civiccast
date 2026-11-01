@@ -33,8 +33,8 @@ The API contract is:
   `POST /api/staff/auth/sign-out` continues to end the caller's session.
 
 All account and session administration requires the `setup_admin` role. The
-operator console exposes staff sign-in at `/login`, keeps the existing
-first-admin flow and recovery at `/setup`, and shows Staff accounts in the
+operator console exposes staff sign-in at `/operator/#/login`, keeps the existing
+first-admin flow and recovery at `/operator/#/setup`, and shows Staff accounts in the
 Setup sidebar to `setup_admin` users. In Caddy mode, the staff API is reachable
 only on the CIDR-restricted staff hostname; the public hostname does not proxy
 staff APIs, and `/api/setup` remains local-only.

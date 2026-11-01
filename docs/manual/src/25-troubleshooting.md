@@ -83,7 +83,7 @@ Setup returns a number when it fails. Interactive setup shows a dialog with word
 
 ## Sign-in
 
-The **First Setup** screen (`#/setup`) is for creating the first administrator and for that administrator to sign in or recover access. Staff use the separate sign-in page at `/login`. When Caddy remote access is configured, staff can sign in through the staff hostname from an approved CIDR; first-admin setup and sign-in remain local to the station.
+The **First Setup** screen (`#/setup`) is for creating the first administrator and for that administrator to sign in or recover access. Staff use the separate sign-in page at `/operator/#/login`. When Caddy remote access is configured, staff can sign in through the staff hostname from an approved CIDR; first-admin setup and sign-in remain local to the station.
 
 | Symptom | Likely cause | How to confirm | Fix |
 |---|---|---|---|
