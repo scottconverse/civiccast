@@ -28,6 +28,7 @@ from contextlib import AbstractContextManager
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import cast
 from urllib.parse import urlsplit
 
 from sqlalchemy.orm import Session
@@ -323,11 +324,10 @@ def build_caption_proof_worker(
                 document.get(name)
                 for name in ("encoded_page_count", "displayed_page_count", "retired_page_count")
             ]
-            if (
-                any(type(count) is not int or count < 0 for count in counts)
-                or document.get("pending_page_count") != 0
-                or counts[0] != counts[1] + counts[2]
-            ):
+            if any(type(count) is not int or count < 0 for count in counts):
+                return []
+            encoded, displayed, retired = cast(list[int], counts)
+            if document.get("pending_page_count") != 0 or encoded != displayed + retired:
                 # A completed prefix must not hide a queued page that never
                 # displayed. Only explicit program fencing retires pending text.
                 return []
