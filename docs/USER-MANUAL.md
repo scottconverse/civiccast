@@ -244,13 +244,13 @@ This chapter shows you how to open the operator console, sign in, recover a lost
 1. On the station computer, double-click the **CivicCast Operator Console** shortcut on the Desktop. The Start menu has the same shortcut.
 2. Wait for the browser to open.
 
-The Desktop shortcut opens the local operator console. A signed-out browser now has a separate **Staff sign-in** page. Use **First setup** at `/setup` only to create or recover the first administrator; ordinary staff sign in at `/login`.
+The Desktop shortcut opens the local operator console. A signed-out browser now has a separate **Staff sign-in** page. Use **First setup** at `/operator/#/setup` only to create or recover the first administrator; ordinary staff sign in at `/operator/#/login`.
 
-> **Note:** First-admin setup and recovery remain local-only. A staff account can use `/login` on the configured staff hostname from an allowed network; the public hostname does not expose staff sign-in.
+> **Note:** First-admin setup and recovery remain local-only. A staff account can use `/operator/#/login` on the configured staff hostname from an allowed network; the public hostname does not expose staff sign-in.
 
 ### Sign in
 
-1. Staff: open `/login`. First administrator: open `/setup` on the station computer and choose **Admin sign-in**.
+1. Staff: open `/operator/#/login`. First administrator: open `/operator/#/setup` on the station computer and choose **Admin sign-in**.
 2. Enter the account's username and current password. For the first administrator, use the password chosen during setup (or the new password from the most recent recovery/reset); an older printed password may no longer work.
 3. Click **Sign in**. The button does nothing until both boxes are filled.
 
@@ -481,7 +481,7 @@ You should see a green **Setup complete** card, a **First-run defaults** card, a
 
 > **Warning:** The saved kit file contains the admin password in plain text, together with all eight codes. Keep it, or the printout, where only authorized people can find it. Do not email it, and do not leave it in a folder that syncs to the internet.
 
-> **Warning:** Until you confirm the kit, `/setup` holds you on First Setup. Every sidebar entry except **Manual** is grey, **Sign out** is disabled, other console addresses return to First Setup, and your browser warns before you close the page. The kit lives in that browser tab. The station can never show the codes again. If you return to `/setup` without having confirmed, a warning named **Recovery kit never confirmed** appears there with a button **I found the kit — it is stored safely**. That button only records your word; it does not check anything.
+> **Warning:** Until you confirm the kit, `/operator/#/setup` holds you on First Setup. Every sidebar entry except **Manual** is grey, **Sign out** is disabled, other console addresses return to First Setup, and your browser warns before you close the page. The kit lives in that browser tab. The station can never show the codes again. If you return to `/operator/#/setup` without having confirmed, a warning named **Recovery kit never confirmed** appears there with a button **I found the kit — it is stored safely**. That button only records your word; it does not check anything.
 
 #### What a new station starts with
 
@@ -501,20 +501,20 @@ Below **Setup complete** are four tools for a Setup admin: **Camera or test medi
 | --- | --- | --- |
 | A browser error page instead of the console | CivicCast is not running, or the browser is not on the station computer. | Ask your IT person to start it. See [Troubleshooting matrix](#ch-troubleshooting). |
 | "Invalid admin username or password." | The username or password is wrong. | Check the kit and retype both boxes. If the password is lost, use a recovery code. |
-| "Invalid staff username or password." | The staff credentials are wrong, or the account is disabled. | Retype your credentials at `/login`. Ask a Setup admin to check your account or reset its password. |
-| "Too many staff sign-in attempts. Wait and try again." (possibly followed by a retry time) | Too many failed staff sign-ins. | Wait for the stated retry time, then use the correct credentials at `/login`. |
+| "Invalid staff username or password." | The staff credentials are wrong, or the account is disabled. | Retype your credentials at `/operator/#/login`. Ask a Setup admin to check your account or reset its password. |
+| "Too many staff sign-in attempts. Wait and try again." (possibly followed by a retry time) | Too many failed staff sign-ins. | Wait for the stated retry time, then use the correct credentials at `/operator/#/login`. |
 | "Invalid recovery code or admin username." | The code or username is wrong, or the code was already used. | Try another unused code. A wrong guess does not use up a code. |
 | "Too many sign-in attempts from this station. Wait N seconds, then try again with the correct password, or use a printed recovery code." | Too many wrong guesses. | Wait the time shown. A correct password or recovery code still gets through. |
 | "Too many failed attempts to authenticate with the staff API. Wait N seconds, then try again." | Too many requests with a bad sign-in. The station's default is 10 failures in 60 seconds. | Wait, then try again. "Staff API" means the station's staff-side service. |
 | "The station is cooling down after too many requests" | The same slowdown, shown on First Setup. | Click **Try again**. The sign-in form on that card still works. |
 | **You were signed out**, "This browser's console session is no longer valid..." | Your session expired after 12 hours, an administrator revoked it, or the station's sign-in state was reset. | Sign in again. A Setup admin can review and revoke station sessions in **Staff accounts**. |
-| "This browser's console sign-in is no longer valid" | The station rejected the sign-in this browser still held. | Click **Sign in again**, then use `/login` for a staff account or `/setup` for the first administrator. |
-| "First setup can only be done from the station computer itself" | You opened first setup or first-admin recovery from another computer. | Open `/setup` on the station computer, or inside a remote session on it. Staff accounts use `/login` from the approved staff network when configured. |
+| "This browser's console sign-in is no longer valid" | The station rejected the sign-in this browser still held. | Click **Sign in again**, then use `/operator/#/login` for a staff account or `/operator/#/setup` for the first administrator. |
+| "First setup can only be done from the station computer itself" | You opened first setup or first-admin recovery from another computer. | Open `/operator/#/setup` on the station computer, or inside a remote session on it. Staff accounts use `/operator/#/login` from the approved staff network when configured. |
 | "Could not read setup state." with more text | The station did not answer properly. | Wait a moment and reload. If it repeats, tell your IT person. |
 | "Sign in with the local station admin account, then try again." | The request carried no sign-in. | Sign in on First Setup. |
 | "This action requires one of these CivicCast roles: ..." | Your account does not hold a role the action needs. | Ask your admin. See below. |
 | "Staff identity is required for this action." | You are signed out. | Sign in. |
-| "Could not verify your staff identity (...)" | The screen could not check who you are. | Sign in again at `/login` with your staff account, or use `/setup` if you are the first administrator. |
+| "Could not verify your staff identity (...)" | The screen could not check who you are. | Sign in again at `/operator/#/login` with your staff account, or use `/operator/#/setup` if you are the first administrator. |
 | "Durable storage is not ready." | The station's database has not been prepared. | Click **Go to Setup**, then **Prepare storage**. |
 | **Page not found** | The address does not exist in this build. | Use a button on the page, or the sidebar. |
 
@@ -528,7 +528,7 @@ The role message lists raw role names. They map to the names in the console like
 | `publish_operator` | Publish operator |
 | `support_admin` | Support admin |
 
-> **Known issue (beta.11):** The message "First setup can only be done from the station computer itself" also appears for first-admin sign-in and recovery when `/setup` is opened remotely. Those `/api/setup/*` actions remain local-only. Staff use `/login` and, when configured, the CIDR-restricted staff hostname.
+> **Known issue (beta.11):** The message "First setup can only be done from the station computer itself" also appears for first-admin sign-in and recovery when `/operator/#/setup` is opened remotely. Those `/api/setup/*` actions remain local-only. Staff use `/operator/#/login` and, when configured, the CIDR-restricted staff hostname.
 
 > **Note:** Setup admins can add staff, assign roles and disable access in **Staff accounts**. See the [staff accounts guide](https://github.com/scottconverse/civiccast-native/blob/main/docs/ops/staff-accounts.md) for account and session management.
 
@@ -3135,7 +3135,7 @@ If the problem is with installing, also include the installer's file name and wh
 | `The Emergency Alerts console requires the setup admin, support admin, or meeting operator role. Ask your station admin for access.` | Emergency Alerts | Your role cannot open this screen |
 | `Could not display the alert.` | Emergency Alerts | The server refused. The box usually shows the server's own reason instead of this sentence. For a full-screen takeover, tick **Confirm full-screen takeover** first |
 | `Could not load federation status.` | Federation | Click **Retry**. If it fails again, tell IT |
-| `Could not verify your staff identity (...)` | Emergency Alerts | Sign in again at `/login` with your staff account; the first administrator uses `/setup` on the station computer |
+| `Could not verify your staff identity (...)` | Emergency Alerts | Sign in again at `/operator/#/login` with your staff account; the first administrator uses `/operator/#/setup` on the station computer |
 
 ### Related
 
@@ -3650,7 +3650,7 @@ Two alert bars may also appear: "No files have started downloading yet. CivicCas
 
 #### Step 6: First setup in the operator console
 
-Open the **CivicCast Operator Console** shortcut (or **Open operator console**) in a browser on the station computer. The address is `http://127.0.0.1:8000/operator/`. Use `/setup` on that computer to create or recover the first administrator. Ordinary staff use the separate `/login` page; when the staff hostname is configured, they can sign in from an approved staff network. See the [network access guide](https://github.com/scottconverse/civiccast-native/blob/main/docs/ops/network-access.md) and [staff accounts guide](https://github.com/scottconverse/civiccast-native/blob/main/docs/ops/staff-accounts.md). A remote-control tool remains suitable for first setup because its browser runs on the station.
+Open the **CivicCast Operator Console** shortcut (or **Open operator console**) in a browser on the station computer. The address is `http://127.0.0.1:8000/operator/`. Use `/operator/#/setup` on that computer to create or recover the first administrator. Ordinary staff use the separate `/operator/#/login` page; when the staff hostname is configured, they can sign in from an approved staff network. See the [network access guide](https://github.com/scottconverse/civiccast-native/blob/main/docs/ops/network-access.md) and [staff accounts guide](https://github.com/scottconverse/civiccast-native/blob/main/docs/ops/staff-accounts.md). A remote-control tool remains suitable for first setup because its browser runs on the station.
 
 1. Read the header: "First setup. Create the station identity, first local admin, and recovery kit before a public meeting."
 2. If the **Durable storage** card shows a **Prepare storage** button, select it. Until storage is ready the page shows "Create the first admin after storage is ready".
@@ -3902,7 +3902,7 @@ Because the database password is deleted from the registry, the surviving databa
 | Setup stops with exit 110 after a page that promised downloads | No `packs` folder beside `setup.exe` | Run the release helper to assemble the kit, then confirm the runtime packs are under its `packs\` subfolder |
 | Setup stops with exit 123 after a long wait | No `station` folder and no cached model packs, or a self-test or space failure | See the activation table and read the details list |
 | The console shortcut shows a browser error | The service is not running | Press Windows key + R, type `services.msc`, press Enter, find **CivicCast Native Supervisor** and choose **Start**. Then read `logs\supervisor.log` and `logs\control_plane.log` |
-| "First setup can only be done from the station computer itself" | The browser opened `/setup` away from the station | Use `/setup` on the station computer for first-admin actions. Ordinary staff use `/login`; remote staff sign-in requires the configured staff hostname and an approved network. |
+| "First setup can only be done from the station computer itself" | The browser opened `/operator/#/setup` away from the station | Use `/operator/#/setup` on the station computer for first-admin actions. Ordinary staff use `/operator/#/login`; remote staff sign-in requires the configured staff hostname and an approved network. |
 | "The station is cooling down after too many requests." | Too many sign-in attempts | Wait, then **Try again** |
 | "Could not read setup state." | The console reached the station but the station could not answer | Wait and reload. Check the service is running. Collect `install-progress.log` and do not run setup again until someone has read it |
 | A required station pack is missing | Model acquisition in the first-run window cannot provide signed station packs | Check the error detail; confirm `station-models.json` and every archive part are available. Run `scripts\download_windows_release_artifacts.ps1 -Install` to verify and assemble the kit, then retry setup |
@@ -3965,7 +3965,7 @@ The folder layout is described in the installing chapter. The two folders that m
 
 ### Run First Setup and create the admin account {#configuration-first-setup}
 
-First Setup is at `/setup` in the local operator console (`http://127.0.0.1:8000/operator/`). It creates the first administrator and one-time recovery kit; first-admin sign-in and recovery remain local-only. Staff accounts use the separate `/login` page and can use the configured staff hostname from approved networks. See the [staff accounts guide](https://github.com/scottconverse/civiccast-native/blob/main/docs/ops/staff-accounts.md).
+First Setup is at `/operator/#/setup` in the local operator console (`http://127.0.0.1:8000/operator/`). It creates the first administrator and one-time recovery kit; first-admin sign-in and recovery remain local-only. Staff accounts use the separate `/operator/#/login` page and can use the configured staff hostname from approved networks. See the [staff accounts guide](https://github.com/scottconverse/civiccast-native/blob/main/docs/ops/staff-accounts.md).
 
 1. On the station computer, open the console and choose **First Setup** in the sidebar.
 2. Under **Durable storage**, click **Prepare storage**. This creates or activates the local database for meeting records, captions, summaries and subscriptions. If the service was started with a `DATABASE_URL` the button does nothing and just reports status.
@@ -3994,7 +3994,7 @@ What the form does not show you, but the server chooses for you when you click *
 
 #### Sign in again, and when the password is lost
 
-At `/setup`, the station computer shows **Admin sign-in** and **Use recovery code** for the first administrator. A correct password signs in that browser and opens Readiness (`/health`) or the page you were returning to; it does not sign out other browsers. Ordinary staff use `/login`; remote sign-in is available only through the configured staff hostname from an approved network.
+At `/operator/#/setup`, the station computer shows **Admin sign-in** and **Use recovery code** for the first administrator. A correct password signs in that browser and opens Readiness (`/health`) or the page you were returning to; it does not sign out other browsers. Ordinary staff use `/operator/#/login`; remote sign-in is available only through the configured staff hostname from an approved network.
 
 Too many wrong passwords are limited. The default is 10 failures per 60 seconds for each route and each connecting address (`CIVICCAST_AUTH_RATE_LIMIT`, `CIVICCAST_AUTH_RATE_LIMIT_WINDOW_SECONDS`). A correct password always gets through; a wrong one burns the budget.
 
@@ -4623,7 +4623,7 @@ For all other variables, the appendix of settings ([Appendix: settings](#app-set
 
 | What you see | Likely cause | What to do |
 | --- | --- | --- |
-| "First setup can only be done from the station computer itself" | You opened `/setup` away from the station | Use `/setup` on the station computer for first-admin actions. Ordinary staff use `/login`; remote staff sign-in requires the configured staff hostname and an approved network. |
+| "First setup can only be done from the station computer itself" | You opened `/operator/#/setup` away from the station | Use `/operator/#/setup` on the station computer for first-admin actions. Ordinary staff use `/operator/#/login`; remote staff sign-in requires the configured staff hostname and an approved network. |
 | "First-admin setup is already complete. Use the recovery flow or set CIVICCAST_ALLOW_FIRST_ADMIN_RESET=1 for an intentional local reset." | The station is already set up | Sign in; use a recovery code if the password is lost |
 | "Too many sign-in attempts from this station. Wait N seconds, then try again with the correct password, or use a printed recovery code." | The sign-in limit was reached | Wait the number of seconds shown |
 | "Durable storage is not ready." or HTTP 503 on a screen | The database was not prepared or the service is still starting | Click **Prepare storage** on First Setup; check the service and `postgres.log` |
@@ -5099,7 +5099,7 @@ $env:DATABASE_URL = (Get-ItemProperty 'HKLM:\SOFTWARE\CivicCast\Native').Databas
 
 - The application and database listeners stay on loopback. Remote HTTPS is available through the supported Caddy configuration, which separates the public resident hostname from a staff hostname restricted to configured CIDRs. Do not expose the application listener directly; see the [network access guide](https://github.com/scottconverse/civiccast-native/blob/main/docs/ops/network-access.md).
 - Anyone who can sign in to the console is a **staff user** with one or more of five roles.
-- Staff sign in with a username and password at `/login`; the API returns a bearer token. Other staff API actions require `Authorization: Bearer <token>` and the assigned role.
+- Staff sign in with a username and password at `/operator/#/login`; the API returns a bearer token. Other staff API actions require `Authorization: Bearer <token>` and the assigned role.
 - Residents use the **public** parts of the API, which need no sign-in.
 - The installer configures the service as the restricted virtual account `NT SERVICE\CivicCastSupervisor`. Existing default LocalSystem installations migrate their profile and CivicCast credentials before the account changes. See the [restricted service identity guide](https://github.com/scottconverse/civiccast-native/blob/main/docs/ops/restricted-service-identity.md).
 
@@ -5181,7 +5181,7 @@ A wrong token counts against the client's address: 10 failures in 60 seconds by 
 
 #### First setup and the recovery kit
 
-Open `/setup` on the station computer for **First setup**. Creating the first admin there makes:
+Open `/operator/#/setup` on the station computer for **First setup**. Creating the first admin there makes:
 
 - the first-admin username and password (the password must have at least 12 characters), and
 - a **recovery kit**: 8 one-time recovery codes.
@@ -5190,7 +5190,7 @@ The **Save kit** button downloads a plain-text file that contains the admin pass
 
 > **Warning:** Treat the recovery kit like a master key. Print it and keep it in a locked drawer or a safe, or keep it in your password manager. Do not leave it in the Downloads folder, a shared drive or an e-mail.
 
-The first administrator signs in at `/setup` on the station computer. Staff accounts use the separate `/login` page, including on the staff hostname from an approved CIDR when Caddy mode is configured. If the first-admin password is lost, **Use recovery code** burns one of the 8 codes and sets a new password; it takes two clicks and warns you each time. Other valid sessions remain signed in. Staff account creation, role assignment and session administration are covered in the [staff accounts guide](https://github.com/scottconverse/civiccast-native/blob/main/docs/ops/staff-accounts.md).
+The first administrator signs in at `/operator/#/setup` on the station computer. Staff accounts use the separate `/operator/#/login` page, including on the staff hostname from an approved CIDR when Caddy mode is configured. If the first-admin password is lost, **Use recovery code** burns one of the 8 codes and sets a new password; it takes two clicks and warns you each time. Other valid sessions remain signed in. Staff account creation, role assignment and session administration are covered in the [staff accounts guide](https://github.com/scottconverse/civiccast-native/blob/main/docs/ops/staff-accounts.md).
 
 #### What the server enforces
 
@@ -5481,7 +5481,7 @@ Setup returns a number when it fails. Interactive setup shows a dialog with word
 
 ### Sign-in
 
-The **First Setup** screen (`#/setup`) is for creating the first administrator and for that administrator to sign in or recover access. Staff use the separate sign-in page at `/login`. When Caddy remote access is configured, staff can sign in through the staff hostname from an approved CIDR; first-admin setup and sign-in remain local to the station.
+The **First Setup** screen (`#/setup`) is for creating the first administrator and for that administrator to sign in or recover access. Staff use the separate sign-in page at `/operator/#/login`. When Caddy remote access is configured, staff can sign in through the staff hostname from an approved CIDR; first-admin setup and sign-in remain local to the station.
 
 | Symptom | Likely cause | How to confirm | Fix |
 |---|---|---|---|
@@ -6678,7 +6678,7 @@ CivicCast decides who a caller is in the control plane, with a bearer token, and
 
 ![Figure 16-12. Sign-in and request authorization.](manual/diagrams/e103930a14a6.png){width=100%}
 
-**What this shows.** First-admin setup and sign-in use the local First Setup screen. Staff use the separate `/login` page and `POST /api/staff/auth/login`; it returns a station-local session token after checking the username and password. The first administrator uses `POST /api/setup/login` on the station computer. Sessions last 12 hours, sign-in does not end another valid session, and at most 20 console sessions are retained. The browser sends its token on protected requests. The middleware checks `/api/staff/*` paths; `/api/setup/*` has a separate local-only guard, and public routes are intentionally available without staff sign-in. The three token kinds are:
+**What this shows.** First-admin setup and sign-in use the local First Setup screen. Staff use the separate `/operator/#/login` page and `POST /api/staff/auth/login`; it returns a station-local session token after checking the username and password. The first administrator uses `POST /api/setup/login` on the station computer. Sessions last 12 hours, sign-in does not end another valid session, and at most 20 console sessions are retained. The browser sends its token on protected requests. The middleware checks `/api/staff/*` paths; `/api/setup/*` has a separate local-only guard, and public routes are intentionally available without staff sign-in. The three token kinds are:
 
 | Kind | Looks like | Kept as | Used for |
 | --- | --- | --- | --- |
@@ -7471,7 +7471,7 @@ Other protocol and utility routes include `/health`, federation discovery and Ac
 
 1. **Staff routes need a bearer token.** Send the header `Authorization: Bearer <token>` with every request. A request with no header gets HTTP 401 and does not count against the lock-out limit.
 2. **Where tokens come from.**
-   - Staff sign in at `/login` using `POST /api/staff/auth/login`. This checks their account and returns a station-local console session token. Remote access uses the CIDR-restricted staff hostname when configured.
+   - Staff sign in at `/operator/#/login` using `POST /api/staff/auth/login`. This checks their account and returns a station-local console session token. Remote access uses the CIDR-restricted staff hostname when configured.
    - The first admin uses `POST /api/setup/login` on the station computer. It returns an `operator_console_token`; the same call from another computer is refused with HTTP 403.
    - Or issue a token with `civiccast token issue` ([Appendix A](#app-cli)). The console has no screen for pasting such a token in; it is for scripts and tools.
    - Or list tokens in the `CIVICCAST_STAFF_TOKENS` setting (an older method; the server cannot revoke these, so you retire one by changing the setting). On a station that has its database token store, as the native station does, these entries are honored only when `CIVICCAST_STAFF_TOKENS_FALLBACK_WITH_DB=1` is also set.
@@ -9306,7 +9306,7 @@ Code 123 hides a second number from the activation step: 66 (pack or index missi
 
 | Where | Message | Cause and fix |
 | --- | --- | --- |
-| API, HTTP 401 | Missing Authorization header. Use Bearer &lt;staff-token&gt;. | No token sent. Staff sign in at `/login`; the first administrator signs in at `/setup`. |
+| API, HTTP 401 | Missing Authorization header. Use Bearer &lt;staff-token&gt;. | No token sent. Staff sign in at `/operator/#/login`; the first administrator signs in at `/operator/#/setup`. |
 | API, HTTP 401 | Invalid Authorization header. Use Bearer &lt;staff-token&gt;. | The header is not in the form `Bearer <token>`. |
 | API, HTTP 401 | Invalid staff bearer token. | The token is wrong or from another station. |
 | API, HTTP 401 | Staff bearer token has been revoked. | Issue a new one. |
@@ -9878,7 +9878,7 @@ Conform cache
 :   The folder of prepared copies. It lives at `data\egress\conform-cache` under the data folder and is limited to 60 GB by default.
 
 Console token
-:   The proof of sign-in the browser keeps after staff sign-in at `/login` or first-admin sign-in at `/setup`. It is stored in the browser until you sign out, an administrator revokes the session, or it expires.
+:   The proof of sign-in the browser keeps after staff sign-in at `/operator/#/login` or first-admin sign-in at `/operator/#/setup`. It is stored in the browser until you sign out, an administrator revokes the session, or it expires.
 
 Contributor
 :   An outside producer who sends in a program through the public "Submit a program" form. Staff review these on the Contributors screen.
@@ -9983,7 +9983,7 @@ Firewall rule
 :   A Windows setting that allows or blocks network traffic. Setup adds one for TCP 8000.
 
 First Setup
-:   The screen that creates the first admin and recovery kit, and later serves that administrator’s sign-in and recovery flow. Staff use `/login`.
+:   The screen that creates the first admin and recovery kit, and later serves that administrator’s sign-in and recovery flow. Staff use `/operator/#/login`.
 
 Flight
 :   The date window in which an underwriting spot should run.
@@ -10526,7 +10526,7 @@ Every screen of the operator console, then the resident portal pages and the set
 | Emergency Alerts | System Health | S, M, A | | [Chapter 8](#ch-something-wrong) |
 | Federation | System Health | All | ActivityPub federation | [Chapter 8](#ch-something-wrong); setup detail in [Chapter 15](#ch-integrations) (Part II) |
 
-That is 42 menu entries in six sections. Two more pages are reached from the Assets list and are not in the menu: **asset detail** (`#/assets/<asset id>`) and the full-screen **trim editor** (`#/assets/<asset id>/trim`); both are in [Chapter 5](#ch-after-meeting). An address the console does not know shows "Page not found" with buttons for Manual, First Setup, Recording, Reports and Readiness. A few old or short addresses forward to the right screen (for example `/docs` and `/manual` to Manual, `/sign-in` and `/staff-login` to the staff sign-in page at `/login`, `/readiness` to Readiness, `/today` to Schedule, `/archive` to Assets).
+That is 42 menu entries in six sections. Two more pages are reached from the Assets list and are not in the menu: **asset detail** (`#/assets/<asset id>`) and the full-screen **trim editor** (`#/assets/<asset id>/trim`); both are in [Chapter 5](#ch-after-meeting). An address the console does not know shows "Page not found" with buttons for Manual, First Setup, Recording, Reports and Readiness. A few old or short addresses forward to the right screen (for example `/docs` and `/manual` to Manual, `/sign-in` and `/staff-login` to the staff sign-in page at `/operator/#/login`, `/readiness` to Readiness, `/today` to Schedule, `/archive` to Assets).
 
 > **Known issue (beta.11):** The top bar clock always says "Next No events scheduled" and the pill "No live meeting broadcast", whatever the schedule holds. They are placeholders. Use Schedule and Channels for the real answers.
 

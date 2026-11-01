@@ -131,6 +131,21 @@ describe('canApprove', () => {
 })
 
 describe('DryRunReview', () => {
+  it('shows the exact start, end and duration before approving a 38-second slot', () => {
+    const start = new Date('2026-11-01T17:30:07Z')
+    const end = new Date(start.getTime() + 38_000)
+    const options: Intl.DateTimeFormatOptions = {
+      weekday: 'short', hour: 'numeric', minute: '2-digit', second: '2-digit',
+    }
+    const { getByText } = render(
+      <DryRunReview
+        plan={plan({ scheduled_at: start.toISOString(), duration_seconds: 38 })}
+        canManage committing={false} onApprove={vi.fn()} onCancel={vi.fn()}
+      />,
+    )
+    expect(getByText(`${start.toLocaleString(undefined, options)} – ${end.toLocaleString(undefined, options)} · 00:00:38`)).toBeTruthy()
+  })
+
   it('disables Approve until the dry-run passes', () => {
     const { getByText } = render(
       <DryRunReview

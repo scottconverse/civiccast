@@ -19,12 +19,14 @@ internals, and never touch a real database. Both engine calls in
 
 from __future__ import annotations
 
+import time
 from pathlib import Path
 
 import pytest
 import sqlalchemy
 
 from civiccast.dr import backup
+from civiccast.dr.models import TableSnapshot
 
 _BARE_POSTGRES_URL = "postgresql://civiccast:tr0ub4dor@127.0.0.1:5432/civiccast"
 
@@ -161,3 +163,34 @@ def test_run_full_backup_leaves_explicit_driver_scheme_untouched(
     )
 
     assert captured["url"] == explicit_url
+
+
+@pytest.mark.parametrize("changed", [False, True])
+def test_quiescence_scan_can_outlast_connection_ceiling_without_waiving_changes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, changed: bool
+) -> None:
+    """A connected, slow fingerprint is valid; changed contents still refuse backup."""
+    monkeypatch.setattr(backup, "_BACKUP_CONNECT_CEILING_SECONDS", 0.1)
+    monkeypatch.setattr(sqlalchemy, "create_engine", lambda *a, **kw: _StubEngine())
+    monkeypatch.setattr(backup, "run_postgres_backup", _fake_run_postgres_backup)
+    monkeypatch.setattr(backup, "run_postgres_globals_backup", _fake_run_postgres_globals_backup)
+    calls = 0
+
+    def snapshot(engine: object, *, connection: object = None) -> list[TableSnapshot]:
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            time.sleep(0.2)
+        checksum = "b" * 64 if calls == 2 and changed else "a" * 64
+        return [TableSnapshot(name="history", row_count=1000, checksum_sha256=checksum)]
+
+    monkeypatch.setattr(backup, "snapshot_tables", snapshot)
+    if changed:
+        with pytest.raises(RuntimeError, match="changed"):
+            backup.run_full_backup(database_url=_BARE_POSTGRES_URL, dest_dir=tmp_path / "dest")
+    else:
+        manifest = backup.run_full_backup(
+            database_url=_BARE_POSTGRES_URL, dest_dir=tmp_path / "dest"
+        )
+        assert manifest.tables[0].row_count == 1000
+    assert calls == 2

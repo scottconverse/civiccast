@@ -1,10 +1,10 @@
 # Install CivicCast on Windows
 
-CivicCast RC2 is a complete native Windows station. It includes Python, PostgreSQL, FFmpeg, GStreamer and local AI runtimes. You do not need Git, Python, Docker, WSL, Ollama or GitHub CLI installed separately.
+CivicCast RC3 is a complete native Windows station. It includes Python, PostgreSQL, FFmpeg, GStreamer and local AI runtimes. You do not need Git, Python, Docker, WSL, Ollama or GitHub CLI installed separately.
 
-[RC2 manual PDF](https://github.com/scottconverse/civiccast-native/releases/download/v1.0.0-rc.2/USER-MANUAL.pdf) · [RC2 package verification](docs/releases/v1.0.0-rc.2-verification.md) · [Current source manual](docs/USER-MANUAL.md)
+[RC3 manual PDF](https://github.com/scottconverse/civiccast-native/releases/download/v1.0.0-rc.3/USER-MANUAL.pdf) · [RC3 release notes](https://github.com/scottconverse/civiccast-native/releases/tag/v1.0.0-rc.3) · [Current source manual](docs/USER-MANUAL.md)
 
-`v1.0.0-rc.2` is the current [published release](https://github.com/scottconverse/civiccast-native/releases/tag/v1.0.0-rc.2). Run its `setup.exe` with the adjacent `packs` and `station` folders intact, or use the download command below.
+`v1.0.0-rc.3` is the current [published release](https://github.com/scottconverse/civiccast-native/releases/tag/v1.0.0-rc.3). Run its `setup.exe` with the adjacent `packs` and `station` folders intact, or use the download command below.
 
 ## Download and install the complete station
 
@@ -13,9 +13,9 @@ Use Windows 11 x64, internet for the download, and a Windows administrator accou
 Open **Windows PowerShell** and paste:
 
 ```powershell
-$installerScript = Join-Path $env:TEMP 'CivicCast-Install-RC2.ps1'
-Invoke-WebRequest -UseBasicParsing -Uri 'https://github.com/scottconverse/civiccast-native/releases/download/v1.0.0-rc.2/download_windows_release_artifacts.ps1' -OutFile $installerScript
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installerScript -Tag v1.0.0-rc.2 -Version 1.0.0-rc.2 -Install -Destination "$env:USERPROFILE\Downloads\CivicCast-RC2"
+$installerScript = Join-Path $env:TEMP 'CivicCast-Install-RC3.ps1'
+Invoke-WebRequest -UseBasicParsing -Uri 'https://github.com/scottconverse/civiccast-native/releases/download/v1.0.0-rc.3/download_windows_release_artifacts.ps1' -OutFile $installerScript
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installerScript -Tag v1.0.0-rc.3 -Version 1.0.0-rc.3 -Install -Destination "$env:USERPROFILE\Downloads\CivicCast-RC3"
 ```
 
 The helper downloads the installer, all five runtime packs and all six signed station packs. It verifies SHA-256 hashes and the installer's valid **Scott Converse** Authenticode signature, and creates the `packs` and `station` folders setup needs. Windows requests administrator approval if needed. Setup uses supported silent mode with the complete kit, without the separate optional raw-model acquisition screen. Wait for it to finish; any actual nonzero exit is reported as failure.
@@ -27,7 +27,7 @@ names the step in progress.
 
 For download only, replace `-Install` with `-IncludePacks`. Keep the resulting folder together when copying it to USB. The complete folder supplies the dependencies for offline installation.
 
-[RC2 downloader source](scripts/download_windows_release_artifacts.ps1). The source defaults target RC2. The command explicitly supplies both tag and version so it also targets RC2 when a frozen helper asset retains older defaults.
+[RC3 downloader source](scripts/download_windows_release_artifacts.ps1). The source defaults target RC3. The command explicitly supplies both tag and version so it also targets RC3 when a frozen helper asset retains older defaults.
 
 ## First start
 
@@ -62,10 +62,10 @@ It prompts privately, preserves station data and revokes that administrator's ex
 
 The release's `station-models.zip.001`, `.002` and subsequent parts form one ZIP64 archive. **Use the helper to verify and extract them.** Individual parts are not runtime packs.
 
-The layout below is the RC2 kit created by the published-download command.
+The layout below is the RC3 kit created by the published-download command.
 
 ```text
-CivicCast-RC2/
+CivicCast-RC3/
   setup.exe
   packs/
     native-app-payload.ccpack

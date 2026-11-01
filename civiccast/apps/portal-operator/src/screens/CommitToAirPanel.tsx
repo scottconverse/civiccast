@@ -22,6 +22,7 @@ import {
   reportTone,
 } from './commit-format'
 import type { CommitDispatchStatus, Tone } from './commit-format'
+import { formatDurationHMS } from './recording-format'
 
 const UPCOMING_HOURS = 24
 const RECENT_LIMIT = 10
@@ -37,11 +38,8 @@ function formatWhen(iso: string): string {
     weekday: 'short',
     hour: 'numeric',
     minute: '2-digit',
+    second: '2-digit',
   })
-}
-
-function minutes(seconds: number): string {
-  return `${Math.max(1, Math.round(seconds / 60))} min`
 }
 
 const TONE_STYLE: Record<Tone, { bg: string; fg: string }> = {
@@ -103,6 +101,7 @@ export function DryRunReview({
   const approvable = canApprove(plan, canManage)
   const conflicts = plan.conflicts_detected ?? []
   const gaps = plan.gaps_detected ?? []
+  const endsAt = new Date(Date.parse(plan.scheduled_at) + plan.duration_seconds * 1000).toISOString()
   return (
     <div className="mt-2 grid gap-3 rounded-md p-3" style={SUBCARD_STYLE}>
       <div className="flex flex-wrap items-center gap-2">
@@ -113,7 +112,7 @@ export function DryRunReview({
           <Badge label="Not safe to air yet" tone="err" />
         )}
         <span className="cc-mono text-[11px]" style={{ color: 'var(--cc-ink-3)' }}>
-          {formatWhen(plan.scheduled_at)} · {minutes(plan.duration_seconds)}
+          {formatWhen(plan.scheduled_at)} – {formatWhen(endsAt)} · {formatDurationHMS(plan.duration_seconds)}
         </span>
       </div>
 
@@ -131,7 +130,7 @@ export function DryRunReview({
           </div>
           {conflicts.map((c) => (
             <div key={c.existing_schedule_item_id} className="text-xs" style={{ color: 'var(--cc-ink-2)' }}>
-              {c.existing_asset_title} at {formatWhen(c.existing_scheduled_at)} (overlaps {minutes(c.overlap_seconds)})
+              {c.existing_asset_title} at {formatWhen(c.existing_scheduled_at)} (overlaps {formatDurationHMS(c.overlap_seconds)})
             </div>
           ))}
         </div>
@@ -141,7 +140,7 @@ export function DryRunReview({
         <div className="grid gap-1 text-xs" style={{ color: 'var(--cc-ink-3)' }}>
           <div className="font-semibold">Dead-air gap before this program (it can still air):</div>
           {gaps.map((g, i) => (
-            <div key={`${g.starts_at}-${i}`}>{g.label ?? 'Gap'} — {minutes(g.duration_seconds)}</div>
+            <div key={`${g.starts_at}-${i}`}>{g.label ?? 'Gap'} — {formatDurationHMS(g.duration_seconds)}</div>
           ))}
         </div>
       )}
@@ -380,7 +379,7 @@ export function CommitToAirPanel({
                   </div>
                   <div className="cc-mono mt-0.5 text-[11px]" style={{ color: 'var(--cc-ink-3)' }}>
                     {formatWhen(entry.occurrence_start)}
-                    {entry.duration_seconds ? ` · ${minutes(entry.duration_seconds)}` : ''}
+                    {entry.duration_seconds ? ` · ${formatDurationHMS(entry.duration_seconds)}` : ''}
                   </div>
                 </div>
                 <button

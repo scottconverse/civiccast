@@ -167,7 +167,7 @@ entries:
       # `git hash-object --path <file> <file>` per D2.
       code:
         path: civiccast/dr/backup.py
-        blob: 30dbb684637422f709f5f63abe644b61a70eff98
+        blob: 58177e216ebebf8016a9c08a29e5eb7bf132a623
       test:
         path: tests/dr/test_postgres_backup.py
         blob: 6f3ab03eb95bf1a1f079594d39fb8436f3caaf77

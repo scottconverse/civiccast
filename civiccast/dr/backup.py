@@ -99,7 +99,7 @@ def snapshot_tables(engine: Engine, *, connection: Connection | None = None) -> 
     """
 
     schema = _schema_for(engine)
-    inspector = inspect(engine)
+    inspector = inspect(connection if connection is not None else engine)
     table_names = sorted(inspector.get_table_names(schema=schema))
     snapshots: list[TableSnapshot] = []
 
@@ -892,9 +892,16 @@ def run_full_backup(
                 normalize_database_url(database_url), **connect_options(database_url)
             )
             try:
-                post_snapshot = run_bounded(
-                    lambda: snapshot_tables(post_check_engine), _BACKUP_CONNECT_CEILING_SECONDS
-                )
+                # This ceiling bounds opening the connection, not hashing every
+                # row. A working station's history can legitimately take longer
+                # than 15s to fingerprint; timing out that scan falsely rejects
+                # an otherwise valid pre-upgrade backup. Keep the complete
+                # quiescence comparison, using the already-connected handle.
+                post_conn = run_bounded(post_check_engine.connect, _BACKUP_CONNECT_CEILING_SECONDS)
+                try:
+                    post_snapshot = snapshot_tables(post_check_engine, connection=post_conn)
+                finally:
+                    post_conn.close()
             finally:
                 post_check_engine.dispose()
             _assert_backup_quiescent(tables, post_snapshot)

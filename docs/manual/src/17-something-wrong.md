@@ -380,7 +380,7 @@ If the problem is with installing, also include the installer's file name and wh
 | `The Emergency Alerts console requires the setup admin, support admin, or meeting operator role. Ask your station admin for access.` | Emergency Alerts | Your role cannot open this screen |
 | `Could not display the alert.` | Emergency Alerts | The server refused. The box usually shows the server's own reason instead of this sentence. For a full-screen takeover, tick **Confirm full-screen takeover** first |
 | `Could not load federation status.` | Federation | Click **Retry**. If it fails again, tell IT |
-| `Could not verify your staff identity (...)` | Emergency Alerts | Sign in again at `/login` with your staff account; the first administrator uses `/setup` on the station computer |
+| `Could not verify your staff identity (...)` | Emergency Alerts | Sign in again at `/operator/#/login` with your staff account; the first administrator uses `/operator/#/setup` on the station computer |
 
 ## Related
 

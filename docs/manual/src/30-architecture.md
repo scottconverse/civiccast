@@ -645,7 +645,7 @@ sequenceDiagram
 
 *Figure 16-12. Sign-in and request authorization.*
 
-**What this shows.** First-admin setup and sign-in use the local First Setup screen. Staff use the separate `/login` page and `POST /api/staff/auth/login`; it returns a station-local session token after checking the username and password. The first administrator uses `POST /api/setup/login` on the station computer. Sessions last 12 hours, sign-in does not end another valid session, and at most 20 console sessions are retained. The browser sends its token on protected requests. The middleware checks `/api/staff/*` paths; `/api/setup/*` has a separate local-only guard, and public routes are intentionally available without staff sign-in. The three token kinds are:
+**What this shows.** First-admin setup and sign-in use the local First Setup screen. Staff use the separate `/operator/#/login` page and `POST /api/staff/auth/login`; it returns a station-local session token after checking the username and password. The first administrator uses `POST /api/setup/login` on the station computer. Sessions last 12 hours, sign-in does not end another valid session, and at most 20 console sessions are retained. The browser sends its token on protected requests. The middleware checks `/api/staff/*` paths; `/api/setup/*` has a separate local-only guard, and public routes are intentionally available without staff sign-in. The three token kinds are:
 
 | Kind | Looks like | Kept as | Used for |
 | --- | --- | --- | --- |
