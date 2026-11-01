@@ -51,6 +51,12 @@ interface FakeSubtitleTrack {
  * HlsPlayer fights back against it exactly like the real bug required.
  */
 class FakeHls {
+  readonly config: Record<string, unknown>
+
+  constructor(config: Record<string, unknown> = {}) {
+    this.config = config
+  }
+
   static isSupported() {
     return true
   }
@@ -124,8 +130,8 @@ let lastInstance: FakeHls | undefined
 
 vi.mock('hls.js', () => ({
   default: class extends FakeHls {
-    constructor() {
-      super()
+    constructor(config: Record<string, unknown>) {
+      super(config)
       // Test double needs to hand its own instance back to the test so it
       // can drive seedTracks()/simulateSpuriousPollReset() on the exact
       // instance HlsPlayer constructed.
@@ -141,6 +147,15 @@ afterEach(() => {
 })
 
 describe('HlsPlayer hls.js captions', () => {
+  it('enables recovery outside the served live window without shrinking the normal buffer', async () => {
+    render(<HlsPlayer manifestUrl="/media/live/public/playlist.m3u8" />)
+    await waitFor(() => expect(lastInstance).toBeDefined())
+    expect(lastInstance?.config).toMatchObject({
+      liveSyncDurationCount: 3,
+      liveMaxLatencyDurationCount: 6,
+    })
+  })
+
   it('prerolls a tiny startup gap before forwarding its seek to the native decoder', async () => {
     const seek = vi.spyOn(HTMLMediaElement.prototype, 'currentTime', 'set')
     render(<HlsPlayer manifestUrl="/short-vod/playlist.m3u8" />)

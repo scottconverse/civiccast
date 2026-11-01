@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import base64
 import json
 import os
 import re
@@ -22,6 +23,47 @@ pytestmark = pytest.mark.skipif(
     not (native._wsl_gi_available() and native._cc_embed_elements_available()),
     reason="caption flow proof requires the real bundled GStreamer caption runtime",
 )
+
+
+def test_restarted_worker_records_actual_startup_caption_display(tmp_path: Path) -> None:
+    """A pre-existing audio boundary must not orphan startup timing probes."""
+    tap_dir = tmp_path / "tap"
+    tap_dir.mkdir()
+    (tap_dir / "program-boundary.json").write_text(
+        json.dumps({"token": "previous-worker", "first_segment": 0})
+    )
+    output = tmp_path / "startup-caption.ts"
+    graph = replace(
+        native._filesink_graph(native._av_demo_graph(), output),
+        captions=native.graphmod.caption_embed_leg_live(),
+        audio_tap=native.graphmod.AudioTapLeg(tap_dir=str(tap_dir), segment_seconds=0.5),
+    )
+    proc, control, log = native._launch_worker(tmp_path, graph, output)
+    try:
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline:
+            boundary = json.loads((tap_dir / "program-boundary.json").read_text())
+            if boundary["token"] != "previous-worker":
+                break
+            assert proc.poll() is None, log.read_text()
+            time.sleep(0.05)
+        else:
+            pytest.fail("restarted worker did not publish its startup boundary")
+        payload = base64.b64encode(b"STARTUP DISPLAY CLOCK").decode("ascii")
+        native._send(control, f"caption 0 1500 {payload} {boundary['token']}")
+        time.sleep(5)
+        native._send(control, "stop")
+        proc.wait(timeout=10)
+    finally:
+        native._reap(proc)
+    assert proc.returncode == 0, log.read_text()
+    presentation = json.loads((tmp_path / "captions" / "presentation.json").read_text())
+    assert presentation["encoded_page_count"] == presentation["displayed_page_count"] == 1
+    assert presentation["pages"][0]["text"] == "STARTUP DISPLAY CLOCK"
+    assert presentation["errors"] == []
+    native._assert_caption_decoded(
+        native._decode_back_caption_text(output), "STARTUP DISPLAY CLOCK", context=log.read_text()
+    )
 
 
 def test_scheduled_program_prerolls_on_live_slate_without_early_selection(tmp_path):

@@ -78,6 +78,47 @@ def test_heartbeat_does_not_enqueue_or_advance_while_gap_waits(caption_engine: A
     assert caption_engine._caption_stream_position_ms == 250
 
 
+def test_late_clock_attachment_observes_startup_program_after_audio_tap_fence(
+    caption_engine: Any,
+    engine_module: Any,  # noqa: F811
+    tmp_path: Any,
+) -> None:
+    """Production builds the graph before attaching its delivery clock."""
+    import json
+
+    from civiccast.egress.gst.caption_clock import CaptionDeliveryClock
+
+    source, encoded = Mock(), Mock()
+    caption_engine.caption_appsrc = source
+    caption_engine._caption_source_elements = [source, encoded]
+    caption_engine._caption_program_token = "restarted-worker-program"
+    clock = CaptionDeliveryClock(tmp_path / "delivered.json")
+    caption_engine.set_caption_delivery_clock(clock)
+    engine_module.Gst.SECOND = 1_000_000_000
+    engine_module.Gst.CLOCK_TIME_NONE = -1
+
+    def observe(element: Any, data: bytes, pts: int) -> None:
+        callback = element.get_static_pad.return_value.add_probe.call_args.args[1]
+        buffer = SimpleNamespace(
+            pts=pts,
+            get_size=lambda: len(data),
+            extract_dup=lambda *_: data,
+        )
+        callback(
+            None,
+            SimpleNamespace(type=engine_module.Gst.PadProbeType.BUFFER, get_buffer=lambda: buffer),
+        )
+
+    observe(source, b"STARTUP PAGE", 4_000_000_000)
+    observe(encoded, b"\xfc\x94\x20\xfc\x94\x2f", 5_000_000_000)
+    observe(encoded, b"\xfc\x94\x2c", 7_000_000_000)
+    clock.flush_presentation()
+    result = json.loads(clock.presentation_path.read_text())
+    assert result["pages"] == [{"text": "STARTUP PAGE", "start_seconds": 3605, "end_seconds": 3607}]
+    assert result["encoded_page_count"] == result["displayed_page_count"] == 1
+    assert result["errors"] == []
+
+
 def test_heartbeat_send_failure_clears_own_reservation_and_quits(caption_engine: Any) -> None:
     caption_engine.caption_appsrc.send_event.return_value = False
     assert caption_engine._advance_live_caption_gap() is False
