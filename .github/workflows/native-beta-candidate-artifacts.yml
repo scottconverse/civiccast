@@ -105,6 +105,10 @@ on:
         description: Self-hosted only; verify signed local model packs and reuse without downloads, signing a fresh core/index if the product version changes
         type: string
         default: ""
+      reuse_runtime_source_sha:
+        description: Self-hosted app-only correction; reuse four unchanged signed runtime packs from this completed local candidate
+        type: string
+        default: ""
       reviewed_pyav_release_tag:
         description: Optional existing release publishing the exact pinned PyAV wheel as its own asset (av-18.0.0-cp311-abi3-win_amd64.whl)
         type: string
@@ -563,6 +567,7 @@ jobs:
             (Join-Path $env:RUNNER_TEMP "civiccast-app-payload-scratch"),
             (Join-Path $env:RUNNER_TEMP "civiccast-gstreamer-closure")
           )) {
+            if ('${{ inputs.reuse_runtime_source_sha }}' -and $dir.EndsWith('civiccast-gstreamer-closure')) { continue }
             if (Test-Path -LiteralPath $dir) {
               Write-Host "Clearing leftover self-hosted scratch from a previous run: $dir"
               Remove-Item -LiteralPath $dir -Recurse -Force -ErrorAction SilentlyContinue
@@ -576,7 +581,7 @@ jobs:
           # leftover here is a staleness/reproducibility concern, not a
           # blocking one -- clear it best-effort and move on either way.
           $gstreamerStage = Join-Path $env:RUNNER_TEMP "civiccast-gstreamer-stage"
-          if (Test-Path -LiteralPath $gstreamerStage) {
+          if (!'${{ inputs.reuse_runtime_source_sha }}' -and (Test-Path -LiteralPath $gstreamerStage)) {
             Remove-Item -LiteralPath $gstreamerStage -Recurse -Force -ErrorAction SilentlyContinue
           }
 
@@ -674,10 +679,32 @@ jobs:
           $cudaPackCache = Join-Path $env:RUNNER_TEMP "civiccast-cuda-pack-cache"
           [System.IO.File]::WriteAllText($keyPath, $env:PACK_SIGNING_PRIVATE_KEY, [System.Text.UTF8Encoding]::new($false))
           try {
-            python -I -B scripts/build_native_runtime_closure.py --stage $gstreamerStage --out $gstreamerClosure
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            python -I -B scripts/verify_native_runtime_closure.py --tree $gstreamerClosure
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            $reuseSource = '${{ inputs.reuse_runtime_source_sha }}'
+            if ($reuseSource) {
+              if ($env:BUILD_TARGET -ne 'self-hosted' -or $reuseSource -notmatch '^[0-9a-f]{40}$') { throw 'Runtime reuse requires self-hosted and an exact source SHA.' }
+              git fetch --no-tags origin $reuseSource
+              if ($LASTEXITCODE -ne 0) { throw 'Cannot resolve the exact previous runtime source.' }
+              git diff --quiet $reuseSource $env:SOURCE_SHA -- native-windows-runtime-dependencies.lock.json native-windows-build-toolchain.lock.json requirements-native-app.txt requirements-native-app-build.txt requirements-native-pyav-build.txt pyproject.toml uv.lock scripts/build_native_runtime_closure.py scripts/build_native_server_pack.py scripts/build_native_ffmpeg_pack.py scripts/build_native_ollama_pack.py scripts/build_native_cuda_pack.py
+              if ($LASTEXITCODE -ne 0) { throw 'Runtime inputs changed; app-only reuse refused.' }
+              $previous = Join-Path 'C:\CivicCastTester\rc3-runtime-reuse' $reuseSource
+              $gstreamerClosure = Join-Path $previous 'gstreamer'
+              foreach ($component in @('server-binaries', 'ffmpeg-runtime', 'ollama-runtime', 'cuda-runtime')) {
+                $reportPath = Join-Path $previous "native-$component-report.json"
+                $report = Get-Content -LiteralPath $reportPath -Raw | ConvertFrom-Json
+                $pack = Join-Path $previous "packs\native-$component.ccpack"
+                if ((Get-Item -LiteralPath $pack).Length -ne $report.pack_bytes -or (Get-FileHash -LiteralPath $pack -Algorithm SHA256).Hash.ToLowerInvariant() -ne $report.pack_sha256) { throw "Previous signed pack identity mismatch: $component" }
+                New-Item -ItemType HardLink -Path (Join-Path 'artifacts/native-beta/packs' ([IO.Path]::GetFileName($pack))) -Target $pack | Out-Null
+                Copy-Item -LiteralPath $reportPath -Destination artifacts/native-beta
+              }
+              # build_native_app_payload_pack independently verifies this existing closure.
+              if (!(Test-Path -LiteralPath (Join-Path $gstreamerClosure 'runtime-manifest.json'))) { throw 'Reviewed existing GStreamer closure is missing.' }
+              Write-Host "Reusing four unchanged signed runtime packs from $reuseSource; rebuilding only app payload and installer."
+            } else {
+              python -I -B scripts/build_native_runtime_closure.py --stage $gstreamerStage --out $gstreamerClosure
+              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+              python -I -B scripts/verify_native_runtime_closure.py --tree $gstreamerClosure
+              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            }
             # Splat-tail rather than folding this into the literal argument
             # list below: tests/policy/test_native_beta_candidate_workflow.py
             # pins several of the flags immediately below by exact literal
@@ -713,44 +740,46 @@ jobs:
               --report artifacts/native-beta/native-app-payload-report.json `
               @appPayloadExtraArgs
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            python -I -B scripts/build_native_server_pack.py `
-              --output artifacts/native-beta/packs/native-server-binaries.ccpack `
-              --acquire `
-              --cache $serverPackCache `
-              --signing-private-key $keyPath `
-              --signing-key-id $env:PACK_SIGNING_KEY_ID `
-              --source-sha $env:SOURCE_SHA `
-              --report artifacts/native-beta/native-server-binaries-report.json
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            python -I -B scripts/build_native_ffmpeg_pack.py `
-              --output artifacts/native-beta/packs/native-ffmpeg-runtime.ccpack `
-              --acquire `
-              --cache $ffmpegPackCache `
-              --signing-private-key $keyPath `
-              --signing-key-id $env:PACK_SIGNING_KEY_ID `
-              --report artifacts/native-beta/native-ffmpeg-runtime-report.json
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            python -I -B scripts/build_native_ollama_pack.py `
-              --output artifacts/native-beta/packs/native-ollama-runtime.ccpack `
-              --acquire `
-              --cache $ollamaPackCache `
-              --signing-private-key $keyPath `
-              --signing-key-id $env:PACK_SIGNING_KEY_ID `
-              --report artifacts/native-beta/native-ollama-runtime-report.json
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            # native-cuda-runtime is OPTIONAL at install time (native_pack_staging::
-            # DEFAULT_OPTIONAL_COMPONENTS, never DEFAULT_REQUIRED_COMPONENTS) -- built,
-            # signed, and checksummed here exactly like every other sidecar so the
-            # published release carries a real asset for the download-plan catalog to
-            # fetch, but never counted toward the required-sidecar disk estimate below.
-            python -I -B scripts/build_native_cuda_pack.py `
-              --output artifacts/native-beta/packs/native-cuda-runtime.ccpack `
-              --acquire `
-              --cache $cudaPackCache `
-              --signing-private-key $keyPath `
-              --signing-key-id $env:PACK_SIGNING_KEY_ID `
-              --report artifacts/native-beta/native-cuda-runtime-report.json
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            if (-not $reuseSource) {
+              python -I -B scripts/build_native_server_pack.py `
+                --output artifacts/native-beta/packs/native-server-binaries.ccpack `
+                --acquire `
+                --cache $serverPackCache `
+                --signing-private-key $keyPath `
+                --signing-key-id $env:PACK_SIGNING_KEY_ID `
+                --source-sha $env:SOURCE_SHA `
+                --report artifacts/native-beta/native-server-binaries-report.json
+              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+              python -I -B scripts/build_native_ffmpeg_pack.py `
+                --output artifacts/native-beta/packs/native-ffmpeg-runtime.ccpack `
+                --acquire `
+                --cache $ffmpegPackCache `
+                --signing-private-key $keyPath `
+                --signing-key-id $env:PACK_SIGNING_KEY_ID `
+                --report artifacts/native-beta/native-ffmpeg-runtime-report.json
+              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+              python -I -B scripts/build_native_ollama_pack.py `
+                --output artifacts/native-beta/packs/native-ollama-runtime.ccpack `
+                --acquire `
+                --cache $ollamaPackCache `
+                --signing-private-key $keyPath `
+                --signing-key-id $env:PACK_SIGNING_KEY_ID `
+                --report artifacts/native-beta/native-ollama-runtime-report.json
+              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+              # native-cuda-runtime is OPTIONAL at install time (native_pack_staging::
+              # DEFAULT_OPTIONAL_COMPONENTS, never DEFAULT_REQUIRED_COMPONENTS) -- built,
+              # signed, and checksummed here exactly like every other sidecar so the
+              # published release carries a real asset for the download-plan catalog to
+              # fetch, but never counted toward the required-sidecar disk estimate below.
+              python -I -B scripts/build_native_cuda_pack.py `
+                --output artifacts/native-beta/packs/native-cuda-runtime.ccpack `
+                --acquire `
+                --cache $cudaPackCache `
+                --signing-private-key $keyPath `
+                --signing-key-id $env:PACK_SIGNING_KEY_ID `
+                --report artifacts/native-beta/native-cuda-runtime-report.json
+              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            }
           }
           finally {
             if (Test-Path -LiteralPath $keyPath) {
@@ -1087,7 +1116,17 @@ jobs:
           $destination = Join-Path $env:CANDIDATE_ROOT "candidate"
           if (Test-Path -LiteralPath $destination) { Remove-Item -Recurse -Force $destination }
           New-Item -ItemType Directory -Force -Path $destination | Out-Null
-          Copy-Item -Path "artifacts/native-beta/*" -Destination $destination -Recurse -Force
+          if ('${{ inputs.reuse_runtime_source_sha }}') {
+            $source = (Resolve-Path 'artifacts/native-beta').Path
+            foreach ($file in Get-ChildItem -LiteralPath $source -Recurse -File) {
+              if ($file.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Refusing reparse file in candidate mirror.' }
+              $target = Join-Path $destination ([IO.Path]::GetRelativePath($source, $file.FullName))
+              New-Item -ItemType Directory -Path (Split-Path $target) -Force | Out-Null
+              New-Item -ItemType HardLink -Path $target -Target $file.FullName | Out-Null
+            }
+          } else {
+            Copy-Item -Path "artifacts/native-beta/*" -Destination $destination -Recurse -Force
+          }
           Write-Host "Mirrored candidate build outputs to $destination"
 
       # Small evidence set (reports, checksums, the signing receipt): no
@@ -1559,7 +1598,17 @@ jobs:
           $destination = Join-Path $env:CANDIDATE_ROOT "station-bundle"
           if (Test-Path -LiteralPath $destination) { Remove-Item -Recurse -Force $destination }
           New-Item -ItemType Directory -Force -Path $destination | Out-Null
-          Copy-Item -Path "artifacts/native-station-bundle/*" -Destination $destination -Recurse -Force
+          if ('${{ inputs.reuse_runtime_source_sha }}') {
+            $source = (Resolve-Path 'artifacts/native-station-bundle').Path
+            foreach ($file in Get-ChildItem -LiteralPath $source -Recurse -File) {
+              if ($file.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Refusing reparse file in station mirror.' }
+              $target = Join-Path $destination ([IO.Path]::GetRelativePath($source, $file.FullName))
+              New-Item -ItemType Directory -Path (Split-Path $target) -Force | Out-Null
+              New-Item -ItemType HardLink -Path $target -Target $file.FullName | Out-Null
+            }
+          } else {
+            Copy-Item -Path "artifacts/native-station-bundle/*" -Destination $destination -Recurse -Force
+          }
           Write-Host "Mirrored station bundle outputs to $destination"
 
       # Skipped by default on the self-hosted lane: this bundle is ~18.6 GB
@@ -1749,7 +1798,11 @@ jobs:
           if ($packSource.Count -eq 0) { throw "Kit assembly: no component .ccpack files found under $candidateSource." }
           $kitPacks = Join-Path $kit "packs"
           New-Item -ItemType Directory -Force -Path $kitPacks | Out-Null
-          foreach ($p in $packSource) { Copy-Item -LiteralPath $p.FullName -Destination (Join-Path $kitPacks $p.Name) }
+          foreach ($p in $packSource) {
+            if ($selfHosted -and '${{ inputs.reuse_runtime_source_sha }}') {
+              New-Item -ItemType HardLink -Path (Join-Path $kitPacks $p.Name) -Target $p.FullName | Out-Null
+            } else { Copy-Item -LiteralPath $p.FullName -Destination (Join-Path $kitPacks $p.Name) }
+          }
 
           # The signed station bundle the mandatory K1 hook consumes at
           # $EXEDIR\station\station-index.json. Copy its whole directory verbatim.
@@ -1758,7 +1811,14 @@ jobs:
           $bundleDir = $index.Directory.FullName
           $kitStation = Join-Path $kit "station"
           New-Item -ItemType Directory -Force -Path $kitStation | Out-Null
-          Copy-Item -Path (Join-Path $bundleDir '*') -Destination $kitStation -Recurse
+          if ($selfHosted -and '${{ inputs.reuse_runtime_source_sha }}') {
+            foreach ($file in Get-ChildItem -LiteralPath $bundleDir -File) {
+              if ($file.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Refusing reparse file in station kit.' }
+              New-Item -ItemType HardLink -Path (Join-Path $kitStation $file.Name) -Target $file.FullName | Out-Null
+            }
+          } else {
+            Copy-Item -Path (Join-Path $bundleDir '*') -Destination $kitStation -Recurse
+          }
 
           # Verify the invariant the installer relies on: index sits directly
           # under .\station\ next to the setup.exe.

@@ -76,7 +76,11 @@ def test_decode_embedded_captions_escapes_windows_drive_colon_through_both_parse
 
     decode_embedded_captions(Path("C:/tmp/out.ts"), runner=runner)
     movie_arg = seen[0][seen[0].index("-i") + 1]
-    assert movie_arg == "movie=C\\\\:/tmp/out.ts[out0+subcc]"
+    assert movie_arg == (
+        "movie=C\\\\:/tmp/out.ts"
+        ":format_opts='probesize=20000000\\:analyzeduration=20000000"
+        "\\:scan_all_pmts=1'[out0+subcc]"
+    )
 
 
 def test_decode_embedded_captions_empty_when_no_captions_or_error() -> None:

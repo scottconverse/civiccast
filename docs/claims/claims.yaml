@@ -63,6 +63,10 @@
 # Native collections are 2153 pure/2394 non-integration; floors 2103/2344
 # preserve the existing 50-test margin. Same-run producers remain required.
 # Historical installed/session-0/hardware evidence is not renewed by this.
+# PR288: renew only engine/worker input tripwires after the bounded caption
+# presentation correction and independent review recorded in CURRENT. The
+# three-channel development proof is not transferred into historical installed
+# or Session0 claims. Same-run CI producers and assertions remain required.
 schema_version: 1
 
 governed_doc_set:
@@ -1112,13 +1116,13 @@ entries:
       # and hardware claims are not renewed; these are drift tripwires only.
       code:
         - path: civiccast/egress/gst/worker.py
-          blob: 860ed0a4aa20b00e5103ff916baaa0ea935be065
+          blob: 921d02a8b9b41360fdc88760e44bff057c241102
         # Sprint 3: current-source bindings reviewed for output DSP and EOS
         # preservation; focused native results: .agent-runs/native-windows/
         # sprint3-output/evidence/{outputs,eos}.md. Historical acceptance stays
         # historical; these bindings do not certify a new installed package.
         - path: civiccast/egress/gst/engine.py
-          blob: facfac59a4e77870c0578c4eb5ec0cc48ba45c47
+          blob: fb1d63ab984aba91f8b590d8a4ffff88311c9fd0
         - path: civiccast/egress/gst/caption_flow.py
           blob: c0c981dfa050e8ca196533c791a99028302c5ca5
         - path: civiccast/egress/gst/decode_policy.py
@@ -2043,13 +2047,13 @@ entries:
       # and hardware claims are not renewed; these are drift tripwires only.
       code:
         - path: civiccast/egress/gst/worker.py
-          blob: 860ed0a4aa20b00e5103ff916baaa0ea935be065
+          blob: 921d02a8b9b41360fdc88760e44bff057c241102
         # Sprint 3: current-source bindings reviewed for output DSP and EOS
         # preservation; focused native results: .agent-runs/native-windows/
         # sprint3-output/evidence/{outputs,eos}.md. Historical acceptance stays
         # historical; these bindings do not certify a new installed package.
         - path: civiccast/egress/gst/engine.py
-          blob: facfac59a4e77870c0578c4eb5ec0cc48ba45c47
+          blob: fb1d63ab984aba91f8b590d8a4ffff88311c9fd0
         - path: civiccast/egress/gst/caption_flow.py
           blob: c0c981dfa050e8ca196533c791a99028302c5ca5
         - path: civiccast/egress/gst/decode_policy.py

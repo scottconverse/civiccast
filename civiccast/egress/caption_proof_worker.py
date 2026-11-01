@@ -28,6 +28,7 @@ from contextlib import AbstractContextManager
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import cast
 from urllib.parse import urlsplit
 
 from sqlalchemy.orm import Session
@@ -274,8 +275,8 @@ def build_caption_proof_worker(
     """Wire the production caption proof worker (Postgres store + live providers).
 
     ``on_air_channels`` reads channel state; ``capture_segment`` taps the emitted
-    stream (live edge); ``expected_cues_provider`` loads accepted caption-page
-    delivery times from ``<work_dir>/<channel>/captions/delivered.json``. Source
+    stream (live edge); ``expected_cues_provider`` loads encoder display/erase
+    times from ``<work_dir>/<channel>/captions/presentation.json``. Source
     sidecars retain audio times and cannot substitute for these transport times.
     ``caption_sidecar_for`` remains a compatibility argument; production proof
     always uses the worker delivery receipt. Missing receipt or capture clock
@@ -307,11 +308,30 @@ def build_caption_proof_worker(
         )
 
     def _expected(channel_id: str) -> list[CaptionCue]:
-        # Source-audio sidecars cannot predict the live appsrc's re-timing.
-        # Only pages actually accepted by that worker carry expected TS PTS.
-        receipt = resolved_work_dir / channel_id / "captions" / "delivered.json"
+        # appsrc PTS is when pop-on memory starts LOADING, not when EOC displays
+        # it. Compare independently decoded TS against actual pre-mux EOC/EDM
+        # timing, preserving the existing tolerance and unknown-clock refusal.
+        receipt = resolved_work_dir / channel_id / "captions" / "presentation.json"
         try:
-            pages = json.loads(receipt.read_text(encoding="utf-8"))
+            document = json.loads(receipt.read_text(encoding="utf-8"))
+            if (
+                not isinstance(document, dict)
+                or document.get("clock") != "cea608-display-control-pts-plus-mpegts-base"
+                or document.get("errors")
+            ):
+                return []
+            counts = [
+                document.get(name)
+                for name in ("encoded_page_count", "displayed_page_count", "retired_page_count")
+            ]
+            if any(type(count) is not int or count < 0 for count in counts):
+                return []
+            encoded, displayed, retired = cast(list[int], counts)
+            if document.get("pending_page_count") != 0 or encoded != displayed + retired:
+                # A completed prefix must not hide a queued page that never
+                # displayed. Only explicit program fencing retires pending text.
+                return []
+            pages = document["pages"]
             if not isinstance(pages, list) or len(pages) > 512:
                 return []
             return [

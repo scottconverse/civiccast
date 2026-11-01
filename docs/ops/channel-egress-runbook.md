@@ -421,6 +421,12 @@ launches keep the inline worker by default. Set the variable explicitly to
 for a controlled diagnostic window and means no emitted-caption proof is
 collected. A proof timeout is a failed proof sample, not a caption-pass signal.
 
+Decode-back compares completed encoder display/erase times with the independently
+decoded transport. Pop-on caption loading starts before the page appears and is
+not its display time. Missing clocks, pending undisplayed pages, and decode
+mismatches remain **Not verified**. A pass does not certify transcription accuracy
+or synchronization of delayed live transcription with the original speech.
+
 Startup housekeeping is also bounded. Each one-shot startup hook gets a
 `CIVICCAST_STARTUP_HOOK_TIMEOUT_SECONDS` budget (default 1 second); slow
 housekeeping is allowed to finish in the background and must not hold the

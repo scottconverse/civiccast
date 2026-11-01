@@ -95,7 +95,15 @@ def test_fast_queue_probe_does_not_get_replaced_by_sender(caption_engine: Any) -
     caption_engine.caption_appsrc.send_event.side_effect = send
     assert caption_engine._advance_live_caption_gap() is True
     assert caption_engine._caption_gap_gate.pending is None
-    assert caption_engine._caption_stream_position_ms == 1000
+    assert caption_engine._caption_stream_position_ms == 1250
+
+
+def test_heartbeat_flushes_scheduled_erase_before_video_reaches_it(caption_engine):
+    caption_engine._caption_stream_position_ms = 1200
+    assert caption_engine._advance_live_caption_gap() is True
+    event = caption_engine.caption_appsrc.send_event.call_args.args[0]
+    assert (event.start, event.duration) == (1200, 50)
+    assert caption_engine._caption_stream_position_ms == 1250
 
 
 def test_stopped_engine_does_not_enqueue_more_heartbeats(caption_engine: Any) -> None:
