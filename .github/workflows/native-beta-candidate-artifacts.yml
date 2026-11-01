@@ -686,13 +686,14 @@ jobs:
               if ($LASTEXITCODE -ne 0) { throw 'Cannot resolve the exact previous runtime source.' }
               git diff --quiet $reuseSource $env:SOURCE_SHA -- native-windows-runtime-dependencies.lock.json native-windows-build-toolchain.lock.json requirements-native-app.txt requirements-native-app-build.txt requirements-native-pyav-build.txt pyproject.toml uv.lock scripts/build_native_runtime_closure.py scripts/build_native_server_pack.py scripts/build_native_ffmpeg_pack.py scripts/build_native_ollama_pack.py scripts/build_native_cuda_pack.py
               if ($LASTEXITCODE -ne 0) { throw 'Runtime inputs changed; app-only reuse refused.' }
-              $previous = Join-Path 'C:\CivicCastTester\candidates' "$reuseSource\candidate"
+              $previous = Join-Path 'C:\CivicCastTester\rc3-runtime-reuse' $reuseSource
+              $gstreamerClosure = Join-Path $previous 'gstreamer'
               foreach ($component in @('server-binaries', 'ffmpeg-runtime', 'ollama-runtime', 'cuda-runtime')) {
                 $reportPath = Join-Path $previous "native-$component-report.json"
                 $report = Get-Content -LiteralPath $reportPath -Raw | ConvertFrom-Json
                 $pack = Join-Path $previous "packs\native-$component.ccpack"
                 if ((Get-Item -LiteralPath $pack).Length -ne $report.pack_bytes -or (Get-FileHash -LiteralPath $pack -Algorithm SHA256).Hash.ToLowerInvariant() -ne $report.pack_sha256) { throw "Previous signed pack identity mismatch: $component" }
-                Copy-Item -LiteralPath $pack -Destination artifacts/native-beta/packs
+                New-Item -ItemType HardLink -Path (Join-Path 'artifacts/native-beta/packs' ([IO.Path]::GetFileName($pack))) -Target $pack | Out-Null
                 Copy-Item -LiteralPath $reportPath -Destination artifacts/native-beta
               }
               # build_native_app_payload_pack independently verifies this existing closure.
@@ -1115,7 +1116,17 @@ jobs:
           $destination = Join-Path $env:CANDIDATE_ROOT "candidate"
           if (Test-Path -LiteralPath $destination) { Remove-Item -Recurse -Force $destination }
           New-Item -ItemType Directory -Force -Path $destination | Out-Null
-          Copy-Item -Path "artifacts/native-beta/*" -Destination $destination -Recurse -Force
+          if ('${{ inputs.reuse_runtime_source_sha }}') {
+            $source = (Resolve-Path 'artifacts/native-beta').Path
+            foreach ($file in Get-ChildItem -LiteralPath $source -Recurse -File) {
+              if ($file.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Refusing reparse file in candidate mirror.' }
+              $target = Join-Path $destination ([IO.Path]::GetRelativePath($source, $file.FullName))
+              New-Item -ItemType Directory -Path (Split-Path $target) -Force | Out-Null
+              New-Item -ItemType HardLink -Path $target -Target $file.FullName | Out-Null
+            }
+          } else {
+            Copy-Item -Path "artifacts/native-beta/*" -Destination $destination -Recurse -Force
+          }
           Write-Host "Mirrored candidate build outputs to $destination"
 
       # Small evidence set (reports, checksums, the signing receipt): no
@@ -1587,7 +1598,17 @@ jobs:
           $destination = Join-Path $env:CANDIDATE_ROOT "station-bundle"
           if (Test-Path -LiteralPath $destination) { Remove-Item -Recurse -Force $destination }
           New-Item -ItemType Directory -Force -Path $destination | Out-Null
-          Copy-Item -Path "artifacts/native-station-bundle/*" -Destination $destination -Recurse -Force
+          if ('${{ inputs.reuse_runtime_source_sha }}') {
+            $source = (Resolve-Path 'artifacts/native-station-bundle').Path
+            foreach ($file in Get-ChildItem -LiteralPath $source -Recurse -File) {
+              if ($file.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Refusing reparse file in station mirror.' }
+              $target = Join-Path $destination ([IO.Path]::GetRelativePath($source, $file.FullName))
+              New-Item -ItemType Directory -Path (Split-Path $target) -Force | Out-Null
+              New-Item -ItemType HardLink -Path $target -Target $file.FullName | Out-Null
+            }
+          } else {
+            Copy-Item -Path "artifacts/native-station-bundle/*" -Destination $destination -Recurse -Force
+          }
           Write-Host "Mirrored station bundle outputs to $destination"
 
       # Skipped by default on the self-hosted lane: this bundle is ~18.6 GB
@@ -1777,7 +1798,11 @@ jobs:
           if ($packSource.Count -eq 0) { throw "Kit assembly: no component .ccpack files found under $candidateSource." }
           $kitPacks = Join-Path $kit "packs"
           New-Item -ItemType Directory -Force -Path $kitPacks | Out-Null
-          foreach ($p in $packSource) { Copy-Item -LiteralPath $p.FullName -Destination (Join-Path $kitPacks $p.Name) }
+          foreach ($p in $packSource) {
+            if ($selfHosted -and '${{ inputs.reuse_runtime_source_sha }}') {
+              New-Item -ItemType HardLink -Path (Join-Path $kitPacks $p.Name) -Target $p.FullName | Out-Null
+            } else { Copy-Item -LiteralPath $p.FullName -Destination (Join-Path $kitPacks $p.Name) }
+          }
 
           # The signed station bundle the mandatory K1 hook consumes at
           # $EXEDIR\station\station-index.json. Copy its whole directory verbatim.
@@ -1786,7 +1811,14 @@ jobs:
           $bundleDir = $index.Directory.FullName
           $kitStation = Join-Path $kit "station"
           New-Item -ItemType Directory -Force -Path $kitStation | Out-Null
-          Copy-Item -Path (Join-Path $bundleDir '*') -Destination $kitStation -Recurse
+          if ($selfHosted -and '${{ inputs.reuse_runtime_source_sha }}') {
+            foreach ($file in Get-ChildItem -LiteralPath $bundleDir -File) {
+              if ($file.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Refusing reparse file in station kit.' }
+              New-Item -ItemType HardLink -Path (Join-Path $kitStation $file.Name) -Target $file.FullName | Out-Null
+            }
+          } else {
+            Copy-Item -Path (Join-Path $bundleDir '*') -Destination $kitStation -Recurse
+          }
 
           # Verify the invariant the installer relies on: index sits directly
           # under .\station\ next to the setup.exe.
