@@ -814,6 +814,7 @@ def main() -> int:
         preroll_result = {"error": ("preroll-timeout", str(exc)), "teardown_clean": teardown_clean}
         print(f"WORKER_RESULT {preroll_result}", flush=True)
         return int(exit_codes_mod.GST_PREROLL_TIMEOUT_EXIT_CODE)
+    engine_instance.caption_delivery_clock.flush_presentation()
     print(f"WORKER_RESULT {result}", flush=True)
     error = result.get("error")
     if error is None:

@@ -5,7 +5,10 @@
 from __future__ import annotations
 
 import json
+import math
 import os
+import threading
+from collections import deque
 from pathlib import Path
 from typing import TypedDict
 
@@ -22,16 +25,149 @@ class _DeliveryPage(TypedDict):
 
 
 class CaptionDeliveryClock:
-    """Record only accepted appsrc pages, with their actual scheduled PTS.
+    """Keep accepted loading intents and observed encoder presentation separate.
 
-    The worker resets the file on start. Keep at most 512 pages/180 seconds;
-    these are expected deliveries, never proof that captions survived the mux.
+    delivered.json retains scheduled appsrc pages; presentation.json records
+    completed EOC/EDM display intervals. Keep at most 512 pages/180 seconds.
+    Neither receipt alone proves captions survived the mux or matched speech.
     """
 
     def __init__(self, path: Path) -> None:
         self.path = path
         self.pages: list[_DeliveryPage] = []
+        self.presentation_path = path.with_name("presentation.json")
+        self._lock = threading.RLock()
+        self._publish_lock = threading.Lock()
+        self._generation = 0
+        self._program = ""
+        self._pending: deque[str] = deque()
+        self._active: tuple[str, float] | None = None
+        self._presentation: list[_DeliveryPage] = []
+        self._loading = False
+        self._encoded_count = 0
+        self._displayed_count = 0
+        self._retired_count = 0
+        self._errors: list[str] = []
+        self._dirty = True
         self._publish()
+        self.flush_presentation()
+
+    def begin_program(self, token: str) -> None:
+        """Fence retired caption branches; the incoming EDM closes the old display."""
+        with self._lock:
+            self._program = token
+            self._retired_count += len(self._pending)
+            self._pending.clear()
+            self._loading = False
+            self._changed()
+
+    def observe_text(self, text: str, *, program: str) -> None:
+        """Observe text entering the real encoder, without I/O on its streaming task."""
+        with self._lock:
+            if program != self._program:
+                return
+            if len(self._pending) >= 512:
+                self._error("caption encoder queue exceeded receipt bound")
+                return
+            self._pending.append(text)
+            self._encoded_count += 1
+            self._changed()
+
+    def observe_cc_data(self, data: bytes, pts_seconds: float, *, program: str) -> None:
+        """Track actual pop-on EOC/EDM timestamps before the mux, never fitted offsets.
+
+        appsrc PTS starts loading non-displayed CEA-608 memory. It is NOT when
+        EOC displays that page. EDM or the next EOC determines its actual end.
+        The emitted transport is still independently decoded and compared later.
+        """
+        with self._lock:
+            if program != self._program:
+                return
+            if len(data) % 3 or not math.isfinite(pts_seconds) or pts_seconds < 0:
+                self._error("invalid cc_data timestamp or triplet length")
+                return
+            for offset in range(0, len(data), 3):
+                flags, first, second = data[offset : offset + 3]
+                if not flags & 4 or flags & 3:  # valid CEA-608 field 1 only
+                    continue
+                first, second = first & 0x7F, second & 0x7F
+                stamp = pts_seconds + GST_TS_CLOCK_BASE_SECONDS
+                if (first, second) == (0x14, 0x2F):  # End Of Caption: swap display
+                    if not self._loading:  # repeated EOC is not a second page
+                        continue
+                    self._loading = False
+                    self._close_display(stamp)
+                    if not self._pending:
+                        self._error("display command without an encoded text page")
+                        continue
+                    self._active = self._pending.popleft(), stamp
+                    self._displayed_count += 1
+                    self._changed()
+                elif (first, second) == (0x14, 0x2C):  # Erase Displayed Memory
+                    self._close_display(stamp)
+                elif (first, second) in ((0x14, 0x20), (0x14, 0x2E)):
+                    self._loading = True
+
+    def _error(self, message: str) -> None:
+        if message not in self._errors:
+            self._errors = [*self._errors, message][-16:]
+        self._changed()
+
+    def _changed(self) -> None:
+        self._generation += 1
+        self._dirty = True
+
+    def invalidate(self, message: str) -> None:
+        with self._lock:
+            self._error(message)
+
+    def _close_display(self, stamp: float) -> None:
+        if self._active is None:
+            return
+        text, start = self._active
+        self._active = None
+        if stamp <= start:
+            self._error("non-increasing caption display clock")
+            return
+        self._presentation.append({"text": text, "start_seconds": start, "end_seconds": stamp})
+        self._presentation = [p for p in self._presentation if p["end_seconds"] > stamp - 180][
+            -512:
+        ]
+        self._changed()
+
+    def flush_presentation(self) -> bool:
+        """Publish on the control loop, not the media thread. False removes idle callbacks."""
+        if not self._publish_lock.acquire(blocking=False):
+            return False
+        try:
+            with self._lock:
+                if not self._dirty:
+                    return False
+                generation = self._generation
+                document = {
+                    "clock": "cea608-display-control-pts-plus-mpegts-base",
+                    "pages": list(self._presentation),
+                    "encoded_page_count": self._encoded_count,
+                    "displayed_page_count": self._displayed_count,
+                    "retired_page_count": self._retired_count,
+                    "pending_page_count": len(self._pending),
+                    "active_page_count": int(self._active is not None),
+                    "errors": list(self._errors),
+                }
+            # Streaming observers never wait for filesystem I/O. Concurrent
+            # observations remain dirty for the following control heartbeat.
+            temporary = self.presentation_path.with_suffix(f".{os.getpid()}.tmp")
+            try:
+                temporary.write_text(json.dumps(document), encoding="utf-8")
+                temporary.replace(self.presentation_path)
+                with self._lock:
+                    if generation == self._generation:
+                        self._dirty = False
+            finally:
+                temporary.unlink(missing_ok=True)
+        finally:
+            self._publish_lock.release()
+        return False
 
     def record(self, text: str, start_seconds: float, duration_seconds: float) -> None:
         self.pages.append(

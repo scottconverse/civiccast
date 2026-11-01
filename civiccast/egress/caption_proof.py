@@ -146,7 +146,12 @@ def decode_embedded_captions(
                 "-f",
                 "lavfi",
                 "-i",
-                f"movie={_escape_movie_path(emitted_stream_path)}[out0+subcc]",
+                # Unlike CLI inputs, movie does not enable scan_all_pmts.
+                # Audio-first TS can otherwise have unknown video parameters.
+                # Preserve actual timestamps and bounded FILE probing.
+                f"movie={_escape_movie_path(emitted_stream_path)}"
+                ":format_opts='probesize=20000000\\:analyzeduration=20000000"
+                "\\:scan_all_pmts=1'[out0+subcc]",
                 "-map",
                 "0:1",
                 "-f",

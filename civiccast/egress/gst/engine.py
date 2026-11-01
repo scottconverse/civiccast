@@ -1729,6 +1729,49 @@ class GstPlayoutEngine:
             raise RuntimeError("failed to link caption source into cccombiner 'caption' pad")
 
         self._caption_request_pad = caption_pad
+        if caption_specs[0].factory == "appsrc":
+            clock = getattr(self, "caption_delivery_clock", None)
+            if clock is not None:
+                clock.begin_program(token)
+            self._install_caption_timing_probes(cap_first, cap_last, token)
+
+    def _install_caption_timing_probes(self, source: Any, encoded: Any, token: str) -> None:
+        """Observe encoder display controls in memory; heartbeat publishes receipts."""
+        for pad, probe_id in getattr(self, "_caption_timing_probes", []):
+            pad.remove_probe(probe_id)
+        self._caption_timing_probes = []
+
+        def observe(info: Any, *, text: bool) -> Any:
+            clock = getattr(self, "caption_delivery_clock", None)
+            if clock is None or token != getattr(self, "_caption_program_token", ""):
+                return Gst.PadProbeReturn.OK
+            try:
+                if info.type & Gst.PadProbeType.BUFFER_LIST:
+                    buffers = info.get_buffer_list()
+                    items = [buffers.get(index) for index in range(buffers.length())]
+                else:
+                    items = [info.get_buffer()]
+                for buffer in items:
+                    if buffer is None:
+                        continue
+                    data = buffer.extract_dup(0, buffer.get_size())
+                    if text:
+                        clock.observe_text(data.decode("utf-8"), program=token)
+                    elif buffer.pts == Gst.CLOCK_TIME_NONE:
+                        clock.invalidate("caption encoder emitted an unknown presentation clock")
+                    else:
+                        clock.observe_cc_data(data, buffer.pts / Gst.SECOND, program=token)
+            except Exception:
+                clock.invalidate("caption encoder presentation observation failed")
+            return Gst.PadProbeReturn.OK
+
+        for element, text in ((source, True), (encoded, False)):
+            pad = element.get_static_pad("src")
+            probe_id = pad.add_probe(
+                Gst.PadProbeType.BUFFER | Gst.PadProbeType.BUFFER_LIST,
+                lambda _pad, info, text=text: observe(info, text=text),
+            )
+            self._caption_timing_probes.append((pad, probe_id))
 
     def _begin_caption_program(self, cutoff_ns: int | None = None) -> None:
         # Reload already fences before releasing incoming first-buffer holds.
@@ -1959,6 +2002,12 @@ class GstPlayoutEngine:
     def _advance_live_caption_gap(self) -> bool:
         """Keep sparse caption time moving when no caption buffer is present."""
 
+        clock = getattr(self, "caption_delivery_clock", None)
+        if clock is not None:
+            try:
+                clock.flush_presentation()
+            except OSError as exc:
+                print(f"WARN: caption presentation clock unavailable: {exc}", file=sys.stderr)
         appsrc = self.caption_appsrc
         if appsrc is None or self._stopping:
             return False
@@ -1966,7 +2015,10 @@ class GstPlayoutEngine:
             return True
         window = caption_gap_window_ms(
             stream_position_ms=self._caption_stream_position_ms,
-            running_time_ms=self._pipeline_running_time_ms(),
+            # tttocea608 emits a scheduled erase only when input/GAP time
+            # advances through it. Waiting until the video reaches that time
+            # delivers EDM late to cccombiner. Use the existing caption lead.
+            running_time_ms=self._pipeline_running_time_ms() + LIVE_CAPTION_LEAD_MS,
         )
         if window is None:
             return True

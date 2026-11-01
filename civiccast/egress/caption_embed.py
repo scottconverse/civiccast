@@ -354,6 +354,9 @@ def _caption_proof(
 
 
 def _normalize_caption_text(value: str) -> str:
+    # CEA-608's basic apostrophe glyph is rendered as ASCII by GStreamer and
+    # as a typographic quote by FFmpeg. Preserve the punctuation, not its font.
+    value = value.translate(str.maketrans({"\u2018": "'", "\u2019": "'"}))
     return " ".join(value.split()).casefold()
 
 
