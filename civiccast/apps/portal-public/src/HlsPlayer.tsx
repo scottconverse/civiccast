@@ -335,7 +335,15 @@ export function HlsPlayer({
         return
       }
 
-      hls = new HlsCtor({ enableWorker: true, lowLatencyMode: false })
+      hls = new HlsCtor({
+        enableWorker: true,
+        lowLatencyMode: false,
+        // Keep the usual three-segment live buffer, but recover when a ready
+        // player falls behind the six-segment served window. hls.js defaults
+        // its maximum live latency to Infinity, retaining stale buffered video.
+        liveSyncDurationCount: 3,
+        liveMaxLatencyDurationCount: 6,
+      })
       hlsRef.current = hls
       // hls.js's SubtitleTrackController keeps its own trackId in sync with
       // the real browser's native <track> element modes: it polls

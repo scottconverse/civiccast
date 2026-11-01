@@ -104,6 +104,9 @@ class _FakeEngineInstanceRaisesPrerollTimeout:
     def __init__(self, *_a: object, **_kw: object) -> None:
         pass
 
+    def set_caption_delivery_clock(self, clock: object) -> None:
+        self.caption_delivery_clock = clock
+
     def run_forever(
         self,
         *,

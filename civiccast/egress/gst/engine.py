@@ -1735,6 +1735,23 @@ class GstPlayoutEngine:
                 clock.begin_program(token)
             self._install_caption_timing_probes(cap_first, cap_last, token)
 
+    def set_caption_delivery_clock(self, clock: Any) -> None:
+        """Attach receipts after construction, using the completed startup fence.
+
+        The worker constructs this engine before creating the receipt writer.
+        Audio-tap construction can also replace a previous worker's program token
+        after the caption branch was built. Rebind both observers to that final
+        token before PLAYING; later source changes retain their existing fences.
+        """
+        self.caption_delivery_clock = clock
+        if getattr(self, "caption_appsrc", None) is None:
+            return
+        token = getattr(self, "_caption_program_token", "")
+        clock.begin_program(token)
+        self._install_caption_timing_probes(
+            self._caption_source_elements[0], self._caption_source_elements[-1], token
+        )
+
     def _install_caption_timing_probes(self, source: Any, encoded: Any, token: str) -> None:
         """Observe encoder display controls in memory; heartbeat publishes receipts."""
         for pad, probe_id in getattr(self, "_caption_timing_probes", []):

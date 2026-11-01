@@ -94,6 +94,9 @@ class _FakeEngineInstanceReturnsResult:
     def __init__(self, result: dict[str, object]) -> None:
         self._result = result
 
+    def set_caption_delivery_clock(self, clock: object) -> None:
+        self.caption_delivery_clock = clock
+
     def __call__(self, *_a: object, **_kw: object) -> _FakeEngineInstanceReturnsResult:
         return self
 
