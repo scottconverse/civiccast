@@ -16,8 +16,10 @@ and caption timing findings remain unresolved; the local Beta20 upgrade failed
 its pre-migration backup and recovered. Publication is not proof that those
 operator outcomes passed. Human language review remains pending and nonblocking.
 
-Source development is the **unpublished candidate v1.0.0-rc.4**. Its current
-corrections address fractional repeat boundaries, selected-frame timestamps,
+## Unpublished source candidate
+
+`v1.0.0-rc.4` is an unpublished candidate and is not available as a public release.
+Its current corrections address fractional repeat boundaries, selected-frame timestamps,
 overlapping report airtime and unavailable caption proof. The
 [RC4 preparation record](docs/releases/v1.0.0-rc.4-verification.md) distinguishes
 source checks from required CI, signed packaging and installed acceptance still

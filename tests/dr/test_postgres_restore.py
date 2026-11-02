@@ -241,8 +241,9 @@ def test_native_postgres_reporting_window_keeps_open_airings_provisional(
         env = ReportingService(factory), ReportingStore(factory), CustomFieldStore(factory)
         # Reuse the existing complete assertions: aggregates, CSV view,
         # repeat counts, future refusal and unchanged zero-duration open ledger.
+        # The 09:15 successor caps provisional airtime to 09:00–09:15.
         test_open_airings_clip_to_window_and_now_without_mutating_ledger(
-            env, monkeypatch, _ts(11), 5400
+            env, monkeypatch, _ts(11), 900
         )
     finally:
         engine.dispose()
