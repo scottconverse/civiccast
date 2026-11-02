@@ -1999,9 +1999,7 @@ def test_precise_media_duration_preserves_slot_trim_and_probe_fallback_limits(
     expected: float,
 ) -> None:
     media = _media(tmp_path)
-    asset = _asset_of(
-        media, duration_seconds=stored_duration, trim_in=trim_in, trim_out=trim_out
-    )
+    asset = _asset_of(media, duration_seconds=stored_duration, trim_in=trim_in, trim_out=trim_out)
 
     plan = build_source_plan_from_schedule(
         channel_id="gov",
