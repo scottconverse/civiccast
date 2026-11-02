@@ -637,6 +637,7 @@ class _PreparationState(Enum):
 class _PreparationRequest(NamedTuple):
     plan: EgressSourcePlan
     config: EgressConfig
+    prepared_report: SourcePreparationReport | None = None
 
 
 class _ReusePreparedPlan(NamedTuple):
@@ -703,6 +704,7 @@ class _PendingPreparation:
     #: "fall back to restart" route -- see ``_poll_preparation``.
     slate_first: bool = False
     since: float = 0.0
+    supplied_report: SourcePreparationReport | None = None
 
 
 @dataclass
@@ -829,6 +831,7 @@ class EgressDaemon:
         # directories -- never a correctness issue, just slower cleanup.
         prepared_plan_release: Callable[[Path | None], None] | None = None,
         channel_start_hook: Callable[[str], None] | None = None,
+        channel_caption_prepare_hook: Callable[[str, Event], None] | None = None,
         # U60: ``SourcePreparer.warm_plan``, called by the automation's
         # rollover look-ahead to pre-conform an upcoming boundary's assets
         # while the plan on air is still shorter than the rollover lead.
@@ -849,6 +852,7 @@ class EgressDaemon:
         self._hls_relay = hls_relay_supervisor
         self._command_failure_hook = command_failure_hook
         self._channel_start_hook = channel_start_hook
+        self._channel_caption_prepare_hook = channel_caption_prepare_hook
         self._source_plan_warmer = source_plan_warmer
         # Cleared only by a successful real launch reset, never by an in-place
         # content reload or duplicate Start against the current worker.
@@ -1308,6 +1312,8 @@ class EgressDaemon:
             def release_unused(future: Future[SourcePreparationReport]) -> None:
                 if not future.cancelled() and future.exception() is None:
                     self._release_prepared_plan_dir(future.result().plan_dir)
+                elif pending.supplied_report is not None:
+                    self._release_prepared_plan_dir(pending.supplied_report.plan_dir)
 
             pending.future.add_done_callback(release_unused)
 
@@ -1329,12 +1335,27 @@ class EgressDaemon:
                 # ``Generator``'s StopIteration value is typed ``Any``.
                 return cast(_PreparationOutcome, done.value)
             preparer = self._source_preparer
-            assert preparer is not None
+            assert preparer is not None or request.prepared_report is not None
+
+            def warm_captions(cancel: Event) -> None:
+                if self._channel_caption_prepare_hook is not None and not cancel.is_set():
+                    try:
+                        self._channel_caption_prepare_hook(channel_id, cancel)
+                    except Exception:
+                        # Retain best-effort captions: a model failure must not
+                        # prevent broadcasting or bypass existing fallback.
+                        _LOG.exception(
+                            "channel %s: caption warmup failed; continuing broadcast", channel_id
+                        )
+
             executor = self._preparation_executor
             if executor is None:
                 try:
                     try:
-                        report = preparer(request.plan, request.config)
+                        report = request.prepared_report
+                        if report is None:
+                            assert preparer is not None
+                            report = preparer(request.plan, request.config)
                     except Exception as exc:
                         steps.throw(exc)
                     else:
@@ -1353,8 +1374,14 @@ class EgressDaemon:
                 with channel_lock:
                     if cancel.is_set():
                         raise SourcePrepareError("Preparation cancelled")
+                    warm_captions(cancel)
+                    if cancel.is_set():
+                        raise SourcePrepareError("Preparation cancelled")
+                    if request.prepared_report is not None:
+                        return request.prepared_report
                     if async_preparer is not None:
                         return async_preparer(request.plan, request.config, cancel, protected)
+                    assert preparer is not None
                     return preparer(request.plan, request.config)
 
             self._preparations[channel_id] = _PendingPreparation(
@@ -1366,6 +1393,7 @@ class EgressDaemon:
                 config=self._store.get_config(channel_id),
                 slate_first=slate_first,
                 since=self._monotonic(),
+                supplied_report=request.prepared_report,
             )
             _LOG.info("channel %s: %s source preparation queued", channel_id, kind)
             return _PreparationState.PENDING
@@ -2760,14 +2788,23 @@ class EgressDaemon:
                 # F3(b): this start IS the restart of an interrupted
                 # FALLBACK_SLATE reload, and the plan it was interrupted on
                 # has already been conformed. Bind exactly what the yield
-                # below would have produced, without yielding -- re-running
-                # the preparer is the whole cost this path exists to avoid
+                # below would have produced, without re-conforming. An optional
+                # warm-only yield retains this exact report; repeated media
+                # preparation is the whole cost this path exists to avoid
                 # (measured 133.6 s on 2026-09-24). The plan aired is the
                 # report's own, per the owner-authorized option (a): if the
                 # schedule horizon moved while the restart was in flight, the
                 # next ordinary rollover corrects it.
                 reused_report = prepared_reload.report
                 source_plan = reused_report.source_plan
+                if (
+                    self._channel_caption_prepare_hook is not None
+                    and self._preparation_executor is not None
+                    and not _is_ready_generated_slate(source_plan)
+                ):
+                    # Ownership stays with this pending preparation while it
+                    # warms; cancellation releases its report exactly once.
+                    reused_report = yield _PreparationRequest(source_plan, config, reused_report)
                 prepared_plan_dir = reused_report.plan_dir
                 # The state the SEAMLESS path would have published for this
                 # same plan, carried rather than re-derived: a force-fallback
@@ -2803,6 +2840,14 @@ class EgressDaemon:
                 # prepared here, so a stale pre-restart program loudness must not be
                 # reported as this slate's.
                 self._last_loudness_lufs.pop(channel_id, None)
+                if (
+                    self._channel_caption_prepare_hook is not None
+                    and self._preparation_executor is not None
+                    and not _is_ready_generated_slate(source_plan)
+                ):
+                    yield _PreparationRequest(
+                        source_plan, config, SourcePreparationReport(source_plan, ())
+                    )
             elif self._source_preparer is not None:
                 try:
                     preparation_report = yield _PreparationRequest(source_plan, config)
@@ -2819,6 +2864,14 @@ class EgressDaemon:
                     self._last_loudness_lufs.pop(channel_id, None)
             else:
                 self._last_loudness_lufs.pop(channel_id, None)
+                if (
+                    self._channel_caption_prepare_hook is not None
+                    and self._preparation_executor is not None
+                    and not _is_ready_generated_slate(source_plan)
+                ):
+                    yield _PreparationRequest(
+                        source_plan, config, SourcePreparationReport(source_plan, ())
+                    )
 
             # A cold conform can outlast a short scheduled item's remaining
             # window. Starting that categorically expired first program segment
@@ -5195,12 +5248,15 @@ class EgressDaemon:
         # as live as an armed reload's -- the restart is about to air it, so
         # the preparer's GC must keep its directory too.
         restart_plan = self._prepared_restart_plans.get(channel_id)
+        preparation = self._preparations.get(channel_id)
+        supplied = preparation.supplied_report if preparation is not None else None
         return frozenset(
             plan_dir
             for plan_dir in (
                 self._active_prepared_plan_dir.get(channel_id),
                 pending.plan_dir if pending is not None else None,
                 restart_plan.report.plan_dir if restart_plan is not None else None,
+                supplied.plan_dir if supplied is not None else None,
             )
             if plan_dir is not None
         )
@@ -6094,6 +6150,12 @@ class EgressDaemon:
                 time.monotonic() - prepare_started,
                 len(source_plan.segments),
             )
+        elif (
+            self._channel_caption_prepare_hook is not None
+            and self._preparation_executor is not None
+            and not _is_ready_generated_slate(source_plan)
+        ):
+            yield _PreparationRequest(source_plan, config, SourcePreparationReport(source_plan, ()))
         if scheduled_start_at is not None and datetime.now(UTC) >= scheduled_start_at:
             # A cold preparation missed its slot. Leave the existing slate live;
             # the ordinary due-item path will resolve a fresh recovery offset.

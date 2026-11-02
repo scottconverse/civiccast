@@ -1198,6 +1198,15 @@ class CaptionTapWorker:
                 self._session_locks[channel_id] = lock
             return lock
 
+    def prepare_channel_runtime(self, channel_id: str, cancel: threading.Event) -> None:
+        """Warm a live primary on the existing off-air preparation executor."""
+        if cancel.is_set() or not self._is_enabled():
+            return
+        warm = getattr(self._runtime, "warm_channel", None)
+        if callable(warm):
+            _lower_current_thread_priority()
+            warm(channel_id, cancel)
+
     def begin_channel_session(self, channel_id: str) -> None:
         """Reset a channel atomically with respect to its old caption results."""
 

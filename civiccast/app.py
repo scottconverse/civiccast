@@ -1549,6 +1549,11 @@ def _wire_stage_f_workers(app: FastAPI, session_factory: Any) -> None:
             if (tap_worker := getattr(app.state, "caption_tap_worker", None)) is not None
             else None
         ),
+        channel_caption_prepare_hook=lambda channel_id, cancel: (
+            tap_worker.prepare_channel_runtime(channel_id, cancel)
+            if (tap_worker := getattr(app.state, "caption_tap_worker", None)) is not None
+            else None
+        ),
     )
     # RAT-004: the lifespan shutdown finally block drains this daemon (the
     # graceful drain-all owner) before background.stop() halts the poll loop.

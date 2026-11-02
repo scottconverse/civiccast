@@ -3228,6 +3228,7 @@ def build_channel_automation(
     work_dir: Path | None = None,
     alert_evaluator_hook: AlertEvaluatorHook | None = None,
     channel_start_hook: Callable[[str], None] | None = None,
+    channel_caption_prepare_hook: Callable[[str, threading.Event], None] | None = None,
 ) -> ChannelAutomationService:
     """Construct the wired automation service (same shape as the egress CLI).
 
@@ -3425,6 +3426,7 @@ def build_channel_automation(
             schedule_lookup=schedule_store.get,
         ),
         channel_start_hook=channel_start_hook,
+        channel_caption_prepare_hook=channel_caption_prepare_hook,
     )
     # Item 5 fix: only the daemon knows which per-plan directories are
     # currently LIVE (active on-air + armed-not-yet-settled) -- wire it back

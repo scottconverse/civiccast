@@ -3999,3 +3999,24 @@ class TestCaptionTapCatchUp:
                 InMemoryCaptionReviewStore(),
                 catch_up_shed_window_seconds=0.0,
             )
+
+
+def test_caption_warmup_respects_live_switch_and_cancellation(tmp_path):
+    from unittest.mock import Mock
+
+    runtime = _ScriptedRuntime()
+    runtime.warm_channel = Mock()
+    enabled = [False]
+    worker = _worker(
+        tmp_path / "tap", runtime, InMemoryCaptionReviewStore(), is_enabled=lambda: enabled[0]
+    )
+    cancel = threading.Event()
+    worker.prepare_channel_runtime("gov", cancel)
+    runtime.warm_channel.assert_not_called()
+    enabled[0] = True
+    cancel.set()
+    worker.prepare_channel_runtime("gov", cancel)
+    runtime.warm_channel.assert_not_called()
+    cancel.clear()
+    worker.prepare_channel_runtime("gov", cancel)
+    runtime.warm_channel.assert_called_once_with("gov", cancel)

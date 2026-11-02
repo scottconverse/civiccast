@@ -561,6 +561,7 @@ class WhistleRuntime:
         self._guard = threading.RLock()
         self._fallback_lock = threading.Lock()
         self._primary_lock = threading.Lock()
+        self._primary_load_lock = threading.Lock()
         self._recovery_cancel = threading.Event()
         self._recovery_token = 0
         self._recovery_active_token: int | None = None
@@ -850,6 +851,55 @@ class WhistleRuntime:
                     self._recovery_channel = None
                     self._recovery_worker = None
 
+    def _load_primary(
+        self, channel: str, cancel: threading.Event | None = None
+    ) -> _SpeechWorker | None:
+        """Serialize cold loads without holding up recognition on ready channels."""
+        with self._guard:
+            if self._closed:
+                raise RuntimeError("caption runtime has been closed")
+            primary = self._primaries.get(channel)
+            if primary is not None:
+                return primary
+        with self._primary_load_lock:
+            with self._guard:
+                if self._closed:
+                    raise RuntimeError("caption runtime has been closed")
+                primary = self._primaries.get(channel)
+                if primary is not None or (cancel is not None and cancel.is_set()):
+                    return primary
+                if cancel is not None and (
+                    self._primary_error is not None or channel in self._recoveries
+                ):
+                    return None
+                if len(self._primaries) >= self.channel_workers:
+                    raise RuntimeError("Whistle live runtime supports at most three channels")
+            created = self._factory("whistle")
+            with self._guard:
+                if self._closed or (cancel is not None and cancel.is_set()):
+                    created.close()
+                    if self._closed:
+                        raise RuntimeError("caption runtime has been closed")
+                    return None
+                self._primaries[channel] = created
+            _LOG.info(
+                "Whistle primary active: channel=%s pid=%s",
+                channel,
+                getattr(getattr(created, "_process", None), "pid", "n/a"),
+            )
+            return created
+
+    def warm_channel(self, channel: str, cancel: threading.Event) -> None:
+        """Load the same primary before this channel's speech starts."""
+        if cancel.is_set():
+            return
+        with self._guard:
+            if channel in self._primaries or self._primary_error or channel in self._recoveries:
+                return
+        self.prepare()
+        if self._primary_error is None:
+            self._load_primary(channel, cancel)
+
     def _primary_request(
         self, channel: str, chunk: AudioChunk, vocabulary: CustomVocabulary | None
     ) -> object:
@@ -857,22 +907,8 @@ class WhistleRuntime:
         # three-station run exceeded the request deadline and lost queued audio.
         # This does not require transcript agreement before captions can air.
         with self._primary_lock:
-            with self._guard:
-                if self._is_closed():
-                    raise RuntimeError("caption runtime has been closed")
-                primary = self._primaries.get(channel)
-            if primary is None:
-                created = self._factory("whistle")
-                with self._guard:
-                    if self._closed:
-                        created.close()
-                        raise RuntimeError("caption runtime has been closed")
-                    self._primaries[channel] = primary = created
-                    _LOG.info(
-                        "Whistle primary active: channel=%s pid=%s",
-                        channel,
-                        getattr(getattr(created, "_process", None), "pid", "n/a"),
-                    )
+            primary = self._load_primary(channel)
+            assert primary is not None
             started = time.monotonic()
             try:
                 result = primary.request(chunk, vocabulary)
@@ -1034,6 +1070,12 @@ class MixedCaptionRuntime:
             "Mixed live captions: Whistle channels=%s; other channels use existing Whisper",
             sorted(self._whistle_channels),
         )
+
+    def warm_channel(self, channel: str, cancel: threading.Event) -> None:
+        if channel in self._whistle_channels:
+            warm = getattr(self._whistle, "warm_channel", None)
+            if callable(warm):
+                warm(channel, cancel)
 
     def transcribe(
         self,
