@@ -128,6 +128,35 @@ def test_heartbeat_send_failure_clears_own_reservation_and_quits(caption_engine:
     caption_engine._loop.quit.assert_called_once()
 
 
+def test_replacement_receipt_uses_actual_incoming_erase_cutoff(
+    caption_engine: Any,
+    engine_module: Any,  # noqa: F811
+) -> None:
+    engine_module.Gst.SECOND = 1_000_000_000
+    engine_module.Gst.PadLinkReturn = SimpleNamespace(OK=0)
+    clear = Mock()
+    engine_module.Gst.Buffer = SimpleNamespace(new_allocate=Mock(return_value=clear))
+    source, encoded, erase, concat, combiner = (Mock() for _ in range(5))
+    source.get_factory.return_value.get_name.return_value = "appsrc"
+    concat.get_static_pad.return_value.link.return_value = 0
+    caption_engine._build_chain = Mock(return_value=(source, encoded))
+    caption_engine._make = Mock(side_effect=[erase, concat])
+    caption_engine._link = Mock()
+    caption_engine.pipeline = Mock()
+    caption_engine._caption_program_token = "incoming"
+    caption_engine.caption_delivery_clock = Mock()
+    caption_engine._install_caption_timing_probes = Mock()
+    cutoff_ns = 39_966_000_000
+    leg = SimpleNamespace(caption_source=(engine_module.ElementSpec("appsrc", "captions"),))
+
+    caption_engine._build_caption_source(leg, combiner, clear_at_ns=cutoff_ns)
+
+    assert clear.pts == cutoff_ns
+    caption_engine.caption_delivery_clock.begin_program.assert_called_once_with(
+        "incoming", cutoff_seconds=39.966
+    )
+
+
 def test_fast_queue_probe_does_not_get_replaced_by_sender(caption_engine: Any) -> None:
     def send(event: Any) -> bool:
         assert caption_engine._caption_gap_gate.entered_downstream(event.get_seqnum())

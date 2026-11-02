@@ -4164,7 +4164,7 @@ export function stopYouTubeOutput(assetId: string): Promise<{ state: string }> {
 
 export interface CaptionBatchResult { asset_id: string; job?: OfflineCaptionJobRecord | null; error?: string | null }
 export function queueCaptionBatch(assetIds: string[]): Promise<CaptionBatchResult[]> {
-  return request('/api/staff/captions/offline-jobs/batch', { method: 'POST', body: JSON.stringify({ asset_ids: assetIds }) })
+  return request('/api/staff/captions/offline-jobs/batch', { method: 'POST', body: { asset_ids: assetIds } })
 }
 export function cancelOfflineCaptionJob(jobId: string): Promise<OfflineCaptionJobRecord> {
   return request(`/api/staff/captions/offline-jobs/${encodeURIComponent(jobId)}/cancel`, { method: 'POST' })

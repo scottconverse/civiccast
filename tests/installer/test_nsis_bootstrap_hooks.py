@@ -1627,6 +1627,15 @@ def test_version_preflight_preserves_extraction_destination_and_caller_state(
         '-CandidateVersion "${VERSION}"',
         '-CandidateVersion "${VERSION}" -InstalledVersion "1.0.0-beta.14"',
     )
+    # Preserve the real subprocess result on refusal. NSIS DetailPrint is not
+    # captured by subprocess stdout; exit130 alone loses the distinction between
+    # PowerShell failure and nsExec startup/timeout. Fixture identity is synthetic.
+    macro = macro.replace(
+        "  Pop $0\n  Pop $1\n",
+        '  Pop $0\n  Pop $1\nFileOpen $R8 "$EXEDIR\\preflight-diagnostic.txt" w\n'
+        'FileWrite $R8 "nsExec exit=$0 output=$1"\nFileClose $R8\n',
+        1,
+    )
     payload = tmp_path / "fixture.txt"
     payload.write_text("must land in installation directory", encoding="utf-8")
     output = tmp_path / "preflight-state.exe"
@@ -1655,7 +1664,8 @@ def test_version_preflight_preserves_extraction_destination_and_caller_state(
     assert compiled.returncode == 0, compiled.stdout + compiled.stderr
     ran = subprocess.run([str(output), "/S"], capture_output=True, timeout=60)
     assert ran.returncode == 0, (
-        f"NSIS state regression exit {ran.returncode}: 72=OUTDIR, 73/74=registers, 75=Errors"
+        f"NSIS state regression exit {ran.returncode}: 72=OUTDIR, 73/74=registers, 75=Errors; "
+        + (tmp_path / "preflight-diagnostic.txt").read_text(encoding="utf-8", errors="replace")
     )
     assert (tmp_path / "payload/sentinel.txt").read_text(encoding="utf-8") == payload.read_text(
         encoding="utf-8"

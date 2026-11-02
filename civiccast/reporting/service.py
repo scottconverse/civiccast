@@ -53,7 +53,7 @@ from typing import Annotated, Any, cast
 
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import case, func, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, aliased
 from sqlalchemy.sql.elements import ColumnElement
 
 from civiccast.metadata.models import CustomFieldDefDb, CustomFieldValueDb
@@ -70,14 +70,37 @@ def _open_airing() -> ColumnElement[bool]:
     return (row.duration_s == 0) & (row.actual_end == row.actual_start)
 
 
+def _window_end(to_ts: datetime, now: datetime) -> ColumnElement[Any]:
+    """A later observed source bounds airtime on the same channel, not the ledger.
+
+    Historical open/overlapping rows remain evidence. Reports assign the shared
+    interval to the later source; entry_id breaks simultaneous starts consistently.
+    Include every source kind and asset when finding the next channel boundary.
+    """
+    row = AsRunLogEntryDb
+    later = aliased(AsRunLogEntryDb)
+    next_start = (
+        select(func.min(later.actual_start))
+        .where(later.station_id == row.station_id, later.channel_id == row.channel_id)
+        .where(
+            (later.actual_start > row.actual_start)
+            | ((later.actual_start == row.actual_start) & (later.entry_id > row.entry_id))
+        )
+        .correlate(row)
+        .scalar_subquery()
+    )
+    recorded_end = case((_open_airing(), min(now, to_ts)), else_=row.actual_end)
+    capped_end = case((next_start < recorded_end, next_start), else_=recorded_end)
+    return case((capped_end > to_ts, to_ts), else_=capped_end)
+
+
 def _window_airtime(
     session: Session, from_ts: datetime, to_ts: datetime, now: datetime
 ) -> ColumnElement[Any]:
     """Clip closed and provisional open airtime without changing ledger evidence."""
     row = AsRunLogEntryDb
     start = case((row.actual_start < from_ts, from_ts), else_=row.actual_start)
-    effective_end = case((_open_airing(), min(now, to_ts)), else_=row.actual_end)
-    end = case((effective_end > to_ts, to_ts), else_=effective_end)
+    end = _window_end(to_ts, now)
     if session.get_bind().dialect.name == "sqlite":
         seconds = func.round((func.julianday(end) - func.julianday(start)) * 86400)
     else:
@@ -85,7 +108,7 @@ def _window_airtime(
     return case(
         (end <= start, 0),
         (
-            ~_open_airing() & (row.actual_start >= from_ts) & (row.actual_end <= to_ts),
+            ~_open_airing() & (row.actual_start >= from_ts) & (end == row.actual_end),
             row.duration_s,
         ),
         else_=seconds,
@@ -94,9 +117,10 @@ def _window_airtime(
 
 def _overlaps_window(from_ts: datetime, to_ts: datetime, now: datetime) -> ColumnElement[bool]:
     row = AsRunLogEntryDb
-    return (row.actual_start < to_ts) & (
-        (~_open_airing() & (row.actual_end > from_ts))
-        | (_open_airing() & (row.actual_start < now) & (now > from_ts))
+    return (
+        (row.actual_start < to_ts)
+        & (_window_end(to_ts, now) > from_ts)
+        & (~_open_airing() | (row.actual_start < now))
     )
 
 
@@ -472,10 +496,25 @@ class ReportingService:
             station_id, channel_id=channel_id, from_ts=from_ts, to_ts=to_ts, now=now
         )
 
-        entries = [
-            entry.model_copy(update={"duration_s": _clipped_duration(entry, from_ts, to_ts, now)})
-            for entry in entries
-        ]
+        if entries:
+            with self._session() as session:
+                row = AsRunLogEntryDb
+                # Match the ledger read without expanding one bind per entry.
+                # Keep superseded rows too: their projected airtime may be zero,
+                # while the correlated successor still searches full history.
+                stmt = select(row.entry_id, _window_airtime(session, from_ts, to_ts, now)).where(
+                    row.station_id == station_id,
+                    row.actual_start < to_ts,
+                    (~_open_airing() & (row.actual_end > from_ts))
+                    | (_open_airing() & (row.actual_start < now) & (now > from_ts)),
+                )
+                if channel_id is not None:
+                    stmt = stmt.where(row.channel_id == channel_id)
+                airtimes = dict(session.execute(stmt).tuples().all())
+            entries = [
+                entry.model_copy(update={"duration_s": int(airtimes[entry.entry_id] or 0)})
+                for entry in entries
+            ]
         category_by_asset: dict[str, str] = {}
         if field_key is not None and entries:
             with self._session() as session:
@@ -577,17 +616,6 @@ class ReportingService:
             .where(CustomFieldDefDb.key == field_key)
         )
         return session.execute(stmt).scalar_one_or_none()
-
-
-def _clipped_duration(entry: AsRunLogEntry, start: datetime, end: datetime, now: datetime) -> int:
-    open_airing = entry.duration_s == 0 and entry.actual_end == entry.actual_start
-    clipped_start = max(start, entry.actual_start)
-    clipped_end = min(end, now if open_airing else entry.actual_end)
-    if clipped_end <= clipped_start:
-        return 0
-    if not open_airing and entry.actual_start >= start and entry.actual_end <= end:
-        return entry.duration_s
-    return int((clipped_end - clipped_start).total_seconds())
 
 
 def _as_utc(value: datetime) -> datetime:

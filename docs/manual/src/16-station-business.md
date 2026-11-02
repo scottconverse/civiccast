@@ -122,6 +122,8 @@ The page opens on today's date through tomorrow's, UTC midnight to UTC midnight.
 
 The **Asset** column shows the recording's id, not its title. The **Shows** tab leaves out anything without a library recording (filler, slate and live). **Actual on-air start** comes from the engine observing a selected source frame pass encoding into progressing output. Internal playlist changes update the source label and ledger; preparing a playlist is not an on-air start. **Start variance** compares that observation with the planned start. This is output-path evidence, not measurement at a television receiver. VOD preroll does not itself create an as-run entry.
 
+Reports count overlapping records on the same channel only until the next observed source starts. A newer program, slate or open record ends the earlier record's contribution to the total; this does not imply that the earlier program resumes afterward. Different channels remain additive. Historical start/end records are preserved, and an open record remains provisional even when a later observation bounds its counted airtime.
+
 The **Source** column uses these words:
 
 - `program`: a recording from your library.

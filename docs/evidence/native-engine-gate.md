@@ -40,6 +40,23 @@ current-source drift bindings. It does not renew July hardware observations or
 establish current installed-service, boot/pre-login, viewer-label or speech/caption
 timing acceptance. Those remaining PR291 installed outcomes are still pending.
 
+RC4 current-source review (head `fc89169d63e2bb94d8fb50ec07db40782ce8249d`):
+the engine change passes the actual incoming clear timestamp, converted from
+nanoseconds to seconds, to the existing caption receipt's `begin_program` call.
+It does not change source selection, playback rate, source fences or worker
+restart policy. The associated caption clock retires outgoing lookahead that
+cannot be displayed after that boundary; it does not count retired speech as
+retained or improve recognition latency. Engine blob:
+`e75e6d661dfda300d8b43dca340ec4620ec7b7a4`.
+
+Eighteen focused caption-clock/engine-wiring checks passed. Required Windows WS4
+job `125433645988`, run `41490558655`, passed 35 installer/filesystem, 57 media
+and 2418 native cases on that exact head. Unit failed on stale reporting-test,
+documentation and source-review bindings; its downstream native-pure stage did
+not run. This review renews only the current-source drift tripwire. Historical
+hardware evidence remains historical; final RC4 installed timing, caption loss,
+service and operator acceptance remain pending in `docs/handoff/CURRENT.md`.
+
 ## Gate behaviors (charter: switching, recovery, multichannel)
 
 1. **Hot source-swapping** — `SWAPS=4 INTERVAL=2 python worker.py demo-graph.json`

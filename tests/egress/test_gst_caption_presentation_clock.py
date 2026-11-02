@@ -5,6 +5,8 @@ import threading
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+
 from civiccast.egress.gst.caption_clock import CaptionDeliveryClock
 
 
@@ -60,6 +62,101 @@ def test_invalid_encoder_clock_is_visible_and_never_silently_accepted(tmp_path):
     result = json.loads(clock.presentation_path.read_text())
     assert len(result["errors"]) == 2
     assert result["pages"] == []
+
+
+@pytest.mark.parametrize("display_start", [39.966, 40.1])
+def test_program_cutoff_retires_active_encoder_lookahead(tmp_path, display_start):
+    clock = CaptionDeliveryClock(tmp_path / "delivered.json")
+    clock.observe_text("OUTGOING LOOKAHEAD", program="")
+    clock.observe_cc_data(b"\xfc\x94\x20\xfc\x94\x2f", display_start, program="")
+    clock.begin_program("next", cutoff_seconds=39.966)
+    clock.observe_cc_data(b"\xfc\x94\x2c", 39.966, program="next")
+    clock.observe_cc_data(b"\xfc\x94\x20\xfc\x94\x2f", 45, program="")
+    clock.flush_presentation()
+    result = json.loads(clock.presentation_path.read_text())
+    assert result["pages"] == []
+    assert result["encoded_page_count"] == result["retired_page_count"] == 1
+    assert result["displayed_page_count"] == result["active_page_count"] == 0
+    assert result["errors"] == []
+
+
+def test_program_cutoff_keeps_earlier_active_display_until_incoming_erase(tmp_path):
+    clock = CaptionDeliveryClock(tmp_path / "delivered.json")
+    clock.observe_text("VISIBLE OUTGOING", program="")
+    clock.observe_cc_data(b"\xfc\x94\x20\xfc\x94\x2f", 38, program="")
+    clock.begin_program("next", cutoff_seconds=39.966)
+    clock.observe_cc_data(b"\xfc\x94\x2c", 39.966, program="next")
+    clock.flush_presentation()
+    result = json.loads(clock.presentation_path.read_text())
+    assert result["pages"] == [
+        {"text": "VISIBLE OUTGOING", "start_seconds": 3638, "end_seconds": 3639.966}
+    ]
+    assert result["displayed_page_count"] == 1
+    assert result["retired_page_count"] == 0
+    assert result["errors"] == []
+
+
+def test_program_cutoff_trims_completed_encoder_lookahead_and_retires_future_pages(tmp_path):
+    clock = CaptionDeliveryClock(tmp_path / "delivered.json")
+    for text, start, end in [("VISIBLE", 38, 41), ("FUTURE", 42, 44)]:
+        clock.observe_text(text, program="")
+        clock.observe_cc_data(b"\xfc\x94\x20\xfc\x94\x2f", start, program="")
+        clock.observe_cc_data(b"\xfc\x94\x2c", end, program="")
+    clock.begin_program("next", cutoff_seconds=40)
+    clock.observe_cc_data(b"\xfc\x94\x2c", 40, program="next")
+    clock.flush_presentation()
+    result = json.loads(clock.presentation_path.read_text())
+    assert result["pages"] == [{"text": "VISIBLE", "start_seconds": 3638, "end_seconds": 3640}]
+    assert result["encoded_page_count"] == 2
+    assert result["displayed_page_count"] == result["retired_page_count"] == 1
+    assert result["errors"] == []
+
+
+@pytest.mark.parametrize("erase", [4, 5])
+def test_same_program_nonincreasing_display_clock_still_fails(tmp_path, erase):
+    clock = CaptionDeliveryClock(tmp_path / "delivered.json")
+    clock.observe_text("PAGE", program="")
+    clock.observe_cc_data(b"\xfc\x94\x20\xfc\x94\x2f", 5, program="")
+    clock.observe_cc_data(b"\xfc\x94\x2c", erase, program="")
+    clock.begin_program("next", cutoff_seconds=10)
+    clock.flush_presentation()
+    result = json.loads(clock.presentation_path.read_text())
+    assert result["errors"] == ["non-increasing caption display clock"]
+    assert result["pages"] == []
+
+
+@pytest.mark.parametrize("cutoff", [-1, float("nan"), float("inf")])
+def test_invalid_program_reset_clock_remains_a_failure(tmp_path, cutoff):
+    clock = CaptionDeliveryClock(tmp_path / "delivered.json")
+    clock.begin_program("next", cutoff_seconds=cutoff)
+    clock.flush_presentation()
+    assert json.loads(clock.presentation_path.read_text())["errors"] == [
+        "invalid caption program reset clock"
+    ]
+
+
+def test_backwards_program_cutoff_preserves_history_counts_and_program(tmp_path):
+    clock = CaptionDeliveryClock(tmp_path / "delivered.json")
+    clock.observe_text("COMPLETED", program="")
+    clock.observe_cc_data(b"\xfc\x94\x20\xfc\x94\x2f", 8, program="")
+    clock.observe_cc_data(b"\xfc\x94\x2c", 9, program="")
+    clock.begin_program("current", cutoff_seconds=10)
+    clock.observe_text("ACTIVE", program="current")
+    clock.observe_cc_data(b"\xfc\x94\x20\xfc\x94\x2f", 11, program="current")
+    clock.flush_presentation()
+    before = json.loads(clock.presentation_path.read_text())
+
+    clock.begin_program("backwards", cutoff_seconds=7)
+    clock.observe_text("REFUSED TOKEN", program="backwards")
+    clock.flush_presentation()
+    after = json.loads(clock.presentation_path.read_text())
+    assert after.pop("errors") == ["backwards caption program reset clock"]
+    before.pop("errors")
+    assert after == before
+    clock.flush_presentation()
+    assert json.loads(clock.presentation_path.read_text())["errors"] == [
+        "backwards caption program reset clock"
+    ]
 
 
 def test_production_expectations_refuse_pending_loss_but_allow_explicit_fencing(tmp_path):

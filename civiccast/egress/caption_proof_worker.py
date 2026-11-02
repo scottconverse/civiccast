@@ -34,6 +34,7 @@ from urllib.parse import urlsplit
 from sqlalchemy.orm import Session
 
 from civiccast.captions.models import CaptionCue
+from civiccast.egress.caption_embed import CAPTION_EMBED_PROOF_BOUNDARY
 from civiccast.egress.caption_proof import (
     DEFAULT_CAPTION_PROOF_TIMEOUT_SECONDS,
     CaptionMode,
@@ -42,8 +43,10 @@ from civiccast.egress.caption_proof import (
     _run_bounded_ffmpeg,
     sample_caption_decode_back,
 )
+from civiccast.egress.models import EgressCaptionProofSample
+from civiccast.egress.sinks import HlsSink
 from civiccast.egress.store import EgressStore
-from civiccast.stream._ffmpeg import run_ffmpeg
+from civiccast.stream._ffmpeg import FfmpegNotFoundError, run_ffmpeg
 
 _LOG = logging.getLogger(__name__)
 
@@ -71,8 +74,8 @@ class CaptionProofWorker:
 
     * ``on_air_channels`` — the channels currently ON_AIR (and embedding captions).
     * ``capture_segment`` — capture a short emitted-stream segment for a channel,
-      or None if no segment is available (then the channel is skipped — fail-closed,
-      ``caption_status`` stays not-verified until a real capture proves a PASS).
+      or None if no segment is available (a timestamped unavailable sample is
+      persisted; ``caption_status`` stays not-verified until a real capture proves a PASS).
     * ``expected_cues_provider`` — the cues the channel is embedding (the channel
       caption pipeline: review queue / ASR tap / sidecar). Empty → the sample is a
       FAIL with ``NO_EXPECTED_CUES`` (we never fabricate a PASS).
@@ -149,8 +152,28 @@ class CaptionProofWorker:
         skipped = 0
         sampled: list[str] = []
         for channel_id in self._on_air_channels():
-            segment = self._capture_segment(channel_id)
+            try:
+                segment = self._capture_segment(channel_id)
+            except (OSError, FfmpegNotFoundError):
+                _LOG.warning(
+                    "Caption proof capture unavailable for channel %s", channel_id, exc_info=True
+                )
+                segment = None
             if segment is None:
+                # FAIL is the existing storage's fail-closed verdict, not a
+                # claim that a decoder ran and found missing/wrong captions.
+                self._store.append_caption_proof_sample(
+                    EgressCaptionProofSample(
+                        channel_id=channel_id,
+                        sampled_at=self._clock(),
+                        status="FAIL",
+                        caption_status="not-verified",
+                        mode=self._mode,
+                        decoder_name="not-run",
+                        proof_boundary=CAPTION_EMBED_PROOF_BOUNDARY,
+                        blocker="EGRESS_CAPTION_DECODE_BACK_CAPTURE_UNAVAILABLE",
+                    )
+                )
                 skipped += 1
                 continue
             sample = sample_caption_decode_back(
@@ -188,7 +211,9 @@ def _emitted_stream_target(store: EgressStore, channel_id: str) -> tuple[str, bo
     """``(uri, is_file)`` for the channel's emitted stream to decode back, or None.
 
     Prefers a file/local-ts sink (the written TS — read its tail); else a live
-    udp/srt broadcast sink (captured by ffmpeg). rtmp/sdi are not TS-decode targets."""
+    udp/srt broadcast sink (captured by ffmpeg), else the advertised local HLS
+    manifest. HLS is a live input, not a seekable growing TS file. rtmp/sdi are
+    not TS-decode targets."""
     config = store.get_config(channel_id)
     if config is None:
         return None
@@ -199,6 +224,11 @@ def _emitted_stream_target(store: EgressStore, channel_id: str) -> tuple[str, bo
     for sink in config.sinks:
         if urlsplit(sink.uri).scheme.lower() in _CAPTURE_SINK_SCHEMES:
             return (sink.uri, False)
+    for sink in config.sinks:
+        if sink.kind == "hls":
+            # Read exactly the manifest served to residents, never the muxer's
+            # private staging playlist (holding it can block Windows renames).
+            return (HlsSink(sink).manifest_target(), False)
     return None
 
 
@@ -213,14 +243,23 @@ def capture_emitted_segment(
 ) -> Path | None:
     """Capture a short, bounded segment of the channel's emitted stream (WSL/LPM edge).
 
-    A live udp/srt sink is captured for ``capture_seconds``; a file/local-ts sink's
+    A live udp/srt or advertised HLS sink is captured for ``capture_seconds``; a file/local-ts sink's
     LAST ``capture_seconds`` are copied (``-sseof``) so a 24/7 channel's growing file is
     never decoded whole. Returns the segment path, or None if there is nothing to
-    capture / the capture produced no bytes (then the channel is skipped, fail-closed)."""
+    capture / the capture produced no bytes (then proof is unavailable, fail-closed)."""
     target = _emitted_stream_target(store, channel_id)
     if target is None:
         return None
     uri, is_file = target
+    is_hls = not is_file and urlsplit(uri).scheme.lower() not in _CAPTURE_SINK_SCHEMES
+    if is_hls:
+        from civiccast.egress.hls_relay import _last_segment
+
+        # Match relay progress: neither rewritten tags nor a touched manifest
+        # proves fresh media. Even the first capture must witness advancement.
+        prior_segment = _last_segment(Path(uri))
+        if prior_segment is None:
+            return None
     out = work_dir / channel_id / "caption-proof" / "segment.ts"
     out.parent.mkdir(parents=True, exist_ok=True)
     seconds = f"{capture_seconds:g}"
@@ -230,6 +269,10 @@ def capture_emitted_segment(
         args = ["-y", "-hide_banner", "-nostats", "-sseof", f"-{seconds}", "-i", uri]
     else:
         args = ["-y", "-hide_banner", "-nostats", "-i", uri]
+        if is_hls:
+            # Otherwise ffmpeg can immediately copy six cached seconds from a
+            # rolling window before the healthy publisher has time to advance.
+            args.insert(args.index("-i"), "-re")
     # Preserve the emitted transport clock, including wrap, rather than
     # replacing the capture's epoch with ffmpeg's default near-zero clock.
     args.insert(0, "-copyts")
@@ -255,6 +298,12 @@ def capture_emitted_segment(
         return None
     if result.returncode != 0 or not out.exists() or out.stat().st_size == 0:
         return None
+    if is_hls:
+        latest_segment = _last_segment(Path(uri))
+        if latest_segment is None or latest_segment == prior_segment:
+            with contextlib.suppress(OSError):
+                out.unlink(missing_ok=True)
+            return None
     return out
 
 

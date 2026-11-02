@@ -721,7 +721,7 @@ def test_native_output_events_update_labels_once_and_ignore_partial_lines(tmp_pa
             "asset_id": f"asset-{i}",
             "label": f"Program {i}",
             "event_id": f"event-{i}",
-            "observed_at": 1793318400 + i,
+            "observed_at": 1793318408 + i,
             "schedule_item_id": f"occurrence-{i}",
             "schedule_occurrence_start": "2026-10-30T00:00:00+00:00",
         }
@@ -744,10 +744,64 @@ def test_native_output_events_update_labels_once_and_ignore_partial_lines(tmp_pa
     timeline = _public_program_timeline(_recent_public_program_events(store, "gov"))
     assert [entry.title for entry in timeline] == ["Program 0", "Program 1"]
     assert (
-        timeline[1].started_at == datetime.fromtimestamp(events[1]["observed_at"], UTC).isoformat()
+        timeline[1].started_at
+        == datetime.fromtimestamp(events[1]["media_wall_seconds"], UTC).isoformat()
     )
     assert len(store.recent_proof_events("gov", 10)) == 2
     daemon._write_state(
         "gov", "ON_AIR", current_source_label="Old plan first item", pid=process.pid
     )
     assert store.read_state("gov").current_source_label == "Program 1"
+
+
+@pytest.mark.parametrize(
+    "media_wall, expected",
+    [
+        (None, 1793318408),
+        ("bad", 1793318408),
+        (float("nan"), 1793318408),
+        (float("inf"), 1793318408),
+        (float("-inf"), 1793318408),
+        (0, 1793318408),
+        (-1, 1793318408),
+        (1e100, 1793318408),
+        (1793318400, 1793318400),
+        (1793318415, 1793318415),
+    ],
+)
+def test_native_output_boundary_uses_media_wall_with_flush_time_fallback(
+    tmp_path: Path, media_wall, expected
+) -> None:
+    store = InMemoryEgressStore()
+    store.upsert_config(_config())
+    recorder = _FakeRecorder()
+    process = _FakeProcess()
+    daemon = _daemon(store, tmp_path, recorder, _program_plan(tmp_path), process)
+    daemon._encoder_strategy.observes_source_output = True
+    log = tmp_path / "native-worker.log"
+    daemon._stderr_logs["gov"] = log
+    source = {
+        "kind": "program",
+        "asset_id": "asset",
+        "label": "Program",
+        "event_id": "event",
+        "observed_at": 1793318408,
+        "schedule_item_id": None,
+    }
+    if media_wall is not None:
+        source["media_wall_seconds"] = media_wall
+    # A partial/unconfirmed output line still produces no proof or transition.
+    line = "CIVICCAST_SOURCE_OUTPUT " + json.dumps(source)
+    log.write_text(line)
+    daemon._poll_source_output("gov", process)
+    assert recorder.transitions == []
+    log.write_text(line + "\n")
+    daemon._poll_source_output("gov", process)
+    boundary = datetime.fromtimestamp(expected, UTC)
+    assert recorder.transitions[0].actual_start == boundary
+    proof = store.recent_proof_events("gov", 1)[0]
+    assert proof.observed_at == boundary
+    assert proof.proof_boundary == "civiccast-egress-selected-source-output"
+    from civiccast.live.router import _public_program_timeline
+
+    assert _public_program_timeline([proof])[0].started_at == boundary.isoformat()

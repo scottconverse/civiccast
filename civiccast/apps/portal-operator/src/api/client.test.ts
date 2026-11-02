@@ -6,8 +6,39 @@ import {
   fireControlRoomCue,
   getControlRoomReadiness,
   getStationSetupState,
+  queueCaptionBatch,
   uploadAssetFile,
 } from './client'
+
+describe('recording caption batch requests', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
+    window.localStorage.clear()
+    window.sessionStorage.clear()
+  })
+
+  it('sends the selected asset IDs as a JSON object the batch API can parse', async () => {
+    const assetIds = ['recording-en-es', 'another-recording']
+    const results = assetIds.map((asset_id) => ({ asset_id, error: null }))
+    const fetchMock = vi.fn<typeof fetch>(async (path, init) => {
+      expect(path).toBe('/api/staff/captions/offline-jobs/batch')
+      expect(init?.method).toBe('POST')
+      expect(new Headers(init?.headers).get('Content-Type')).toBe('application/json')
+      // Exercise the real request serializer at the fetch boundary. A JSON
+      // string here is rejected by CaptionBatchRequest with HTTP 422.
+      expect(JSON.parse(String(init?.body))).toEqual({ asset_ids: assetIds })
+      return new Response(JSON.stringify(results), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(queueCaptionBatch(assetIds)).resolves.toEqual(results)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+})
 
 describe('rehearsal media upload', () => {
   afterEach(() => {

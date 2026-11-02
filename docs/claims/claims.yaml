@@ -250,7 +250,7 @@ entries:
           blob: 37c2bd2bc951eb0bfe8d5b4b2fdef1eda6027e1c
       test:
         path: tests/dr/test_postgres_restore.py
-        blob: 09fb2fb72fa7d75e8f551feb8d8655c24f6cfa77
+        blob: 8674383374fc1c6ef9ee77df2aac31e692a7e2e4
         node_id: "tests/dr/test_postgres_restore.py::test_run_full_drill_postgres_end_to_end"
       verifier:
         - path: scripts/policy/check_claims_evidence.py
@@ -478,7 +478,7 @@ entries:
     inputs:
       prose:
         path: docs/evidence/native-engine-gate.md
-        blob: 65e85bff17f189c9abf46d685c03637b5ae7302e
+        blob: 6c71b32733ffcc473e470a01750df65e0fe7c328
       # CC-WS3-005 (round 3): the evidence doc's own header states "Engine
       # code: civiccast/egress/gst/ worker.py + engine.py + graph.py at
       # integration-branch HEAD, zero modifications — the exact files WSL
@@ -1122,7 +1122,7 @@ entries:
         # sprint3-output/evidence/{outputs,eos}.md. Historical acceptance stays
         # historical; these bindings do not certify a new installed package.
         - path: civiccast/egress/gst/engine.py
-          blob: b2edf5168b72638ae8beed3ffab9acb4e61b1501
+          blob: e75e6d661dfda300d8b43dca340ec4620ec7b7a4
         - path: civiccast/egress/gst/caption_flow.py
           blob: c0c981dfa050e8ca196533c791a99028302c5ca5
         - path: civiccast/egress/gst/decode_policy.py
@@ -1256,7 +1256,7 @@ entries:
     inputs:
       prose:
         path: docs/evidence/session0-service-broadcast.md
-        blob: 11f91dbc56f57b2126778dc15ebb392d03947849
+        blob: 120737fa8707545380a6ae3370fbd7fa52d28138
       # CC-WS3-005 (round 3): the evidence doc's own header states "Engine
       # code: civiccast/egress/gst/{worker,engine,graph,control}.py copied
       # unmodified from program/native-windows @ 3b4b245...". All four are
@@ -2053,7 +2053,7 @@ entries:
         # sprint3-output/evidence/{outputs,eos}.md. Historical acceptance stays
         # historical; these bindings do not certify a new installed package.
         - path: civiccast/egress/gst/engine.py
-          blob: b2edf5168b72638ae8beed3ffab9acb4e61b1501
+          blob: e75e6d661dfda300d8b43dca340ec4620ec7b7a4
         - path: civiccast/egress/gst/caption_flow.py
           blob: c0c981dfa050e8ca196533c791a99028302c5ca5
         - path: civiccast/egress/gst/decode_policy.py

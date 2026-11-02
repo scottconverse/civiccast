@@ -355,7 +355,7 @@ dependencies = [
 
 [[package]]
 name = "civiccast-installer"
-version = "1.0.0-rc.3"
+version = "1.0.0-rc.4"
 dependencies = [
  "base64 0.22.1",
  "ed25519-dalek",

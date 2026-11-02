@@ -23,6 +23,7 @@ import {
 } from './commit-format'
 import type { CommitDispatchStatus, Tone } from './commit-format'
 import { formatDurationHMS } from './recording-format'
+import { formatStationInstant } from '../lib/station-time'
 
 const UPCOMING_HOURS = 24
 const RECENT_LIMIT = 10
@@ -33,13 +34,17 @@ function apiMessage(error: unknown, fallback: string): string {
   return fallback
 }
 
-function formatWhen(iso: string): string {
-  return new Date(iso).toLocaleString(undefined, {
+function formatWhen(iso: string, timeZone?: string): string {
+  const options: Intl.DateTimeFormatOptions = {
     weekday: 'short',
     hour: 'numeric',
     minute: '2-digit',
     second: '2-digit',
-  })
+  }
+  const instant = new Date(iso)
+  return timeZone
+    ? formatStationInstant(instant, timeZone, options)
+    : instant.toLocaleString(undefined, options)
 }
 
 const TONE_STYLE: Record<Tone, { bg: string; fg: string }> = {
@@ -76,6 +81,7 @@ function primaryButtonStyle(disabled: boolean) {
 
 export function DryRunReview({
   plan,
+  timeZone,
   canManage,
   committing,
   onApprove,
@@ -85,6 +91,8 @@ export function DryRunReview({
   roleGateLabel = 'Airing requires the publish operator or setup admin role.',
 }: {
   plan: CommitToAirPlan
+  /** Match the calling screen's station clock; omitted callers retain their browser clock. */
+  timeZone?: string
   canManage: boolean
   committing: boolean
   onApprove: () => void
@@ -112,7 +120,7 @@ export function DryRunReview({
           <Badge label="Not safe to air yet" tone="err" />
         )}
         <span className="cc-mono text-[11px]" style={{ color: 'var(--cc-ink-3)' }}>
-          {formatWhen(plan.scheduled_at)} – {formatWhen(endsAt)} · {formatDurationHMS(plan.duration_seconds)}
+          {formatWhen(plan.scheduled_at, timeZone)} – {formatWhen(endsAt, timeZone)} · {formatDurationHMS(plan.duration_seconds)}
         </span>
       </div>
 
@@ -130,7 +138,7 @@ export function DryRunReview({
           </div>
           {conflicts.map((c) => (
             <div key={c.existing_schedule_item_id} className="text-xs" style={{ color: 'var(--cc-ink-2)' }}>
-              {c.existing_asset_title} at {formatWhen(c.existing_scheduled_at)} (overlaps {formatDurationHMS(c.overlap_seconds)})
+              {c.existing_asset_title} at {formatWhen(c.existing_scheduled_at, timeZone)} (overlaps {formatDurationHMS(c.overlap_seconds)})
             </div>
           ))}
         </div>

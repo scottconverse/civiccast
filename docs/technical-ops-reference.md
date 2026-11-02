@@ -1232,7 +1232,7 @@ version from the station you are monitoring.
 
 ```bash
 curl -s http://127.0.0.1:8000/health
-{"status":"degraded","version":"1.0.0-rc.3","schema":"not-configured"}
+{"status":"degraded","version":"1.0.0-rc.4","schema":"not-configured"}
 ```
 
 **The HTTP status code is liveness.** `/health` returns `200` whenever the

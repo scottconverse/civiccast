@@ -1732,7 +1732,10 @@ class GstPlayoutEngine:
         if caption_specs[0].factory == "appsrc":
             clock = getattr(self, "caption_delivery_clock", None)
             if clock is not None:
-                clock.begin_program(token)
+                clock.begin_program(
+                    token,
+                    cutoff_seconds=clear_at_ns / Gst.SECOND if clear_at_ns is not None else None,
+                )
             self._install_caption_timing_probes(cap_first, cap_last, token)
 
     def set_caption_delivery_clock(self, clock: Any) -> None:

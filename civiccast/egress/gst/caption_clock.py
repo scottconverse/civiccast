@@ -40,6 +40,7 @@ class CaptionDeliveryClock:
         self._publish_lock = threading.Lock()
         self._generation = 0
         self._program = ""
+        self._last_program_cutoff: float | None = None
         self._pending: deque[str] = deque()
         self._active: tuple[str, float] | None = None
         self._presentation: list[_DeliveryPage] = []
@@ -52,9 +53,35 @@ class CaptionDeliveryClock:
         self._publish()
         self.flush_presentation()
 
-    def begin_program(self, token: str) -> None:
-        """Fence retired caption branches; the incoming EDM closes the old display."""
+    def begin_program(self, token: str, *, cutoff_seconds: float | None = None) -> None:
+        """Fence outgoing encoder lookahead at the actual incoming reset clock."""
         with self._lock:
+            if cutoff_seconds is not None:
+                if not math.isfinite(cutoff_seconds) or cutoff_seconds < 0:
+                    self._error("invalid caption program reset clock")
+                    return
+                if (
+                    self._last_program_cutoff is not None
+                    and cutoff_seconds < self._last_program_cutoff
+                ):
+                    self._error("backwards caption program reset clock")
+                    return
+                self._last_program_cutoff = cutoff_seconds
+                cutoff = cutoff_seconds + GST_TS_CLOCK_BASE_SECONDS
+                # The encoder observer runs ahead of cccombiner. EOC at/after
+                # the incoming EDM never becomes an outgoing displayed page.
+                retained: list[_DeliveryPage] = []
+                for page in self._presentation:
+                    if page["start_seconds"] >= cutoff:
+                        self._displayed_count -= 1
+                        self._retired_count += 1
+                    else:
+                        retained.append({**page, "end_seconds": min(page["end_seconds"], cutoff)})
+                self._presentation = retained
+                if self._active is not None and self._active[1] >= cutoff:
+                    self._active = None
+                    self._displayed_count -= 1
+                    self._retired_count += 1
             self._program = token
             self._retired_count += len(self._pending)
             self._pending.clear()

@@ -122,7 +122,7 @@ async function clickEnabledPublishButton(getByText: (text: string) => HTMLElemen
   fireEvent.click(getByText('Publish to residents'))
 }
 
-function renderList(items: ScheduleItem[]) {
+function renderList(items: ScheduleItem[], timeZone?: string) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   })
@@ -132,7 +132,7 @@ function renderList(items: ScheduleItem[]) {
   const utils = render(
     <QueryClientProvider client={client}>
       <ToastContext.Provider value={{ push }}>
-        <ScheduleList items={items} onCancel={onCancel} />
+        <ScheduleList items={items} timeZone={timeZone} onCancel={onCancel} />
       </ToastContext.Provider>
     </QueryClientProvider>,
   )
@@ -140,6 +140,26 @@ function renderList(items: ScheduleItem[]) {
 }
 
 describe('ScheduleList — Publish to residents', () => {
+  it('keeps the exact 38-second approval interval on the station clock rather than the browser clock', async () => {
+    vi.mocked(getStaffIdentity).mockResolvedValue(identity())
+    const scheduledAt = '2026-11-02T18:02:22Z'
+    vi.mocked(prepareCommit).mockResolvedValue(plan({ scheduled_at: scheduledAt, duration_seconds: 38 }))
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone === 'Pacific/Auckland'
+      ? 'Asia/Tokyo' : 'Pacific/Auckland'
+    const { findByText, getByText } = renderList([
+      scheduleItem({ scheduled_at: scheduledAt, duration_seconds: 38 }),
+    ], timeZone)
+
+    await clickEnabledPublishButton(getByText)
+    const formatter = new Intl.DateTimeFormat(undefined, {
+      timeZone, weekday: 'short', hour: 'numeric', minute: '2-digit', second: '2-digit',
+    })
+    expect(await findByText(
+      `${formatter.format(new Date(scheduledAt))} – ${formatter.format(new Date('2026-11-02T18:03:00Z'))} · 00:00:38`,
+    )).toBeTruthy()
+    expect(commitToAir).not.toHaveBeenCalled()
+  })
+
   it('tells the operator an uncommitted premiere is not yet visible to residents', async () => {
     vi.mocked(getStaffIdentity).mockResolvedValue(identity())
     const { findByText } = renderList([scheduleItem()])

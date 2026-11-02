@@ -33,7 +33,7 @@ const RESIDENT_PORTAL_URL: &str = "http://127.0.0.1:8000/";
 const SERVICE_URL: &str = "http://127.0.0.1:8000";
 const SERVICE_HEALTH_ADDR: &str = "127.0.0.1:8000";
 const RUNTIME_HOST_MUTEX_ADDR: &str = "127.0.0.1:38474";
-const CIVICCAST_VERSION: &str = "1.0.0-rc.3";
+const CIVICCAST_VERSION: &str = "1.0.0-rc.4";
 // Must match the reviewed runtime pack, not the older model acquisition version.
 const NATIVE_OLLAMA_VERSION: &str = "0.40.13";
 const INSTALLER_SHUTDOWN_MARKER: &str = "shutdown-request";

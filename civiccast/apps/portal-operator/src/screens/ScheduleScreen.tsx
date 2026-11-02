@@ -753,6 +753,7 @@ export function ScheduleList({ items, timeZone, onCancel }: ScheduleListProps) {
                       <div className="px-3 pb-3">
                         <DryRunReview
                           plan={plan}
+                          timeZone={stationTimeZone}
                           canManage={canPublish}
                           committing={commitMutation.isPending}
                           onApprove={() => commitMutation.mutate(plan)}

@@ -16,10 +16,16 @@ and caption timing findings remain unresolved; the local Beta20 upgrade failed
 its pre-migration backup and recovered. Publication is not proof that those
 operator outcomes passed. Human language review remains pending and nonblocking.
 
-The current source contains a focused backup-timeout, approval-precision and
-setup-guidance correction. Its signed local candidate is separate from the
-unchanged published RC3 assets; required CI and local upgrade acceptance remain
-pending. Source changes do not update an installed station.
+## Unpublished source candidate
+
+`v1.0.0-rc.4` is an unpublished candidate and is not available as a public release.
+Its current corrections address fractional repeat boundaries, selected-frame timestamps,
+overlapping report airtime and unavailable caption proof. The
+[RC4 preparation record](docs/releases/v1.0.0-rc.4-verification.md) distinguishes
+source checks from required CI, signed packaging and installed acceptance still
+pending for this candidate. Speech-caption synchronization and coverage remain
+unresolved. Source changes do not update an installed station or replace the
+published RC3 downloads below.
 
 ## Previous published package (Beta 19)
 
@@ -64,7 +70,7 @@ names the step in progress. If a download is interrupted, rerun the same command
 
 See [Install CivicCast on Windows](INSTALL-WINDOWS.md) for first setup, existing installations, offline copies and password recovery. Open **CivicCast Operator Console** after setup finishes.
 
-The [RC3 source manual](docs/USER-MANUAL.md) describes the candidate controls. The published RC3 manual ([PDF](https://github.com/scottconverse/civiccast-native/releases/download/v1.0.0-rc.3/USER-MANUAL.pdf), [Word](https://github.com/scottconverse/civiccast-native/releases/download/v1.0.0-rc.3/USER-MANUAL.docx)) covers that package's operation, installation and architecture. Online manual revisions reach installed copies with a replacement application package. Additional guides: [Admin](docs/admin-guide.md), [Meeting Operator](docs/meeting-operator-guide.md), [Records Clerk](docs/records-clerk-guide.md) and [Tester Start Here](docs/tester/START-HERE.md).
+The [source manual](docs/USER-MANUAL.md) describes the candidate controls. The published RC3 manual ([PDF](https://github.com/scottconverse/civiccast-native/releases/download/v1.0.0-rc.3/USER-MANUAL.pdf), [Word](https://github.com/scottconverse/civiccast-native/releases/download/v1.0.0-rc.3/USER-MANUAL.docx)) covers that package's operation, installation and architecture. Online manual revisions reach installed copies with a replacement application package. Additional guides: [Admin](docs/admin-guide.md), [Meeting Operator](docs/meeting-operator-guide.md), [Records Clerk](docs/records-clerk-guide.md) and [Tester Start Here](docs/tester/START-HERE.md).
 
 ### Developer — run from source, contribute
 

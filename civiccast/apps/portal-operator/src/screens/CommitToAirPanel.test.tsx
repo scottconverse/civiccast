@@ -131,19 +131,23 @@ describe('canApprove', () => {
 })
 
 describe('DryRunReview', () => {
-  it('shows the exact start, end and duration before approving a 38-second slot', () => {
+  it('shows the exact station start, end and duration before approving a 38-second slot', () => {
     const start = new Date('2026-11-01T17:30:07Z')
     const end = new Date(start.getTime() + 38_000)
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone === 'Pacific/Auckland'
+      ? 'Asia/Tokyo' : 'Pacific/Auckland'
     const options: Intl.DateTimeFormatOptions = {
-      weekday: 'short', hour: 'numeric', minute: '2-digit', second: '2-digit',
+      weekday: 'short', hour: 'numeric', minute: '2-digit', second: '2-digit', timeZone,
     }
     const { getByText } = render(
       <DryRunReview
         plan={plan({ scheduled_at: start.toISOString(), duration_seconds: 38 })}
+        timeZone={timeZone}
         canManage committing={false} onApprove={vi.fn()} onCancel={vi.fn()}
       />,
     )
-    expect(getByText(`${start.toLocaleString(undefined, options)} – ${end.toLocaleString(undefined, options)} · 00:00:38`)).toBeTruthy()
+    const formatter = new Intl.DateTimeFormat(undefined, options)
+    expect(getByText(`${formatter.format(start)} – ${formatter.format(end)} · 00:00:38`)).toBeTruthy()
   })
 
   it('disables Approve until the dry-run passes', () => {
@@ -182,6 +186,7 @@ describe('DryRunReview', () => {
   it('lists schedule conflicts', () => {
     const { container } = render(
       <DryRunReview
+        timeZone="Pacific/Auckland"
         plan={plan({
           dry_run_passed: false,
           conflicts_detected: [
@@ -204,6 +209,9 @@ describe('DryRunReview', () => {
       />,
     )
     expect(container.textContent).toContain('Other Meeting')
+    expect(container.textContent).toContain(`Other Meeting at ${new Intl.DateTimeFormat(undefined, {
+      timeZone: 'Pacific/Auckland', weekday: 'short', hour: 'numeric', minute: '2-digit', second: '2-digit',
+    }).format(new Date('2026-06-20T18:10:00Z'))} (overlaps 00:10:00)`)
     expect(container.textContent).toContain('Clashes with 1 other program')
   })
 })
