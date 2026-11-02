@@ -250,7 +250,7 @@ entries:
           blob: 37c2bd2bc951eb0bfe8d5b4b2fdef1eda6027e1c
       test:
         path: tests/dr/test_postgres_restore.py
-        blob: 9a2ebf8dc457ecf7e7ac9304d1a29259695a67d3
+        blob: 8674383374fc1c6ef9ee77df2aac31e692a7e2e4
         node_id: "tests/dr/test_postgres_restore.py::test_run_full_drill_postgres_end_to_end"
       verifier:
         - path: scripts/policy/check_claims_evidence.py
