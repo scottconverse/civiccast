@@ -23,6 +23,23 @@ prerolled replacement checks passed in the development runtime. The registry
 bindings were renewed for these changed files and tests; this does not renew
 the historical hardware result or establish installed RC2 acceptance.
 
+PR291 current-source review (head `2f2dd2a5c6a65c074e9b4f8cb5447a8c12a33560`):
+the engine delta from the prior reviewed `e8b56185b22565ab32a54d5882356ad141e56435`
+adds only a simultaneous native-PTS/UTC sample to the existing private selected-source
+receipt. The source is copied before adding metadata; the existing selection,
+output-fence and log-flush behavior remains. Optional clock sampling failure is
+contained and cannot suppress the original source-output observation. Current engine
+blob: `b2edf5168b72638ae8beed3ffab9acb4e61b1501`.
+
+The affected selected-frame/daemon/publisher source checks passed as recorded in
+`docs/handoff/CURRENT.md`. Required Windows WS4 job `125057095871`, run
+`41376103989`, completed successfully on that exact head, including native media
+and installer/filesystem checks. Unit in the same run failed on these stale source
+bindings; its downstream native-pure suite did not execute. This review renews only
+current-source drift bindings. It does not renew July hardware observations or
+establish current installed-service, boot/pre-login, viewer-label or speech/caption
+timing acceptance. Those remaining PR291 installed outcomes are still pending.
+
 ## Gate behaviors (charter: switching, recovery, multichannel)
 
 1. **Hot source-swapping** — `SWAPS=4 INTERVAL=2 python worker.py demo-graph.json`
