@@ -4196,6 +4196,17 @@ class EgressDaemon:
                     if source["kind"] not in ("program", "cg", "live", "slate"):
                         continue
                     observed = datetime.fromtimestamp(source["observed_at"], UTC)
+                    # Optional private frame-clock metadata must not invalidate
+                    # the existing output proof if absent or malformed.
+                    anchor_setter = getattr(self._hls_relay, "set_media_clock_anchor", None)
+                    if callable(anchor_setter):
+                        with contextlib.suppress(TypeError, ValueError, OverflowError):
+                            anchor_setter(
+                                channel_id,
+                                pid,
+                                float(source.get("media_pts_seconds", "nan")),
+                                float(source.get("media_wall_seconds", "nan")),
+                            )
                     label = db_safe_text(source["label"])
                     proof_id = "source-" + source["event_id"]
                     self._store.append_proof_event(

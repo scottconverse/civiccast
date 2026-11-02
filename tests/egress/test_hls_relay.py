@@ -131,7 +131,8 @@ def test_apply_feeds_the_relay_the_real_hls_muxer_args() -> None:
     assert "-i" in args
     input_uri = args[args.index("-i") + 1]
     assert input_uri.startswith(hls_relay_uri_for(sink.uri))
-    expected_output_args = HlsSink(sink).output_args()
+    expected_output_args = ["-copyts", *HlsSink(sink).output_args()]
+    expected_output_args[-1:-1] = ["-hls_segment_options", "mpegts_copyts=1"]
     flags_index = expected_output_args.index("-hls_flags") + 1
     expected_output_args[flags_index] = "+".join(
         flag for flag in expected_output_args[flags_index].split("+") if flag != "delete_segments"
@@ -676,3 +677,136 @@ def test_udp_input_args_use_widened_analyze_and_probe_for_delayed_video() -> Non
     assert ad == "6000000", (
         f"UDP input probe window must be widened to 6000000 for delayed video; got {ad}"
     )
+
+
+def _dated_playlist(*entries: tuple[str, str]) -> bytes:
+    lines = ["#EXTM3U", "#EXT-X-TARGETDURATION:3"]
+    for name, date in entries:
+        lines.extend(("#EXTINF:2.5,", "#EXT-X-PROGRAM-DATE-TIME:" + date, name))
+    return ("\n".join(lines) + "\n").encode()
+
+
+@pytest.mark.parametrize("probe_delay", [6.118, 2.375])
+def test_publisher_dates_follow_measured_media_clock(tmp_path: Path, probe_delay: float) -> None:
+    from datetime import UTC, datetime
+    from unittest.mock import Mock
+
+    wall = 1793582947.312
+
+    def stamp(value: float) -> str:
+        return datetime.fromtimestamp(value, UTC).isoformat(timespec="milliseconds")
+
+    probe = Mock(return_value={"video": 3600.0})
+    publisher = _ManifestPublisher(
+        manifest_path=tmp_path / "playlist.m3u8",
+        staging_path=tmp_path / "playlist.mux.m3u8",
+        media_clock=lambda: (17, 3600.0, wall),
+        timestamp_probe=probe,
+    )
+    raw = _dated_playlist(
+        ("seg000000001.ts", stamp(wall + probe_delay)),
+        ("seg000000002.ts", stamp(wall + probe_delay + 2.5)),
+    )
+    result = publisher._align_program_dates(raw)
+    assert stamp(wall).encode() in result
+    assert stamp(wall + 2.5).encode() in result
+    assert result.count(b"#EXTINF:2.5,") == 2
+    assert probe.call_count == 1
+    assert publisher._align_program_dates(raw) == result
+    assert probe.call_count == 1
+
+
+def test_publisher_missing_clock_does_not_manufacture_dates(tmp_path: Path) -> None:
+    from unittest.mock import Mock
+
+    probe = Mock(return_value=None)
+    publisher = _ManifestPublisher(
+        manifest_path=tmp_path / "playlist.m3u8",
+        staging_path=tmp_path / "mux.m3u8",
+        media_clock=lambda: None,
+        timestamp_probe=probe,
+    )
+    raw = _dated_playlist(("seg000000001.ts", "2026-11-02T01:29:13.430+00:00"))
+    result = publisher._align_program_dates(raw)
+    assert b"PROGRAM-DATE-TIME" not in result
+    assert b"seg000000001.ts" in result
+    probe.assert_not_called()
+
+
+def test_publisher_dates_preserve_prior_window_and_handle_wrap(tmp_path: Path) -> None:
+    from datetime import UTC, datetime
+    from unittest.mock import Mock
+
+    from civiccast.egress.gst.caption_clock import TS_CLOCK_WRAP_SECONDS
+
+    wall = 1793582947.312
+    old = "2026-11-02T01:00:00.000+00:00"
+    manifest = tmp_path / "playlist.m3u8"
+    manifest.write_bytes(_dated_playlist(("seg000000001.ts", old)))
+    probe = Mock(return_value={"video": 0.5})
+    publisher = _ManifestPublisher(
+        manifest_path=manifest,
+        staging_path=tmp_path / "mux.m3u8",
+        media_clock=lambda: (17, TS_CLOCK_WRAP_SECONDS - 0.5, wall),
+        timestamp_probe=probe,
+    )
+    raw = _dated_playlist(
+        ("seg000000001.ts", old), ("seg000000002.ts", "2026-11-02T01:29:20.000+00:00")
+    )
+    result = publisher._align_program_dates(raw)
+    assert old.encode() in result
+    assert (
+        datetime.fromtimestamp(wall + 1, UTC).isoformat(timespec="milliseconds").encode() in result
+    )
+    probe.assert_called_once_with(tmp_path / "seg000000002.ts")
+
+
+def test_clock_anchor_keeps_first_frame_until_worker_changes() -> None:
+    supervisor = HlsRelaySupervisor()
+    supervisor.set_media_clock_anchor("public", 17, 3600.0, 1793582947.312)
+    supervisor.set_media_clock_anchor("public", 17, 3610.0, 1793582960.0)
+    assert supervisor._media_clock_for("public") == (17, 3600.0, 1793582947.312)
+    supervisor.set_media_clock_anchor("public", 18, float("nan"), 1793582960.0)
+    assert supervisor._media_clock_for("public")[0] == 17
+    supervisor.set_media_clock_anchor("public", 18, 3600.0, 1793582960.0)
+    assert supervisor._media_clock_for("public") == (18, 3600.0, 1793582960.0)
+
+
+def test_publisher_repeated_discontinuity_window_does_not_reprobe(tmp_path: Path) -> None:
+    from unittest.mock import Mock
+
+    probe = Mock(side_effect=[{"video": 3600.0}, {"video": 3602.5}])
+    publisher = _ManifestPublisher(
+        manifest_path=tmp_path / "playlist.m3u8",
+        staging_path=tmp_path / "mux.m3u8",
+        media_clock=lambda: (17, 3600.0, 1793582947.312),
+        timestamp_probe=probe,
+    )
+    raw = _dated_playlist(
+        ("seg000000001.ts", "2026-11-02T01:29:13.430+00:00"),
+        ("seg000000002.ts", "2026-11-02T01:29:19.430+00:00"),
+    ).replace(b"#EXTINF", b"#EXT-X-DISCONTINUITY\n#EXTINF")
+    result = publisher._align_program_dates(raw)
+    # No publication succeeded yet: a held manifest must retry identically.
+    assert publisher._align_program_dates(raw) == result
+    assert probe.call_count == 2
+    new = _dated_playlist(("seg000000003.ts", "2026-11-02T01:29:21.930+00:00"))
+    result = publisher._align_program_dates(raw + new.split(b"#EXT-X-TARGETDURATION:3\n")[1])
+    assert b"2026-11-02T01:29:12.312+00:00" in result
+    assert probe.call_count == 2
+
+
+def test_publisher_probe_failure_does_not_retry_unchanged_segment(tmp_path: Path) -> None:
+    from unittest.mock import Mock
+
+    probe = Mock(return_value=None)
+    publisher = _ManifestPublisher(
+        manifest_path=tmp_path / "playlist.m3u8",
+        staging_path=tmp_path / "mux.m3u8",
+        media_clock=lambda: (17, 3600.0, 1793582947.312),
+        timestamp_probe=probe,
+    )
+    raw = _dated_playlist(("seg000000001.ts", "2026-11-02T01:29:13.430+00:00"))
+    assert b"PROGRAM-DATE-TIME" not in publisher._align_program_dates(raw)
+    assert b"PROGRAM-DATE-TIME" not in publisher._align_program_dates(raw)
+    assert probe.call_count == 1

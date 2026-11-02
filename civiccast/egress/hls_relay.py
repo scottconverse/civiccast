@@ -213,7 +213,7 @@ import shutil
 import subprocess
 import time
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 from threading import Event, Lock, RLock, Thread
@@ -237,6 +237,24 @@ _LOG = logging.getLogger(__name__)
 _HLS_SEGMENT_NAME = re.compile(r"seg\d{9}\.ts\Z")
 
 
+def _playlist_program_dates(data: bytes) -> dict[str, str]:
+    dates: dict[str, str] = {}
+    pending: str | None = None
+    try:
+        for line in data.decode("utf-8").splitlines():
+            if line.startswith("#EXT-X-PROGRAM-DATE-TIME:"):
+                value = line.partition(":")[2]
+                stamp = datetime.fromisoformat(value)
+                pending = value if stamp.tzinfo is not None else None
+            elif _HLS_SEGMENT_NAME.fullmatch(line):
+                if pending is not None:
+                    dates[line] = pending
+                pending = None
+    except (UnicodeError, ValueError):
+        return {}
+    return dates
+
+
 @dataclass(frozen=True)
 class _ClearedHlsWindow:
     """Prior advertised references and bounded retirement state for a fresh relay."""
@@ -245,6 +263,7 @@ class _ClearedHlsWindow:
     retired_segment_names: frozenset[str]
     retired_grace_s: float
     next_start_number: int | None
+    program_dates: dict[str, str] = field(default_factory=dict)
 
 
 def _playlist_segment_durations(data: bytes) -> dict[str, float] | None:
@@ -297,7 +316,10 @@ def _playlist_segment_durations(data: bytes) -> dict[str, float] | None:
 
 def _relay_hls_output_args(hls_sink: HlsSink, *, start_number: int | None = None) -> list[str]:
     """Give segment deletion to the publisher that owns the served playlist."""
-    args = hls_sink.output_args()
+    args = ["-copyts", *hls_sink.output_args()]
+    # Keep the upstream transport clock for program/date calibration and caption
+    # decode-back. FFmpeg's default rebase otherwise changes it to a new origin.
+    args[-1:-1] = ["-hls_segment_options", "mpegts_copyts=1"]
     flags_index = args.index("-hls_flags") + 1
     flags = [flag for flag in args[flags_index].split("+") if flag != "delete_segments"]
     if "temp_file" not in flags:
@@ -485,6 +507,7 @@ def _clear_hls_window(hls_sink: HlsSink) -> _ClearedHlsWindow:
     directory.mkdir(parents=True, exist_ok=True)
     manifest_path = Path(hls_sink.manifest_target())
     previous_segments: dict[str, float] = {}
+    previous_dates: dict[str, str] = {}
     retired_segment_names: set[str] = set()
     removed = 0
     locked: list[Path] = []
@@ -501,6 +524,7 @@ def _clear_hls_window(hls_sink: HlsSink) -> _ClearedHlsWindow:
         else:
             parsed_segments = _playlist_segment_durations(previous_data)
             previous_segments = {} if parsed_segments is None else parsed_segments
+            previous_dates = _playlist_program_dates(previous_data)
 
         try:
             manifest_path.unlink()
@@ -568,6 +592,7 @@ def _clear_hls_window(hls_sink: HlsSink) -> _ClearedHlsWindow:
         retired_segment_names=frozenset(retired_segment_names),
         retired_grace_s=max(measured_previous_grace_s, one_window_grace_s),
         next_start_number=None if highest_segment is None else highest_segment + 1,
+        program_dates=previous_dates,
     )
 
 
@@ -730,6 +755,14 @@ def _segment_first_packet_pts(path: Path) -> tuple[float, float] | None:
     with a timestamp, which a column-order-dependent csv would have to be read
     back positionally.
     """
+    first = _segment_packet_pts(path)
+    if first is None or "video" not in first or "audio" not in first:
+        return None
+    return (first["video"], first["audio"])
+
+
+def _segment_packet_pts(path: Path) -> dict[str, float] | None:
+    """Read first timestamps without imposing the A/V guard's paired policy."""
     if not path.is_file():
         return None
     if shutil.which(_FFPROBE_EXECUTABLE) is None:
@@ -791,9 +824,7 @@ def _segment_first_packet_pts(path: Path) -> tuple[float, float] | None:
                 continue
             first[kind] = seconds
 
-    if "video" not in first or "audio" not in first:
-        return None
-    return (first["video"], first["audio"])
+    return first
 
 
 def _sink_required_kinds(source_uri: str) -> frozenset[str]:
@@ -1261,6 +1292,8 @@ class _ManifestPublisher:
         interval_s: float = _MANIFEST_PUBLISH_INTERVAL_S,
         clock: Callable[[], float] | None = None,
         previous_window: _ClearedHlsWindow | None = None,
+        media_clock: Callable[[], tuple[int | None, float, float] | None] | None = None,
+        timestamp_probe: Callable[[Path], dict[str, float] | None] | None = None,
     ) -> None:
         self._manifest_path = manifest_path
         self._staging_path = staging_path
@@ -1268,7 +1301,22 @@ class _ManifestPublisher:
         self._stop = Event()
         self._thread: Thread | None = None
         self._clock: Callable[[], float] = clock or time.monotonic
+        self._media_clock = media_clock
+        self._timestamp_probe = timestamp_probe or _segment_packet_pts
+        self._date_epoch_corrections: dict[str, float] = {}
+        self._date_segment_epochs: dict[str, str] = {}
+        self._date_current_epoch = "initial"
+        self._date_anchor: tuple[int | None, float, float] | None = None
+        self._date_probed_segments: set[str] = set()
+        try:
+            self._program_dates = _playlist_program_dates(self._manifest_path.read_bytes())
+        except OSError:
+            self._program_dates = {}
         self._published_segments = self._read_published_segments()
+        self._prior_segment_names = set(self._published_segments or {})
+        if previous_window is not None:
+            self._prior_segment_names.update(previous_window.published_segments)
+            self._program_dates = {**previous_window.program_dates, **self._program_dates}
         self._staging_segments: dict[str, float] | None = {}
         self._pending_data: bytes | None = None
         self._snapshot_path: Path | None = None
@@ -1343,15 +1391,109 @@ class _ManifestPublisher:
             # tick; the muxer no longer deletes segments behind this publisher.
             self._warn_once()
             return
+        data = self._align_program_dates(data)
         if not self._write_manifest(data):
             self._warn_once()
             self._prune_segments()
             return
         self._remember_retired_segments(segments)
         self._published_segments = segments
+        self._program_dates = _playlist_program_dates(data)
         self._pending_data = None
         self._failing = False
         self._prune_segments()
+
+    def _align_program_dates(self, data: bytes) -> bytes:
+        """Map media dates to the selected-frame clock, not probe completion.
+
+        Probe once per relay/discontinuity epoch on this existing publisher
+        thread. Never hold channel supervision or media carriage for calibration.
+        Uncalibrated new segments omit PDT rather than claim a false wall clock.
+        """
+        if self._media_clock is None:
+            return data
+        anchor = self._media_clock()
+        if anchor != self._date_anchor:
+            self._date_anchor = anchor
+            self._date_epoch_corrections.clear()
+            self._date_segment_epochs.clear()
+            self._date_current_epoch = "initial"
+            self._date_probed_segments.clear()
+        dates = _playlist_program_dates(data)
+        if not dates:
+            return data
+        lines = data.decode("utf-8").splitlines()
+        corrections: dict[str, float | None] = {}
+        discontinuity = False
+        for line in lines:
+            if line == "#EXT-X-DISCONTINUITY":
+                discontinuity = True
+            elif _HLS_SEGMENT_NAME.fullmatch(line):
+                if line not in self._prior_segment_names and discontinuity:
+                    self._date_current_epoch = line
+                else:
+                    self._date_current_epoch = self._date_segment_epochs.get(
+                        line, self._date_current_epoch
+                    )
+                epoch = self._date_current_epoch
+                self._date_segment_epochs[line] = epoch
+                discontinuity = False
+                if (
+                    anchor is not None
+                    and epoch not in self._date_epoch_corrections
+                    and line not in self._prior_segment_names
+                    and line in dates
+                    and line not in self._date_probed_segments
+                ):
+                    self._date_probed_segments.add(line)
+                    pts = self._timestamp_probe(self._manifest_path.parent / line)
+                    if pts is not None and math.isfinite(pts.get("video", math.nan)):
+                        # UTC selects the wrap epoch only; the measured native
+                        # PTS difference determines the actual subsecond mapping.
+                        from civiccast.egress.gst.caption_clock import TS_CLOCK_WRAP_SECONDS
+
+                        raw_date = datetime.fromisoformat(dates[line]).timestamp()
+                        delta = pts["video"] - anchor[1]
+                        delta += (
+                            round((raw_date - anchor[2] - delta) / TS_CLOCK_WRAP_SECONDS)
+                            * TS_CLOCK_WRAP_SECONDS
+                        )
+                        self._date_epoch_corrections[epoch] = anchor[2] + delta - raw_date
+                corrections[line] = self._date_epoch_corrections.get(epoch)
+
+        self._date_segment_epochs = {
+            name: epoch for name, epoch in self._date_segment_epochs.items() if name in corrections
+        }
+        live_epochs = set(self._date_segment_epochs.values())
+        self._date_epoch_corrections = {
+            epoch: correction
+            for epoch, correction in self._date_epoch_corrections.items()
+            if epoch in live_epochs
+        }
+        self._date_probed_segments.intersection_update(corrections)
+
+        result: list[str] = []
+        for index, line in enumerate(lines):
+            if line.startswith("#EXT-X-PROGRAM-DATE-TIME:"):
+                name = next(
+                    (value for value in lines[index + 1 :] if not value.startswith("#")),
+                    "",
+                )
+                prior = self._program_dates.get(name)
+                if prior is not None:
+                    line = "#EXT-X-PROGRAM-DATE-TIME:" + prior
+                elif name in self._prior_segment_names:
+                    # A prior session's date must never receive this epoch's offset.
+                    pass
+                elif corrections.get(name) is None:
+                    continue
+                else:
+                    stamp = datetime.fromisoformat(line.partition(":")[2]).timestamp()
+                    line = "#EXT-X-PROGRAM-DATE-TIME:" + datetime.fromtimestamp(
+                        stamp + (corrections[name] or 0.0), UTC
+                    ).isoformat(timespec="milliseconds")
+            result.append(line)
+        return ("\n".join(result) + "\n").encode("utf-8")
 
     def _release_staging_snapshot(self) -> bool:
         snapshot = self._snapshot_path
@@ -1678,6 +1820,8 @@ class HlsRelaySupervisor:
         self._starter = starter or _default_starter
         self._base_port = base_port
         self._guard = Lock()
+        self._media_clock_guard = Lock()
+        self._media_clocks: dict[str, tuple[int | None, float, float]] = {}
         self._relays: dict[str, _Relay] = {}
         self._unavailable_logged = False
         # U31: who holds a UDP port, and how to kill them safely. Injected the
@@ -1720,6 +1864,21 @@ class HlsRelaySupervisor:
         # the caller passes as ``now`` to note_progress/progress_stale/self-heal;
         # the daemon uses its own ``_monotonic`` for exactly that reason.
         self._clock: Callable[[], float] = time.monotonic
+
+    def set_media_clock_anchor(
+        self, channel_id: str, worker_id: int | None, pts: float, wall: float
+    ) -> None:
+        """Keep the first selected-frame clock for this owned worker session."""
+        if not (math.isfinite(pts) and math.isfinite(wall) and pts >= 0 and wall > 0):
+            return
+        with self._media_clock_guard:
+            prior = self._media_clocks.get(channel_id)
+            if prior is None or prior[0] != worker_id:
+                self._media_clocks[channel_id] = (worker_id, pts, wall)
+
+    def _media_clock_for(self, channel_id: str) -> tuple[int | None, float, float] | None:
+        with self._media_clock_guard:
+            return self._media_clocks.get(channel_id)
 
     def apply(
         self,
@@ -1768,6 +1927,8 @@ class HlsRelaySupervisor:
         rebind_keys: set[str] = set()
         preserved_window_keys: set[str] = set()
         if new_session:
+            with self._media_clock_guard:
+                self._media_clocks.pop(config.channel_id, None)
             # Capture each sink's live state before teardown: a live child's
             # window is still the current broadcast during a worker crash-
             # relaunch, while a dead/fresh child's files are stale. The lock is
@@ -1975,6 +2136,9 @@ class HlsRelaySupervisor:
             staging_path=Path(hls_sink.connect_target()),
             interval_s=self._manifest_publish_interval_s,
             previous_window=previous_window,
+            media_clock=(lambda: self._media_clock_for(channel_id))
+            if hls_sink.carries_video
+            else None,
         )
         publisher.start()
         now = self._clock()
