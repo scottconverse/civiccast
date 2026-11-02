@@ -7,6 +7,7 @@ from __future__ import annotations
 import contextlib
 import json
 import logging
+import math
 import re
 import time
 import uuid
@@ -4249,6 +4250,14 @@ class EgressDaemon:
                     if source["kind"] not in ("program", "cg", "live", "slate"):
                         continue
                     observed = datetime.fromtimestamp(source["observed_at"], UTC)
+                    # The log is emitted only after encoded output is confirmed.
+                    # Its flush time can lag the selected frame's simultaneous
+                    # media clock. Use that frame boundary for proof/as-run and
+                    # resident labels, keeping older/malformed metadata harmless.
+                    with contextlib.suppress(TypeError, ValueError, OverflowError, OSError):
+                        media_wall = float(source.get("media_wall_seconds", "nan"))
+                        if math.isfinite(media_wall) and media_wall > 0:
+                            observed = datetime.fromtimestamp(media_wall, UTC)
                     # Optional private frame-clock metadata must not invalidate
                     # the existing output proof if absent or malformed.
                     anchor_setter = getattr(self._hls_relay, "set_media_clock_anchor", None)

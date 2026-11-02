@@ -14,6 +14,11 @@ function fmtTime(iso: string): string {
   return Number.isNaN(d.getTime()) ? iso : d.toLocaleString()
 }
 
+function captureUnavailable(proof: EgressCaptionProofSample | undefined): boolean {
+  return proof?.status === 'FAIL' && proof.decoder_name === 'not-run'
+    && proof.blocker === 'EGRESS_CAPTION_DECODE_BACK_CAPTURE_UNAVAILABLE'
+}
+
 // Presentational only (no data fetching) so it unit-tests without a network.
 export function CaptionStatusView({
   status,
@@ -32,7 +37,8 @@ export function CaptionStatusView({
   liveCaptionsEnabled?: boolean
 }) {
   const latest = status?.latest ?? proofs?.[0]
-  const failed = latest?.status === 'FAIL'
+  const unavailable = captureUnavailable(latest)
+  const failed = latest?.status === 'FAIL' && !unavailable
   const stale = latest ? !freshReading(latest.sampled_at) : false
   const on = !error && !stale && latest?.status === 'PASS' && status?.caption_status === 'on'
   const switchedOff = !on && liveCaptionsEnabled === false
@@ -61,6 +67,8 @@ export function CaptionStatusView({
               ? 'Caption status unavailable'
             : stale
               ? 'Caption proof stale'
+            : unavailable
+              ? 'Caption proof unavailable'
             : failed
               ? 'Caption proof failed'
               : on
@@ -76,12 +84,13 @@ export function CaptionStatusView({
           style={{ background: failed ? 'var(--cc-err-soft)' : 'var(--cc-surface-3)' }}
         >
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <strong>{failed ? 'Caption proof failed' : `Latest proof: ${latest.status}`}</strong>
-            <span>{latest.matched_cue_count}/{latest.expected_cue_count} cues matched</span>
+            <strong>{unavailable ? 'Caption proof unavailable' : failed ? 'Caption proof failed' : `Latest proof: ${latest.status}`}</strong>
+            {!unavailable && <span>{latest.matched_cue_count}/{latest.expected_cue_count} cues matched</span>}
             <span>Sampled {fmtTime(latest.sampled_at)}</span>
             {stale && <span className="font-semibold">Stale (older than 120 seconds or invalid sample time)</span>}
           </div>
           {latest.blocker && <div>Blocker: {latest.blocker}</div>}
+          {unavailable && <div>No emitted-stream segment was available to capture. The caption decoder did not run; caption delivery remains unverified. Check the channel output and capture availability.</div>}
           {failed && <div>Check the caption source and the decode-back proof details below.</div>}
           <div>Checks refresh every 30 seconds; readings older than 2 minutes are stale.</div>
         </div>
@@ -157,14 +166,14 @@ export function CaptionStatusView({
                         color: 'var(--cc-ink)',
                       }}
                     >
-                      {proof.status}
+                      {captureUnavailable(proof) ? 'Unavailable' : proof.status}
                     </span>
                   </td>
                   <td className="cc-mono py-1.5 pr-3" style={{ color: 'var(--cc-ink)' }}>
-                    {proof.matched_cue_count}/{proof.expected_cue_count}
+                    {captureUnavailable(proof) ? 'Not checked' : `${proof.matched_cue_count}/${proof.expected_cue_count}`}
                   </td>
                   <td className="py-1.5 text-xs" style={{ color: 'var(--cc-ink-3)' }}>
-                    {proof.blocker ?? 'matched within tolerance'}
+                    {captureUnavailable(proof) ? 'Capture unavailable; decoder did not run' : proof.blocker ?? 'matched within tolerance'}
                   </td>
                 </tr>
               ))}
@@ -200,7 +209,7 @@ export function CaptionStatusCard({
       status={statusQuery.data}
       proofs={proofsQuery.data}
       loading={statusQuery.isLoading}
-      error={statusQuery.error}
+      error={statusQuery.error ?? proofsQuery.error}
       liveCaptionsEnabled={liveCaptionsEnabled}
     />
   )

@@ -1237,9 +1237,9 @@ def _segment_duration(
     The slot is the contract; the media can only ever cut it short.
 
     ``media_end`` (U36) is the media's real length from the file itself; it
-    caps the playable length, so D42's "the media can only ever cut the slot
-    short" is finally measured against the media rather than against a row
-    that can be wrong.
+    supplies the untrimmed length and caps explicit trim windows, so D42's
+    "the media can only ever cut the slot short" is measured against the media
+    rather than against a row that can be wrong.
     """
 
     playable = _playable_duration(asset, inpoint=inpoint, outpoint=outpoint, media_end=media_end)
@@ -1268,16 +1268,16 @@ def _playable_duration(
     caller raises the existing ``invalid trim window`` SourcePrepareError.
 
     ``media_end`` (U36, 2026-09-25) is the media's real length, measured from
-    the file. It only ever LOWERS the end — the trim out-point keeps its
-    precedence over the row's ``duration_seconds``, because a trim is an
-    operator's explicit instruction while the row is a record that can be
-    wrong — and it is the only source of an end when the rows can supply
-    none at all. ``None`` (a probe that could not answer) leaves the rows
-    authoritative, exactly as before this change.
+    the file. For untrimmed media it replaces the library's integer duration:
+    ingest truncates fractional seconds, which must not shorten every repeat.
+    Explicit trims retain their row-derived limits, capped by the real media
+    end. ``None`` (a probe that could not answer) leaves the rows authoritative.
     """
 
     end: float | None
-    if inpoint is not None and outpoint is not None:
+    if inpoint is None and outpoint is None and media_end is not None:
+        end = media_end
+    elif inpoint is not None and outpoint is not None:
         end = float(outpoint)
     elif asset.duration_seconds is not None:
         end = float(asset.duration_seconds)

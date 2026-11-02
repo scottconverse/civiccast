@@ -2,10 +2,17 @@
 
 ## [Unreleased]
 
-Local RC3 correction pending merge/installed acceptance: separate backup connection
-timeouts from the full post-dump consistency scan, preserve seconds in approval,
-and correct operator setup/help and release download guidance. This does not
-replace the published RC3 assets or resolve the outstanding R9 viewer findings.
+Unpublished candidate **v1.0.0-rc.4**. These source corrections do not replace
+published RC3 assets; required CI, signed packaging and installed acceptance for
+RC4 remain pending. Speech-caption synchronization and coverage remain unresolved.
+
+- Preserve fractional repeat durations when deriving scheduled source boundaries.
+- Use the selected frame's media-clock timestamp for source proofs, as-run starts and program-label transitions, with a fallback for older observations.
+- Cap reported airtime at the next source on the same channel while preserving historical ledger rows and provisional open-airing labels.
+- Capture caption proof from the advertised local HLS output and distinguish unavailable capture from a failed or stale decode-back proof.
+- Send an object from the operator's “Caption selected” action so the batch caption request is accepted instead of rejected as double-encoded JSON.
+- Keep Schedule approval and conflict times on the Schedule page's station clock, preserving seconds and the exact duration.
+- Retire caption receipt lookahead at the actual program reset cutoff instead of counting a fenced future page as displayed; retain genuine backwards-clock errors.
 
 ## [1.0.0-rc.3] - 2026-11-01
 

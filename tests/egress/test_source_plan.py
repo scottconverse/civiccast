@@ -1948,6 +1948,78 @@ def test_u36_a_segment_is_capped_to_the_media_it_really_has(
     assert plan.segments[0].duration_seconds == pytest.approx(174.5)
 
 
+@pytest.mark.parametrize(
+    ("offset", "expected_duration", "occurrence_offset"),
+    [(0, 37.987822, 0), (37, 0.987822, 0), (38, 37.987822, 38)],
+)
+def test_repeat_uses_precise_untrimmed_media_duration(
+    tmp_path: Path, offset: int, expected_duration: float, occurrence_offset: int
+) -> None:
+    media = _media(tmp_path)
+    item = _schedule_item(scheduled_at=_U36_START, duration_seconds=38)
+    # Ingest stores int(float(raw_duration)); the media retains the fraction.
+    asset = _asset_of(media, duration_seconds=37)
+    provider = ScheduleSourcePlanProvider(
+        schedule_items_provider=lambda _: [item],
+        asset_resolver=lambda _: asset,
+        media_duration_resolver=lambda _: 37.987822,
+        loop_schedule=True,
+    )
+
+    plan = provider.plan_at("gov", _U36_START + timedelta(seconds=offset))
+
+    assert plan is not None
+    segment = plan.segments[0]
+    assert segment.duration_seconds == pytest.approx(expected_duration)
+    assert segment.playable_duration_seconds == pytest.approx(37.987822)
+    assert segment.schedule_occurrence_start == _U36_START + timedelta(seconds=occurrence_offset)
+    assert (segment.inpoint_seconds or 0) + segment.duration_seconds == pytest.approx(37.987822)
+
+
+@pytest.mark.parametrize(
+    ("stored_duration", "slot", "media_end", "trim_in", "trim_out", "expected"),
+    [
+        (37, 36, 37.987822, None, None, 36.0),  # Slot remains a hard limit.
+        (40, 38, 37.987822, None, None, 37.987822),  # Real end caps an overstated row.
+        (37, 38, None, None, None, 37.0),  # No probe preserves the row-only fallback.
+        (37, 38, 37.987822, 0.0, 36.5, 36.5),  # Explicit trim is never extended.
+        (37, 38, 37.987822, None, 36.5, 36.5),
+        (37, 38, 37.987822, 2.0, None, 35.0),  # Preserve a start-only trim's limits.
+        (37, 38, 37.987822, 2.0, 40.0, 35.987822),  # Trim cannot exceed real media.
+        (37, 38, None, 2.0, 36.5, 34.5),
+    ],
+)
+def test_precise_media_duration_preserves_slot_trim_and_probe_fallback_limits(
+    tmp_path: Path,
+    stored_duration: int,
+    slot: int,
+    media_end: float | None,
+    trim_in: float | None,
+    trim_out: float | None,
+    expected: float,
+) -> None:
+    media = _media(tmp_path)
+    asset = _asset_of(
+        media, duration_seconds=stored_duration, trim_in=trim_in, trim_out=trim_out
+    )
+
+    plan = build_source_plan_from_schedule(
+        channel_id="gov",
+        schedule_items=[_schedule_item(scheduled_at=_U36_START, duration_seconds=slot)],
+        asset_resolver=lambda _: asset,
+        media_duration_resolver=lambda _: media_end,
+        now=_U36_START,
+    )
+
+    assert plan is not None
+    segment = plan.segments[0]
+    assert segment.duration_seconds == pytest.approx(expected)
+    if trim_out is not None:
+        assert segment.outpoint_seconds <= trim_out
+    if media_end is not None:
+        assert (segment.inpoint_seconds or 0) + segment.duration_seconds <= media_end
+
+
 def test_u36_the_media_probe_is_memoized_per_file_version(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

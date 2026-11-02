@@ -65,6 +65,45 @@ describe('CaptionStatusView', () => {
     expect(container.textContent).not.toMatch(/Not verified/)
   })
 
+  it('distinguishes unavailable capture from a decoder that actually failed', () => {
+    const unavailable = proof({
+      status: 'FAIL',
+      caption_status: 'not-verified',
+      decoder_name: 'not-run',
+      blocker: 'EGRESS_CAPTION_DECODE_BACK_CAPTURE_UNAVAILABLE',
+      expected_cue_count: 0,
+      matched_cue_count: 0,
+    })
+    const { container } = render(
+      <CaptionStatusView status={{ ...NOT_VERIFIED, latest: unavailable }} proofs={[unavailable]} />,
+    )
+    const text = container.textContent ?? ''
+    expect(text).toContain('Caption proof unavailable')
+    expect(text).toContain('caption decoder did not run')
+    expect(text).toContain('Sampled')
+    expect(text).toContain('Not checked')
+    expect(text).not.toContain('Caption proof failed')
+    expect(text).not.toContain('Captions on')
+    expect(text).not.toContain('0/0')
+  })
+
+  it('keeps an unavailable capture stale after its freshness window', () => {
+    const unavailable = proof({
+      status: 'FAIL',
+      caption_status: 'not-verified',
+      sampled_at: '2026-01-01T11:55:00Z',
+      decoder_name: 'not-run',
+      blocker: 'EGRESS_CAPTION_DECODE_BACK_CAPTURE_UNAVAILABLE',
+    })
+    const { container } = render(
+      <CaptionStatusView status={{ ...NOT_VERIFIED, latest: unavailable }} proofs={[unavailable]} />,
+    )
+    expect(container.textContent).toContain('Caption proof stale')
+    expect(container.textContent).toContain('Caption proof unavailable')
+    expect(container.textContent).not.toContain('Caption proof failed')
+    expect(container.textContent).not.toContain('Captions on')
+  })
+
   it('marks a latest proof older than 120 seconds as stale', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-01-01T12:05:00Z'))

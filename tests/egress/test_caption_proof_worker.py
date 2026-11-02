@@ -10,6 +10,8 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
+import pytest
+
 from civiccast.captions.models import CaptionCue
 from civiccast.egress.caption_proof_worker import (
     CaptionProofWorker,
@@ -18,6 +20,7 @@ from civiccast.egress.caption_proof_worker import (
 )
 from civiccast.egress.models import EgressConfig, EgressSinkSpec, EgressStateRow
 from civiccast.egress.store import InMemoryEgressStore
+from civiccast.stream._ffmpeg import FfmpegNotFoundError
 
 _SRT = "1\n00:00:00,200 --> 00:00:01,500\nHELLO CIVICCAST\n"
 
@@ -143,14 +146,70 @@ def test_worker_fails_when_captions_do_not_survive(tmp_path) -> None:
     assert sample.caption_status == "not-verified"
 
 
-def test_worker_skips_when_no_segment_captured() -> None:
+def test_worker_records_unavailable_without_running_decoder_when_no_segment_captured() -> None:
     store = InMemoryEgressStore()
-    worker = _worker(store, expected=[_cue()], runner=_runner(_SRT), segment=None)
+    calls = []
+    worker = _worker(store, expected=[_cue()], runner=lambda args: calls.append(args), segment=None)
     result = worker.run_once()
     assert result.skipped_no_capture == 1
     assert result.scanned == 0
-    # nothing persisted → caption_status stays not-verified (fail-closed)
-    assert store.latest_caption_proof_sample("gov") is None
+    sample = store.latest_caption_proof_sample("gov")
+    assert sample is not None
+    assert sample.sampled_at == _clock()
+    assert sample.status == "FAIL"
+    assert sample.caption_status == "not-verified"
+    assert sample.decoder_name == "not-run"
+    assert sample.blocker == "EGRESS_CAPTION_DECODE_BACK_CAPTURE_UNAVAILABLE"
+    assert calls == []
+
+
+def test_worker_unavailable_capture_replaces_prior_pass(tmp_path) -> None:
+    store = InMemoryEgressStore()
+    segment = tmp_path / "segment.ts"
+    segment.write_bytes(b"x")
+    worker = _worker(store, expected=[_cue()], runner=_runner(_SRT), segment=segment)
+    assert worker.run_once().passed == 1
+    worker._capture_segment = lambda _ch: None
+    assert worker.run_once().skipped_no_capture == 1
+    assert store.latest_caption_proof_sample("gov").caption_status == "not-verified"
+
+
+@pytest.mark.parametrize("error", [OSError("capture unavailable"), FfmpegNotFoundError("missing")])
+def test_worker_records_capture_error_and_continues_with_later_channel(tmp_path, error) -> None:
+    store = InMemoryEgressStore()
+    segment = tmp_path / "segment.ts"
+    segment.write_bytes(b"x")
+
+    def capture(channel):
+        if channel == "gov":
+            raise error
+        return segment
+
+    worker = CaptionProofWorker(
+        store=store,
+        on_air_channels=lambda: ["gov", "edu"],
+        capture_segment=capture,
+        expected_cues_provider=lambda _ch: [_cue()],
+        runner=_runner(_SRT),
+        clock=_clock,
+    )
+    result = worker.run_once()
+    assert result.skipped_no_capture == 1
+    assert result.passed == 1
+    assert store.latest_caption_proof_sample("gov").decoder_name == "not-run"
+    assert store.latest_caption_proof_sample("gov").sampled_at == _clock()
+    assert store.latest_caption_proof_sample("edu").status == "PASS"
+
+
+def test_worker_does_not_swallow_unexpected_capture_bugs() -> None:
+    worker = _worker(InMemoryEgressStore(), expected=[], runner=_runner(), segment=None)
+
+    def capture(_channel):
+        raise AssertionError("capture bug")
+
+    worker._capture_segment = capture
+    with pytest.raises(AssertionError, match="capture bug"):
+        worker.run_once()
 
 
 def test_worker_fail_closed_when_no_expected_cues(tmp_path) -> None:
@@ -191,6 +250,65 @@ def test_emitted_stream_target_falls_back_to_udp() -> None:
         _config(EgressSinkSpec(kind="udp-ts", label="head", uri="udp://239.0.0.9:5000"))
     )
     assert _emitted_stream_target(store, "gov") == ("udp://239.0.0.9:5000", False)
+
+
+@pytest.mark.parametrize("file_uri", [False, True])
+def test_hls_capture_reads_advertised_manifest_with_bounded_preserved_clock(
+    tmp_path, file_uri
+) -> None:
+    store = InMemoryEgressStore()
+    hls_dir = tmp_path / ("served-hls" if file_uri else "served hls")
+    uri = hls_dir.as_uri() if file_uri else str(hls_dir)
+    store.upsert_config(_config(EgressSinkSpec(kind="hls", label="local", uri=uri)))
+    manifest = str(hls_dir / "playlist.m3u8")
+    assert _emitted_stream_target(store, "gov") == (manifest, False)
+    hls_dir.mkdir()
+    Path(manifest).write_text("#EXTM3U\n#EXTINF:2,\nseg000000001.ts\n")
+    seen = {}
+
+    def capture(args, *, timeout):
+        seen.update(args=args, timeout=timeout)
+        Path(args[-1]).write_bytes(b"captured transport")
+        Path(manifest).write_text("#EXTM3U\n#EXTINF:2,\nseg000000002.ts\n")
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    result = capture_emitted_segment(store, "gov", work_dir=tmp_path, runner=capture)
+    assert result is not None
+    args = seen["args"]
+    assert args[args.index("-i") + 1] == manifest
+    assert "playlist.mux.m3u8" not in " ".join(args)
+    assert "-sseof" not in args
+    assert args.index("-re") < args.index("-i")
+    assert args[args.index("-t") + 1] == "6"
+    assert args.index("-t") < args.index("-i")
+    assert "-copyts" in args
+    assert args[args.index("-mpegts_copyts") + 1] == "1"
+    assert args[args.index("-c") + 1] == "copy"
+    assert seen["timeout"] == 15.0
+
+
+def test_hls_frozen_window_never_reuses_captions_as_fresh_proof(tmp_path) -> None:
+    store = InMemoryEgressStore()
+    hls_dir = tmp_path / "hls"
+    hls_dir.mkdir()
+    manifest = hls_dir / "playlist.m3u8"
+    manifest.write_text("#EXTM3U\n#EXTINF:2,\nseg000000001.ts\n")
+    store.upsert_config(_config(EgressSinkSpec(kind="hls", label="local", uri=str(hls_dir))))
+    calls = []
+
+    def capture(args, *, timeout):
+        calls.append(args)
+        Path(args[-1]).write_bytes(b"old captioned transport")
+        # Fresh manifest mtime and changed tags cannot hide frozen media.
+        manifest.write_text(
+            f"#EXTM3U\n#EXT-X-MEDIA-SEQUENCE:{len(calls)}\n#EXTINF:2,\nseg000000001.ts\n"
+        )
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    for _ in range(2):
+        assert capture_emitted_segment(store, "gov", work_dir=tmp_path, runner=capture) is None
+        assert not (tmp_path / "gov" / "caption-proof" / "segment.ts").exists()
+    assert len(calls) == 2
 
 
 def test_emitted_stream_target_none_for_non_ts_sinks() -> None:

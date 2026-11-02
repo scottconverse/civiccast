@@ -7,7 +7,7 @@ test.beforeEach(async ({ page }) => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ version: '1.0.0-rc.3' }),
+      body: JSON.stringify({ version: '1.0.0-rc.4' }),
     })
   })
   await page.route('**/api/staff/auth/me', async (route) => {
@@ -49,7 +49,7 @@ test.describe('operator route table smoke coverage', () => {
       test(`${routeId} renders ${routePath} on ${viewport.label} without falling through to not found`, async ({ page }) => {
         await page.setViewportSize({ width: viewport.width, height: viewport.height })
         await page.goto(`/#${routePath}`)
-        await expect(page.getByText('v1.0.0-rc.3')).toBeVisible()
+        await expect(page.getByText('v1.0.0-rc.4')).toBeVisible()
         await expect(page.getByRole('main').first()).toBeVisible()
         await expect(page.getByRole('heading', { name: 'Page not found' })).toHaveCount(0)
       })
@@ -59,7 +59,7 @@ test.describe('operator route table smoke coverage', () => {
       test(`alias ${aliasPath} redirects to ${canonicalPath} on ${viewport.label}`, async ({ page }) => {
         await page.setViewportSize({ width: viewport.width, height: viewport.height })
         await page.goto(`/#${aliasPath}`)
-        await expect(page.getByText('v1.0.0-rc.3')).toBeVisible()
+        await expect(page.getByText('v1.0.0-rc.4')).toBeVisible()
         await expect(page.getByRole('main').first()).toBeVisible()
         await expect(page.getByRole('heading', { name: 'Page not found' })).toHaveCount(0)
       })

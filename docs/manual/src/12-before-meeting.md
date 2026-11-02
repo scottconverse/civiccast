@@ -182,6 +182,8 @@ For an automatically maintained schedule, use **Auto-schedule** below: create a 
 
 Schedule list ranges and operator guide review cards show seconds, so a 38-second item has visibly different start and end times and a 38s duration. The duration controls still use separate minutes and additional seconds.
 
+The **Schedule → Publish to residents** approval panel uses the same station time zone as the Schedule list, including its seconds-bearing start/end times and any conflicting program times. Check the exact interval and duration before approving it.
+
 In **Reports**, planned UTC is the schedule time; actual on-air UTC comes from an output observation (not a TV receiver). The difference is shown as early, on time or late. VOD playback preroll is separate; a preroll time is not stored as an additional as-run timestamp.
 
 ## Repeat a program on a schedule (Program Guide)

@@ -33,7 +33,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import Session
 
 from civiccast.db import Base
@@ -192,7 +192,7 @@ class TestShowsReport:
         self, env: tuple[ReportingService, ReportingStore, CustomFieldStore]
     ) -> None:
         _service, store, _cf = env
-        store.append_as_run(_entry("b", asset_id="ast_b", duration_s=600))
+        store.append_as_run(_entry("b", asset_id="ast_b", channel_id="edu-ch20", duration_s=600))
         store.append_as_run(_entry("a", asset_id="ast_a", duration_s=600))
         report = _service.shows_report(station_id="sta_main", from_ts=_ts(0), to_ts=_ts(23))
         # Equal airtime → asset_id asc as secondary order.
@@ -235,8 +235,20 @@ class TestHoursByCategoryReport:
             definitions=cf.list_defs("sta_main"),
         )
         store.append_as_run(_entry("e1", asset_id="ast_a", duration_s=3600))
-        store.append_as_run(_entry("e2", asset_id="ast_a", duration_s=1800))
-        store.append_as_run(_entry("e3", asset_id="ast_b", duration_s=600))
+        store.append_as_run(
+            _entry(
+                "e2",
+                asset_id="ast_a",
+                actual_start=_ts(10),
+                actual_end=_ts(10, 30),
+                duration_s=1800,
+            )
+        )
+        store.append_as_run(
+            _entry(
+                "e3", asset_id="ast_b", actual_start=_ts(11), actual_end=_ts(11, 10), duration_s=600
+            )
+        )
         report = service.hours_by_category(
             station_id="sta_main",
             field_key="category",
@@ -263,10 +275,21 @@ class TestHoursByCategoryReport:
             definitions=cf.list_defs("sta_main"),
         )
         # ast_b has no value for ``category`` → uncategorized bucket.
-        store.append_as_run(_entry("e1", asset_id="ast_a", duration_s=7200))
+        store.append_as_run(
+            _entry("e1", asset_id="ast_a", actual_start=_ts(6), actual_end=_ts(8), duration_s=7200)
+        )
         store.append_as_run(_entry("e2", asset_id="ast_b", duration_s=3600))
         # Filler with asset_id=None also lands in uncategorized.
-        store.append_as_run(_entry("filler", asset_id=None, duration_s=1800, source_kind="filler"))
+        store.append_as_run(
+            _entry(
+                "filler",
+                asset_id=None,
+                actual_start=_ts(10),
+                actual_end=_ts(10, 30),
+                duration_s=1800,
+                source_kind="filler",
+            )
+        )
         report = service.hours_by_category(
             station_id="sta_main",
             field_key="category",
@@ -293,7 +316,16 @@ class TestHoursByCategoryReport:
         )
         store.append_as_run(_entry("e1", asset_id="ast_a", duration_s=600))
         # Bigger uncategorized bucket but still last.
-        store.append_as_run(_entry("filler", asset_id=None, duration_s=9000, source_kind="filler"))
+        store.append_as_run(
+            _entry(
+                "filler",
+                asset_id=None,
+                actual_start=_ts(10),
+                actual_end=_ts(12, 30),
+                duration_s=9000,
+                source_kind="filler",
+            )
+        )
         report = service.hours_by_category(
             station_id="sta_main",
             field_key="category",
@@ -543,7 +575,11 @@ class TestExporters:
     ) -> None:
         service, store, _cf = env
         store.append_as_run(_entry("e1", asset_id="ast_a", duration_s=600))
-        store.append_as_run(_entry("e2", asset_id="ast_a", duration_s=300))
+        store.append_as_run(
+            _entry(
+                "e2", asset_id="ast_a", actual_start=_ts(10), actual_end=_ts(10, 5), duration_s=300
+            )
+        )
         report = service.shows_report(station_id="sta_main", from_ts=_ts(0), to_ts=_ts(23))
         text = export_shows_csv(report.rows)
         rows = list(csv.reader(io.StringIO(text)))
@@ -614,7 +650,7 @@ def test_reports_include_crossing_program_and_clip_airtime_to_window(env) -> Non
     assert ledger[0].duration_s == 10800
 
 
-@pytest.mark.parametrize("window_end, expected_open", [(_ts(10), 3600), (_ts(11), 5400)])
+@pytest.mark.parametrize("window_end, expected_open", [(_ts(10), 900), (_ts(11), 900)])
 def test_open_airings_clip_to_window_and_now_without_mutating_ledger(
     env, monkeypatch, window_end, expected_open
 ):
@@ -635,6 +671,8 @@ def test_open_airings_clip_to_window_and_now_without_mutating_ledger(
             duration_s=900,
         )
     )
+    # This completed source supersedes the stale open occurrence at 09:15.
+    # Its 900 seconds must not also accrue to the still-open historical row.
     store.append_as_run(
         _entry("before", asset_id="before", actual_start=_ts(7), actual_end=_ts(9), duration_s=7200)
     )
@@ -683,3 +721,107 @@ def test_as_run_exports_clip_closed_airing_to_window(env):
     assert report.rows[0].entry.duration_s == 3600
     assert ET.fromstring(export_as_run_xml(report.rows)).findtext("row/duration_s") == "3600"
     assert store.get_entry("cross").duration_s == 10800
+
+
+@pytest.mark.parametrize("earlier_open", [False, True])
+@pytest.mark.parametrize("later_open", [False, True])
+@pytest.mark.parametrize("later_asset", [None, "next-asset"])
+def test_same_channel_successor_caps_report_airtime_without_rewriting_evidence(
+    env, monkeypatch, earlier_open, later_open, later_asset
+):
+    service, store, fields = env
+    monkeypatch.setattr("civiccast.reporting.service._now", lambda: _ts(10, 30))
+    fields.upsert_def(_def("category", "category"))
+    earlier = _entry(
+        "earlier",
+        asset_id="old-asset",
+        actual_start=_ts(8),
+        actual_end=_ts(8) if earlier_open else _ts(12),
+        duration_s=0 if earlier_open else 14400,
+    )
+    later = _entry(
+        "later",
+        asset_id=later_asset,
+        source_kind="program" if later_asset else "slate",
+        actual_start=_ts(9, 30),
+        actual_end=_ts(9, 30) if later_open else _ts(10, 15),
+        duration_s=0 if later_open else 2700,
+    )
+    store.append_as_run(earlier)
+    store.append_as_run(later)
+    # Another channel remains additive, even though its wall-clock interval overlaps.
+    store.append_as_run(
+        _entry(
+            "other-channel",
+            channel_id="edu-ch20",
+            asset_id="old-asset",
+            actual_start=_ts(9),
+            actual_end=_ts(10, 30),
+            duration_s=5400,
+        )
+    )
+    params = {"station_id": "sta_main", "from_ts": _ts(9), "to_ts": _ts(11)}
+    rows = {row.asset_id: row for row in service.shows_report(**params).rows}
+    assert rows["old-asset"].total_airtime_s == 1800 + 5400
+    assert rows["old-asset"].in_progress_count == int(earlier_open)
+    later_seconds = 3600 if later_open else 2700
+    if later_asset:
+        assert rows[later_asset].total_airtime_s == later_seconds
+        assert rows[later_asset].in_progress_count == int(later_open)
+    assert service.hours_by_category(field_key="category", **params).rows[0].total_seconds == (
+        1800 + 5400 + later_seconds
+    )
+    projected = {row.entry.entry_id: row.entry for row in service.as_run_report(**params).rows}
+    assert projected["earlier"].duration_s == 1800
+    assert projected["earlier"].actual_end == earlier.actual_end
+    assert projected["later"].duration_s == later_seconds
+    assert store.get_entry("earlier").duration_s == earlier.duration_s
+    assert store.get_entry("earlier").actual_end == earlier.actual_end
+    # An earlier source never resumes automatically after the successor ends.
+    after = service.shows_report(
+        station_id="sta_main", from_ts=_ts(10, 15), to_ts=_ts(11), channel_id="gov-ch12"
+    )
+    assert "old-asset" not in {row.asset_id for row in after.rows}
+
+
+def test_simultaneous_same_channel_sources_have_a_stable_entry_id_tie_break(env):
+    service, store, _fields = env
+    for entry_id in ("z", "a"):
+        store.append_as_run(_entry(entry_id, asset_id="asset"))
+    params = {"station_id": "sta_main", "from_ts": _ts(8), "to_ts": _ts(11)}
+    assert service.shows_report(**params).rows[0].total_airtime_s == 3600
+    assert {
+        row.entry.entry_id: row.entry.duration_s for row in service.as_run_report(**params).rows
+    } == {
+        "a": 0,
+        "z": 3600,
+    }
+    assert store.get_entry("a").duration_s == store.get_entry("z").duration_s == 3600
+
+
+def test_as_run_duration_lookup_does_not_expand_a_bind_for_every_report_entry(env):
+    service, store, _fields = env
+    statements = []
+
+    def capture_statement(_conn, _cursor, statement, parameters, _context, _many):
+        statements.append((statement, len(parameters)))
+
+    with service._session() as session:
+        engine = session.get_bind()
+    event.listen(engine, "before_cursor_execute", capture_statement)
+    try:
+        # Repeated report reads should use a constant number of SQL parameters,
+        # regardless of how many matching entries an unrestricted window returns.
+        bind_counts = []
+        for size in (1, 40):
+            for index in range(1 if size == 40 else 0, size):
+                store.append_as_run(_entry(f"entry-{index}", channel_id=f"channel-{index}"))
+            statements.clear()
+            report = service.as_run_report(station_id="sta_main", from_ts=_ts(0), to_ts=_ts(23))
+            assert len(report.rows) == size
+            assert sum(row.entry.duration_s for row in report.rows) == size * 3600
+            bind_counts.append([count for _statement, count in statements])
+            assert all("entry_id IN (" not in statement for statement, _count in statements)
+        assert bind_counts[0] == bind_counts[1]
+    finally:
+        event.remove(engine, "before_cursor_execute", capture_statement)
