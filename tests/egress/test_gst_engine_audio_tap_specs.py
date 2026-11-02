@@ -225,6 +225,8 @@ def test_selected_frame_uses_serialized_identity_without_selector_read(engine_mo
     engine.selector.get_static_pad.return_value = pad
     engine.selector.get_property.side_effect = AssertionError("streaming selector lock read")
     engine._measure_first_buffer = Mock(return_value=(None, 123, None))
+    engine._pipeline_running_time_ns = Mock(return_value=100)
+    gst.SECOND = 1_000_000_000
     engine._select_caption_source = Mock()
     engine._install_source_output_observer()
     observe = pad.add_probe.call_args.args[1]
@@ -239,7 +241,11 @@ def test_selected_frame_uses_serialized_identity_without_selector_read(engine_mo
     observe(pad, types.SimpleNamespace(type=2))
     engine.selector.get_property.assert_not_called()
     engine._select_caption_source.assert_called_once_with(source, 123)
-    assert engine._source_output_pending == [(123, source)]
+    pending_time, pending_source = engine._source_output_pending[0]
+    assert pending_time == 123
+    assert pending_source.items() >= source.items()
+    assert pending_source["media_pts_seconds"] == 3600 + 123 / gst.SECOND
+    assert abs(pending_source["media_wall_seconds"] - engine_module.time.time()) < 1
     # A sticky source identity replayed after switching away and back must
     # describe the returned program, rather than the last selected role.
     for selected in ({"kind": "slate", "event_id": "slate"}, source):

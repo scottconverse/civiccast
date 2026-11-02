@@ -706,11 +706,17 @@ def test_native_output_events_update_labels_once_and_ignore_partial_lines(tmp_pa
     process = _FakeProcess()
     daemon = _daemon(store, tmp_path, recorder, _program_plan(tmp_path), process)
     daemon._encoder_strategy.observes_source_output = True
+    from unittest.mock import Mock
+
+    relay = Mock()
+    daemon._hls_relay = relay
     log = tmp_path / "native-worker.log"
     daemon._stderr_logs["gov"] = log
     events = [
         {
             "pid": 9999,
+            "media_pts_seconds": 3600.0 + i,
+            "media_wall_seconds": 1793318400.0 + i,
             "kind": "program",
             "asset_id": f"asset-{i}",
             "label": f"Program {i}",
@@ -725,6 +731,7 @@ def test_native_output_events_update_labels_once_and_ignore_partial_lines(tmp_pa
     log.write_text(lines[0] + lines[1][:30])
     daemon._poll_source_output("gov", process)
     assert len(recorder.transitions) == 1
+    relay.set_media_clock_anchor.assert_called_once_with("gov", process.pid, 3600.0, 1793318400.0)
     assert store.read_state("gov").current_source_label == "Program 0"
     with log.open("a") as stream:
         stream.write(lines[1][30:])

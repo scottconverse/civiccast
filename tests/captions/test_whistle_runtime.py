@@ -1178,3 +1178,105 @@ def test_mixed_cpu_whisper_keeps_single_call_safety(tmp_path):
         assert [future.result(timeout=3) for future in futures] == [[], []]
     assert peak == 1
     mixed.close()
+
+
+def test_warm_channel_loads_once_before_first_audio(tmp_path, monkeypatch):
+    from threading import Event
+
+    r, calls, workers = runtime(tmp_path)
+    monkeypatch.setattr(r, "prepare", lambda: None)
+    r.warm_channel("public", Event())
+    assert len(workers) == 1
+    assert calls == []
+    r.warm_channel("public", Event())
+    list(r.transcribe([chunk()]))
+    assert len(workers) == 1
+    assert len(calls) == 1
+    r.close()
+
+
+def test_warm_channel_cancel_during_load_closes_unadopted_worker(tmp_path, monkeypatch):
+    from threading import Event
+
+    r, _, workers = runtime(tmp_path)
+    monkeypatch.setattr(r, "prepare", lambda: None)
+    factory = r._factory
+    cancel = Event()
+
+    def cancelled_factory(engine):
+        result = factory(engine)
+        cancel.set()
+        return result
+
+    r._factory = cancelled_factory
+    r.warm_channel("public", cancel)
+    assert workers[0].closed
+    assert r._primaries == {}
+    r.close()
+
+
+def test_mixed_warmup_keeps_unselected_channels_on_whisper(tmp_path, monkeypatch):
+    from threading import Event
+    from unittest.mock import Mock
+
+    from civiccast.captions.whistle import MixedCaptionRuntime
+
+    r, _, workers = runtime(tmp_path)
+    monkeypatch.setattr(r, "prepare", lambda: None)
+    mixed = MixedCaptionRuntime(r, Mock(), {"public"})
+    mixed.warm_channel("education", Event())
+    assert workers == []
+    mixed.warm_channel("public", Event())
+    assert len(workers) == 1
+    mixed.close()
+
+
+def test_cold_warmup_does_not_hold_ready_channel_recognition(tmp_path, monkeypatch):
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Event
+
+    r, calls, _ = runtime(tmp_path)
+    monkeypatch.setattr(r, "prepare", lambda: None)
+    r.warm_channel("public", Event())
+    entered, release = Event(), Event()
+    factory = r._factory
+
+    def held_factory(engine):
+        entered.set()
+        assert release.wait(5)
+        return factory(engine)
+
+    r._factory = held_factory
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        warm = pool.submit(r.warm_channel, "education", Event())
+        try:
+            assert entered.wait(5)
+            recognition = pool.submit(lambda: list(r.transcribe([chunk("public")])))
+            assert recognition.result(timeout=2)[0].text == "five to two"
+            assert len(calls) == 1
+        finally:
+            release.set()
+            warm.result(timeout=5)
+    r.close()
+
+
+def test_warm_wait_does_not_create_a_primary_after_recovery_begins(tmp_path, monkeypatch):
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Event
+
+    r, _, workers = runtime(tmp_path)
+    prepared = Event()
+    monkeypatch.setattr(r, "prepare", prepared.set)
+    r._primary_load_lock.acquire()
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        future = pool.submit(r.warm_channel, "public", Event())
+        try:
+            assert prepared.wait(5)
+            with r._guard:
+                r._recoveries["public"] = object()
+        finally:
+            r._primary_load_lock.release()
+        future.result(timeout=5)
+    assert workers == []
+    r._recoveries.clear()
+    r.close()

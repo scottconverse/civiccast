@@ -1182,9 +1182,10 @@ def test_daemon_logs_last_error_at_info_on_fallback_slate_transition(
     ), [r.getMessage() for r in info_records]
 
 
+@pytest.mark.parametrize("async_warmup", [False, True])
 @pytest.mark.parametrize("generated_slate", [False, True])
 def test_daemon_runs_fallback_slate_provider_when_no_source_plan(
-    tmp_path: Path, generated_slate: bool
+    tmp_path: Path, generated_slate: bool, async_warmup: bool
 ) -> None:
     store = InMemoryEgressStore()
     store.upsert_config(_config())
@@ -1208,16 +1209,27 @@ def test_daemon_runs_fallback_slate_provider_when_no_source_plan(
         prepared.append(plan)
         return SourcePreparationReport(source_plan=plan, records=())
 
+    warmed = []
     daemon = EgressDaemon(
         store,
         work_dir=tmp_path,
         source_plan_provider=lambda _channel_id: None,
         fallback_source_provider=lambda _config: fallback_plan,
         source_preparer=prepare,
+        channel_caption_prepare_hook=lambda channel, cancel: warmed.append(channel),
         ffmpeg_starter=lambda args: captured.setdefault("args", args) and process,
     )
 
-    daemon.process_once("gov")
+    if async_warmup:
+        daemon.enable_async_preparation()
+    try:
+        daemon.process_once("gov")
+        if "gov" in daemon._preparations:
+            daemon._preparations["gov"].future.result(timeout=5)
+            daemon.process_once("gov")
+    finally:
+        daemon.shutdown_preparation()
+    assert warmed == (["gov"] if async_warmup and not generated_slate else [])
 
     state = store.read_state("gov")
     assert state is not None
@@ -9268,3 +9280,121 @@ def test_exhausted_boundary_reload_retries_arm_the_slate_at_the_boundary(
     # and the slate is armed against the boundary.
     assert process.terminated is False
     assert daemon._pending_reloads == {}
+
+
+def test_caption_warmup_precedes_unprepared_speech_without_blocking_supervisor(tmp_path):
+    entered, release = Event(), Event()
+    started = []
+    store = InMemoryEgressStore()
+    store.upsert_config(_config())
+    store.enqueue_command(_command())
+
+    def warm(channel, cancel):
+        assert channel == "gov"
+        entered.set()
+        assert release.wait(5)
+
+    daemon = EgressDaemon(
+        store,
+        work_dir=tmp_path,
+        source_plan_provider=lambda _: _source_plan(tmp_path),
+        ffmpeg_starter=lambda _: started.append(True) or _FakeProcess(),
+        channel_caption_prepare_hook=warm,
+    )
+    daemon.enable_async_preparation()
+    try:
+        daemon.process_once("gov")
+        assert entered.wait(5)
+        assert started == []
+        release.set()
+        daemon._preparations["gov"].future.result(timeout=5)
+        daemon.process_once("gov")
+        assert started == [True]
+    finally:
+        release.set()
+        daemon.shutdown_preparation()
+
+
+def test_caption_warmup_supplied_plan_cancel_releases_once(tmp_path):
+    from civiccast.egress.daemon import _PreparationRequest
+
+    entered, release = Event(), Event()
+    released = []
+    store = InMemoryEgressStore()
+    config = _config()
+    store.upsert_config(config)
+    report = SourcePreparationReport(_source_plan(tmp_path), (), tmp_path / "already-prepared")
+
+    def warm(channel, cancel):
+        entered.set()
+        assert release.wait(5)
+
+    def steps():
+        yield _PreparationRequest(report.source_plan, config, report)
+        pytest.fail("Cancelled warmup must not resume/start a worker")
+
+    daemon = EgressDaemon(
+        store,
+        work_dir=tmp_path,
+        channel_caption_prepare_hook=warm,
+        prepared_plan_release=released.append,
+        source_plan_provider=lambda _: report.source_plan,
+    )
+    daemon.enable_async_preparation()
+    try:
+        daemon._drive_preparation("gov", steps(), kind="start")
+        assert entered.wait(5)
+        pending = daemon._preparations["gov"]
+        daemon._cancel_preparation("gov")
+        release.set()
+        with pytest.raises(SourcePrepareError):
+            pending.future.result(timeout=5)
+    finally:
+        release.set()
+        daemon.shutdown_preparation()
+    assert released == [report.plan_dir]
+
+
+def test_caption_warmup_does_not_run_on_synchronous_supervisor(tmp_path):
+    from unittest.mock import Mock
+
+    store = InMemoryEgressStore()
+    store.upsert_config(_config())
+    store.enqueue_command(_command())
+    warm = Mock(side_effect=AssertionError("must stay off supervisor thread"))
+    daemon = EgressDaemon(
+        store,
+        work_dir=tmp_path,
+        source_plan_provider=lambda _: _source_plan(tmp_path),
+        ffmpeg_starter=lambda _: _FakeProcess(),
+        channel_caption_prepare_hook=warm,
+    )
+    daemon.process_once("gov")
+    warm.assert_not_called()
+
+
+def test_caption_warmup_reused_plan_stays_protected_without_reconforming(tmp_path):
+    entered, release = Event(), Event()
+    run = _hold_fallback_slate_restart_plan(tmp_path)
+
+    def warm(channel, cancel):
+        entered.set()
+        assert release.wait(5)
+
+    run.daemon._channel_caption_prepare_hook = warm
+    prepared_before = list(run.prepared_labels)
+    try:
+        run.daemon.process_once("gov")
+        assert entered.wait(5)
+        pending = run.daemon._preparations["gov"]
+        assert pending.supplied_report is not None
+        assert pending.supplied_report.plan_dir in run.daemon.live_prepared_plan_dirs("gov")
+        assert run.started == []
+        release.set()
+        pending.future.result(timeout=5)
+        run.daemon.process_once("gov")
+        assert run.started == [run.new_process]
+        assert run.prepared_labels == prepared_before
+    finally:
+        release.set()
+        run.daemon.shutdown_preparation()

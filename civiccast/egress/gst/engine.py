@@ -2939,6 +2939,23 @@ class GstPlayoutEngine:
                         _, running_time, _ = self._measure_first_buffer(pad, info)
                         if running_time is not None:
                             self._select_caption_source(source, running_time)
+                            source = dict(source)
+                            # Carry a simultaneous clock sample with this frame.
+                            # The later log flush is not the frame's media time.
+                            with contextlib.suppress(Exception):
+                                from civiccast.egress.gst.caption_clock import (
+                                    GST_TS_CLOCK_BASE_SECONDS,
+                                    TS_CLOCK_WRAP_SECONDS,
+                                )
+
+                                pipeline_time = self._pipeline_running_time_ns()
+                                if pipeline_time is not None:
+                                    source["media_pts_seconds"] = (
+                                        running_time / Gst.SECOND + GST_TS_CLOCK_BASE_SECONDS
+                                    ) % TS_CLOCK_WRAP_SECONDS
+                                    source["media_wall_seconds"] = (
+                                        time.time() + (running_time - pipeline_time) / Gst.SECOND
+                                    )
                             with self._source_output_lock:
                                 self._source_output_pending.append((running_time, dict(source)))
                             selected_id = identity

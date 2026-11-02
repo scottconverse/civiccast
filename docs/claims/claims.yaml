@@ -478,7 +478,7 @@ entries:
     inputs:
       prose:
         path: docs/evidence/native-engine-gate.md
-        blob: 80038afe884c19efe9c9f2f9dccb66db3d3a5b78
+        blob: 65e85bff17f189c9abf46d685c03637b5ae7302e
       # CC-WS3-005 (round 3): the evidence doc's own header states "Engine
       # code: civiccast/egress/gst/ worker.py + engine.py + graph.py at
       # integration-branch HEAD, zero modifications — the exact files WSL
@@ -1122,7 +1122,7 @@ entries:
         # sprint3-output/evidence/{outputs,eos}.md. Historical acceptance stays
         # historical; these bindings do not certify a new installed package.
         - path: civiccast/egress/gst/engine.py
-          blob: e8b56185b22565ab32a54d5882356ad141e56435
+          blob: b2edf5168b72638ae8beed3ffab9acb4e61b1501
         - path: civiccast/egress/gst/caption_flow.py
           blob: c0c981dfa050e8ca196533c791a99028302c5ca5
         - path: civiccast/egress/gst/decode_policy.py
@@ -1256,7 +1256,7 @@ entries:
     inputs:
       prose:
         path: docs/evidence/session0-service-broadcast.md
-        blob: 65ff1c559c714ac7a4f0ab751fc95775331073b7
+        blob: 11f91dbc56f57b2126778dc15ebb392d03947849
       # CC-WS3-005 (round 3): the evidence doc's own header states "Engine
       # code: civiccast/egress/gst/{worker,engine,graph,control}.py copied
       # unmodified from program/native-windows @ 3b4b245...". All four are
@@ -2053,7 +2053,7 @@ entries:
         # sprint3-output/evidence/{outputs,eos}.md. Historical acceptance stays
         # historical; these bindings do not certify a new installed package.
         - path: civiccast/egress/gst/engine.py
-          blob: e8b56185b22565ab32a54d5882356ad141e56435
+          blob: b2edf5168b72638ae8beed3ffab9acb4e61b1501
         - path: civiccast/egress/gst/caption_flow.py
           blob: c0c981dfa050e8ca196533c791a99028302c5ca5
         - path: civiccast/egress/gst/decode_policy.py
