@@ -2628,9 +2628,13 @@ class SourcePreparer:
         # Cache HIT: the full-asset conform already exists — no re-encode, no
         # probing (#156: an aired-before program starts within seconds). Trim is
         # applied at playout when the engine supports it, else as a fast
-        # stream-copy into the per-plan output.
+        # stream-copy into the per-plan output when starting at zero. A nonzero
+        # inpoint needs the bounded decoded trim below: cache stream-copy can
+        # retain leading audio before the next video keyframe, starving the
+        # engine's two-stream preroll. Conform the ORIGINAL source, reusing its
+        # loudness measurement rather than normalizing the cache audio again.
         meta = self._read_cache_meta(key) if key is not None else None
-        if key is not None:
+        if key is not None and (self._playout_trim_supported or not segment.inpoint_seconds):
             cached_ts = self._cache_dir() / f"{key}.ts"
             # Item 66 round-7 (point 1, HIGH): ``full_asset_conform`` must be
             # explicitly True, not just present -- see ``_promote_conform_

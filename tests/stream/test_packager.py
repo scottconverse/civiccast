@@ -330,11 +330,28 @@ class TestPackVodAssetLadderSelection:
 
 
 class TestEncodeRenditionUnit:
-    def test_fractional_trim_becomes_ffmpeg_seek_and_duration(self, tmp_path: Path) -> None:
+    @pytest.mark.parametrize(
+        ("filename", "trim_in_seconds", "seek_index", "duration"),
+        [
+            ("video.mp4", 0.333, 0, "1.167"),
+            ("video.ts", 0.333, 2, "1.167"),
+            ("video.TS", 0.333, 2, "1.167"),
+            ("video.ts", None, None, "1.500"),
+            ("video.ts", 0.0, 2, "1.500"),
+        ],
+    )
+    def test_trim_becomes_ffmpeg_seek_and_duration(
+        self,
+        tmp_path: Path,
+        filename: str,
+        trim_in_seconds: float | None,
+        seek_index: int | None,
+        duration: str,
+    ) -> None:
         from civiccast.stream._ffmpeg import FfmpegResult
         from civiccast.stream.config import ABR_LADDER
 
-        input_file = tmp_path / "video.mp4"
+        input_file = tmp_path / filename
         input_file.write_bytes(b"\x00" * 32)
         captured_args: list[str] = []
 
@@ -349,13 +366,21 @@ class TestEncodeRenditionUnit:
                 input_file,
                 tmp_path / "out",
                 ABR_LADDER[-1],
-                trim_in_seconds=0.333,
+                trim_in_seconds=trim_in_seconds,
                 trim_out_seconds=1.5,
             )
 
-        assert captured_args[0:4] == ["-ss", "0.333", "-i", str(input_file)]
+        if seek_index is None:
+            assert "-ss" not in captured_args
+            assert captured_args[:2] == ["-i", str(input_file)]
+        else:
+            assert captured_args.count("-ss") == 1
+            assert captured_args.index("-ss") == seek_index
+            seek = ["-ss", f"{trim_in_seconds:.3f}"]
+            source = ["-i", str(input_file)]
+            assert captured_args[:4] == (seek + source if seek_index == 0 else source + seek)
         assert "-t" in captured_args
-        assert captured_args[captured_args.index("-t") + 1] == "1.167"
+        assert captured_args[captured_args.index("-t") + 1] == duration
 
 
 # ---------------------------------------------------------------------------
