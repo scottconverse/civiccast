@@ -288,15 +288,15 @@ APP_BUILD_REQUIREMENTS_SHA256: Final[str] = (
 #: layouts, and the exact MSVC component recipe rather than only to whichever
 #: matching executables happened to exist on one release machine.
 APP_BUILD_TOOLCHAIN_LOCK_SHA256: Final[str] = (
-    "11d9db51de065d3bf84e478545b7f3f0218aff555e70745e69beeee6c2e788f5"
+    "1c24f5578dd5689cbbb754b774cab9ef678ffcd40f831edea7e500d84a07a077"
 )
 #: Exact executable identities allowed to influence the deterministic
 #: application/portal build. Paths are deliberately absent so the attestation
 #: is reproducible across machines.
 APP_BUILD_TOOLCHAIN: Final[dict[str, dict[str, str]]] = {
     "node": {
-        "version": "v24.15.0",
-        "sha256": "3331e1ffe19874215472217c5e94f5a0c6d8e18c4ac7111d3937aa0ad5e9b4a5",
+        "version": "v24.16.0",
+        "sha256": "b3094d0b49f9ad602262a9921551737bb97637c05dd357a06ae98188d7290aa3",
     },
     "npm": {
         "version": "11.12.1",

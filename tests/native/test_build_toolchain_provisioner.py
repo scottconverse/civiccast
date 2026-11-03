@@ -45,13 +45,13 @@ def test_committed_lock_is_complete_and_matches_runtime_attestation() -> None:
 
     artifacts = lock["artifacts"]
     assert artifacts["node"] == {
-        "version": "24.15.0",
-        "url": "https://nodejs.org/dist/v24.15.0/node-v24.15.0-win-x64.zip",
-        "filename": "node-v24.15.0-win-x64.zip",
-        "bytes": 36_465_163,
-        "sha256": "cc5149eabd53779ce1e7bdc5401643622d0c7e6800ade18928a767e940bb0e62",
+        "version": "24.16.0",
+        "url": "https://nodejs.org/dist/v24.16.0/node-v24.16.0-win-x64.zip",
+        "filename": "node-v24.16.0-win-x64.zip",
+        "bytes": 36_946_639,
+        "sha256": "edaca9bd58ec8e92037dac4e877d52f6b8f430b81c18b57e264b4e2fb111cd56",
         "archive": "zip",
-        "strip_prefix": "node-v24.15.0-win-x64",
+        "strip_prefix": "node-v24.16.0-win-x64",
     }
     assert artifacts["npm"]["version"] == "11.12.1"
     assert artifacts["npm"]["sha256"] == (

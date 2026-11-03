@@ -265,21 +265,14 @@ jobs:
       - name: Prune stale local candidate builds (self-hosted only, keep this sha)
         if: env.BUILD_TARGET == 'self-hosted'
         shell: pwsh
+        env:
+          PRUNE_PRESERVE_STATION_DIR: ${{ inputs.reuse_station_dir || '' }}
+          PRUNE_PRESERVE_SOURCE_SHA: ${{ inputs.reuse_runtime_source_sha || '' }}
         run: |
-          # ONE implementation of the prune + its keep-list, shared with
-          # build-native-station-bundle's identical step (which now runs FIRST
-          # -- this job gained `needs: build-native-station-bundle` -- and
-          # writes ~18.6 GB into C:\CivicCastTester\candidates\<sha>\station-
-          # bundle before this job starts, so the reclaim has to happen ahead
-          # of that write too). The keep-list is NOT duplicated inline in the
-          # two steps: PR #124's fix (keep the pinned previous-candidate kit
-          # sandbox-lab/upgrade-baseline.json names, or the cross-version
-          # upgrade lane fails closed with an empty kit-staging) has to hold in
-          # BOTH jobs, and a hand-copied second copy is exactly how that
-          # regression comes back -- a reviewer caught precisely that on this
-          # branch before it merged. See the script's own header for the two
-          # roots, the concurrency-safety argument, and the #124 history.
-          pwsh -NoProfile -File scripts/ci/prune_local_candidate_roots.ps1 -CurrentSha "${{ github.sha }}"
+          $preserveArgs = @()
+          if (-not [string]::IsNullOrEmpty($env:PRUNE_PRESERVE_STATION_DIR)) { $preserveArgs += @('-PreserveStationDir', $env:PRUNE_PRESERVE_STATION_DIR) }
+          if (-not [string]::IsNullOrEmpty($env:PRUNE_PRESERVE_SOURCE_SHA)) { $preserveArgs += @('-PreserveSourceSha', $env:PRUNE_PRESERVE_SOURCE_SHA) }
+          & pwsh -NoProfile -File scripts/ci/prune_local_candidate_roots.ps1 -CurrentSha "${{ github.sha }}" @preserveArgs
           if ($LASTEXITCODE -ne 0) { throw "Local candidate prune failed (exit $LASTEXITCODE)." }
 
       - name: Bind reviewed MSVC install location
@@ -1253,8 +1246,14 @@ jobs:
       - name: Prune stale local candidate builds (self-hosted only, keep this sha)
         if: env.BUILD_TARGET == 'self-hosted'
         shell: pwsh
+        env:
+          PRUNE_PRESERVE_STATION_DIR: ${{ inputs.reuse_station_dir || '' }}
+          PRUNE_PRESERVE_SOURCE_SHA: ${{ inputs.reuse_runtime_source_sha || '' }}
         run: |
-          pwsh -NoProfile -File scripts/ci/prune_local_candidate_roots.ps1 -CurrentSha "${{ github.sha }}"
+          $preserveArgs = @()
+          if (-not [string]::IsNullOrEmpty($env:PRUNE_PRESERVE_STATION_DIR)) { $preserveArgs += @('-PreserveStationDir', $env:PRUNE_PRESERVE_STATION_DIR) }
+          if (-not [string]::IsNullOrEmpty($env:PRUNE_PRESERVE_SOURCE_SHA)) { $preserveArgs += @('-PreserveSourceSha', $env:PRUNE_PRESERVE_SOURCE_SHA) }
+          & pwsh -NoProfile -File scripts/ci/prune_local_candidate_roots.ps1 -CurrentSha "${{ github.sha }}" @preserveArgs
           if ($LASTEXITCODE -ne 0) { throw "Local candidate prune failed (exit $LASTEXITCODE)." }
 
       - name: Install uv

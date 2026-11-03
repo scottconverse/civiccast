@@ -16,20 +16,20 @@
     },
     "node": {
       "archive": "zip",
-      "bytes": 36465163,
+      "bytes": 36946639,
       "expected_executables": [
         "node.exe"
       ],
-      "filename": "node-v24.15.0-win-x64.zip",
+      "filename": "node-v24.16.0-win-x64.zip",
       "include": [
         "node.exe",
         "LICENSE"
       ],
-      "sha256": "cc5149eabd53779ce1e7bdc5401643622d0c7e6800ade18928a767e940bb0e62",
+      "sha256": "edaca9bd58ec8e92037dac4e877d52f6b8f430b81c18b57e264b4e2fb111cd56",
       "spdx_license": "MIT",
-      "strip_prefix": "node-v24.15.0-win-x64",
-      "url": "https://nodejs.org/dist/v24.15.0/node-v24.15.0-win-x64.zip",
-      "version": "24.15.0"
+      "strip_prefix": "node-v24.16.0-win-x64",
+      "url": "https://nodejs.org/dist/v24.16.0/node-v24.16.0-win-x64.zip",
+      "version": "24.16.0"
     },
     "ollama": {
       "archive": "zip",
