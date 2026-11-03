@@ -1992,7 +1992,7 @@ class ChannelAutomationService:
             tail_seconds,
             replacement_seconds,
         )
-        return cast(EgressSourcePlan, replacement)
+        return replacement
 
     def _check_plan_rollover(self, channel_id: str, *, now: datetime) -> None:
         """Extend a finite program or filler plan before it EOSes.
