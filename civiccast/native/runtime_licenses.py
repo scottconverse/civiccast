@@ -337,7 +337,11 @@ SUPPORT_LIBRARY_LICENSE: Final[dict[str, str]] = {
     "intl-8.dll": "LGPL-2.1-or-later",
     "libcrypto-3-x64.dll": "Apache-2.0 AND LicenseRef-Microsoft-VCRedist",
     "libssl-3-x64.dll": "Apache-2.0 AND LicenseRef-Microsoft-VCRedist",
-    "libexpat.dll": "MIT",
+    # Expat 2.10.0's official COPYING is MIT. The security-overlay DLL is
+    # built against the static MSVC CRT and ships the packaged Microsoft
+    # VCRedist notice; the committed archive pin records that combined
+    # attribution, so the classifier must too (Windows CI RED at build time).
+    "libexpat.dll": "MIT AND LicenseRef-Microsoft-VCRedist",
     "nghttp2.dll": "MIT",
     "pango-1.0-0.dll": "LGPL-2.1-or-later",
     "pangocairo-1.0-0.dll": "LGPL-2.1-or-later",
@@ -603,6 +607,7 @@ PATH_PREFIX_LICENSE: Final[tuple[tuple[str, str], ...]] = (
     ("licenses/ffmpeg-7.1.5-security1/COPYING.LGPLv2.1", "LGPL-2.1-or-later"),
     ("licenses/security-libs/zlib-LICENSE.txt", "Zlib"),
     ("licenses/security-libs/libpng-LICENSE.txt", "Libpng"),
+    ("licenses/security-libs/expat-LICENSE.txt", "MIT"),
     ("licenses/security-libs/harfbuzz-LICENSE.txt", "MIT"),
     ("licenses/security-libs/sqlite-LICENSE.txt", "blessing"),
     ("licenses/security-libs/LicenseRef-Microsoft-VCRedist.txt", "LicenseRef-Microsoft-VCRedist"),
