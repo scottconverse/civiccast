@@ -324,10 +324,15 @@ def _encode_rendition(
         if progress_callback is not None:
             progress_callback(config.name, line)
 
-    input_args: list[str] = []
+    seek_args: list[str] = []
     if trim_in_seconds is not None:
-        input_args.extend(["-ss", f"{trim_in_seconds:.3f}"])
-    input_args.extend(["-i", str(input_path)])
+        seek_args.extend(["-ss", f"{trim_in_seconds:.3f}"])
+    # Seeking into sparse-IDR MPEG-TS can skip the only decodable video anchor.
+    # Decode from the beginning before trimming TS; keep fast input seeks elsewhere.
+    if input_path.suffix.lower() == ".ts":
+        input_args = ["-i", str(input_path), *seek_args]
+    else:
+        input_args = [*seek_args, "-i", str(input_path)]
 
     duration_args: list[str] = []
     if trim_out_seconds is not None:
