@@ -1,27 +1,18 @@
 # New PEG operator: install and run three channels
 
-Use the complete kit and helper matching your release; the small installer alone is
-not enough. The public download is RC1; RC2 source instructions describe the next
-candidate and its new repeat/status controls. Allow download/staging, installed
-runtime and station media space separately. Start with [Windows installation](../INSTALL-WINDOWS.md).
+Use the complete signed kit matching the release. The current public download is [v1.0.0-rc.3](https://github.com/scottconverse/civiccast-native/releases/tag/v1.0.0-rc.3), published November 1, 2026. RC4 is an unpublished preparation candidate; see its [verification record](https://github.com/scottconverse/civiccast-native/blob/main/docs/releases/v1.0.0-rc.4-verification.md). Start with the [Windows installation guide](https://github.com/scottconverse/civiccast-native/blob/main/INSTALL-WINDOWS.md) and [release-trust guide](https://github.com/scottconverse/civiccast-native/blob/main/docs/install/windows-release-trust.md). In the kit, read `manual/USER-MANUAL.pdf` or use Help in the app.
 
-1. Install the complete matching kit and wait for a successful completion.
-2. Open the local operator console, complete First Setup, and save the recovery kit.
-   Existing sign-in after reinstall means station data was preserved; use its recovery.
-3. Set Station Profile and time zone. Configure Public, Education and Government in
-   Channels with the outputs you intend to use and distinct channel branding.
-4. Upload local video through Assets, wait for validation and review/publish it.
-5. Schedule recordings on each channel with their actual durations and second-level
-   starts. Approve the schedule and use Commit to Air. Check Published playout plan.
-6. For a repeating rotation in RC2, save Repeat the published sequence for each
-   channel. Only the final contiguous marked group repeats. Automatic startup is
-   a separate control. No environment edit, service restart or API workaround is needed.
-7. Start the configured channels and watch moving program video, audible audio and
-   a program transition in preview. If live captions are enabled, check visible
-   captions and the channel caption status; a successful web request alone is not playback.
+1. Back up a working station before upgrading. Install only the complete matching signed kit and wait for successful completion. In First Setup, save the recovery kit away from the station.
+2. Open the local operator console at `http://127.0.0.1:8000/operator/` on the station.
+3. Set Station Profile and station time zone. Configure Public, Education and Government in Channels with intended outputs and distinct branding.
+4. Upload local video in Assets; wait for validation, review, and publish.
+5. Schedule recordings with actual durations and second-level starts. Approve the schedule, use Commit to Air, and check the Published playout plan.
+6. For a repeating rotation, save Repeat for the published sequence on each channel. Only the final contiguous marked group repeats; automatic startup is separate.
+7. Start channels; watch moving video, audible audio, and a transition. If live captions are enabled, check visible captions and actionable status. A configured channel is not proof captions keep up on every machine.
 
-Use the built-in Manual for the full steps, error recovery and responsibilities.
-Preparation is not on-air proof. Do not repeatedly reload an already pending handoff.
+Use the Manual for full steps, error recovery, and responsibilities. Preparation is not on-air proof. Do not repeatedly reload an already pending handoff.
+
+For the unpublished RC4 candidate, Windows 11 x64 is the observed platform. The tested 12 GiB/four-vCPU VM is not a certified minimum for three simultaneous captioned channels; Windows 10/Server support is unverified. In the retained sample, two outgoing Education caption pages and two Public pages were generated and admitted but retired at the next program cutoff, with completed display before that cutoff unestablished; they were absent from delivered transport. Recognition reported overload and backlog; the exact bottleneck is unresolved. Check caption delivery at transitions on your configuration. See the RC4 verification record for the measured scope, security findings and remaining limitations before a distribution decision.
 
 ---
 
