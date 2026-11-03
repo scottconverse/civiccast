@@ -63,7 +63,7 @@
     },
     "npm": {
       "sha256": "21b46c69ad6e2f231f02a9e120f4ba6c8e75fef5a45637103002eab99f888ab8",
-      "tree_sha256": "8b3e116059d650842ae2f263e38ff407bacfee0a4ada4bc9387bbb701d660174",
+      "tree_sha256": "5fb498757b78e3662816e7ecfa8283dc0177f35d32fedbe208833287232d716a",
       "version": "11.12.1"
     },
     "python": {

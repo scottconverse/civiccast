@@ -597,3 +597,39 @@ def test_cli_is_standalone_before_civiccast_is_installed() -> None:
     )
     assert result.returncode == 0, result.stderr
     assert "reviewed native-Windows build toolchain" in result.stdout
+
+
+def test_portable_toolchain_replaces_bundled_npm_before_extracting_pin(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    lock = provisioner.load_lock()
+    output = tmp_path / "tools"
+    shims = ("npm", "npm.cmd", "npm.ps1", "npx", "npx.cmd", "npx.ps1")
+    monkeypatch.setattr(
+        provisioner, "fetch_locked_artifact", lambda name, *args, **kwargs: tmp_path / name
+    )
+
+    def fake_extract(archive: Path, destination: Path, **kwargs: object) -> None:
+        if archive.name == "node":
+            (destination / "node_modules" / "npm").mkdir(parents=True)
+            (destination / "node_modules" / "npm" / "bundled-only.js").write_bytes(b"bundled")
+        elif archive.name == "npm":
+            assert not (destination / "bundled-only.js").exists()
+            (destination / "bin").mkdir(parents=True)
+            for shim in shims:
+                (destination / "bin" / shim).write_bytes(b"pinned")
+        elif archive.name == "python":
+            (destination / "Lib").mkdir(parents=True)
+        elif archive.name == "uv":
+            destination.mkdir(parents=True, exist_ok=True)
+
+    monkeypatch.setattr(provisioner, "safe_extract", fake_extract)
+    monkeypatch.setattr(
+        provisioner, "verify_portable_toolchain", lambda *args: lock["installed_identities"]
+    )
+    result = provisioner.provision_portable_toolchain(lock, tmp_path / "cache", output)
+    assert result == lock["installed_identities"]
+    assert not (output / "node" / "node_modules" / "npm" / "bundled-only.js").exists()
+    for shim in shims:
+        assert (output / "node" / shim).read_bytes() == b"pinned"
+    assert (output / "toolchain-receipt.json").exists()

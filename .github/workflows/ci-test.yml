@@ -504,13 +504,13 @@ jobs:
         # 50-test margin with a floor of 1974. The 2026-10-14 Beta16 license
         # closure assertion added one pure test (floor 1975).
         # 2026-10-19: 2029 pure tests; floor 1983 leaves a 46-test margin.
-        # RC4 Expat regressions: 2185 pure tests; floor 2135
+        # RC4 Expat/npm regressions: 2186 pure tests; floor 2136
         # keeps the standard 50-test margin.
         if: always()
         run: |
           python scripts/verify_native_junit_floor.py \
             --junit junit-native-pure.xml \
-            --floor 2135 \
+            --floor 2136 \
             --label "tests/native pure suite"
 
       - name: Upload junit (ws3 claims-evidence D3/D7)
@@ -895,14 +895,14 @@ jobs:
         # tests; preserve the 50-test margin (2218). The exact native closure
         # baseline regression adds one portable case:2269 non-integration,
         # floor2219 keeps that same margin.
-        # RC4 native CI collection: 2426 Windows non-integration tests;
-        # floor 2376 keeps the standard 50-test margin.
+        # RC4 native CI collection: 2427 Windows non-integration tests;
+        # floor 2377 keeps the standard 50-test margin.
         if: always()
         shell: bash
         run: |
           python scripts/verify_native_junit_floor.py \
             --junit junit-native-win.xml \
-            --floor 2376 \
+            --floor 2377 \
             --label "tests/native Windows suite"
 
       - name: Upload Windows native junit
