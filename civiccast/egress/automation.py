@@ -65,6 +65,7 @@ from civiccast.egress.models import (
     EgressSourcePlan,
 )
 from civiccast.egress.preparer import preparation_timeout_seconds_from_env
+from civiccast.egress.source_plan import re_resolve_program_at_occurrence_start
 from civiccast.egress.store import EgressStore
 from civiccast.native.station_runtime import EGRESS_DEGRADED_REASON_ENV
 
@@ -1972,6 +1973,13 @@ class ChannelAutomationService:
             replacement = self._boundary_source_plan_provider(channel_id, re_ask_at)
         except SourcePrepareError:
             return fresh_plan
+        replacement = re_resolve_program_at_occurrence_start(
+            channel_id,
+            self._boundary_source_plan_provider,
+            replacement,
+            probed_at=re_ask_at,
+            true_boundary=boundary + timedelta(seconds=tail_seconds),
+        )
         if replacement is None or replacement.channel_id != channel_id:
             return fresh_plan
         replacement_seconds = sum(segment.duration_seconds for segment in replacement.segments)
@@ -1984,7 +1992,7 @@ class ChannelAutomationService:
             tail_seconds,
             replacement_seconds,
         )
-        return cast(EgressSourcePlan, replacement)
+        return replacement
 
     def _check_plan_rollover(self, channel_id: str, *, now: datetime) -> None:
         """Extend a finite program or filler plan before it EOSes.

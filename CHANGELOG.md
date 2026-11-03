@@ -7,6 +7,8 @@ published RC3 assets; required CI, signed packaging and installed acceptance for
 RC4 remain pending. Speech-caption synchronization and coverage remain unresolved.
 
 - Preserve fractional repeat durations when deriving scheduled source boundaries.
+- Preserve the full next occurrence when a schedule-recovery lookup crosses its start; keep genuine join-in-progress offsets and asset trims.
+- Let focused video controls handle Space without a second playback toggle from the trim editor's global shortcut.
 - Use the selected frame's media-clock timestamp for source proofs, as-run starts and program-label transitions, with a fallback for older observations.
 - Cap reported airtime at the next source on the same channel while preserving historical ledger rows and provisional open-airing labels.
 - Capture caption proof from the advertised local HLS output and distinguish unavailable capture from a failed or stale decode-back proof.

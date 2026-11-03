@@ -173,3 +173,65 @@ describe('TrimEditorScreen source preview', () => {
     expect(getStaffAssetPlaybackGrant).toHaveBeenCalledTimes(2)
   })
 })
+
+describe('TrimEditorScreen Space key handling', () => {
+  it('does not intercept Space on the focused video in paused or playing state', async () => {
+    const { findByLabelText } = renderEditor()
+    const video = (await findByLabelText(
+      'Packaged preview for Council meeting',
+    )) as HTMLVideoElement
+    const play = vi.fn().mockResolvedValue(undefined)
+    const pause = vi.fn()
+    Object.defineProperties(video, {
+      currentTime: { configurable: true, writable: true, value: 0 },
+      duration: { configurable: true, value: 5 },
+      readyState: { configurable: true, value: 1 },
+      paused: { configurable: true, value: true },
+      play: { configurable: true, value: play },
+      pause: { configurable: true, value: pause },
+    })
+
+    expect(fireEvent.keyDown(video, { key: ' ' })).toBe(true)
+    expect(play).not.toHaveBeenCalled()
+    expect(pause).not.toHaveBeenCalled()
+
+    Object.defineProperty(video, 'paused', {
+      configurable: true,
+      value: false,
+    })
+    expect(fireEvent.keyDown(video, { key: ' ' })).toBe(true)
+    expect(play).not.toHaveBeenCalled()
+    expect(pause).not.toHaveBeenCalled()
+  })
+
+  it('still toggles playback with Space from a non-input button, once per press', async () => {
+    const { findByLabelText, findByRole } = renderEditor()
+    const video = (await findByLabelText(
+      'Packaged preview for Council meeting',
+    )) as HTMLVideoElement
+    const play = vi.fn().mockResolvedValue(undefined)
+    const pause = vi.fn()
+    Object.defineProperties(video, {
+      currentTime: { configurable: true, writable: true, value: 0 },
+      duration: { configurable: true, value: 5 },
+      readyState: { configurable: true, value: 1 },
+      paused: { configurable: true, value: true },
+      play: { configurable: true, value: play },
+      pause: { configurable: true, value: pause },
+    })
+    const button = await findByRole('button', { name: 'Close trim editor' })
+    button.focus()
+
+    expect(fireEvent.keyDown(button, { key: ' ' })).toBe(false)
+    expect(play).toHaveBeenCalledOnce()
+    expect(pause).not.toHaveBeenCalled()
+
+    Object.defineProperty(video, 'paused', {
+      configurable: true,
+      value: false,
+    })
+    expect(fireEvent.keyDown(button, { key: ' ' })).toBe(false)
+    expect(pause).toHaveBeenCalledOnce()
+    expect(play).toHaveBeenCalledOnce()
+  })
+})

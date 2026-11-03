@@ -10,9 +10,10 @@ import logging
 import math
 import os
 import uuid
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 from civiccast.egress.env_vars import resolve_renamed_env
 from civiccast.egress.errors import SourcePrepareError
@@ -498,6 +499,76 @@ class ScheduleSourcePlanProvider:
         if self._loop_schedule_provider is not None:
             return self._loop_schedule_provider(channel_id)
         return self._loop_schedule
+
+
+def re_resolve_program_at_occurrence_start(
+    channel_id: str,
+    boundary_provider: Callable[..., EgressSourcePlan | None],
+    probed_plan: EgressSourcePlan | None,
+    *,
+    probed_at: datetime,
+    true_boundary: datetime,
+    provider_kwargs: Mapping[str, Any] | None = None,
+) -> EgressSourcePlan | None:
+    """Re-query only the proven newly selected future occurrence at the real
+    schedule_occurrence_start after a one-second lookup margin. Preserve provider
+    kwargs, actual asset trims, and the same occurrence/source/channel identity.
+    Genuine older-current JIP or missing-provenance cases remain unchanged.
+    Use the selected plan duration, not the observed interval, as duration.
+    """
+
+    if probed_plan is None or probed_plan.channel_id != channel_id:
+        return probed_plan
+    if not probed_plan.segments:
+        return probed_plan
+    first = probed_plan.segments[0]
+    if first.kind != "program":
+        return probed_plan
+    occurrence_id = first.schedule_occurrence_id
+    source_ref = first.source_ref
+    occurrence_start = first.schedule_occurrence_start
+    if occurrence_id is None or source_ref is None or occurrence_start is None:
+        return probed_plan
+
+    occurrence_start = _as_utc(occurrence_start)
+    probed_at = _as_utc(probed_at)
+    true_boundary = _as_utc(true_boundary)
+    if probed_at <= true_boundary:
+        return probed_plan
+    if not (true_boundary <= occurrence_start <= probed_at):
+        return probed_plan
+    if occurrence_start >= probed_at:
+        # The probe already landed on the true start: no JIP to correct.
+        return probed_plan
+
+    try:
+        replacement = boundary_provider(
+            channel_id,
+            occurrence_start,
+            **dict(provider_kwargs or {}),
+        )
+    except SourcePrepareError:
+        return probed_plan
+    if replacement is None or replacement.channel_id != channel_id:
+        return probed_plan
+    if not replacement.segments:
+        return probed_plan
+    replacement_first = replacement.segments[0]
+    if replacement_first.kind != "program":
+        return probed_plan
+    if replacement_first.schedule_occurrence_id != occurrence_id:
+        return probed_plan
+    if replacement_first.source_ref != source_ref:
+        return probed_plan
+    replacement_start = replacement_first.schedule_occurrence_start
+    if replacement_start is None or _as_utc(replacement_start) != occurrence_start:
+        return probed_plan
+
+    probed_seconds = sum(segment.duration_seconds for segment in probed_plan.segments)
+    replacement_seconds = sum(segment.duration_seconds for segment in replacement.segments)
+    if replacement_seconds <= 0.0 or replacement_seconds < probed_seconds:
+        return probed_plan
+    return replacement
 
 
 def _playable_items(

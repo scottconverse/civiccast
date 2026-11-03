@@ -100,6 +100,7 @@ from civiccast.egress.runtime import (
 )
 from civiccast.egress.schema_currency import current_schema_version
 from civiccast.egress.sinks import SecretResolver
+from civiccast.egress.source_plan import re_resolve_program_at_occurrence_start
 from civiccast.egress.store import EgressStore
 from civiccast.stream._ffmpeg import FfmpegNotFoundError
 
@@ -5591,6 +5592,13 @@ class EgressDaemon:
             next_plan = boundary_provider(channel_id, boundary_at)
         except SourcePrepareError:
             next_plan = None
+        next_plan = re_resolve_program_at_occurrence_start(
+            channel_id,
+            boundary_provider,
+            next_plan,
+            probed_at=boundary_at,
+            true_boundary=base_at + timedelta(seconds=tail_seconds),
+        )
         if next_plan is None or next_plan.channel_id != channel_id:
             if slate_when_no_next and self._fallback_source_provider is not None:
                 # Nothing is scheduled where this tail ends. Airing the tail
@@ -6008,14 +6016,23 @@ class EgressDaemon:
             and boundary_at is not None
             and not self.has_manual_override(channel_id)
         ):
+            recovery_at = boundary_at + timedelta(seconds=_SCHEDULE_TAIL_BOUNDARY_MARGIN_S)
             try:
                 source_plan = boundary_provider(
                     channel_id,
-                    boundary_at + timedelta(seconds=_SCHEDULE_TAIL_BOUNDARY_MARGIN_S),
+                    recovery_at,
                     **horizon_kwargs,
                 )
             except SourcePrepareError:
                 source_plan = None
+            source_plan = re_resolve_program_at_occurrence_start(
+                channel_id,
+                boundary_provider,
+                source_plan,
+                probed_at=recovery_at,
+                true_boundary=boundary_at,
+                provider_kwargs=horizon_kwargs,
+            )
             if source_plan is not None and source_plan.channel_id == channel_id:
                 _LOG.warning(
                     "Content-reload for %s: the boundary at %s resolves to no plan, but the "
