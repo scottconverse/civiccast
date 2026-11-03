@@ -559,7 +559,7 @@ jobs:
             @{ Name = 'openssl-3.5.9-civiccast-windows-x64.zip'; Bytes = 2805153; SHA256 = '062f6d64ae51eb970e46422e6791bced241867574179aa278a82a08245f82491' },
             @{ Name = 'glib-2.88.4-libsoup-3.8.1-nghttp2-1.70.0-civiccast-windows-x64.zip'; Bytes = 1966069; SHA256 = '34da86644a17511887de4f01b7ea18708f07c15e1f92f1448dda68166eebe6b9' },
             @{ Name = 'ffmpeg-7.1.5-security1-gstreamer-windows-x64.zip'; Bytes = 1968427; SHA256 = '40cf143eda356ea14573323c8dcfbd4c4e33c83a2510e50bbaae95912b143246' },
-            @{ Name = 'civiccast-rc1-security-libraries-windows-x64.zip'; Bytes = 2666766; SHA256 = '6545e5f76472135310815f68296b427a8efc9810ba28a4c4c919241cfd04e683' }
+            @{ Name = 'civiccast-rc4-expat-2.10.0-security-libraries-windows-x64.zip'; Bytes = 2811194; SHA256 = 'ed8d5a29c295e62b1081788ac185b8b978028d609a5b2cf610241b7e2fc47d29' }
           )
           foreach ($inputFile in $inputs) {
             $source = Join-Path $mirror $inputFile.Name
@@ -579,7 +579,7 @@ jobs:
             ${{ runner.temp }}/native-runtime-reviewed-inputs/openssl-3.5.9-civiccast-windows-x64.zip
             ${{ runner.temp }}/native-runtime-reviewed-inputs/glib-2.88.4-libsoup-3.8.1-nghttp2-1.70.0-civiccast-windows-x64.zip
             ${{ runner.temp }}/native-runtime-reviewed-inputs/ffmpeg-7.1.5-security1-gstreamer-windows-x64.zip
-            ${{ runner.temp }}/native-runtime-reviewed-inputs/civiccast-rc1-security-libraries-windows-x64.zip
+            ${{ runner.temp }}/native-runtime-reviewed-inputs/civiccast-rc4-expat-2.10.0-security-libraries-windows-x64.zip
           if-no-files-found: error
           compression-level: 0
           retention-days: 1
@@ -633,7 +633,7 @@ jobs:
               ('native-windows-openssl.lock.json', 'openssl-3.5.9-civiccast-windows-x64.zip', 'CIVICCAST_OPENSSL_RUNTIME_ZIP'),
               ('native-windows-glib-soup.lock.json', 'glib-2.88.4-libsoup-3.8.1-nghttp2-1.70.0-civiccast-windows-x64.zip', 'CIVICCAST_GLIB_SOUP_RUNTIME_ZIP'),
               ('native-windows-gstreamer-ffmpeg.lock.json', 'ffmpeg-7.1.5-security1-gstreamer-windows-x64.zip', 'CIVICCAST_GSTREAMER_FFMPEG_RUNTIME_ZIP'),
-              ('native-windows-security-libraries.lock.json', 'civiccast-rc1-security-libraries-windows-x64.zip', 'CIVICCAST_SECURITY_LIBRARIES_ZIP'),
+              ('native-windows-security-libraries.lock.json', 'civiccast-rc4-expat-2.10.0-security-libraries-windows-x64.zip', 'CIVICCAST_SECURITY_LIBRARIES_ZIP'),
           )
           environment = []
           for lockfile, filename, variable in reviewed:

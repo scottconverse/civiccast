@@ -152,7 +152,9 @@ def test_reviewed_input_transfer_is_source_free_internal_and_bounded() -> None:
     assert len(stage["steps"]) == 2
     copy, upload = stage["steps"]
     assert "uses" not in copy  # No checkout or repository script execution internally.
-    assert "python" not in copy["run"].replace("python-3.12.16-civiccast-embed-amd64.zip", "")
+    assert "python" not in copy["run"].replace(
+        "python-3.12.16-expat-2.10.0-civiccast-embed-amd64.zip", ""
+    )
     for value in (
         str(INTERPRETER_ZIP_BYTES),
         INTERPRETER_SHA256,

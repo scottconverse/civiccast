@@ -1,0 +1,408 @@
+{
+  "baseline_dll_sha256": "8c3ac82b4b88dbe8014cf98271b80110bb1872ecc34850ee68a2460f9e04df41",
+  "consumer_sha256": "3cbe651873b77201208362cc0fbb1ac048510f08867e3a0437384269f21650cd",
+  "exports": [
+    {
+      "ordinal": 1,
+      "name": "XML_DefaultCurrent",
+      "forwarder": null
+    },
+    {
+      "ordinal": 2,
+      "name": "XML_ErrorString",
+      "forwarder": null
+    },
+    {
+      "ordinal": 3,
+      "name": "XML_ExpatVersion",
+      "forwarder": null
+    },
+    {
+      "ordinal": 4,
+      "name": "XML_ExpatVersionInfo",
+      "forwarder": null
+    },
+    {
+      "ordinal": 5,
+      "name": "XML_ExternalEntityParserCreate",
+      "forwarder": null
+    },
+    {
+      "ordinal": 59,
+      "name": "XML_FreeContentModel",
+      "forwarder": null
+    },
+    {
+      "ordinal": 6,
+      "name": "XML_GetBase",
+      "forwarder": null
+    },
+    {
+      "ordinal": 7,
+      "name": "XML_GetBuffer",
+      "forwarder": null
+    },
+    {
+      "ordinal": 8,
+      "name": "XML_GetCurrentByteCount",
+      "forwarder": null
+    },
+    {
+      "ordinal": 9,
+      "name": "XML_GetCurrentByteIndex",
+      "forwarder": null
+    },
+    {
+      "ordinal": 10,
+      "name": "XML_GetCurrentColumnNumber",
+      "forwarder": null
+    },
+    {
+      "ordinal": 11,
+      "name": "XML_GetCurrentLineNumber",
+      "forwarder": null
+    },
+    {
+      "ordinal": 12,
+      "name": "XML_GetErrorCode",
+      "forwarder": null
+    },
+    {
+      "ordinal": 57,
+      "name": "XML_GetFeatureList",
+      "forwarder": null
+    },
+    {
+      "ordinal": 13,
+      "name": "XML_GetIdAttributeIndex",
+      "forwarder": null
+    },
+    {
+      "ordinal": 14,
+      "name": "XML_GetInputContext",
+      "forwarder": null
+    },
+    {
+      "ordinal": 65,
+      "name": "XML_GetParsingStatus",
+      "forwarder": null
+    },
+    {
+      "ordinal": 15,
+      "name": "XML_GetSpecifiedAttributeCount",
+      "forwarder": null
+    },
+    {
+      "ordinal": 62,
+      "name": "XML_MemFree",
+      "forwarder": null
+    },
+    {
+      "ordinal": 60,
+      "name": "XML_MemMalloc",
+      "forwarder": null
+    },
+    {
+      "ordinal": 61,
+      "name": "XML_MemRealloc",
+      "forwarder": null
+    },
+    {
+      "ordinal": 16,
+      "name": "XML_Parse",
+      "forwarder": null
+    },
+    {
+      "ordinal": 17,
+      "name": "XML_ParseBuffer",
+      "forwarder": null
+    },
+    {
+      "ordinal": 18,
+      "name": "XML_ParserCreate",
+      "forwarder": null
+    },
+    {
+      "ordinal": 19,
+      "name": "XML_ParserCreateNS",
+      "forwarder": null
+    },
+    {
+      "ordinal": 20,
+      "name": "XML_ParserCreate_MM",
+      "forwarder": null
+    },
+    {
+      "ordinal": 21,
+      "name": "XML_ParserFree",
+      "forwarder": null
+    },
+    {
+      "ordinal": 55,
+      "name": "XML_ParserReset",
+      "forwarder": null
+    },
+    {
+      "ordinal": 64,
+      "name": "XML_ResumeParser",
+      "forwarder": null
+    },
+    {
+      "ordinal": 22,
+      "name": "XML_SetAttlistDeclHandler",
+      "forwarder": null
+    },
+    {
+      "ordinal": 23,
+      "name": "XML_SetBase",
+      "forwarder": null
+    },
+    {
+      "ordinal": 69,
+      "name": "XML_SetBillionLaughsAttackProtectionActivationThreshold",
+      "forwarder": null
+    },
+    {
+      "ordinal": 70,
+      "name": "XML_SetBillionLaughsAttackProtectionMaximumAmplification",
+      "forwarder": null
+    },
+    {
+      "ordinal": 24,
+      "name": "XML_SetCdataSectionHandler",
+      "forwarder": null
+    },
+    {
+      "ordinal": 25,
+      "name": "XML_SetCharacterDataHandler",
+      "forwarder": null
+    },
+    {
+      "ordinal": 26,
+      "name": "XML_SetCommentHandler",
+      "forwarder": null
+    },
+    {
+      "ordinal": 27,
+      "name": "XML_SetDefaultHandler",
+      "forwarder": null
+    },
+    {
+      "ordinal": 28,
+      "name": "XML_SetDefaultHandlerExpand",
+      "forwarder": null
+    },
+    {
+      "ordinal": 29,
+      "name": "XML_SetDoctypeDeclHandler",
+      "forwarder": null
+    },
+    {
+      "ordinal": 30,
+      "name": "XML_SetElementDeclHandler",
+      "forwarder": null
+    },
+    {
+      "ordinal": 31,
+      "name": "XML_SetElementHandler",
+      "forwarder": null
+    },
+    {
+      "ordinal": 32,
+      "name": "XML_SetEncoding",
+      "forwarder": null
+    },
+    {
+      "ordinal": 33,
+      "name": "XML_SetEndCdataSectionHandler",
+      "forwarder": null
+    },
+    {
+      "ordinal": 34,
+      "name": "XML_SetEndDoctypeDeclHandler",
+      "forwarder": null
+    },
+    {
+      "ordinal": 35,
+      "name": "XML_SetEndElementHandler",
+      "forwarder": null
+    },
+    {
+      "ordinal": 36,
+      "name": "XML_SetEndNamespaceDeclHandler",
+      "forwarder": null
+    },
+    {
+      "ordinal": 37,
+      "name": "XML_SetEntityDeclHandler",
+      "forwarder": null
+    },
+    {
+      "ordinal": 38,
+      "name": "XML_SetExternalEntityRefHandler",
+      "forwarder": null
+    },
+    {
+      "ordinal": 39,
+      "name": "XML_SetExternalEntityRefHandlerArg",
+      "forwarder": null
+    },
+    {
+      "ordinal": 67,
+      "name": "XML_SetHashSalt",
+      "forwarder": null
+    },
+    {
+      "ordinal": 40,
+      "name": "XML_SetNamespaceDeclHandler",
+      "forwarder": null
+    },
+    {
+      "ordinal": 41,
+      "name": "XML_SetNotStandaloneHandler",
+      "forwarder": null
+    },
+    {
+      "ordinal": 42,
+      "name": "XML_SetNotationDeclHandler",
+      "forwarder": null
+    },
+    {
+      "ordinal": 43,
+      "name": "XML_SetParamEntityParsing",
+      "forwarder": null
+    },
+    {
+      "ordinal": 44,
+      "name": "XML_SetProcessingInstructionHandler",
+      "forwarder": null
+    },
+    {
+      "ordinal": 71,
+      "name": "XML_SetReparseDeferralEnabled",
+      "forwarder": null
+    },
+    {
+      "ordinal": 45,
+      "name": "XML_SetReturnNSTriplet",
+      "forwarder": null
+    },
+    {
+      "ordinal": 56,
+      "name": "XML_SetSkippedEntityHandler",
+      "forwarder": null
+    },
+    {
+      "ordinal": 46,
+      "name": "XML_SetStartCdataSectionHandler",
+      "forwarder": null
+    },
+    {
+      "ordinal": 47,
+      "name": "XML_SetStartDoctypeDeclHandler",
+      "forwarder": null
+    },
+    {
+      "ordinal": 48,
+      "name": "XML_SetStartElementHandler",
+      "forwarder": null
+    },
+    {
+      "ordinal": 49,
+      "name": "XML_SetStartNamespaceDeclHandler",
+      "forwarder": null
+    },
+    {
+      "ordinal": 50,
+      "name": "XML_SetUnknownEncodingHandler",
+      "forwarder": null
+    },
+    {
+      "ordinal": 51,
+      "name": "XML_SetUnparsedEntityDeclHandler",
+      "forwarder": null
+    },
+    {
+      "ordinal": 52,
+      "name": "XML_SetUserData",
+      "forwarder": null
+    },
+    {
+      "ordinal": 53,
+      "name": "XML_SetXmlDeclHandler",
+      "forwarder": null
+    },
+    {
+      "ordinal": 63,
+      "name": "XML_StopParser",
+      "forwarder": null
+    },
+    {
+      "ordinal": 58,
+      "name": "XML_UseForeignDTD",
+      "forwarder": null
+    },
+    {
+      "ordinal": 54,
+      "name": "XML_UseParserAsHandlerArg",
+      "forwarder": null
+    }
+  ],
+  "fontconfig_imports": [
+    {
+      "ordinal": 29,
+      "name": null,
+      "resolved_name": "XML_SetDoctypeDeclHandler"
+    },
+    {
+      "ordinal": 52,
+      "name": null,
+      "resolved_name": "XML_SetUserData"
+    },
+    {
+      "ordinal": 7,
+      "name": null,
+      "resolved_name": "XML_GetBuffer"
+    },
+    {
+      "ordinal": 31,
+      "name": null,
+      "resolved_name": "XML_SetElementHandler"
+    },
+    {
+      "ordinal": 12,
+      "name": null,
+      "resolved_name": "XML_GetErrorCode"
+    },
+    {
+      "ordinal": 11,
+      "name": null,
+      "resolved_name": "XML_GetCurrentLineNumber"
+    },
+    {
+      "ordinal": 21,
+      "name": null,
+      "resolved_name": "XML_ParserFree"
+    },
+    {
+      "ordinal": 2,
+      "name": null,
+      "resolved_name": "XML_ErrorString"
+    },
+    {
+      "ordinal": 25,
+      "name": null,
+      "resolved_name": "XML_SetCharacterDataHandler"
+    },
+    {
+      "ordinal": 17,
+      "name": null,
+      "resolved_name": "XML_ParseBuffer"
+    },
+    {
+      "ordinal": 18,
+      "name": null,
+      "resolved_name": "XML_ParserCreate"
+    }
+  ]
+}

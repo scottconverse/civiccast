@@ -133,7 +133,7 @@ DEFAULT_WHISTLE_ENGINE_CACHE = ROOT / "build" / "native-whistle-cache"
 #: its bytes against INTERPRETER_SHA256 before extracting -- a cached file with
 #: the wrong hash is refused, so the cache can never poison the payload.
 DEFAULT_INTERPRETER_ZIP = (
-    ROOT / "build" / "native-app-cache" / "python-3.12.16-civiccast-embed-amd64.zip"
+    ROOT / "build" / "native-app-cache" / "python-3.12.16-expat-2.10.0-civiccast-embed-amd64.zip"
 )
 HTTP_CLIENT_BACKPORT_SOURCE = (
     ROOT / "scripts" / "resources" / "cpython-3.12.16-http-client-security1.py.txt"

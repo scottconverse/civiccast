@@ -97,11 +97,13 @@
         },
         {
           "name": "gstreamer-libexpat",
-          "version": "2.7.1",
+          "version": "2.10.0",
           "cpe": "libexpat_project:libexpat",
           "files": [
             "libexpat.dll"
-          ]
+          ],
+          "source_lock": "native-windows-security-libraries.lock.json",
+          "source_component": "expat"
         },
         {
           "name": "gstreamer-glib",

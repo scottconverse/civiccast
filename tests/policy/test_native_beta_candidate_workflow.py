@@ -34,7 +34,7 @@ def _powershell_lines(script: str) -> tuple[str, ...]:
 
 def _assert_cpython_handoff(job: dict[str, object]) -> None:
     steps = {step["name"]: step for step in job["steps"]}
-    filename = "python-3.12.16-civiccast-embed-amd64.zip"
+    filename = "python-3.12.16-expat-2.10.0-civiccast-embed-amd64.zip"
     producer = _powershell_lines(steps["Acquire the pinned CPython payload interpreter"]["run"])
     consumer = _powershell_lines(steps["Build and verify signed component packs"]["run"])
 
@@ -42,9 +42,9 @@ def _assert_cpython_handoff(job: dict[str, object]) -> None:
     assert "$pythonEmbedZip = Join-Path $env:RUNNER_TEMP $filename" in producer
     assert "Copy-Item -LiteralPath $mirror -Destination $pythonEmbedZip" in producer
     assert any("runtime-artifact-mirror" in line for line in producer)
-    assert any("11474063" in line for line in producer)
+    assert any("11202072" in line for line in producer)
     assert any(
-        "b06074f51101293e2d81059dde190ba9325665e926e4e2a16c0e3916c49be9db" in line
+        "cb9dda240374cedfcfad227831683779d0cd29b49a46f2e865affd5ea21aa9b6" in line
         for line in producer
     )
     assert "Invoke-WebRequest" not in "\n".join(producer)

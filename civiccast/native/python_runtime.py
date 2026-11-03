@@ -14,14 +14,14 @@ from civiccast.native.app_payload import INTERPRETER_DISTRIBUTION, INTERPRETER_V
 PROVENANCE_PATH = "python-runtime-provenance.json"
 # This binds source/dependency pins, compiler/builder identities, licenses and
 # every original runtime file. Changing a payload manifest cannot change this pin.
-PROVENANCE_SHA256 = "eacf8bf363373e1e66378977cafca2cadccbb3b5f470d74563ef72f8db5835f6"
-BUILDER_SHA256 = "f3e1f646439eee6e125e9c7f672f0b0220f8ec9af99d1ff6e397612c6a79d6c6"
+PROVENANCE_SHA256 = "08dbd081f78fef46581d0c300599dbbbde9b68b3ffdb891c99ed5521ea79cc55"
+BUILDER_SHA256 = "8b3036752ec76cfce8b07281d32ab964ee3251f64f3bf7edc371ea6fa93b9cc6"
 INSTALLED_PTH = (
     b"python312.zip\n.\n\n# Uncomment to run site.main() automatically\n"
     b"import site\nLib\\site-packages\n"
 )
 STDLIB_PATH = "python312.zip"
-ORIGINAL_STDLIB_SHA256 = "9a5e0c5a89cdfd4993de0ac48e3bb55f4f87e0cc4fa55e34d7a72185f1749391"
+ORIGINAL_STDLIB_SHA256 = "bbb4ae2ff741588ce8384e8cca45d96545c574740341a5a4bb3c2a1569a024ce"
 ORIGINAL_STDLIB_BYTES = 3_854_776
 # PSF-2.0 Lib/http/client.py from v3.12.16, with only the parser changes from:
 # https://github.com/python/cpython/commit/2eb2af805c156ca52b316bb4ced5e0ab3971d0ae

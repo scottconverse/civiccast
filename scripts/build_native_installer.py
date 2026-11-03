@@ -140,7 +140,10 @@ def build_and_verify_app_tree(app_tree_out: Path, *, skip_build: bool) -> None:
         build_app_payload(
             out=app_tree_out,
             interpreter_zip=(
-                ROOT / "build" / "native-app-cache" / "python-3.12.16-civiccast-embed-amd64.zip"
+                ROOT
+                / "build"
+                / "native-app-cache"
+                / "python-3.12.16-expat-2.10.0-civiccast-embed-amd64.zip"
             ),
             scratch=Path(f"{app_tree_out}-scratch"),
         )

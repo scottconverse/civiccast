@@ -57,14 +57,21 @@ SOURCES = {
         "url": "https://sqlite.org/2026/sqlite-amalgamation-3540100.zip",
         "sha256": "0a9c8e34352dad46006aa82836d5383bff9dc6bc9ce5a60553c05aa30e6ad1f9",
     },
+    "expat": {
+        "version": "2.10.0",
+        "directory": "expat-2.10.0",
+        "url": "https://github.com/libexpat/libexpat/releases/download/R_2_10_0/expat-2.10.0.tar.gz",
+        "sha256": "5466a341f9c692ef7a958a6881311be597f8e1ce345984cf78414f54793dea4c",
+    },
 }
 
 
 def package(work: Path) -> Path:
     """Emit a reviewable archive/lock; never replace committed pins implicitly."""
-    from scripts.native_security_overlay import ARCHIVE_NAME
+    from scripts.native_security_overlay import ARCHIVE_NAME, verify_expat_ordinal_contract
 
     prefix = work / "prefix/bin"
+    verify_expat_ordinal_contract(prefix / "libexpat.dll")
     # CPython's SQLite DLL has SQLITE_OMIT_AUTOINIT and is NOT interchangeable.
     # Require a fresh-process open without sqlite3_initialize before packaging.
     subprocess.run(
@@ -136,11 +143,19 @@ def package(work: Path) -> Path:
         "blessing" + microsoft,
         gstreamer="bin/sqlite3-0.dll",
     )
+    add(
+        "libexpat.dll",
+        prefix / "libexpat.dll",
+        "expat",
+        "MIT" + microsoft,
+        gstreamer="bin/libexpat.dll",
+    )
     for name, license_file, license_ in (
         ("zlib", "LICENSE", "Zlib"),
         ("libpng", "LICENSE", "Libpng"),
         ("libxml2", "Copyright", "MIT"),
         ("harfbuzz", "COPYING", "MIT"),
+        ("expat", "COPYING", "MIT"),
     ):
         filename = f"{name}-LICENSE.txt"
         destinations = dict.fromkeys(
@@ -173,17 +188,22 @@ def package(work: Path) -> Path:
         gstreamer="licenses/security-libs/LicenseRef-Microsoft-VCRedist.txt",
         postgres="licenses/security-libs/LicenseRef-Microsoft-VCRedist.txt",
     )
+    builder_sha256 = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     provenance = {
         "sources": components,
-        "builder_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+        "builder_sha256": builder_sha256,
+        "packager_sha256": builder_sha256,
         "build_log_sha256": hashlib.sha256((work / "build.log").read_bytes()).hexdigest(),
         "cmake_cache_sha256": {
             name: hashlib.sha256((work / f"build-{name}/CMakeCache.txt").read_bytes()).hexdigest()
             for name in SOURCES
         },
-        "static_crt": ["zlib", "libpng", "libxml2", "harfbuzz", "sqlite"],
+        "static_crt": ["zlib", "libpng", "libxml2", "harfbuzz", "sqlite", "expat"],
         "sqlite_automatic_initialization": "enabled; fresh-process sqlite3_open verified",
     }
+    reused_components = work / "reused-components.json"
+    if reused_components.exists():
+        provenance["reused_components"] = json.loads(reused_components.read_text(encoding="utf-8"))
     proof = work / "security-libraries-provenance.json"
     proof.write_text(json.dumps(provenance, indent=2) + "\n", encoding="utf-8")
     add(
@@ -247,6 +267,8 @@ def build(work: Path, sdk: Path, iconv_library: Path, only: list[str] | None = N
             )
 
     for name, spec in SOURCES.items():
+        if only and name not in only:
+            continue
         archive = work / f"{name}.tar"
         if not archive.exists():
             urllib.request.urlretrieve(spec["url"], archive)
@@ -337,6 +359,21 @@ def build(work: Path, sdk: Path, iconv_library: Path, only: list[str] | None = N
                 f"-DFREETYPE_LIBRARY_RELEASE={sdk.as_posix()}/lib/freetype.lib",
                 f"-DFREETYPE_INCLUDE_DIR_ft2build={sdk.as_posix()}/include/freetype2",
                 f"-DFREETYPE_INCLUDE_DIR_freetype2={sdk.as_posix()}/include/freetype2",
+            ]
+        elif name == "expat":
+            options = [
+                "-DEXPAT_BUILD_TOOLS=OFF",
+                "-DEXPAT_BUILD_EXAMPLES=OFF",
+                "-DEXPAT_BUILD_TESTS=OFF",
+                "-DEXPAT_BUILD_DOCS=OFF",
+                "-DEXPAT_BUILD_PKGCONFIG=OFF",
+                "-DEXPAT_SHARED_LIBS=ON",
+                "-DEXPAT_ENABLE_INSTALL=ON",
+                "-DEXPAT_CHAR_TYPE=char",
+                "-DEXPAT_DTD=ON",
+                "-DEXPAT_GE=ON",
+                "-DEXPAT_NS=ON",
+                "-DEXPAT_MSVC_STATIC_CRT=ON",
             ]
         body = f'add_subdirectory("{source.as_posix()}" upstream)\n{after}\n'
         if name == "sqlite":

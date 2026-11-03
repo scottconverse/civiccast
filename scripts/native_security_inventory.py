@@ -231,7 +231,8 @@ def inventory() -> dict:
                 cpe={"libexpat": "libexpat_project:libexpat", "mpdecimal": "bytereef:mpdecimal"}[
                     dependency["name"]
                 ],
-                source="scripts/build_native_python_runtime.py",
+                source=dependency.get("source", "scripts/build_native_python_runtime.py"),
+                digest=dependency.get("sha256"),
             )
     return {
         "bomFormat": "CycloneDX",

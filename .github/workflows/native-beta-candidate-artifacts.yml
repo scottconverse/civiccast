@@ -445,7 +445,7 @@ jobs:
       - name: Acquire the pinned CPython payload interpreter
         shell: pwsh
         run: |
-          $filename = "python-3.12.16-civiccast-embed-amd64.zip"
+          $filename = "python-3.12.16-expat-2.10.0-civiccast-embed-amd64.zip"
           $pythonEmbedZip = Join-Path $env:RUNNER_TEMP $filename
           $mirror = Join-Path "C:\CivicCastTester\runtime-artifact-mirror" $filename
           if (-not (Test-Path -LiteralPath $mirror)) {
@@ -453,9 +453,9 @@ jobs:
           }
           Copy-Item -LiteralPath $mirror -Destination $pythonEmbedZip
           $size = (Get-Item -LiteralPath $pythonEmbedZip).Length
-          if ($size -ne 11474063) { throw "CPython archive size mismatch: $size" }
+          if ($size -ne 11202072) { throw "CPython archive size mismatch: $size" }
           $actual = (Get-FileHash -Algorithm SHA256 -LiteralPath $pythonEmbedZip).Hash.ToLowerInvariant()
-          $expected = "b06074f51101293e2d81059dde190ba9325665e926e4e2a16c0e3916c49be9db"
+          $expected = "cb9dda240374cedfcfad227831683779d0cd29b49a46f2e865affd5ea21aa9b6"
           if ($actual -ne $expected) { throw "CPython archive SHA-256 mismatch: $actual" }
 
       - name: Recover the exact reviewed VC++ redistributable
@@ -672,7 +672,7 @@ jobs:
           $appScratch = Join-Path $env:RUNNER_TEMP "civiccast-app-payload-scratch"
           $gstreamerStage = Join-Path $env:RUNNER_TEMP "civiccast-gstreamer-stage"
           $gstreamerClosure = Join-Path $env:RUNNER_TEMP "civiccast-gstreamer-closure"
-          $pythonEmbedZip = Join-Path $env:RUNNER_TEMP "python-3.12.16-civiccast-embed-amd64.zip"
+          $pythonEmbedZip = Join-Path $env:RUNNER_TEMP "python-3.12.16-expat-2.10.0-civiccast-embed-amd64.zip"
           $serverPackCache = Join-Path $env:RUNNER_TEMP "civiccast-server-pack-cache"
           $ffmpegPackCache = Join-Path $env:RUNNER_TEMP "civiccast-ffmpeg-pack-cache"
           $ollamaPackCache = Join-Path $env:RUNNER_TEMP "civiccast-ollama-pack-cache"
