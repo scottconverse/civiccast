@@ -1702,10 +1702,13 @@ def test_cache_disabled_by_nonpositive_budget(tmp_path: Path, monkeypatch) -> No
     assert not (tmp_path / "work" / "conform-cache").exists()
 
 
-def test_cache_hit_stream_copies_when_engine_cannot_trim(tmp_path: Path) -> None:
+@pytest.mark.parametrize("inpoint", [None, 0.0])
+def test_cache_hit_stream_copies_when_engine_cannot_trim(
+    tmp_path: Path, inpoint: float | None
+) -> None:
     """The GStreamer engine reads only segment.path (no inpoint/outpoint), so
     under playout_trim_supported=False a cache hit must emit a TRIM-FREE
-    per-plan output produced by a fast `-c copy` window — never a re-encode,
+    per-plan output produced by a fast `-c copy` window when starting at zero,
     and never a trimmed segment the engine would ignore."""
 
     calls: list[list[str]] = []
@@ -1714,7 +1717,8 @@ def test_cache_hit_stream_copies_when_engine_cannot_trim(tmp_path: Path) -> None
         "loudness_checker": lambda **_kwargs: _loudness(),
         "warm_scheduler": lambda job: job(),
     }
-    plan = _source_plan(tmp_path)  # built once: rewriting the source would change its mtime/key
+    plan = _untrimmed_plan(tmp_path)
+    plan.segments[0].inpoint_seconds = inpoint
     # Warm the cache via a first airing (flag value irrelevant for warming).
     SourcePreparer(
         ffmpeg_runner=_counting_runner([]), playout_trim_supported=False, **common
@@ -1731,6 +1735,51 @@ def test_cache_hit_stream_copies_when_engine_cannot_trim(tmp_path: Path) -> None
     seg = report.source_plan.segments[0]
     assert seg.inpoint_seconds is None and seg.outpoint_seconds is None  # trim-free contract
     assert "conform-cache" not in seg.path  # per-plan output, not the cache object
+
+
+@pytest.mark.parametrize("inpoint", [1.0, 5.166378])
+@pytest.mark.parametrize("normalize", [False, True])
+def test_nonzero_cache_trim_decodes_original_when_engine_cannot_trim(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, inpoint: float, normalize: bool
+) -> None:
+    """A GOP-aligned cache copy can leave leading audio and starve A/V preroll."""
+    monkeypatch.setattr(preparer_module, "probe_canonical_video", lambda *a, **kw: True)
+    calls: list[list[str]] = []
+    probes: list[dict] = []
+    common: dict = {
+        "work_dir": tmp_path / "work",
+        "loudness_checker": lambda **kwargs: (
+            probes.append(kwargs)
+            or _loudness("too_loud" if normalize else "ok", -18.0 if normalize else -24.1)
+        ),
+        "warm_scheduler": lambda job: job(),
+        "window_leveler": _no_ride,
+    }
+    plan = _source_plan(tmp_path)
+    source = Path(plan.segments[0].path)
+    # Create a genuine full-asset cache entry through the existing warm path.
+    SourcePreparer(
+        ffmpeg_runner=_counting_runner([]), playout_trim_supported=True, **common
+    ).prepare(plan, _config())
+    plan.segments[0].inpoint_seconds = inpoint
+    plan.segments[0].outpoint_seconds = inpoint + 12.5
+
+    report = SourcePreparer(
+        ffmpeg_runner=_counting_runner(calls), playout_trim_supported=False, **common
+    ).prepare(plan, _config())
+
+    assert len(probes) == 1  # reuse the original-source loudness measurement
+    assert calls
+    assert all(args[args.index("-i") + 1] == str(source) for args in calls)
+    conform_args = calls[-1]
+    assert conform_args[conform_args.index("-ss") + 1] == f"{inpoint:g}"
+    assert conform_args[conform_args.index("-t") + 1] == "12.5"
+    assert conform_args[conform_args.index("-c:v") + 1] == _config().canonical_profile.video_codec
+    assert "-c" not in conform_args
+    assert ("-af" in conform_args) is normalize
+    seg = report.source_plan.segments[0]
+    assert seg.inpoint_seconds is None and seg.outpoint_seconds is None
+    assert "conform-cache" not in seg.path
 
 
 # ---------------------------------------------------------------------------
