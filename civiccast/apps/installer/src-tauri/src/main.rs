@@ -5678,6 +5678,8 @@ fn run_native_pre_activation_checks(staging: &Path) -> Result<(), String> {
             &[
                 "-I",
                 "-B",
+                "-X",
+                "utf8",
                 "-c",
                 "import civiccast, ctranslate2, faster_whisper; assert faster_whisper.__version__ == '1.2.1'; assert ctranslate2.__version__ == '4.8.1'; print('native-core-ok')",
             ],
@@ -5714,7 +5716,10 @@ fn run_native_pre_activation_checks(staging: &Path) -> Result<(), String> {
         let program_text = program
             .to_str()
             .ok_or_else(|| format!("Staged native runtime path is not Unicode: {relative}"))?;
-        let (exit_code, output) = run_bounded_command(program_text, name, arguments, 30)?;
+        // Instrumented first load took ~52s (~33s ctranslate2); this bounds installer imports.
+        // Watch/caption performance limits remain separate.
+        let timeout_secs = if name == "native-python" { 120 } else { 30 };
+        let (exit_code, output) = run_bounded_command(program_text, name, arguments, timeout_secs)?;
         let matches = if name == "native-ollama" {
             native_ollama_cli_version_matches(exit_code, &output)
         } else {

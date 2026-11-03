@@ -1218,7 +1218,8 @@ def test_native_marker_collections_match_the_workflow_floors() -> None:
     # Operator safety/transport regressions: fresh collection retained in CURRENT.
     # Five WSL manifest access/mapping cases: measured 2153 pure/2397 total.
     # Pinned HTTP parser backport: 2177 pure / 2422 total, measured collect-only.
-    assert (collect("not windows_only"), collect()) == (2177, 2422)
+    # CI run 41696850519 collection observed 2185 pure / 2430 total.
+    assert (collect("not windows_only"), collect()) == (2185, 2430)
 
 
 def test_linux_unit_job_runs_native_tests_once_in_the_dedicated_pure_lane() -> None:
