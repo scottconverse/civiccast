@@ -217,6 +217,8 @@ function TrimEditor({ asset, onClose, onSaved }: EditorProps) {
       if (tag === 'INPUT' || tag === 'TEXTAREA') return
       const s = stateRef.current
       if (e.key === ' ') {
+        // A focused native <video controls> owns Space; avoid toggling it twice.
+        if (tag === 'VIDEO') return
         e.preventDefault()
         const video = videoRef.current
         if (video) {
