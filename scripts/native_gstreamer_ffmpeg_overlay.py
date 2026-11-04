@@ -50,9 +50,17 @@ def verify_runtime(root: Path) -> None:
 
 def acquire_runtime(cache: Path) -> Path:
     out = cache / "ffmpeg-7.1.5-security1-gstreamer-runtime"
+    partial = cache / "ffmpeg-7.1.5-security1-gstreamer-runtime.partial"
     if out.is_dir():
-        verify_runtime(out)
-        return out
+        try:
+            verify_runtime(out)
+            if {p.name for p in out.iterdir()} == set(policy()["files"]):
+                return out
+        except (ValueError, OSError):
+            pass
+        # A cache that fails verification (the runner's temp cleanup can leave
+        # it emptied, or it was modified) is never used: rebuild it below from
+        # the reviewed archive, which is itself hash-checked first.
     archive = Path(
         os.environ.get(
             "CIVICCAST_GSTREAMER_FFMPEG_RUNTIME_ZIP",
@@ -74,9 +82,16 @@ def acquire_runtime(cache: Path) -> Path:
         names = bundle.namelist()
         if len(names) != len(set(names)) or set(names) != set(reviewed["files"]):
             raise ValueError("unexpected GStreamer FFmpeg runtime archive members")
-        out.mkdir(parents=True)
-        bundle.extractall(out)
-    verify_runtime(out)
+        # Extract beside the cache and swap in only a verified, complete tree,
+        # so an interrupted run can never leave a half-made cache in place.
+        if partial.exists():
+            shutil.rmtree(partial)
+        partial.mkdir(parents=True)
+        bundle.extractall(partial)
+    verify_runtime(partial)
+    if out.exists():
+        shutil.rmtree(out)
+    partial.rename(out)
     return out
 
 

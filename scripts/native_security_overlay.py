@@ -64,29 +64,43 @@ def verify_expat_ordinal_contract(path: Path) -> None:
 def acquire_runtime(cache: Path) -> Path:
     reviewed = policy()
     out = cache / f"security-libraries-{reviewed['archive']['sha256'][:16]}"
-    if not out.exists():
-        archive = Path(
-            os.environ.get(
-                "CIVICCAST_SECURITY_LIBRARIES_ZIP",
-                str(Path("C:/CivicCastTester/runtime-artifact-mirror") / ARCHIVE_NAME),
-            )
-        )
-        _verify_file(archive, reviewed["archive"])
-        cache.mkdir(parents=True, exist_ok=True)
-        with (
-            zipfile.ZipFile(archive) as bundle,
-            tempfile.TemporaryDirectory(prefix=".security-", dir=cache) as temporary,
-        ):
-            names = bundle.namelist()
-            if len(names) != len(set(names)) or set(names) != set(reviewed["files"]):
-                raise ValueError("unexpected security-library archive members")
-            for name in names:
-                if "/" in name or "\\" in name or ":" in name or name in {".", ".."}:
-                    raise ValueError("unsafe security-library archive path")
-            bundle.extractall(temporary)
+    if out.is_dir():
+        try:
             for name, pin in reviewed["files"].items():
-                _verify_file(Path(temporary) / name, pin)
-            Path(temporary).rename(out)
+                _verify_file(out / name, pin)
+            if {p.name for p in out.iterdir()} == set(reviewed["files"]):
+                return out
+        except ValueError:
+            pass
+        # A cache that fails verification (the runner's temp cleanup can leave
+        # it emptied, or it was modified) is never used: rebuild it below from
+        # the reviewed archive, which is itself hash-checked first.
+    archive = Path(
+        os.environ.get(
+            "CIVICCAST_SECURITY_LIBRARIES_ZIP",
+            str(Path("C:/CivicCastTester/runtime-artifact-mirror") / ARCHIVE_NAME),
+        )
+    )
+    _verify_file(archive, reviewed["archive"])
+    cache.mkdir(parents=True, exist_ok=True)
+    with (
+        zipfile.ZipFile(archive) as bundle,
+        tempfile.TemporaryDirectory(prefix=".security-", dir=cache) as temporary,
+    ):
+        names = bundle.namelist()
+        if len(names) != len(set(names)) or set(names) != set(reviewed["files"]):
+            raise ValueError("unexpected security-library archive members")
+        for name in names:
+            if "/" in name or "\\" in name or ":" in name or name in {".", ".."}:
+                raise ValueError("unsafe security-library archive path")
+        fresh = Path(temporary) / "runtime"
+        bundle.extractall(fresh)
+        for name, pin in reviewed["files"].items():
+            _verify_file(fresh / name, pin)
+        # Swap in only a verified, complete tree.
+        if out.exists():
+            shutil.rmtree(out)
+        fresh.rename(out)
     for name, pin in reviewed["files"].items():
         _verify_file(out / name, pin)
     if {p.name for p in out.iterdir()} != set(reviewed["files"]):

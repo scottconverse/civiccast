@@ -38,7 +38,15 @@ def runtime_archive(tmp_path, monkeypatch):
 def test_verified_runtime_cache_is_rechecked(runtime_archive, tmp_path):
     root = overlay.acquire_runtime(tmp_path / "cache")
     assert (root / "glib-2.0-0.dll").read_bytes() == b"reviewed runtime"
+    # An altered cache is never used: it is rebuilt from the reviewed archive.
     (root / "glib-2.0-0.dll").write_bytes(b"altered")
+    assert overlay.acquire_runtime(tmp_path / "cache") == root
+    assert (root / "glib-2.0-0.dll").read_bytes() == b"reviewed runtime"
+    # ...and with no verifiable archive, an altered cache still stops the build.
+    archive, _, _ = runtime_archive
+    (root / "glib-2.0-0.dll").write_bytes(b"altered")
+    with archive.open("ab") as stream:
+        stream.write(b"altered")
     with pytest.raises(ValueError, match="unverified"):
         overlay.acquire_runtime(tmp_path / "cache")
 

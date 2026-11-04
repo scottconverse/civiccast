@@ -54,8 +54,15 @@ def verify_overlay(out: Path) -> None:
 def acquire_runtime(cache: Path) -> Path:
     out = cache / "glib-2.88.4-libsoup-3.8.1-nghttp2-1.70.0-runtime"
     if out.is_dir():
-        verify_runtime(out)
-        return out
+        try:
+            verify_runtime(out)
+            if {p.name for p in out.iterdir()} == set(policy()["files"]):
+                return out
+        except ValueError:
+            pass
+        # A cache that fails verification (the runner's temp cleanup can leave
+        # it emptied, or it was modified) is never used: rebuild it below from
+        # the reviewed archive, which is itself hash-checked first.
     archive = Path(
         os.environ.get(
             "CIVICCAST_GLIB_SOUP_RUNTIME_ZIP",
@@ -83,6 +90,10 @@ def acquire_runtime(cache: Path) -> Path:
         fresh = Path(temporary) / "runtime"
         bundle.extractall(fresh)
         verify_runtime(fresh)
+        # os.replace cannot overwrite a directory on Windows; swap in only a
+        # verified, complete tree.
+        if out.exists():
+            shutil.rmtree(out)
         fresh.replace(out)
     return out
 

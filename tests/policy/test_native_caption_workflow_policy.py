@@ -1223,7 +1223,8 @@ def test_native_marker_collections_match_the_workflow_floors() -> None:
     # by this test's own collection: 2188 pure / 2433 total.
     # RC4 OpenSSL stale-cache rebuild adds four portable cases: 2192 / 2437.
     # RC4 service-identity sharing-violation fix adds one Windows case: 2192 / 2438.
-    assert (collect("not windows_only"), collect()) == (2192, 2438)
+    # RC4 runtime-overlay stale-cache rebuild adds nine portable cases: 2201 / 2447.
+    assert (collect("not windows_only"), collect()) == (2201, 2447)
 
 
 def test_linux_unit_job_runs_native_tests_once_in_the_dedicated_pure_lane() -> None:
