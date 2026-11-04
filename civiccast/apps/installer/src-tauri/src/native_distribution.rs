@@ -3,7 +3,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs::{self, File, OpenOptions};
-use std::io::{Read, Seek, SeekFrom, Write};
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
@@ -753,16 +753,7 @@ fn copy_station_pack_to_cache(
             pack.filename
         ));
     }
-    let (verified, archive) = native_packs::open_and_verify_pack(
-        &canonical_source,
-        trust,
-        Some(&pack.component),
-        None,
-        None,
-    )?;
-    if verified.sha256 != pack.sha256
-        || regular_file_size(&canonical_source, "station pack")? != pack.bytes
-    {
+    if regular_file_size(&canonical_source, "station pack")? != pack.bytes {
         return Err(format!(
             "Native station pack outer identity does not match its signed index: {}",
             pack.component
@@ -776,27 +767,54 @@ fn copy_station_pack_to_cache(
         fs::remove_file(&final_path)
             .map_err(|error| format!("Could not remove corrupt cached pack: {error}"))?;
     }
+    // One read of the media pack: hash the bytes AS they are copied and
+    // promote the copy only if they equal what the signed index pins. RC4
+    // install timing (2026-11-03) found this path used to read every station
+    // pack four times (signature+entry verify of the source, copy, re-hash of
+    // the copy) -- 22 GB x 4 on a fresh station. The outer SHA-256 is pinned
+    // by the signed index, so a match proves every byte; the caller
+    // (`acquire_verified_distribution`) then fully re-verifies the cached pack
+    // (signature, component, structure, per-entry hashes) before any use.
+    // The share-read-only handle denies replacement while it is being read.
+    let mut input = native_packs::open_pack_file(&canonical_source)?;
     let partial = cache_root.join(format!("{}.partial", pack.sha256));
-    let mut input = archive.into_inner();
-    input
-        .seek(SeekFrom::Start(0))
-        .map_err(|error| format!("Could not rewind verified station pack: {error}"))?;
     let mut output = OpenOptions::new()
         .create(true)
         .truncate(true)
         .write(true)
         .open(&partial)
         .map_err(|error| format!("Could not create cached station pack: {error}"))?;
-    let copied = std::io::copy(&mut input, &mut output)
-        .map_err(|error| format!("Could not cache verified station pack: {error}"))?;
-    output
-        .sync_all()
-        .map_err(|error| format!("Could not flush cached station pack: {error}"))?;
+    let mut digest = Sha256::new();
+    let mut copied = 0_u64;
+    let mut buffer = vec![0_u8; 1024 * 1024];
+    let copy_result = loop {
+        let count = match input.read(&mut buffer) {
+            Ok(count) => count,
+            Err(error) => break Err(format!("Could not read station component pack: {error}")),
+        };
+        if count == 0 {
+            break Ok(());
+        }
+        if let Err(error) = output.write_all(&buffer[..count]) {
+            break Err(format!("Could not cache station pack: {error}"));
+        }
+        digest.update(&buffer[..count]);
+        copied += count as u64;
+    }
+    .and_then(|()| {
+        output
+            .sync_all()
+            .map_err(|error| format!("Could not flush cached station pack: {error}"))
+    });
     drop(output);
-    if copied != pack.bytes || !file_matches(&partial, pack.bytes, &pack.sha256)? {
+    if let Err(error) = copy_result {
+        let _ = fs::remove_file(&partial);
+        return Err(error);
+    }
+    if copied != pack.bytes || format!("{:x}", digest.finalize()) != pack.sha256 {
         let _ = fs::remove_file(&partial);
         return Err(format!(
-            "Cached station pack failed post-copy verification: {}",
+            "Native station pack outer identity does not match its signed index: {}",
             pack.component
         ));
     }
@@ -1987,6 +2005,98 @@ mod tests {
         );
 
         std::fs::remove_dir_all(&root).expect("clean cache-fallback root");
+    }
+
+    #[test]
+    fn a_media_pack_is_cached_in_one_hashed_copy_and_a_tampered_one_is_never_promoted() {
+        // RC4 install timing: the media copy now hashes bytes as it copies
+        // instead of verifying the source, copying, and re-hashing the copy.
+        // The signed index pins the outer SHA-256, so a one-byte change of the
+        // same length must still be refused, and must leave neither a cached
+        // pack nor a partial file behind.
+        let key = SigningKey::from_bytes(&[7_u8; 32]);
+        let trust = PackTrust {
+            key_id: "development-test-key".to_string(),
+            public_key: key.verifying_key(),
+        };
+        let root = std::env::temp_dir().join(format!(
+            "civiccast-station-media-copy-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&root);
+        let media_root = root.join("station");
+        let cache_root = root.join("cache").join("packs");
+        std::fs::create_dir_all(&media_root).expect("create media root");
+        let media_pack = media_root.join("captions-floor.ccpack");
+        let (bytes, sha256) = build_signed_pack_with_identity(
+            &media_pack,
+            &key,
+            "captions-floor",
+            "station-models-1",
+            "station-models-1",
+            &[(
+                "models/faster-whisper-medium/model.bin",
+                b"floor-model-bytes",
+            )],
+        );
+        let media_root = media_root.canonicalize().expect("canonical media root");
+        let pack = DistributionPack {
+            component: "captions-floor".to_string(),
+            filename: "captions-floor.ccpack".to_string(),
+            bytes,
+            sha256: sha256.clone(),
+            required: true,
+            urls: Vec::new(),
+        };
+        let cached = cache_root.join(format!("{sha256}.ccpack"));
+        let partial = cache_root.join(format!("{sha256}.partial"));
+
+        let served = super::copy_station_pack_to_cache(&pack, &media_root, &cache_root, &trust)
+            .expect("an index-matching media pack must be cached");
+        assert_eq!(served, cached);
+        assert_eq!(
+            std::fs::read(&cached).expect("read cached pack"),
+            std::fs::read(&media_pack).expect("read media pack")
+        );
+        assert!(!partial.exists(), "a promoted copy leaves no partial file");
+
+        // Same length, one byte different: must never be promoted.
+        std::fs::remove_file(&cached).expect("clear cache");
+        let mut tampered = std::fs::read(&media_pack).expect("read media pack");
+        let last = tampered.len() - 1;
+        tampered[last] ^= 0x01;
+        std::fs::write(&media_pack, &tampered).expect("tamper media pack");
+        let error = super::copy_station_pack_to_cache(&pack, &media_root, &cache_root, &trust)
+            .expect_err("a media pack that differs from the signed index must be refused");
+        assert!(
+            error.contains("does not match its signed index"),
+            "expected the signed-index refusal, got: {error}"
+        );
+        assert!(!cached.exists(), "a tampered pack must never be cached");
+        assert!(
+            !partial.exists(),
+            "a refused copy must not leave a partial file"
+        );
+
+        // A good cached copy is reused and never overwritten by tampered media.
+        std::fs::write(&media_pack, {
+            let mut good = tampered.clone();
+            good[last] ^= 0x01;
+            good
+        })
+        .expect("restore media pack");
+        super::copy_station_pack_to_cache(&pack, &media_root, &cache_root, &trust)
+            .expect("re-cache the good pack");
+        std::fs::write(&media_pack, &tampered).expect("tamper media pack again");
+        let served = super::copy_station_pack_to_cache(&pack, &media_root, &cache_root, &trust)
+            .expect("an already verified cache entry is served");
+        assert_eq!(served, cached);
+        assert!(
+            super::file_matches(&cached, pack.bytes, &pack.sha256).expect("hash cached pack"),
+            "the cached pack must still be the signed bytes"
+        );
+
+        std::fs::remove_dir_all(&root).expect("clean media-copy root");
     }
 
     #[test]
