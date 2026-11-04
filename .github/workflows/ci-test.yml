@@ -508,11 +508,13 @@ jobs:
         # keeps the standard 50-test margin.
         # RC4 Whistle live profile: two native env tests, 2188 pure tests;
         # floor 2138 keeps the standard 50-test margin.
+        # RC4 OpenSSL stale-cache rebuild: four portable cases, 2192 pure
+        # tests; floor 2142 keeps the standard 50-test margin.
         if: always()
         run: |
           python scripts/verify_native_junit_floor.py \
             --junit junit-native-pure.xml \
-            --floor 2138 \
+            --floor 2142 \
             --label "tests/native pure suite"
 
       - name: Upload junit (ws3 claims-evidence D3/D7)
@@ -901,12 +903,14 @@ jobs:
         # floor 2377 keeps the standard 50-test margin.
         # RC4 Whistle live profile: 2429 Windows non-integration tests;
         # floor 2379 keeps the standard 50-test margin.
+        # RC4 OpenSSL stale-cache rebuild: 2433 Windows non-integration tests;
+        # floor 2383 keeps the standard 50-test margin.
         if: always()
         shell: bash
         run: |
           python scripts/verify_native_junit_floor.py \
             --junit junit-native-win.xml \
-            --floor 2379 \
+            --floor 2383 \
             --label "tests/native Windows suite"
 
       - name: Upload Windows native junit

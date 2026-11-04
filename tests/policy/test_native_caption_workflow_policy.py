@@ -1221,7 +1221,8 @@ def test_native_marker_collections_match_the_workflow_floors() -> None:
     # Prior CI observed 2185 pure / 2430 total; one portable npm regression added.
     # RC4 Whistle live profile adds two portable native env cases, measured
     # by this test's own collection: 2188 pure / 2433 total.
-    assert (collect("not windows_only"), collect()) == (2188, 2433)
+    # RC4 OpenSSL stale-cache rebuild adds four portable cases: 2192 / 2437.
+    assert (collect("not windows_only"), collect()) == (2192, 2437)
 
 
 def test_linux_unit_job_runs_native_tests_once_in_the_dedicated_pure_lane() -> None:
