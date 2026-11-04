@@ -2022,6 +2022,46 @@ fn write_transfer_marker() -> Result<(), String> {
     Ok(())
 }
 
+/// The WSL-product state the uninstall preflight plans with. A raw `Present`
+/// from the per-user ARP probe is run through the SAME inert-leftover rule the
+/// install-time claim uses ([`classify_wsl_product_for_claim`]): an old ARP
+/// registration with no CivicCast distro, no autostart entry and a completed
+/// earlier native hand-off cannot start or transmit, so there is no product
+/// to transfer ownership to. It is planned as `Absent` and reported in the
+/// returned warning. Anything short of all three confident conditions stays
+/// `Present` (transfer still required); `Absent`/`Unknown` pass through and
+/// gather no further evidence.
+///
+/// RC4 host test 2026-11-04: RC3's uninstall demanded a transfer to
+/// "CivicCast Installer" 3.0.0-beta1 whose InstallLocation and uninstall.exe
+/// no longer existed; accepting would have handed ActiveRuntime to nothing.
+pub fn uninstall_effective_wsl_state(
+    wsl_arp: OtherProductState,
+    gather_evidence: impl FnOnce() -> WslPresenceEvidence,
+) -> (OtherProductState, Option<String>) {
+    if wsl_arp != OtherProductState::Present {
+        return (wsl_arp, None);
+    }
+    let evidence = gather_evidence();
+    if classify_wsl_product_for_claim(&evidence) != WslProductVerdict::PresentInert {
+        return (OtherProductState::Present, None);
+    }
+    let (title, user) = evidence
+        .present_product()
+        .map(|(_, product)| (product.title(), product.user.clone()))
+        .unwrap_or_else(|| ("CivicCast Installer".to_string(), "(unknown)".to_string()));
+    (
+        OtherProductState::Absent,
+        Some(format!(
+            "WARNING: an old {title} registration remains for user {user} with no CivicCast \
+             distro or autostart entry, and a previous native install had already handed this \
+             machine off (NativeUninstallTransferCompleted is set); it cannot start or transmit, \
+             so this uninstall proceeds without an ownership transfer. Evidence: {}.",
+            evidence.explain()
+        )),
+    )
+}
+
 /// Probe the authoritative Windows state and arm POSTUNINSTALL only for the
 /// active-Native, no-WSL-survivor case (`AllowSolePostclear`).
 ///
@@ -2048,7 +2088,12 @@ fn write_transfer_marker() -> Result<(), String> {
 pub fn native_uninstall_preflight(acknowledge_transfer: bool) -> Result<PreflightOutcome, String> {
     clear_postclear_marker()?;
     let selector = probe_active_runtime_selector();
-    let wsl_arp = probe_wsl_arp();
+    let (wsl_arp, inert_leftover) =
+        uninstall_effective_wsl_state(probe_wsl_arp(), probe_wsl_presence_evidence);
+    if let Some(warning) = inert_leftover {
+        // Captured by the NSIS preflight call and written to the progress log.
+        eprintln!("{warning}");
+    }
     let needs_transfer = transfer_would_unblock(Product::Native, selector, wsl_arp);
 
     if needs_transfer && !acknowledge_transfer {
@@ -3204,6 +3249,59 @@ mod runtime_ownership_evidence_tests {
             native_transfer_marker,
             observations: vec![field_report_present_observation()],
         }
+    }
+
+    #[test]
+    fn uninstall_treats_an_inert_wsl_arp_leftover_as_absent_but_keeps_real_products() {
+        // RC4 host test 2026-11-04: RC3's uninstall demanded an ActiveRuntime
+        // transfer to "CivicCast Installer" 3.0.0-beta1 whose InstallLocation
+        // and uninstall.exe no longer existed -- the exact field-report box the
+        // install-time inert-leftover rule already classifies as claimable.
+        let never = || -> WslPresenceEvidence { panic!("evidence must not be gathered") };
+
+        // An inert leftover: no transfer, with a warning that names it.
+        let (state, note) = uninstall_effective_wsl_state(OtherProductState::Present, || {
+            field_report_evidence(OtherProductState::Absent, OtherProductState::Present)
+        });
+        assert_eq!(state, OtherProductState::Absent);
+        let note = note.expect("an inert leftover must be reported");
+        assert!(note.starts_with("WARNING"), "{note}");
+        assert!(note.contains("CivicCast Installer 3.0.0-beta1"), "{note}");
+
+        // Anything short of all three confident inert conditions keeps Present.
+        for (autostart, marker) in [
+            (OtherProductState::Present, OtherProductState::Present),
+            (OtherProductState::Unknown, OtherProductState::Present),
+            (OtherProductState::Absent, OtherProductState::Absent),
+            (OtherProductState::Absent, OtherProductState::Unknown),
+        ] {
+            let (state, note) = uninstall_effective_wsl_state(OtherProductState::Present, || {
+                field_report_evidence(autostart, marker)
+            });
+            assert_eq!(
+                state,
+                OtherProductState::Present,
+                "{autostart:?} {marker:?}"
+            );
+            assert!(note.is_none());
+        }
+        let mut with_distro =
+            field_report_evidence(OtherProductState::Absent, OtherProductState::Present);
+        with_distro.distro_registration = OtherProductState::Present;
+        assert_eq!(
+            uninstall_effective_wsl_state(OtherProductState::Present, || with_distro.clone()).0,
+            OtherProductState::Present
+        );
+
+        // Absent and Unknown pass through unchanged and gather nothing.
+        assert_eq!(
+            uninstall_effective_wsl_state(OtherProductState::Absent, never),
+            (OtherProductState::Absent, None)
+        );
+        assert_eq!(
+            uninstall_effective_wsl_state(OtherProductState::Unknown, never),
+            (OtherProductState::Unknown, None)
+        );
     }
 
     fn denied_hive_observation() -> ProbeObservation {

@@ -258,7 +258,11 @@
 ; that asks a question silent mode cannot answer, so it keeps its dialog
 ; and remains an owner-facing policy question (a silent uninstall of the
 ; active runtime while the WSL product is present must fail loud rather
-; than guess an answer).
+; than guess an answer). It carries /SD IDNO: without it NSIS still shows
+; the dialog in silent mode and `uninstall.exe /S` blocks forever on a
+; window nobody sees (RC4 host test, 2026-11-04). Declining is the
+; fail-loud answer: the decline branch aborts with the uninstall-declined
+; exit code and an ALERT, and nothing is removed or transferred.
 !macro CIVICCAST_ALERT TEXT
   !insertmacro CIVICCAST_STEP "ALERT: ${TEXT}"
   DetailPrint "${TEXT}"
@@ -2047,8 +2051,11 @@ Var CIVICCAST_POSTCLEAR_ARMED
   nsExec::ExecToStack '"$INSTDIR\CivicCast Native.exe" --civiccast-native-uninstall-preflight'
   Pop $0
   Pop $1
+  ; Record what the preflight decided (including an inert WSL leftover
+  ; warning) -- silent uninstalls have no details pane.
+  !insertmacro CIVICCAST_STEP "preuninstall: ownership preflight returned $0: $1"
   ${If} $0 == 74
-    MessageBox MB_YESNO|MB_ICONQUESTION "CivicCast (Native) is the active runtime and the WSL product (CivicCast Installer) is still installed.$\r$\n$\r$\nTo continue uninstalling CivicCast (Native), ActiveRuntime ownership must first be transferred to the WSL product, which will then become the active runtime that starts and transmits.$\r$\n$\r$\nTransfer ownership to the WSL product now and continue uninstalling CivicCast (Native)?" IDYES civiccast_native_transfer_acknowledged
+    MessageBox MB_YESNO|MB_ICONQUESTION "CivicCast (Native) is the active runtime and the WSL product (CivicCast Installer) is still installed.$\r$\n$\r$\nTo continue uninstalling CivicCast (Native), ActiveRuntime ownership must first be transferred to the WSL product, which will then become the active runtime that starts and transmits.$\r$\n$\r$\nTransfer ownership to the WSL product now and continue uninstalling CivicCast (Native)?" /SD IDNO IDYES civiccast_native_transfer_acknowledged
     DetailPrint "CivicCast Native uninstall was declined at the ownership transfer prompt; nothing was removed and ActiveRuntime was left unchanged."
     !insertmacro CIVICCAST_ALERT "CivicCast (Native) uninstall was cancelled. ActiveRuntime ownership was NOT transferred and nothing was removed."
     SetErrors
