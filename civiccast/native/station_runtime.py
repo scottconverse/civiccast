@@ -1418,6 +1418,27 @@ def load_native_station_environment(
     # entrypoint (`python -m civiccast.captions.tap_worker`) is likewise safe
     # run against this same environment.
     caption_tap_disabled = os.environ.get("CIVICCAST_CAPTION_TAP", "").strip().lower() == "off"
+    # Measured Whistle live profile (RC4, 2026-11-03; shipped d4d4ec8d engine,
+    # three simultaneous 90 s RC4 speech channels, 8-core/16-thread CPU).
+    # Whistle uses ~5.5 CPUs per call by itself, so channels stay serialized;
+    # its cost rises steeply with window length. 5 s pieces + 1 s overlap left
+    # words 4.2 s late on average / 8 s worst before two 2 s polls added up
+    # to 4 s more. 3 s pieces + 2 s overlap matched the 5 s word accuracy
+    # (26.0% vs 25.4% against Whisper medium) with words 2.1 s late on average
+    # / 4.6 s worst, at under half the CPU. The scan counts scale with the
+    # 4x faster poll so the overload (30 s) and recovery (6 s per window)
+    # time spans are unchanged. Operator-set values are passed through.
+    whistle_live_profile = {
+        name: os.environ.get(name, "").strip() or default
+        for name, default in (
+            ("CIVICCAST_CAPTION_TAP_SEGMENT_SECONDS", "3"),
+            ("CIVICCAST_CAPTION_TAP_OVERLAP_SECONDS", "2"),
+            ("CIVICCAST_CAPTION_TAP_POLL_SECONDS", "0.5"),
+            ("CIVICCAST_CAPTION_FEED_POLL_SECONDS", "0.5"),
+            ("CIVICCAST_CAPTION_TAP_OVERLOAD_PERSISTENCE_SCANS", "60"),
+            ("CIVICCAST_CAPTION_TAP_RECOVERY_SCANS", "12"),
+        )
+    }
     caption_tap_environment: dict[str, str] = (
         {"CIVICCAST_CAPTION_TAP": "off", "CIVICCAST_CAPTION_TAP_DIR": ""}
         if caption_tap_disabled
@@ -1450,6 +1471,7 @@ def load_native_station_environment(
         "CIVICCAST_NATIVE_STATION_ROOT": str(root),
         "CIVICCAST_NATIVE_STATION_MANIFEST": str(station_path),
         **caption_tap_environment,
+        **whistle_live_profile,
         "CIVICCAST_CAPTION_TAP_ATOMIC": "1",
         "CIVICCAST_CAPTION_RUNTIME": "faster-whisper",
         "CIVICCAST_CAPTION_TIER": tier_id,

@@ -87,6 +87,7 @@ from civiccast.captions.stabilize import CaptionStabilizer
 from civiccast.captions.tap_backoff import (
     DEFAULT_BASE_BACKOFF_SECONDS,
     DEFAULT_MAX_BACKOFF_SECONDS,
+    DEFAULT_RECOVERY_SCANS,
     CaptionBackoffPolicy,
 )
 from civiccast.captions.tap_batch_diagnostic import (
@@ -342,6 +343,8 @@ class CaptionTapWorkerSettings:
     max_channel_workers: int | None = None
     max_backlog_segments: int = 2
     overload_persistence_scans: int = DEFAULT_OVERLOAD_PERSISTENCE_SCANS
+    # Healthy scans per backoff recovery window; scale with poll_seconds.
+    overload_recovery_scans: int = DEFAULT_RECOVERY_SCANS
     overload_backoff_seconds: float = DEFAULT_BASE_BACKOFF_SECONDS
     max_overload_backoff_seconds: float = DEFAULT_MAX_BACKOFF_SECONDS
     # U23 catch-up: how many sheds inside the window before the pause ladder
@@ -393,6 +396,10 @@ class CaptionTapWorkerSettings:
             overload_persistence_scans=_env_int(
                 "CIVICCAST_CAPTION_TAP_OVERLOAD_PERSISTENCE_SCANS",
                 defaults.overload_persistence_scans,
+            ),
+            overload_recovery_scans=_env_int(
+                "CIVICCAST_CAPTION_TAP_RECOVERY_SCANS",
+                defaults.overload_recovery_scans,
             ),
             # A count of episodes, so it must be a whole number; but unlike
             # MAX_BACKLOG_SEGMENTS, 0 is legal and meaningful: it restores the
@@ -2871,6 +2878,7 @@ def build_tap_worker(
         backoff_policy=CaptionBackoffPolicy(
             base_seconds=settings.overload_backoff_seconds,
             max_seconds=settings.max_overload_backoff_seconds,
+            recovery_scans=settings.overload_recovery_scans,
         ),
         is_enabled=is_enabled,
     )

@@ -506,11 +506,13 @@ jobs:
         # 2026-10-19: 2029 pure tests; floor 1983 leaves a 46-test margin.
         # RC4 Expat/npm regressions: 2186 pure tests; floor 2136
         # keeps the standard 50-test margin.
+        # RC4 Whistle live profile: two native env tests, 2188 pure tests;
+        # floor 2138 keeps the standard 50-test margin.
         if: always()
         run: |
           python scripts/verify_native_junit_floor.py \
             --junit junit-native-pure.xml \
-            --floor 2136 \
+            --floor 2138 \
             --label "tests/native pure suite"
 
       - name: Upload junit (ws3 claims-evidence D3/D7)
@@ -897,12 +899,14 @@ jobs:
         # floor2219 keeps that same margin.
         # RC4 native CI collection: 2427 Windows non-integration tests;
         # floor 2377 keeps the standard 50-test margin.
+        # RC4 Whistle live profile: 2429 Windows non-integration tests;
+        # floor 2379 keeps the standard 50-test margin.
         if: always()
         shell: bash
         run: |
           python scripts/verify_native_junit_floor.py \
             --junit junit-native-win.xml \
-            --floor 2377 \
+            --floor 2379 \
             --label "tests/native Windows suite"
 
       - name: Upload Windows native junit
