@@ -1313,6 +1313,7 @@ _CURRENT_ENGINE_DEPENDENCY_MODULES = {
     "civiccast/egress/gst/engine.py",
     "civiccast/egress/gst/caption_flow.py",
     "civiccast/egress/gst/decode_policy.py",
+    "civiccast/egress/gst/optional_props.py",
     "civiccast/egress/gst/graph.py",
     "civiccast/egress/gst/control.py",
     "civiccast/egress/gst/audio_tap.py",

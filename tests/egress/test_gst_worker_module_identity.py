@@ -195,6 +195,9 @@ def test_worker_imports_no_civiccast_package_module(worker_probe: dict[str, Any]
         # the same way as every other sibling for consistency.
         "civiccast.egress.gst.exit_codes",
         "civiccast.egress.gst.graph",
+        # engine.py imports the gi-free optional-property rule (mfh26xenc gop-size)
+        # at module scope -- same identity reasoning as decode_policy.
+        "civiccast.egress.gst.optional_props",
         # B3 fix: engine.py also imports the gi-free reload-switch-mode decoder
         # from this sibling at module scope, same reasoning as decode_policy.
         "civiccast.egress.gst.reload_policy",

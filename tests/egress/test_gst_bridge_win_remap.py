@@ -4,6 +4,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from civiccast.egress.gst.bridge import encode_chain_from_profile, gst_encoder_name
 from civiccast.egress.models import CanonicalProfile
 
@@ -83,3 +85,37 @@ def test_non_mf_encoder_does_not_pin_format() -> None:
         CanonicalProfile(video_codec="h264_nvenc"), encoder_override="nvh264enc"
     )
     assert "format=" not in _video_capsfilter(specs).props["caps"]
+
+
+# --- keyframe cadence (RC4 host run 2026-11-04) -------------------------------
+# The live-HLS sink stream-copies video (captions survive), so segment length IS
+# the encoder's keyframe interval. Only openh264/x264 were pinned; nvh264enc's
+# own default (75 frames) gave 2.5 s segments under a "2 s" playlist target, and
+# mfh264enc's default (-1, "automatic") can mean one keyframe per stream.
+
+
+def _encoder_spec(specs):
+    return next(s for s in specs if s.factory.endswith(("h264enc", "h265enc")))
+
+
+@pytest.mark.parametrize(
+    ("codec", "encoder"),
+    [
+        ("h264_nvenc", "nvh264enc"),
+        ("hevc_nvenc", "nvh265enc"),
+        ("h264_vaapi", "mfh264enc"),
+        ("hevc_vaapi", "mfh265enc"),
+        ("h264_nvenc", "d3d12h264enc"),
+    ],
+)
+def test_hardware_encoders_get_the_profile_keyframe_interval(codec, encoder) -> None:
+    profile = CanonicalProfile(video_codec=codec, gop_size=60)
+    specs = encode_chain_from_profile(profile, encoder_override=encoder)
+    assert _encoder_spec(specs).props["gop-size"] == 60
+
+
+def test_openh264_keeps_its_existing_keyframe_interval() -> None:
+    specs = encode_chain_from_profile(
+        CanonicalProfile(video_codec="libopenh264", gop_size=45), encoder_override="openh264enc"
+    )
+    assert _encoder_spec(specs).props["gop-size"] == 45

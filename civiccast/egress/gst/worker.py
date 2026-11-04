@@ -105,6 +105,9 @@ _sibling_module("audio_tap")  # engine imports RollingWavSegmentWriter from it
 # BEFORE it imports gi -- publish it here or the engine's package-form import of it
 # would drag in the real civiccast.egress package (771 modules, pydantic+sqlalchemy).
 _sibling_module("decode_policy")
+# engine.py imports the gi-free optional-property rule (mfh26xenc gop-size) from
+# this sibling at module scope too -- same reasoning as decode_policy above.
+_sibling_module("optional_props")
 # B3 fix: engine.py also imports the gi-free reload-switch-mode decoder from this
 # sibling at module scope -- same reasoning as decode_policy above.
 reload_policy_mod = _sibling_module("reload_policy")

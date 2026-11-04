@@ -46,11 +46,13 @@ try:  # package context (see the sibling-import note further down for why both f
         demote_hardware_decoders,
         prefer_cpu_decoders_by_default,
     )
+    from civiccast.egress.gst.optional_props import should_set_property
 except ImportError:  # standalone context: the gst dir is on sys.path
     from decode_policy import (  # type: ignore[import-not-found,no-redef]
         demote_hardware_decoders,
         prefer_cpu_decoders_by_default,
     )
+    from optional_props import should_set_property  # type: ignore[import-not-found,no-redef]
 
 # MUST run before ``gi``/GStreamer is imported below: GST_PLUGIN_FEATURE_RANK is read
 # during registry scan, which happens inside Gst.init().
@@ -1309,6 +1311,16 @@ class GstPlayoutEngine:
         if element is None:
             raise RuntimeError(f"GStreamer element factory missing: {spec.factory!r}")
         for key, value in spec.props.items():
+            if not should_set_property(
+                spec.factory, key, lambda name: element.find_property(name) is not None
+            ):
+                print(
+                    f"WARN: {spec.factory} on this device has no {key!r} property; "
+                    "leaving the encoder default (keyframe cadence then follows the device).",
+                    file=sys.stderr,
+                    flush=True,
+                )
+                continue
             element.set_property(
                 key,
                 coerce_serialized_property(

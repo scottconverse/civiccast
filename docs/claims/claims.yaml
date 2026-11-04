@@ -1117,17 +1117,21 @@ entries:
       # and hardware claims are not renewed; these are drift tripwires only.
       code:
         - path: civiccast/egress/gst/worker.py
-          blob: 78d71b73aa5f3ebdf3346a6d685108e19c459f54
+          blob: a942a2b67006c56974d4504ed9453809c9671271
         # Sprint 3: current-source bindings reviewed for output DSP and EOS
         # preservation; focused native results: .agent-runs/native-windows/
         # sprint3-output/evidence/{outputs,eos}.md. Historical acceptance stays
         # historical; these bindings do not certify a new installed package.
         - path: civiccast/egress/gst/engine.py
-          blob: e75e6d661dfda300d8b43dca340ec4620ec7b7a4
+          blob: 62009f226a59d161cd03699387216b7bfdbcb91a
         - path: civiccast/egress/gst/caption_flow.py
           blob: c0c981dfa050e8ca196533c791a99028302c5ca5
         - path: civiccast/egress/gst/decode_policy.py
           blob: 076d4057051dffa2d7ba83bd0982ecebe4e9f33b
+        # 2026-11-04 (RC4 host run): gi-free optional-property rule the engine
+        # imports at module scope (mfh26xenc gop-size may be device-absent).
+        - path: civiccast/egress/gst/optional_props.py
+          blob: 7aca2983961b49a1d58dd93f914c8d8e5767ea13
         - path: civiccast/egress/gst/graph.py
           blob: d3044a541b976f8b03e364c61a74622bf19b61e4
         - path: civiccast/egress/gst/control.py
@@ -2048,17 +2052,21 @@ entries:
       # and hardware claims are not renewed; these are drift tripwires only.
       code:
         - path: civiccast/egress/gst/worker.py
-          blob: 78d71b73aa5f3ebdf3346a6d685108e19c459f54
+          blob: a942a2b67006c56974d4504ed9453809c9671271
         # Sprint 3: current-source bindings reviewed for output DSP and EOS
         # preservation; focused native results: .agent-runs/native-windows/
         # sprint3-output/evidence/{outputs,eos}.md. Historical acceptance stays
         # historical; these bindings do not certify a new installed package.
         - path: civiccast/egress/gst/engine.py
-          blob: e75e6d661dfda300d8b43dca340ec4620ec7b7a4
+          blob: 62009f226a59d161cd03699387216b7bfdbcb91a
         - path: civiccast/egress/gst/caption_flow.py
           blob: c0c981dfa050e8ca196533c791a99028302c5ca5
         - path: civiccast/egress/gst/decode_policy.py
           blob: 076d4057051dffa2d7ba83bd0982ecebe4e9f33b
+        # 2026-11-04 (RC4 host run): gi-free optional-property rule the engine
+        # imports at module scope (mfh26xenc gop-size may be device-absent).
+        - path: civiccast/egress/gst/optional_props.py
+          blob: 7aca2983961b49a1d58dd93f914c8d8e5767ea13
         - path: civiccast/egress/gst/graph.py
           blob: d3044a541b976f8b03e364c61a74622bf19b61e4
         - path: civiccast/egress/gst/control.py
