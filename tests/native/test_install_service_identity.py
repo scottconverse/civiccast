@@ -406,6 +406,63 @@ def test_grant_tree_opens_running_python_image_with_acl_only_access(tmp_path):
     assert "GRANT_SUCCEEDED" in result.stdout
 
 
+def test_recursive_grant_succeeds_while_another_process_works_inside_the_tree(
+    tmp_path, monkeypatch
+):
+    # RC4 Gate A run 41795787409 (2026-11-04) failed a clean install at
+    # d4-service-registration with ERROR_SHARING_VIOLATION from the recursive
+    # program-tree grant. A process whose current directory is inside the tree
+    # (an operator's Explorer or console window, or a helper process) holds that
+    # directory without FILE_SHARE_DELETE, and the MAXIMUM_ALLOWED directory open
+    # requests DELETE for an administrator, so CreateFile refused it.
+    import subprocess
+    import sys
+    import time
+
+    import win32security
+
+    fake_service_sid = "S-1-5-80-1111111111-2222222222-3333333333-1234567890-987654321"
+    monkeypatch.setattr(migration, "SERVICE_SID", fake_service_sid)
+    root = tmp_path / "app"
+    held = root / "runtime" / "Lib"
+    deep = held / "site-packages"
+    deep.mkdir(parents=True)
+    held_file = deep / "module.py"
+    held_file.write_text("x = 1\n", encoding="utf-8")
+    quiet = root / "models"
+    quiet.mkdir()
+    quiet_file = quiet / "blob"
+    quiet_file.write_bytes(b"model")
+
+    def service_aces(path):
+        acl = win32security.GetFileSecurity(
+            str(path), win32security.DACL_SECURITY_INFORMATION
+        ).GetSecurityDescriptorDacl()
+        return [
+            (acl.GetAce(index)[0][1] & win32security.INHERITED_ACE, acl.GetAce(index)[1])
+            for index in range(acl.GetAceCount())
+            if win32security.ConvertSidToStringSid(acl.GetAce(index)[2]) == fake_service_sid
+        ]
+
+    holder = subprocess.Popen(
+        [sys.executable, "-I", "-c", "import time; time.sleep(60)"], cwd=str(held)
+    )
+    try:
+        time.sleep(1.5)
+        assert holder.poll() is None
+        grant_windows_tree(root, "RX")
+    finally:
+        holder.kill()
+        holder.wait()
+
+    for path in (root, held, deep, held_file, quiet, quiet_file):
+        assert (0, 0x001200A9) in service_aces(path), path
+    # Only the directory that was in use may fall back to a propagating grant;
+    # the rest of the tree keeps exactly one explicit, non-inherited grant.
+    for path in (root, quiet, quiet_file):
+        assert service_aces(path) == [(0, 0x001200A9)], path
+
+
 @pytest.mark.parametrize("stop_finishes", [True, False])
 def test_timed_out_migration_waits_for_stopped_before_restoring_environment(
     installed, monkeypatch, stop_finishes

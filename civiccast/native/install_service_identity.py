@@ -132,6 +132,25 @@ def _grantable_members(path: Path, *, recursive: bool) -> list[Path]:
     return members
 
 
+ERROR_SHARING_VIOLATION = 32
+
+
+def _open_for_acl_change(member: Path, desired_access: int):
+    """Open without following a final reparse point, sharing every mode."""
+    import win32con
+    import win32file
+
+    return win32file.CreateFile(
+        str(member),
+        desired_access,
+        win32con.FILE_SHARE_READ | win32con.FILE_SHARE_WRITE | win32con.FILE_SHARE_DELETE,
+        None,
+        win32con.OPEN_EXISTING,
+        win32file.FILE_FLAG_BACKUP_SEMANTICS | win32file.FILE_FLAG_OPEN_REPARSE_POINT,
+        None,
+    )
+
+
 def _grant_tree_native_sid(
     members: list[Path], rights: str, *, propagate_to_children: bool = False
 ) -> None:
@@ -146,6 +165,7 @@ def _grant_tree_native_sid(
     unprotected children.
     """
 
+    import pywintypes
     import win32con
     import win32file
     import win32security
@@ -165,20 +185,33 @@ def _grant_tree_native_sid(
         if attributes & stat.FILE_ATTRIBUTE_REPARSE_POINT:
             continue
         is_directory = bool(attributes & stat.FILE_ATTRIBUTE_DIRECTORY)
+        acl_only_access = win32con.READ_CONTROL | win32con.WRITE_DAC
         desired_access = (
             win32con.MAXIMUM_ALLOWED
             if is_directory and not propagate_to_children
-            else win32con.READ_CONTROL | win32con.WRITE_DAC
+            else acl_only_access
         )
-        handle = win32file.CreateFile(
-            str(member),
-            desired_access,
-            win32con.FILE_SHARE_READ | win32con.FILE_SHARE_WRITE | win32con.FILE_SHARE_DELETE,
-            None,
-            win32con.OPEN_EXISTING,
-            win32file.FILE_FLAG_BACKUP_SEMANTICS | win32file.FILE_FLAG_OPEN_REPARSE_POINT,
-            None,
-        )
+        try:
+            handle = _open_for_acl_change(member, desired_access)
+        except pywintypes.error as exc:
+            # A directory that another process is working in (its current
+            # directory handle does not share DELETE) refuses MAXIMUM_ALLOWED,
+            # which includes DELETE for an administrator. ACL-only access never
+            # conflicts; its one cost is that Windows also pushes this inheritable
+            # grant to the directory's unprotected descendants, which receive the
+            # same explicit grant below anyway.
+            if exc.winerror != ERROR_SHARING_VIOLATION or desired_access == acl_only_access:
+                raise RuntimeError(
+                    f"Could not open {member} to grant restricted service access: {exc.strerror} "
+                    f"(Windows error {exc.winerror})"
+                ) from exc
+            try:
+                handle = _open_for_acl_change(member, acl_only_access)
+            except pywintypes.error as retry_exc:
+                raise RuntimeError(
+                    f"Could not open {member} to grant restricted service access: "
+                    f"{retry_exc.strerror} (Windows error {retry_exc.winerror})"
+                ) from retry_exc
         try:
             info = win32file.GetFileInformationByHandle(handle)
             if (

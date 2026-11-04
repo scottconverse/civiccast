@@ -412,12 +412,34 @@ fn run_and_check(program: &Path, args: &[String], what: &str) -> Result<(), Stri
     if output.status.success() {
         Ok(())
     } else {
-        Err(format!(
-            "{what} failed (exit {:?}): {}{}",
+        Err(child_failure_message(
+            what,
             output.status.code(),
-            String::from_utf8_lossy(&output.stdout),
-            String::from_utf8_lossy(&output.stderr)
+            &String::from_utf8_lossy(&output.stdout),
+            &String::from_utf8_lossy(&output.stderr),
         ))
+    }
+}
+
+/// The installer's progress log keeps only the first 1024 characters of this
+/// message (NSIS string limit), and a Python traceback puts its actual error
+/// LAST. Lead with the final non-empty output line, then keep everything.
+#[cfg_attr(not(target_os = "windows"), allow(dead_code))]
+pub(crate) fn child_failure_message(
+    what: &str,
+    code: Option<i32>,
+    stdout: &str,
+    stderr: &str,
+) -> String {
+    let combined = format!("{stdout}{stderr}");
+    let last_line = combined
+        .lines()
+        .rev()
+        .map(str::trim)
+        .find(|line| !line.is_empty());
+    match last_line {
+        Some(last) => format!("{what} failed (exit {code:?}): {last} | full output: {combined}"),
+        None => format!("{what} failed (exit {code:?}): (no output)"),
     }
 }
 
@@ -3414,6 +3436,30 @@ mod control_plane_readiness_tests {
 mod tests {
     use super::*;
     use ed25519_dalek::SigningKey;
+
+    #[test]
+    fn a_failed_child_leads_with_its_final_error_line_before_the_full_output() {
+        // RC4 Gate A run 41795787409: NSIS keeps only the first 1024 characters
+        // of this message, so a Python traceback hid its own final exception.
+        let traceback = format!(
+            "Traceback (most recent call last):\n{}RuntimeError: Could not open C:\\x to grant restricted service access (Windows error 32)\n\n",
+            "  File \"frame.py\", line 1, in <module>\n".repeat(40)
+        );
+        let message = child_failure_message("Service tool", Some(1), "", &traceback);
+        assert!(message.starts_with(
+            "Service tool failed (exit Some(1)): RuntimeError: Could not open C:\\x to grant restricted service access (Windows error 32)"
+        ));
+        assert!(message.len() < 1024 || message[..1024].contains("Windows error 32"));
+        assert!(message.contains("Traceback (most recent call last):"));
+
+        let quiet = child_failure_message("Service tool", Some(2), "", "  \n");
+        assert_eq!(quiet, "Service tool failed (exit Some(2)): (no output)");
+        let stdout_only = child_failure_message("Service tool", None, "last words\n", "");
+        assert_eq!(
+            stdout_only,
+            "Service tool failed (exit None): last words | full output: last words\n"
+        );
+    }
 
     #[test]
     fn provision_command_invokes_the_embedded_interpreter_with_the_provisioning_module() {

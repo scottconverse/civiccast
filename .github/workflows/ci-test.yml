@@ -905,12 +905,14 @@ jobs:
         # floor 2379 keeps the standard 50-test margin.
         # RC4 OpenSSL stale-cache rebuild: 2433 Windows non-integration tests;
         # floor 2383 keeps the standard 50-test margin.
+        # RC4 service-identity sharing-violation fix: 2434 Windows
+        # non-integration tests; floor 2384 keeps the standard 50-test margin.
         if: always()
         shell: bash
         run: |
           python scripts/verify_native_junit_floor.py \
             --junit junit-native-win.xml \
-            --floor 2383 \
+            --floor 2384 \
             --label "tests/native Windows suite"
 
       - name: Upload Windows native junit

@@ -1222,7 +1222,8 @@ def test_native_marker_collections_match_the_workflow_floors() -> None:
     # RC4 Whistle live profile adds two portable native env cases, measured
     # by this test's own collection: 2188 pure / 2433 total.
     # RC4 OpenSSL stale-cache rebuild adds four portable cases: 2192 / 2437.
-    assert (collect("not windows_only"), collect()) == (2192, 2437)
+    # RC4 service-identity sharing-violation fix adds one Windows case: 2192 / 2438.
+    assert (collect("not windows_only"), collect()) == (2192, 2438)
 
 
 def test_linux_unit_job_runs_native_tests_once_in_the_dedicated_pure_lane() -> None:
