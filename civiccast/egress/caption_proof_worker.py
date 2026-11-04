@@ -273,6 +273,11 @@ def capture_emitted_segment(
             # Otherwise ffmpeg can immediately copy six cached seconds from a
             # rolling window before the healthy publisher has time to advance.
             args.insert(args.index("-i"), "-re")
+            # Read from the first listed segment. Joined at FFmpeg's default live
+            # point (3 segments from the end) the shipped build measured the input
+            # -t from the window start and wrote ZERO bytes with exit 0, so every
+            # proof sample was "capture unavailable" (RC4 host run 2026-11-04).
+            args[args.index("-i") : args.index("-i")] = ["-live_start_index", "0"]
     # Preserve the emitted transport clock, including wrap, rather than
     # replacing the capture's epoch with ffmpeg's default near-zero clock.
     args.insert(0, "-copyts")
