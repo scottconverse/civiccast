@@ -61,6 +61,7 @@ import shutil
 import subprocess
 import sys
 import uuid
+import zipfile
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -624,6 +625,57 @@ def _verify_host_precondition_attestation(
         )
 
 
+def _pep440_version(version: str) -> str:
+    """Map a release version (``X.Y.Z``, ``X.Y.Z-beta.N``, ``X.Y.Z-rc.N``) to PEP 440.
+
+    The installed app manifest records the Python package version, so
+    ``1.0.0-beta.12`` -> ``1.0.0b12`` and ``1.0.0-rc.4`` -> ``1.0.0rc4``.
+    Any other shape is refused rather than passed through unchanged.
+    """
+
+    match = re.fullmatch(r"(\d+\.\d+\.\d+)(?:-(beta|rc)\.(\d+))?", version)
+    if match is None:
+        raise PublishError(f"unsupported candidate version for PEP 440 mapping: {version!r}")
+    base, stage, number = match.groups()
+    if stage is None:
+        return base
+    return f"{base}{'b' if stage == 'beta' else 'rc'}{number}"
+
+
+def _channel_repeat_schedules_proved(state: dict[str, Any]) -> bool:
+    """True only when every live channel's per-channel repeat_schedule is True.
+
+    Since migration 0098 each channel's ``repeat_schedule`` overrides the old
+    global CIVICCAST_SCHEDULE_LOOP switch, so a host that loops through
+    per-channel schedules proves looping with exactly these three entries.
+    """
+
+    schedules = state.get("channel_repeat_schedules")
+    return (
+        isinstance(schedules, dict)
+        and set(schedules) == set(DIRECT_CHANNELS)
+        and all(schedules[channel] is True for channel in DIRECT_CHANNELS)
+    )
+
+
+def _host_schedule_loop_proved(before: dict[str, Any] | None, after: dict[str, Any]) -> bool:
+    """Prove the schedule loop in BOTH snapshots through one consistent route.
+
+    Either the original global ``schedule_loop_enabled is True`` in both
+    snapshots, or ``channel_repeat_schedules`` mapping exactly public,
+    government, and education to True in both snapshots. ``before`` is None
+    only for the attested Beta 14 route, whose attestation proves the
+    precondition; that route keeps its original after-state check unchanged.
+    """
+
+    if before is None:
+        return after.get("schedule_loop_enabled") is True
+    states = (before, after)
+    return all(state.get("schedule_loop_enabled") is True for state in states) or all(
+        _channel_repeat_schedules_proved(state) for state in states
+    )
+
+
 def _verify_physical_host_consumer(
     *,
     receipt_dir: Path,
@@ -755,7 +807,6 @@ def _verify_physical_host_consumer(
                 or not before.get("display_version")
                 or before_health.get("version") != before.get("display_version")
                 or before.get("install_location") != after.get("install_location")
-                or before.get("schedule_loop_enabled") is not True
             )
         )
         or after.get("service_state") != "Running"
@@ -768,7 +819,7 @@ def _verify_physical_host_consumer(
                 or after_health.get("schema") != "current"
             )
         )
-        or after.get("schedule_loop_enabled") is not True
+        or not _host_schedule_loop_proved(None if attested_before else before, after)
     ):
         raise PublishError(
             f"physical-host receipt does not prove a healthy in-place {candidate_version} install"
@@ -793,7 +844,7 @@ def _verify_physical_host_consumer(
         civiccast.get("source_state"), label="installed manifest source identity"
     )
     if (
-        civiccast.get("version") != re.sub(r"-beta\.(\d+)$", r"b\1", candidate_version)
+        civiccast.get("version") != _pep440_version(candidate_version)
         or str(source_state.get("head", "")).casefold() != artifact_source_sha.casefold()
         or source_state.get("dirty") is not False
     ):
@@ -2537,6 +2588,74 @@ def verify_gh_auth() -> None:
         )
 
 
+RUNTIME_PACK_ZIP_SUFFIX = ".zip"
+_ZIP_FIXED_DATE_TIME = (1980, 1, 1, 0, 0, 0)
+
+
+def stage_runtime_pack_assets(packs: list[Path], staging_dir: Path) -> list[Path]:
+    """Return the runtime-pack upload set, zip-wrapping any pack over the asset cap.
+
+    A pack at or above GITHUB_ASSET_LIMIT_BYTES is published as
+    ``<pack>.ccpack.zip``: a deterministic single-entry DEFLATE archive whose
+    one entry is named exactly ``<pack>.ccpack`` with the pack's full length,
+    which is what scripts/download_windows_release_artifacts.ps1 extracts and
+    re-verifies. SHA256SUMS.txt must still list the inner pack (the caller
+    keeps it in the checksum set) as well as the zip. Packs under the cap are
+    returned unchanged. A zip that is still too large is refused later by
+    preflight_asset_limits, which checks the returned upload set.
+    """
+
+    upload: list[Path] = []
+    for pack in packs:
+        size = pack.stat().st_size
+        if size < GITHUB_ASSET_LIMIT_BYTES:
+            upload.append(pack)
+            continue
+        staging_dir.mkdir(parents=True, exist_ok=True)
+        zip_path = staging_dir / f"{pack.name}{RUNTIME_PACK_ZIP_SUFFIX}"
+        temporary = zip_path.with_name(f"{zip_path.name}.{uuid.uuid4().hex}.tmp")
+        print(f"publish_beta_candidate: zip-wrapping oversize runtime pack {pack.name}")
+        try:
+            info = zipfile.ZipInfo(pack.name, date_time=_ZIP_FIXED_DATE_TIME)
+            info.compress_type = zipfile.ZIP_DEFLATED
+            info.external_attr = 0o644 << 16
+            info.file_size = size
+            with (
+                zipfile.ZipFile(temporary, "w") as archive,
+                pack.open("rb") as source,
+                archive.open(info, "w") as target,
+            ):
+                shutil.copyfileobj(source, target, length=8 * 1024 * 1024)
+            expected = sha256_file(pack).casefold()
+            with zipfile.ZipFile(temporary) as archive:
+                entries = archive.infolist()
+                if (
+                    len(entries) != 1
+                    or entries[0].filename != pack.name
+                    or entries[0].file_size != size
+                ):
+                    raise PublishError(f"staged {zip_path.name} is not a single exact-pack entry")
+                digest = hashlib.sha256()
+                with archive.open(entries[0]) as stream:
+                    for chunk in iter(lambda: stream.read(8 * 1024 * 1024), b""):
+                        digest.update(chunk)
+            if digest.hexdigest().casefold() != expected:
+                raise PublishError(f"staged {zip_path.name} does not round-trip {pack.name} bytes")
+            temporary.replace(zip_path)
+        finally:
+            temporary.unlink(missing_ok=True)
+        upload.append(zip_path)
+    return upload
+
+
+def release_title(tag: str) -> str:
+    """Name -rc.N tags as release candidates; every other tag keeps the beta title."""
+
+    if re.fullmatch(r"v\d+\.\d+\.\d+-rc\.\d+", tag):
+        return f"CivicCast {tag} (Release Candidate)"
+    return f"CivicCast {tag} (Beta Candidate)"
+
+
 def preflight_asset_limits(asset_paths: list[Path]) -> None:
     """Refuse BEFORE any remote mutation if any asset is >= GitHub's 2 GiB cap.
 
@@ -2904,7 +3023,18 @@ def _run(args: argparse.Namespace) -> None:
     helper_asset = repo_root / "scripts" / "download_windows_release_artifacts.ps1"
     if not helper_asset.is_file():
         raise PublishError(f"release-matched Windows downloader is missing: {helper_asset}")
-    all_files = [setup_asset, *packs, *manual_files, *station_assets, helper_asset]
+    # Oversize runtime packs upload as single-entry zips; SHA256SUMS.txt lists
+    # both the inner pack and its zip, as the release downloader verifies both.
+    pack_assets = stage_runtime_pack_assets(packs, out_dir / "assets")
+    zipped_packs = [path for path in pack_assets if path not in packs]
+    all_files = [
+        setup_asset,
+        *packs,
+        *zipped_packs,
+        *manual_files,
+        *station_assets,
+        helper_asset,
+    ]
     sha256sums = build_sha256sums(all_files)
     sidecar = build_sidecar(setup_asset, signed=True)
     sidecar_filename = f"{setup_asset.name}{SIDECAR_SUFFIX}"
@@ -2919,7 +3049,7 @@ def _run(args: argparse.Namespace) -> None:
     sha256sums_path.write_text(sha256sums, encoding="utf-8", newline="\n")
     asset_paths = [
         setup_asset,
-        *packs,
+        *pack_assets,
         *manual_files,
         *station_assets,
         helper_asset,
@@ -2952,7 +3082,7 @@ def _run(args: argparse.Namespace) -> None:
 
     notes_file = out_dir / "RELEASE-NOTES.md"
     notes_file.write_text(notes, encoding="utf-8", newline="\n")
-    title = f"CivicCast {tag} (Beta Candidate)"
+    title = release_title(tag)
     asset_names = " ".join(p.name for p in asset_paths)
 
     if args.dry_run:
