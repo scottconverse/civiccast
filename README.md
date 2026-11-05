@@ -15,6 +15,7 @@ Its source tag is commit `c1281fdb`; the signed artifacts were built from
 `d86e1faeaa6284bd646211cb2592a4ceaf930dfafb539b717d14c26005a53f8d`,
 a valid Authenticode signature and signer `CN=Scott Converse`. The
 [RC4 release notes](docs/releases/v1.0.0-rc.4-release-notes.md) identify the package, its verification and its known issues.
+The [RC4 preparation record](docs/releases/v1.0.0-rc.4-verification.md) keeps the checks of the earlier rc.4 kit.
 It replaces [`v1.0.0-rc.3`](https://github.com/scottconverse/civiccast-native/releases/tag/v1.0.0-rc.3),
 whose [package record](docs/releases/v1.0.0-rc.3-verification.md) is retained as history.
 Windows 11 is the verified platform.
