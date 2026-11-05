@@ -14,6 +14,7 @@ import pytest
 
 from civiccast.captions.models import CaptionCue
 from civiccast.egress.caption_proof import (
+    DEFAULT_CAPTION_PROOF_TIMEOUT_SECONDS,
     GST_CC_ELEMENTS,
     build_caption_status_provider,
     caption_lane_report,
@@ -95,7 +96,7 @@ def test_decode_embedded_captions_times_out_fail_closed() -> None:
         raise subprocess.TimeoutExpired(args, timeout)
 
     assert decode_embedded_captions(Path("out.ts"), runner=timed_out_runner) == []
-    assert seen["timeout"] == 15.0
+    assert seen["timeout"] == DEFAULT_CAPTION_PROOF_TIMEOUT_SECONDS
     assert (
         decode_embedded_captions(
             Path("out.ts"), runner=lambda _a: _result(returncode=1, stdout=_SRT)

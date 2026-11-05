@@ -13,6 +13,10 @@ from typing import Any
 import pytest
 
 from civiccast.captions.models import CaptionCue
+from civiccast.egress.caption_proof import (
+    DEFAULT_CAPTION_PROOF_CAPTURE_SECONDS,
+    DEFAULT_CAPTION_PROOF_TIMEOUT_SECONDS,
+)
 from civiccast.egress.caption_proof_worker import (
     CaptionProofWorker,
     _emitted_stream_target,
@@ -279,12 +283,12 @@ def test_hls_capture_reads_advertised_manifest_with_bounded_preserved_clock(
     assert "playlist.mux.m3u8" not in " ".join(args)
     assert "-sseof" not in args
     assert args.index("-re") < args.index("-i")
-    assert args[args.index("-t") + 1] == "6"
+    assert args[args.index("-t") + 1] == f"{DEFAULT_CAPTION_PROOF_CAPTURE_SECONDS:g}"
     assert args.index("-t") < args.index("-i")
     assert "-copyts" in args
     assert args[args.index("-mpegts_copyts") + 1] == "1"
     assert args[args.index("-c") + 1] == "copy"
-    assert seen["timeout"] == 15.0
+    assert seen["timeout"] == DEFAULT_CAPTION_PROOF_TIMEOUT_SECONDS
 
 
 def test_hls_capture_reads_the_whole_window_so_the_duration_limit_cannot_be_spent_before_reading(
@@ -392,7 +396,7 @@ def test_capture_passes_a_bounded_timeout_and_fails_closed_on_timeout(tmp_path) 
     )
 
     assert captured is None
-    assert seen["timeout"] == 15.0
+    assert seen["timeout"] == DEFAULT_CAPTION_PROOF_TIMEOUT_SECONDS
     assert not (tmp_path / "gov" / "caption-proof" / "segment.ts").exists()
 
 
