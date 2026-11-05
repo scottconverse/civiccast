@@ -1854,6 +1854,55 @@ class GstPlayoutEngine:
         self._caption_audio_cutoff_ns = cutoff_ns
         return token, first_segment
 
+    #: F7: a caption boundary publish that still fails after the writer's own short
+    #: retry is retried from the main loop instead of failing the programme
+    #: hand-over (RC4 field run: a Windows sharing denial raised out of the reload
+    #: commit and the commit watchdog restarted the worker, ~15 s of slate).
+    _CAPTION_BOUNDARY_RETRY_MS: ClassVar[int] = 200
+    _CAPTION_BOUNDARY_RETRY_LIMIT: ClassVar[int] = 25
+
+    def _publish_caption_boundary(self, writer: Any, token: str, first_segment: int) -> None:
+        try:
+            writer.publish_program_boundary(token, first_segment)
+        except OSError as exc:
+            print(
+                f"WARNING: caption program boundary not published yet ({exc!r}); "
+                "the programme hand-over continues and the boundary is retried",
+                file=sys.stderr,
+                flush=True,
+            )
+            state = {"left": self._CAPTION_BOUNDARY_RETRY_LIMIT}
+            GLib.timeout_add(
+                self._CAPTION_BOUNDARY_RETRY_MS,
+                self._retry_caption_boundary,
+                writer,
+                token,
+                first_segment,
+                state,
+            )
+
+    def _retry_caption_boundary(
+        self, writer: Any, token: str, first_segment: int, state: dict[str, int]
+    ) -> bool:
+        """GLib timeout: publish a deferred boundary; False stops the timer."""
+        if token != getattr(self, "_caption_program_token", None):
+            return False  # a newer programme owns the boundary now
+        try:
+            writer.publish_program_boundary(token, first_segment)
+        except OSError as exc:
+            state["left"] -= 1
+            if state["left"] > 0:
+                return True
+            print(
+                f"ERROR: caption program boundary could not be published ({exc!r}); "
+                "captions for this programme may carry over from the previous one",
+                file=sys.stderr,
+                flush=True,
+            )
+            return False
+        print("CTRL caption: program boundary published after retry", file=sys.stderr, flush=True)
+        return False
+
     def _finish_caption_program(
         self, token: str, cutoff_ns: int, first_segment: int | None
     ) -> bool:
@@ -1868,7 +1917,7 @@ class GstPlayoutEngine:
             return False
         writer = getattr(self, "audio_tap_writer", None)
         if writer is not None and first_segment is not None:
-            writer.publish_program_boundary(token, first_segment)
+            self._publish_caption_boundary(writer, token, first_segment)
         if getattr(self, "caption_appsrc", None) is None:
             if token == self._caption_program_token:
                 self._caption_fence_pending = False

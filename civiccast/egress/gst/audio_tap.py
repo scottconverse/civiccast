@@ -87,6 +87,28 @@ _SEGMENT_RE: Final[re.Pattern[str]] = re.compile(r"chunk-(\d{6})\.wav(?:\.partia
 #: failure mode is worse than a loud, immediate one.
 _MAX_SEGMENT_INDEX: Final[int] = 999_999
 
+#: F7 (RC4 field run): ``program-boundary.json`` is replaced by the engine and read
+#: by the separate caption worker. On Windows a reader's plain ``open`` (no
+#: FILE_SHARE_DELETE) makes a concurrent replace fail with ERROR_ACCESS_DENIED,
+#: and a replace in flight can deny the reader. The reader holds the file for
+#: microseconds, so a short bounded retry clears it. The publish runs on the
+#: engine main loop, so the whole budget stays at 0.2 s.
+SHARING_RETRY_ATTEMPTS: Final[int] = 20
+SHARING_RETRY_DELAY_S: Final[float] = 0.01
+
+
+def _retry_sharing_denial[T](operation: Callable[[], T]) -> T:
+    """Run a small file operation, retrying a transient Windows sharing denial."""
+    for attempt in range(SHARING_RETRY_ATTEMPTS):
+        try:
+            return operation()
+        except PermissionError:
+            if attempt == SHARING_RETRY_ATTEMPTS - 1:
+                raise
+            time.sleep(SHARING_RETRY_DELAY_S)
+    raise AssertionError("unreachable")  # pragma: no cover
+
+
 #: How many finished-but-unpublished segments the writer thread's queue holds
 #: before it starts dropping the OLDEST one to accept a new one. 8 segments
 #: at the default 5s ``segment_seconds`` is 40s of caption audio buffered
@@ -141,7 +163,8 @@ def read_segment_start_seconds(path: Path) -> float | None:
 def read_program_boundary(tap_dir: Path) -> tuple[str, int]:
     """Read the selected-audio writer's atomic program fence (legacy: no fence)."""
     try:
-        payload = json.loads((tap_dir / "program-boundary.json").read_text())
+        boundary = tap_dir / "program-boundary.json"
+        payload = json.loads(_retry_sharing_denial(boundary.read_text))
     except FileNotFoundError:
         return "", 0
     token, first_segment = payload["token"], payload["first_segment"]
@@ -451,7 +474,7 @@ class RollingWavSegmentWriter:
         target = self.tap_dir / "program-boundary.json"
         temporary = target.with_suffix(".tmp")
         temporary.write_text(json.dumps({"token": token, "first_segment": first_segment}))
-        temporary.replace(target)
+        _retry_sharing_denial(lambda: temporary.replace(target))
 
     def write_pcm_s16le(
         self,
