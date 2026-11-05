@@ -7,14 +7,13 @@
 
 ## Current Release State
 
-`v1.0.0-rc.3` is the current signed public release. Download the complete kit from its [release page](https://github.com/scottconverse/civiccast-native/releases/tag/v1.0.0-rc.3),
+`v1.0.0-rc.4` is the current signed public release. Download the complete kit from its [release page](https://github.com/scottconverse/civiccast-native/releases/tag/v1.0.0-rc.4),
 and use that release's `SHA256SUMS.txt`, installer signature and station/pack
-manifests to verify the bytes you receive. The [RC3 verification
-record](../releases/v1.0.0-rc.3-verification.md) identifies the exact
-signed package and its scoped checks. RC4 is an unpublished candidate; its
-[verification record](../releases/v1.0.0-rc.4-verification.md) identifies the
-separate artifact, installed evidence and material limitations. Tagging and
-publication require Scott's separate OK. Earlier installation results remain
+manifests to verify the bytes you receive. The [RC4 release
+notes](../releases/v1.0.0-rc.4-release-notes.md) identify the exact signed
+package (`setup.exe` SHA-256 `d86e1faeaa6284bd646211cb2592a4ceaf930dfafb539b717d14c26005a53f8d`,
+Authenticode Valid, signer `CN=Scott Converse`), its verification and its
+known issues. Earlier installation results remain
 in their own verification records.
 [release-truth.yaml](../releases/release-truth.yaml)
 is the authored release-state record. Watch the official native release page,
@@ -36,7 +35,7 @@ upgrade-baseline kit.
 This page explains how an operator should verify a CivicCast Windows setup
 download before running it.
 
-For the published RC3 interface, use the Help installed with RC3 or the manual assets from its release page. Repository manual revisions may contain later editorial corrections; source changes do not update an installed station.
+For the published RC4 interface, use the Help installed with RC4 or the manual assets from its release page. Repository manual revisions may contain later editorial corrections; source changes do not update an installed station.
 
 ## Read The Release Docs First
 

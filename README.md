@@ -8,24 +8,17 @@ has no per-minute software fee.
 
 ## Current published package
 
-[`v1.0.0-rc.3`](https://github.com/scottconverse/civiccast-native/releases/tag/v1.0.0-rc.3)
-is the current published native Windows pre-release. The [RC3 package record](docs/releases/v1.0.0-rc.3-verification.md)
-identifies its signed source, reused Beta20 model packs and verification limits.
-R9 clean installation and encrypted backup creation passed. Viewer picture/label
-and caption timing findings remain unresolved; the local Beta20 upgrade failed
-its pre-migration backup and recovered. Publication is not proof that those
-operator outcomes passed. Human language review remains pending and nonblocking.
-
-## Unpublished source candidate
-
-`v1.0.0-rc.4` is an unpublished candidate and is not available as a public release.
-Its current corrections address fractional repeat boundaries, selected-frame timestamps,
-overlapping report airtime and unavailable caption proof. The
-[RC4 preparation record](docs/releases/v1.0.0-rc.4-verification.md) distinguishes
-source checks from required CI, signed packaging and installed acceptance still
-pending for this candidate. Speech-caption synchronization and coverage remain
-unresolved. Source changes do not update an installed station or replace the
-published RC3 downloads below.
+[`v1.0.0-rc.4`](https://github.com/scottconverse/civiccast-native/releases/tag/v1.0.0-rc.4)
+is the current published native Windows pre-release (published November 5, 2026).
+Its source tag is commit `c1281fdb`; the signed artifacts were built from
+`a3bb99a4` in build run 42005343731. The signed `setup.exe` has SHA-256
+`d86e1faeaa6284bd646211cb2592a4ceaf930dfafb539b717d14c26005a53f8d`,
+a valid Authenticode signature and signer `CN=Scott Converse`. The
+[RC4 release notes](docs/releases/v1.0.0-rc.4-release-notes.md) identify the package, its verification and its known issues.
+The [RC4 preparation record](docs/releases/v1.0.0-rc.4-verification.md) keeps the checks of the earlier rc.4 kit.
+It replaces [`v1.0.0-rc.3`](https://github.com/scottconverse/civiccast-native/releases/tag/v1.0.0-rc.3),
+whose [package record](docs/releases/v1.0.0-rc.3-verification.md) is retained as history.
+Windows 11 is the verified platform.
 
 ## Previous published package (Beta 19)
 
@@ -55,12 +48,12 @@ identities are recorded in
 
 ## Install and run
 
-Download the signed RC3 station with the Windows helper. It obtains the installer, runtime packs and required station models, verifies them, and installs without separately installed development tools. Use Windows 11 x64 and a Windows administrator account. Allow about **100 GB free** when preparation and installation share a drive (including roughly **22 GB of model downloads**), plus recording space. Keep the complete kit for offline installation:
+Download the signed RC4 station with the Windows helper. It obtains the installer, runtime packs and required station models, verifies them, and installs without separately installed development tools. Use Windows 11 x64 and a Windows administrator account. Allow about **100 GB free** when preparation and installation share a drive (including roughly **22 GB of model downloads**), plus recording space. Keep the complete kit for offline installation:
 
 ```powershell
-$installerScript = Join-Path $env:TEMP 'CivicCast-Install-RC3.ps1'
-Invoke-WebRequest -UseBasicParsing -Uri 'https://github.com/scottconverse/civiccast-native/releases/download/v1.0.0-rc.3/download_windows_release_artifacts.ps1' -OutFile $installerScript
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installerScript -Tag v1.0.0-rc.3 -Version 1.0.0-rc.3 -Install -Destination "$env:USERPROFILE\Downloads\CivicCast-RC3"
+$installerScript = Join-Path $env:TEMP 'CivicCast-Install-RC4.ps1'
+Invoke-WebRequest -UseBasicParsing -Uri 'https://github.com/scottconverse/civiccast-native/releases/download/v1.0.0-rc.4/download_windows_release_artifacts.ps1' -OutFile $installerScript
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installerScript -Tag v1.0.0-rc.4 -Version 1.0.0-rc.4 -Install -Destination "$env:USERPROFILE\Downloads\CivicCast-RC4"
 ```
 
 Keep the PowerShell window open until it reports **Done**. During silent setup,
@@ -70,14 +63,14 @@ names the step in progress. If a download is interrupted, rerun the same command
 
 See [Install CivicCast on Windows](INSTALL-WINDOWS.md) for first setup, existing installations, offline copies and password recovery. Open **CivicCast Operator Console** after setup finishes.
 
-The [source manual](docs/USER-MANUAL.md) describes the candidate controls. The published RC3 manual ([PDF](https://github.com/scottconverse/civiccast-native/releases/download/v1.0.0-rc.3/USER-MANUAL.pdf), [Word](https://github.com/scottconverse/civiccast-native/releases/download/v1.0.0-rc.3/USER-MANUAL.docx)) covers that package's operation, installation and architecture. Online manual revisions reach installed copies with a replacement application package. Additional guides: [Admin](docs/admin-guide.md), [Meeting Operator](docs/meeting-operator-guide.md), [Records Clerk](docs/records-clerk-guide.md) and [Tester Start Here](docs/tester/START-HERE.md).
+The [source manual](docs/USER-MANUAL.md) describes the current controls. The published RC4 manual ([PDF](https://github.com/scottconverse/civiccast-native/releases/download/v1.0.0-rc.4/USER-MANUAL.pdf), [Word](https://github.com/scottconverse/civiccast-native/releases/download/v1.0.0-rc.4/USER-MANUAL.docx)) covers that package's operation, installation and architecture. Online manual revisions reach installed copies with a replacement application package. Additional guides: [Admin](docs/admin-guide.md), [Meeting Operator](docs/meeting-operator-guide.md), [Records Clerk](docs/records-clerk-guide.md) and [Tester Start Here](docs/tester/START-HERE.md).
 
 ### Developer — run from source, contribute
 
 Source contributors can inspect the [station operations record](docs/ops/station-operations-goal.md),
 [Sprint 2](docs/ops/sprint2-unattended.md), and
 [Sprint 3](docs/ops/sprint3-output-completion.md) for the implementation scope
-and focused evidence behind Beta 16. Use the current published RC3
+and focused evidence behind Beta 16. Use the current published RC4
 release page for installation.
 
 ```bash
@@ -149,8 +142,8 @@ apps. The [Roadmap Status Manifest](docs/spec/3.0/ROADMAP.status.yaml) is a
 repo-verified, fail-closed manifest that checks each spec item's claimed
 status against evidence that actually exists on disk; treat "Built" there
 as "the code and its tests exist," not as a field-proven claim for this
-release. The [RC3 verification record](docs/releases/v1.0.0-rc.3-verification.md)
-describes the current published package boundary and scoped acceptance, and the Beta 11
+release. The [RC4 release notes](docs/releases/v1.0.0-rc.4-release-notes.md)
+describe the current published package boundary, verification and known issues, and the Beta 11
 host report is separately scoped historical runtime evidence.
 
 Proprietary-appliance capabilities are **out of scope** for V1 by explicit

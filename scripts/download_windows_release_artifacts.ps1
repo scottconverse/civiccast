@@ -18,7 +18,7 @@ Two asset-set families are supported:
     constants by tests/policy/test_windows_release_downloader.py so the two
     cannot drift.
 
-The defaults target the published RC3 release and reuse its unchanged Beta20 model packs.
+The defaults target the published RC4 release, whose station models are downloaded as the multipart station-models.zip bundle.
 For a historical release, specify `-Tag`; `-Version`, if supplied, must match for that release.
 
   ProofKit / TesterPackage / All (the retired WSL2 rc line's shape): fetch the
@@ -30,7 +30,7 @@ For a historical release, specify `-Tag`; `-Version`, if supplied, must match fo
 [CmdletBinding()]
 param(
   [string]$Repository = "scottconverse/civiccast-native",
-  [string]$Tag = "v1.0.0-rc.3",
+  [string]$Tag = "v1.0.0-rc.4",
   [string]$Version = "",
   [ValidateSet("", "NativeCandidate", "ProofKit", "TesterPackage", "All")]
   [string]$AssetSet = "",

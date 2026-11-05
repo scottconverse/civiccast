@@ -25,10 +25,10 @@ community-driven; there is no commercial support contract or SLA.
    repository). Examples: whether CivicCast is a fit for an HOA,
    public-access station, school board, or nonprofit workflow.
 
-The RC3 source manual describes candidate station operation, scheduling,
+The source manual describes current station operation, scheduling,
 output and recorded-caption settings. For an installed station, use the Help
 bundled with its release or the matching manual assets from that release page.
-RC3 is published. Its clean installation and encrypted backups passed on R9; picture/label and caption timing findings remain unresolved. Subsequent source corrections and local upgrade acceptance remain pending. Source changes do not update an installed station.
+RC4 is published ([release notes](docs/releases/v1.0.0-rc.4-release-notes.md)). Its known issues are listed there. Source changes after publication do not update an installed station.
 
 ## Retired WSL2 Support History
 
@@ -60,14 +60,14 @@ enabled throwaway development.
 ## Native Windows Beta
 
 The native Windows runtime ([ADR 0021](docs/adr/0021-native-windows-runtime.md))
-is a public beta. The current published package is `v1.0.0-rc.3`, available
-from its [GitHub Release](https://github.com/scottconverse/civiccast-native/releases/tag/v1.0.0-rc.3).
-Its [package verification record](docs/releases/v1.0.0-rc.3-verification.md)
-identifies the signed installer and scoped results.
+is a public beta. The current published package is `v1.0.0-rc.4`, available
+from its [GitHub Release](https://github.com/scottconverse/civiccast-native/releases/tag/v1.0.0-rc.4).
+Its [release notes](docs/releases/v1.0.0-rc.4-release-notes.md)
+identify the signed installer, verification and known issues.
 Package and installation claims must name the exact published version; source
 changes do not update an installed station. The
-[RC3 verification record](docs/releases/v1.0.0-rc.3-verification.md)
-contains package-specific results and boundaries. There is no dedicated,
+[RC4 release notes](docs/releases/v1.0.0-rc.4-release-notes.md)
+contain package-specific results and boundaries. There is no dedicated,
 SLA-backed support intake for the native beta.
 
 If you are working on, evaluating, or running the native line:
