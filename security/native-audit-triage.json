@@ -1819,6 +1819,390 @@
         "scripts/resources/cpython-3.12.16-http-client-security1.py.txt",
         "tests/native/test_python_runtime_provenance.py"
       ]
+    },
+    {
+      "package": "cpython-sqlite",
+      "version": "3.54.1",
+      "id": "CVE-2026-119586",
+      "reviewed": "2026-11-04",
+      "review_by": "2026-12-04",
+      "reason": "Defect in the SQLite command-line shell (.recover command), not in the SQLite library. CivicCast ships the SQLite library DLL only (CPython _sqlite3 / sqlite3.dll); no sqlite3.exe shell is shipped or run (checked in the installed RC4 payload).",
+      "evidence": [
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-119586",
+        "scripts/build_native_python_runtime.py"
+      ]
+    },
+    {
+      "package": "gstreamer-sqlite",
+      "version": "3.54.1",
+      "id": "CVE-2026-119586",
+      "reviewed": "2026-11-04",
+      "review_by": "2026-12-04",
+      "reason": "Defect in the SQLite command-line shell (.recover command), not in the SQLite library. CivicCast ships the SQLite library DLL only (GStreamer sqlite3-0.dll); no sqlite3.exe shell is shipped or run (checked in the installed RC4 payload).",
+      "evidence": [
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-119586",
+        "security/native-bundled-components.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2017-8806",
+      "reviewed": "2026-11-04",
+      "review_by": "2026-12-04",
+      "reason": "Debian postgresql-common shell wrapper vulnerability. The psycopg-binary Windows wheel contains only libpq and OpenSSL DLLs; no pg_ctlcluster, pg_createcluster or pg_upgradecluster.",
+      "evidence": [
+        "https://www.postgresql.org/support/security/",
+        "security/native-bundled-components.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-14662",
+      "reviewed": "2026-11-04",
+      "review_by": "2026-12-04",
+      "reason": "Server-side PostgreSQL defect (tsvector/tsquery functions in the server). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) plus its OpenSSL; it contains no server code. The station's own database server is the separately pinned and scanned postgres artifact (17.11).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-14662/",
+        "security/native-bundled-components.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-14663",
+      "reviewed": "2026-11-04",
+      "review_by": "2026-12-04",
+      "reason": "Server-side PostgreSQL defect (pgcrypto extension in the server). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) plus its OpenSSL; it contains no server code. The station's own database server is the separately pinned and scanned postgres artifact (17.11).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-14663/",
+        "security/native-bundled-components.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-14664",
+      "reviewed": "2026-11-04",
+      "review_by": "2026-12-04",
+      "reason": "Server-side PostgreSQL defect (regexp engine in the server). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) plus its OpenSSL; it contains no server code. The station's own database server is the separately pinned and scanned postgres artifact (17.11).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-14664/",
+        "security/native-bundled-components.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-14666",
+      "reviewed": "2026-11-04",
+      "review_by": "2026-12-04",
+      "reason": "Server-side PostgreSQL defect (row-level security plan cache in the server). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) plus its OpenSSL; it contains no server code. The station's own database server is the separately pinned and scanned postgres artifact (17.11).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-14666/",
+        "security/native-bundled-components.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-14668",
+      "reviewed": "2026-11-04",
+      "review_by": "2026-12-04",
+      "reason": "Server-side PostgreSQL defect (ctid selectivity estimator in the server planner). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) plus its OpenSSL; it contains no server code. The station's own database server is the separately pinned and scanned postgres artifact (17.11).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-14668/",
+        "security/native-bundled-components.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-14669",
+      "reviewed": "2026-11-04",
+      "review_by": "2026-12-04",
+      "reason": "Server-side PostgreSQL defect (to_char(timestamptz) in the server). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) plus its OpenSSL; it contains no server code. The station's own database server is the separately pinned and scanned postgres artifact (17.11).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-14669/",
+        "security/native-bundled-components.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-14670",
+      "reviewed": "2026-11-04",
+      "review_by": "2026-12-04",
+      "reason": "Server-side PostgreSQL defect (plperl language handler in the server). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) plus its OpenSSL; it contains no server code. The station's own database server is the separately pinned and scanned postgres artifact (17.11).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-14670/",
+        "security/native-bundled-components.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-14671",
+      "reviewed": "2026-11-04",
+      "review_by": "2026-12-04",
+      "reason": "Server-side PostgreSQL defect (refint contrib module in the server). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) plus its OpenSSL; it contains no server code. The station's own database server is the separately pinned and scanned postgres artifact (17.11).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-14671/",
+        "security/native-bundled-components.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-14672",
+      "reviewed": "2026-11-04",
+      "review_by": "2026-12-04",
+      "reason": "Server-side PostgreSQL defect (the server's SCRAM challenge reveals a non-default iteration count). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) plus its OpenSSL; it contains no server code. The station's own database server is the separately pinned and scanned postgres artifact (17.11).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-14672/",
+        "security/native-bundled-components.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-14673",
+      "reviewed": "2026-11-04",
+      "review_by": "2026-12-04",
+      "reason": "Server-side PostgreSQL defect (amcheck extension search path in the server). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) plus its OpenSSL; it contains no server code. The station's own database server is the separately pinned and scanned postgres artifact (17.11).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-14673/",
+        "security/native-bundled-components.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-14676",
+      "reviewed": "2026-11-04",
+      "review_by": "2026-12-04",
+      "reason": "Server-side PostgreSQL defect (pg_stat_statements extension in the server). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) plus its OpenSSL; it contains no server code. The station's own database server is the separately pinned and scanned postgres artifact (17.11).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-14676/",
+        "security/native-bundled-components.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-14677",
+      "reviewed": "2026-11-04",
+      "review_by": "2026-12-04",
+      "reason": "Server-side PostgreSQL defect (pltcl/plperl in 32-bit server builds). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) plus its OpenSSL; it contains no server code. The station's own database server is the separately pinned and scanned postgres artifact (17.11).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-14677/",
+        "security/native-bundled-components.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-14678",
+      "reviewed": "2026-11-04",
+      "review_by": "2026-12-04",
+      "reason": "Server-side PostgreSQL defect (pg_trgm index picksplit in the server). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) plus its OpenSSL; it contains no server code. The station's own database server is the separately pinned and scanned postgres artifact (17.11).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-14678/",
+        "security/native-bundled-components.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-14679",
+      "reviewed": "2026-11-04",
+      "review_by": "2026-12-04",
+      "reason": "Server-side PostgreSQL defect (function argument name matching in the server). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) plus its OpenSSL; it contains no server code. The station's own database server is the separately pinned and scanned postgres artifact (17.11).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-14679/",
+        "security/native-bundled-components.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-14680",
+      "reviewed": "2026-11-04",
+      "review_by": "2026-12-04",
+      "reason": "Server-side PostgreSQL defect (\"internal\" type arguments to server functions). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) plus its OpenSSL; it contains no server code. The station's own database server is the separately pinned and scanned postgres artifact (17.11).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-14680/",
+        "security/native-bundled-components.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-14681",
+      "reviewed": "2026-11-04",
+      "review_by": "2026-12-04",
+      "reason": "Server-side PostgreSQL defect (the server's pg_hba.conf GSSAPI enforcement over direct TLS). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) plus its OpenSSL; it contains no server code. The station's own database server is the separately pinned and scanned postgres artifact (17.11).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-14681/",
+        "security/native-bundled-components.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-15741",
+      "reviewed": "2026-11-04",
+      "review_by": "2026-12-04",
+      "reason": "Server-side PostgreSQL defect (EXTRACT() expression deparse in the server; pg_dump/psql only consume the server's output). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) plus its OpenSSL; it contains no server code. The station's own database server is the separately pinned and scanned postgres artifact (17.11).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-15741/",
+        "security/native-bundled-components.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-15742",
+      "reviewed": "2026-11-04",
+      "review_by": "2026-12-04",
+      "reason": "Server-side PostgreSQL defect (fuzzystrmatch extension in the server). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) plus its OpenSSL; it contains no server code. The station's own database server is the separately pinned and scanned postgres artifact (17.11).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-15742/",
+        "security/native-bundled-components.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-16238",
+      "reviewed": "2026-11-04",
+      "review_by": "2026-12-04",
+      "reason": "Server-side PostgreSQL defect (pg_restore_attribute_stats() in the server). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) plus its OpenSSL; it contains no server code. The station's own database server is the separately pinned and scanned postgres artifact (17.11).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-16238/",
+        "security/native-bundled-components.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-16239",
+      "reviewed": "2026-11-04",
+      "review_by": "2026-12-04",
+      "reason": "Server-side PostgreSQL defect (portal/cursor lifecycle in the server). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) plus its OpenSSL; it contains no server code. The station's own database server is the separately pinned and scanned postgres artifact (17.11).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-16239/",
+        "security/native-bundled-components.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-16241",
+      "reviewed": "2026-11-04",
+      "review_by": "2026-12-04",
+      "reason": "Defect in ECPG (the embedded-SQL-in-C client library ecpglib), not libpq. The psycopg-binary wheel contains no ECPG library and CivicCast uses no embedded SQL.",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-16241/",
+        "security/native-bundled-components.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-18024",
+      "reviewed": "2026-11-04",
+      "review_by": "2026-12-04",
+      "reason": "Server-side PostgreSQL defect (ascii() SQL function in the server). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) plus its OpenSSL; it contains no server code. The station's own database server is the separately pinned and scanned postgres artifact (17.11).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-18024/",
+        "security/native-bundled-components.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-18408",
+      "reviewed": "2026-11-04",
+      "review_by": "2026-12-04",
+      "reason": "Defect in the PostgreSQL client programs pg_dump and psql (restrict meta-command expansion at restore), not in the libpq library. CivicCast ships libpq inside psycopg-binary only; psql and pg_dump are not in that wheel, and the station's own psql/pg_dump come from the separately pinned postgres artifact (17.11).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-18408/",
+        "security/native-bundled-components.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-19385",
+      "reviewed": "2026-11-04",
+      "review_by": "2026-12-04",
+      "reason": "Defect in the PostgreSQL client program pg_dump (long function transform lists), not in the libpq library. CivicCast ships libpq inside psycopg-binary only; psql and pg_dump are not in that wheel, and the station's own psql/pg_dump come from the separately pinned postgres artifact (17.11).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-19385/",
+        "security/native-bundled-components.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-6464",
+      "reviewed": "2026-11-04",
+      "review_by": "2026-12-04",
+      "reason": "Defect in the PostgreSQL client program psql (COPY FROM STDIN error handling), not in the libpq library. CivicCast ships libpq inside psycopg-binary only; psql and pg_dump are not in that wheel, and the station's own psql/pg_dump come from the separately pinned postgres artifact (17.11).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-6464/",
+        "security/native-bundled-components.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-6469",
+      "reviewed": "2026-11-04",
+      "review_by": "2026-12-04",
+      "reason": "Server-side PostgreSQL defect (ALTER TABLE ALTER TYPE statistics ownership in the server). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) plus its OpenSSL; it contains no server code. The station's own database server is the separately pinned and scanned postgres artifact (17.11).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-6469/",
+        "security/native-bundled-components.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-6470",
+      "reviewed": "2026-11-04",
+      "review_by": "2026-12-04",
+      "reason": "Server-side PostgreSQL defect (DDL type-dependency authorization in the server). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) plus its OpenSSL; it contains no server code. The station's own database server is the separately pinned and scanned postgres artifact (17.11).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-6470/",
+        "security/native-bundled-components.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-6471",
+      "reviewed": "2026-11-04",
+      "review_by": "2026-12-04",
+      "reason": "Server-side PostgreSQL defect (logical decoding plugin authorization in the server). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) plus its OpenSSL; it contains no server code. The station's own database server is the separately pinned and scanned postgres artifact (17.11).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-6471/",
+        "security/native-bundled-components.json"
+      ]
+    },
+    {
+      "package": "pywin32-scintilla",
+      "version": "4.4.6",
+      "id": "CVE-2019-16294",
+      "reviewed": "2026-11-04",
+      "review_by": "2026-12-04",
+      "reason": "CVE-2019-16294 is Notepad++'s SciLexer.dll .ml lexer. pywin32 ships pythonwin/scintilla.dll only for its Pythonwin IDE, loaded through win32ui; CivicCast never imports win32ui or pythonwin and never opens files in a Scintilla editor. Reachable only if someone launches Pythonwin by hand.",
+      "evidence": [
+        "https://nvd.nist.gov/vuln/detail/CVE-2019-16294",
+        "security/native-bundled-components.json"
+      ]
     }
   ]
 }

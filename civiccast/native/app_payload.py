@@ -344,8 +344,12 @@ APP_BUILD_TOOLCHAIN: Final[dict[str, dict[str, str]]] = {
 #: The existing single LGPL PyAV wheel and all other application pins are retained.
 #: Re-pinned 2026-10-28: add PDFium 5.14.0 for local PDF recovery/rendering;
 #: all existing distribution versions/hashes, including the LGPL PyAV override, remain.
+#: Re-pinned 2026-11-04 (RC4 F8): psycopg + psycopg-binary 3.3.4 -> 3.3.7 only. The
+#: 3.3.4 Windows wheel embeds OpenSSL 3.6.2 (41 scanner findings, 3 Critical) and
+#: libpq 18.3; 3.3.7 embeds OpenSSL 3.6.5 (0) and libpq 18.4. Lock diff read: only the
+#: two psycopg stanzas changed; the PyAV policy override and every other pin remain.
 APP_REQUIREMENTS_SHA256: Final[str] = (
-    "52f2256b1b882f28dce641d1196b8b325ae2fcc3c089baa0da9d93ede3b23411"
+    "453924f080e4522356b4bd7d17d2ea07d9308eee265ecfa1e6273995e70922ef"
 )
 #: Exact third-party license files the builder places outside site-packages.
 #: payload path -> (distribution, version, license, sha256).

@@ -3,7 +3,7 @@
 # between merges rather than blocking every PR on a scanner false-positive
 # before triage tooling exists. Runs pip-audit (Python deps), bandit -ll
 # (service code static analysis), and npm audit --audit-level=high (both
-# portals). Known, triaged findings with no available fix are pinned in
+# portals and the TSR control sidecar lockfile). Known, triaged findings with no available fix are pinned in
 # security/pip-audit-allowlist.json with a dated reason; everything else
 # must be zero.
 
@@ -170,3 +170,28 @@ jobs:
 
       - name: npm audit --audit-level=high
         run: npm audit --audit-level=high
+
+  npm-audit-tsr:
+    # RC4 F8: the station ships this lockfile and IT installs the sidecar from it
+    # (USER-MANUAL "TSR control service"), but it was never audited.
+    name: npm audit (TSR control sidecar)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    if: |
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository
+    defaults:
+      run:
+        working-directory: civiccast/control_room/tsr_service
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v6.4.0
+        with:
+          node-version: "20"
+
+      - name: npm audit --audit-level=high (lockfile only)
+        # Audits the shipped lockfile without installing device-control packages.
+        run: npm audit --audit-level=high --package-lock-only
