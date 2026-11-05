@@ -176,6 +176,37 @@ def test_app_factory_wires_translation_provider_into_tap_worker(
     assert provider.model_tag == "translategemma:4b"
 
 
+def test_app_factory_starts_with_live_translation_off_when_the_translation_model_is_unavailable(
+    durable_app_env: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """F10 (RC4 field run 2026-11-04, Beelink): another Ollama held 127.0.0.1:11434, so the
+    station's own Ollama never bound; the translator's model probe reached the foreign Ollama
+    (no translategemma) and create_app() raised, so the control plane never answered /health
+    and the install rolled back after ~9 min. AI is optional ("degraded AI, service healthy"):
+    the station must come up with live translation off and say why, not crash."""
+    from civiccast.ai_runtime.ollama_client import OllamaRuntimeUnavailableError
+    from civiccast.app import create_app
+    from civiccast.translate import ollama as translate_module
+
+    def missing_model(model: str, *, base_url: str) -> None:
+        raise OllamaRuntimeUnavailableError(
+            f"Ollama model '{model}' is not installed. Run `ollama pull {model}` and retry."
+        )
+
+    monkeypatch.setattr(translate_module, "get_ollama_model_manifest", missing_model)
+    tap_dir = durable_app_env / "captiontap"
+    tap_dir.mkdir()
+    monkeypatch.setenv("CIVICCAST_CAPTION_TAP", "inline")
+    monkeypatch.setenv("CIVICCAST_CAPTION_TAP_DIR", str(tap_dir))
+
+    app = create_app()
+    worker = getattr(app.state, "caption_tap_worker", None)
+    assert worker is not None, "live captions must still run without translation"
+    assert worker._translation_provider is None
+    reason = app.state.caption_live_translation_unavailable
+    assert "translategemma" in reason and "not installed" in reason
+
+
 def test_app_factory_wires_translation_provider_factory_into_offline_caption_worker(
     durable_app_env: Path,
 ) -> None:
