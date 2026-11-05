@@ -62,7 +62,7 @@ It prompts privately, preserves station data and revokes that administrator's ex
 
 The release's `station-models.zip.001`, `.002` and subsequent parts form one ZIP64 archive. **Use the helper to verify and extract them.** Individual parts are not runtime packs.
 
-The layout below is the RC4 kit created by the published-download command. It is derived from the downloader script and the RC4 release's asset list, not from a fresh run of the command.
+The layout below is the RC4 kit created by the published-download command. It was checked against a full public download with the RC4 helper on November 5, 2026 (exit 0, every file's SHA-256 verified).
 
 ```text
 CivicCast-RC4/
@@ -88,8 +88,6 @@ CivicCast-RC4/
     summary-gemma4-e4b.ccpack
     translation-translategemma-4b.ccpack
 ```
-
-The helper may also add its own verification files beside `setup.exe`; they are not listed here.
 
 Downloading only setup, placing runtime packs flat beside it, or using a source ZIP does not prepare this layout.
 
