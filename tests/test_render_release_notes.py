@@ -15,7 +15,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
 import pytest
-from render_release_notes import render_release_notes
+from render_release_notes import candidate_kind, render_release_notes
 
 _MANIFEST = {
     "source_state": {"head": "deadbeef" * 5},
@@ -85,3 +85,16 @@ def test_render_release_notes_requires_at_least_one_asset() -> None:
     manifest = {"source_state": {"head": "a" * 40}, "artifacts": []}
     with pytest.raises(ValueError, match="no release-body assets"):
         render_release_notes(manifest, "v0.1.0-rc1")
+
+
+@pytest.mark.parametrize(
+    ("tag", "kind"),
+    [
+        ("v1.0.0-rc.4", "release candidate"),
+        ("v1.0.0-beta.20", "beta candidate"),
+        ("v1.0.0-rc4", "beta candidate"),
+        ("v1.0.0", "beta candidate"),
+    ],
+)
+def test_candidate_kind_names_rc_tags_release_candidates(tag: str, kind: str) -> None:
+    assert candidate_kind(tag) == kind
