@@ -512,11 +512,13 @@ jobs:
         # tests; floor 2142 keeps the standard 50-test margin.
         # RC4 runtime-overlay stale-cache rebuild: nine portable cases, 2201
         # pure tests; floor 2151 keeps the standard 50-test margin.
+        # RC4 field fixes after ad03f678: six portable cases, 2207 pure tests;
+        # floor 2157 keeps the standard 50-test margin.
         if: always()
         run: |
           python scripts/verify_native_junit_floor.py \
             --junit junit-native-pure.xml \
-            --floor 2151 \
+            --floor 2157 \
             --label "tests/native pure suite"
 
       - name: Upload junit (ws3 claims-evidence D3/D7)
@@ -911,12 +913,14 @@ jobs:
         # non-integration tests; floor 2384 keeps the standard 50-test margin.
         # RC4 runtime-overlay stale-cache rebuild: 2443 Windows
         # non-integration tests; floor 2393 keeps the standard 50-test margin.
+        # RC4 field fixes after ad03f678: 2452 Windows non-integration tests
+        # (measured collect-only); floor 2402 keeps the standard 50-test margin.
         if: always()
         shell: bash
         run: |
           python scripts/verify_native_junit_floor.py \
             --junit junit-native-win.xml \
-            --floor 2393 \
+            --floor 2402 \
             --label "tests/native Windows suite"
 
       - name: Upload Windows native junit
