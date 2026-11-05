@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.0.0-rc.4] - 2026-11-05
+
 Release candidate **v1.0.0-rc.4**. Full notes, verification and known issues:
 `docs/releases/v1.0.0-rc.4-release-notes.md`.
 
