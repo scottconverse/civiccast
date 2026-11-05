@@ -93,6 +93,31 @@ def test_existing_virtual_account_skips_old_account_export(installed):
     assert state["starts"] == 0
 
 
+def test_fresh_service_never_imports_a_leftover_localsystem_profile(installed):
+    """F4 (RC4, 2026-11-04): every install registers LocalSystem first, so a
+    FRESH install used to run the old-account export and copy whatever a
+    long-uninstalled LocalSystem-era build left in systemprofile -- the
+    "clean" station came up already set up, with that build's old admin."""
+    root, state = installed
+    migration.configure_service_identity(root, fresh_service=True)
+    assert state["starts"] == 0, "no migration-only start for a service this setup just created"
+    assert state["account"] == SERVICE_ACCOUNT
+    assert not any(item.startswith(migration.MIGRATION_ENV + "=") for item in state["environment"])
+
+
+def test_fresh_service_flag_reaches_the_cli(monkeypatch, tmp_path):
+    seen = {}
+    monkeypatch.setattr(
+        migration, "configure_service_identity", lambda root, **kw: seen.update(root=root, **kw)
+    )
+    monkeypatch.setattr("sys.argv", ["x", "--install-root", str(tmp_path), "--fresh-service"])
+    assert migration.main() == 0
+    assert seen == {"root": tmp_path, "fresh_service": True}
+    monkeypatch.setattr("sys.argv", ["x", "--install-root", str(tmp_path)])
+    migration.main()
+    assert seen["fresh_service"] is False
+
+
 def test_virtual_account_configuration_uses_null_password(installed, monkeypatch):
     import win32service
 

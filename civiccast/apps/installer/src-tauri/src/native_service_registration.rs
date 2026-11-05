@@ -365,12 +365,41 @@ fn restore_service_host_site_packages_member(install_root: &Path) -> Result<(), 
     Ok(())
 }
 
+/// Pure argv for the restricted-identity step. `fresh_service` (this run
+/// created the service) tells it there is no old LocalSystem station of this
+/// install to export -- F4, RC4 2026-11-04.
+pub fn service_identity_command(install_root: &Path, fresh_service: bool) -> Vec<String> {
+    let mut args = vec![
+        "-m".to_string(),
+        "civiccast.native.install_service_identity".to_string(),
+        "--install-root".to_string(),
+        install_root.to_string_lossy().into_owned(),
+    ];
+    if fresh_service {
+        args.push("--fresh-service".to_string());
+    }
+    args
+}
+
+/// Only `sc.exe query` exit 1060 proves the service is absent. Every other
+/// result (present, access denied, no exit code) is treated as present.
+fn service_absent_from_query_exit(exit_code: Option<i32>) -> bool {
+    exit_code == Some(ERROR_SERVICE_DOES_NOT_EXIST)
+}
+
 /// Thin execution wrapper (untested directly, matching
 /// `native_uninstall.rs`'s `write_postclear_marker`/`clear_postclear_marker`
 /// convention -- the HARD RULE forbids unit-testing real SCM execution).
 #[cfg(target_os = "windows")]
 pub fn register_native_service(install_root: &Path) -> Result<(), String> {
     let (python_exe, args) = service_registration_command(install_root);
+    // F4: decide BEFORE registering whether this run creates the service.
+    // A query that cannot run counts as "exists" (the old, safe behaviour).
+    let fresh_service = std::process::Command::new("sc.exe")
+        .args(service_query_command())
+        .output()
+        .map(|output| service_absent_from_query_exit(output.status.code()))
+        .unwrap_or(false);
     run_and_check(
         &python_exe,
         &args,
@@ -382,12 +411,7 @@ pub fn register_native_service(install_root: &Path) -> Result<(), String> {
     stop_native_service()?;
     run_and_check(
         &python_exe,
-        &[
-            "-m".to_string(),
-            "civiccast.native.install_service_identity".to_string(),
-            "--install-root".to_string(),
-            install_root.to_string_lossy().into_owned(),
-        ],
+        &service_identity_command(install_root, fresh_service),
         "CivicCast restricted service identity migration",
     )?;
     let sc_exe = Path::new("sc.exe");
@@ -2936,6 +2960,7 @@ pub const TEARDOWN_STEP_LABELS: &[&str] = &[
     "clear empty Native key",
     "clear released maintenance interlock",
     "clear empty CivicCast key",
+    "remove migrated legacy LocalSystem profile",
 ];
 
 /// Run, in order, idempotently, continuing past individual absences: stop
@@ -3186,6 +3211,38 @@ pub fn teardown_native_state(install_root: &Path) -> Vec<TeardownStepOutcome> {
         }
     });
 
+    // F4 (RC4, 2026-11-04): the LocalSystem-era profile under systemprofile
+    // holds an old station's state (including its admin). Gated like the
+    // registry steps: never while the service might still be running.
+    steps.push(if may_clear_registry_state(&steps) {
+        let system_root =
+            std::env::var_os("SystemRoot").unwrap_or_else(|| r"C:\Windows".into());
+        let program_data =
+            std::env::var_os("ProgramData").unwrap_or_else(|| r"C:\ProgramData".into());
+        let legacy = Path::new(&system_root)
+            .join(r"System32\config\systemprofile\AppData\Local\CivicCast");
+        let receipt =
+            Path::new(&program_data).join(r"CivicCast\profile\identity-migration.complete");
+        match remove_migrated_legacy_profile(&legacy, &receipt) {
+            Ok(detail) => TeardownStepOutcome {
+                label: TEARDOWN_STEP_LABELS[8],
+                detail,
+                failed: false,
+            },
+            Err(error) => TeardownStepOutcome {
+                label: TEARDOWN_STEP_LABELS[8],
+                detail: error,
+                failed: true,
+            },
+        }
+    } else {
+        TeardownStepOutcome {
+            label: TEARDOWN_STEP_LABELS[8],
+            detail: REGISTRY_CLEAR_SKIPPED_DETAIL.to_string(),
+            failed: false,
+        }
+    });
+
     steps
 }
 
@@ -3207,6 +3264,42 @@ fn describe_deletions(results: &[(&'static str, bool)]) -> String {
         })
         .collect::<Vec<_>>()
         .join(", ")
+}
+
+/// F4 (RC4, 2026-11-04): delete the legacy LocalSystem profile copy only when
+/// the identity migration already copied it into the ProgramData profile
+/// (`receipt` exists), so it is a stale duplicate of state the station keeps.
+/// Without the receipt it may be the only copy of an old station: leave it.
+/// A redirected (symlink/junction) legacy path is never followed or removed.
+pub fn remove_migrated_legacy_profile(legacy: &Path, receipt: &Path) -> Result<String, String> {
+    let meta = match std::fs::symlink_metadata(legacy) {
+        Ok(meta) => meta,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            return Ok(format!("{}: was already absent.", legacy.display()));
+        }
+        Err(error) => return Err(format!("Could not inspect {}: {error}", legacy.display())),
+    };
+    if meta.file_type().is_symlink() || !meta.is_dir() {
+        return Ok(format!(
+            "{}: left in place -- not a plain directory, never followed.",
+            legacy.display()
+        ));
+    }
+    if !receipt.is_file() {
+        return Ok(format!(
+            "{}: left in place -- it was never migrated into this station's profile, so it \
+             may be the only copy.",
+            legacy.display()
+        ));
+    }
+    std::fs::remove_dir_all(legacy)
+        .map(|()| {
+            format!(
+                "{}: removed (a stale copy already migrated into the station profile).",
+                legacy.display()
+            )
+        })
+        .map_err(|error| format!("Could not remove {}: {error}", legacy.display()))
 }
 
 /// The detail a skipped registry-clearing step reports. Not a failure (the
@@ -3576,6 +3669,69 @@ mod tests {
              (usage: 'service_host.py [options] install'); the reversed \
              order fails live with usage + exit 1 (Sandbox runs 3-5)"
         );
+    }
+
+    #[test]
+    fn identity_step_skips_old_account_export_only_for_a_service_this_run_created() {
+        // F4 (RC4, 2026-11-04): a fresh install registers LocalSystem first;
+        // without --fresh-service the identity step exported a leftover
+        // LocalSystem-era systemprofile and the "clean" station inherited
+        // its old admin.
+        let root = Path::new(r"C:\INSTDIR");
+        let fresh = service_identity_command(root, true);
+        assert_eq!(
+            fresh,
+            vec![
+                "-m".to_string(),
+                "civiccast.native.install_service_identity".to_string(),
+                "--install-root".to_string(),
+                r"C:\INSTDIR".to_string(),
+                "--fresh-service".to_string(),
+            ]
+        );
+        let upgrade = service_identity_command(root, false);
+        assert!(!upgrade.iter().any(|arg| arg == "--fresh-service"));
+        assert_eq!(&upgrade[..], &fresh[..4]);
+    }
+
+    #[test]
+    fn uninstall_removes_legacy_profile_only_after_it_was_migrated() {
+        let root = scratch_dir("legacy-profile");
+        let legacy = root.join("systemprofile").join("CivicCast");
+        let receipt = root.join("profile").join("identity-migration.complete");
+        std::fs::create_dir_all(legacy.join("sub")).unwrap();
+        std::fs::write(legacy.join("station-state.json"), "{}").unwrap();
+
+        let kept = remove_migrated_legacy_profile(&legacy, &receipt).unwrap();
+        assert!(legacy.is_dir(), "never-migrated legacy profile may be the only copy");
+        assert!(kept.contains("left in place"), "{kept}");
+
+        std::fs::create_dir_all(receipt.parent().unwrap()).unwrap();
+        std::fs::write(&receipt, "done").unwrap();
+        let removed = remove_migrated_legacy_profile(&legacy, &receipt).unwrap();
+        assert!(!legacy.exists(), "migrated duplicate holds old admin state: {removed}");
+
+        let again = remove_migrated_legacy_profile(&legacy, &receipt).unwrap();
+        assert!(again.contains("already absent"), "{again}");
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn teardown_labels_include_the_legacy_profile_step() {
+        assert_eq!(
+            TEARDOWN_STEP_LABELS.last(),
+            Some(&"remove migrated legacy LocalSystem profile")
+        );
+    }
+
+    #[test]
+    fn only_service_does_not_exist_counts_as_a_fresh_service() {
+        assert!(service_absent_from_query_exit(Some(ERROR_SERVICE_DOES_NOT_EXIST)));
+        // Present, any other error, or no exit code: keep the old behaviour
+        // (run the export) -- an upgrade must never lose its old profile.
+        for code in [Some(0), Some(5), Some(1062), None] {
+            assert!(!service_absent_from_query_exit(code), "{code:?}");
+        }
     }
 
     #[test]
@@ -4661,18 +4817,25 @@ mod tests {
                 "clear empty Native key",
                 "clear released maintenance interlock",
                 "clear empty CivicCast key",
+                "remove migrated legacy LocalSystem profile",
             ],
             "the credential clear, the install-marker clear, the empty-Native-key removal (N-20), \
              the released-Maintenance-blob removal (N-20) and the empty-parent-CivicCast-key \
              removal (2d1123a0 polish re-walk) must all be real, ordered teardown steps, and must \
              run AFTER the service that reads them is stopped and removed"
         );
+        // The legacy-profile step (F4, RC4) touches only files, so it may
+        // follow; the rule is about the registry steps under the same parent.
+        let registry_steps: Vec<_> = TEARDOWN_STEP_LABELS
+            .iter()
+            .filter(|label| **label != "remove migrated legacy LocalSystem profile")
+            .collect();
         assert_eq!(
-            TEARDOWN_STEP_LABELS.last(),
-            Some(&"clear empty CivicCast key"),
-            "the parent CivicCast key removal must be the LAST teardown step -- it must run \
-             after both the Native subkey removal and the Maintenance blob removal, since both \
-             of those live directly under the same parent key this step considers removing"
+            registry_steps.last(),
+            Some(&&"clear empty CivicCast key"),
+            "the parent CivicCast key removal must be the LAST registry teardown step -- it must \
+             run after both the Native subkey removal and the Maintenance blob removal, since \
+             both of those live directly under the same parent key this step considers removing"
         );
         assert_eq!(
             CREDENTIAL_VALUE_NAMES,

@@ -295,8 +295,15 @@ def prepare_model_store_permissions(install_root: Path) -> None:
         _grant_tree(model_store, "M")
 
 
-def configure_service_identity(install_root: Path) -> None:
+def configure_service_identity(install_root: Path, *, fresh_service: bool = False) -> None:
     """Run elevated after registration, before any normal service startup.
+
+    ``fresh_service`` means this setup run created the service (it did not
+    exist before registration). Registration always creates it as
+    LocalSystem, but there is no old LocalSystem station of this install to
+    export, so the migration-only start is skipped: otherwise a fresh install
+    would import whatever a long-uninstalled LocalSystem-era build left in
+    systemprofile (F4, RC4 2026-11-04).
 
     On failure, leave the former account and service environment configured.
     Added ACL entries are restricted to the product's own virtual service SID.
@@ -348,7 +355,7 @@ def configure_service_identity(install_root: Path) -> None:
             entries = list(original or [])
             retain_migration_mode = False
             try:
-                if account.casefold() != SERVICE_ACCOUNT.casefold():
+                if account.casefold() != SERVICE_ACCOUNT.casefold() and not fresh_service:
                     receipt = station_profile_root() / "identity-migration.complete"
                     receipt.unlink(missing_ok=True)
                     migration_env = [
@@ -484,8 +491,13 @@ def configure_service_identity(install_root: Path) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--install-root", type=Path, required=True)
+    parser.add_argument(
+        "--fresh-service",
+        action="store_true",
+        help="this setup run created the service; skip the old-account profile export",
+    )
     args = parser.parse_args()
-    configure_service_identity(args.install_root)
+    configure_service_identity(args.install_root, fresh_service=args.fresh_service)
     return 0
 
 
