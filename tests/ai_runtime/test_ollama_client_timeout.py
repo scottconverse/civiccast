@@ -164,3 +164,32 @@ class TestGenerateTimeoutBudget:
         assert manifest.model == "gemma4:e4b"
         assert captured == [DEFAULT_TIMEOUT_SECONDS, DEFAULT_TIMEOUT_SECONDS]
         assert all(t < DEFAULT_GENERATE_TIMEOUT_SECONDS for t in captured)
+
+
+# F10 (RC4 final-build field run, 2026-11-05): another program held 127.0.0.1:11434
+# and accepted connections but never answered. The control plane builds the live
+# translator at startup, which reads /api/tags then /api/version -- at 120 s each it
+# sat silent for minutes, the supervisor's 60 s no-progress detector halted it, and
+# setup rolled the whole install back. The metadata budget must stay well inside the
+# control plane's startup budget so a silent port degrades AI instead of the station.
+CONTROL_PLANE_STALL_SECONDS = 60
+
+
+def test_metadata_budget_fits_inside_control_plane_startup() -> None:
+    # Two metadata calls per manifest probe, with headroom for the rest of startup.
+    assert 2 * DEFAULT_TIMEOUT_SECONDS <= CONTROL_PLANE_STALL_SECONDS / 2
+
+
+def test_silent_listener_fails_fast_instead_of_hanging_startup() -> None:
+    import socket
+    import time
+
+    with socket.socket() as silent:
+        silent.bind(("127.0.0.1", 0))
+        silent.listen()
+        port = silent.getsockname()[1]
+        started = time.monotonic()
+        with pytest.raises(OllamaRuntimeUnavailableError):
+            get_ollama_model_manifest("translategemma:4b", base_url=f"http://127.0.0.1:{port}")
+        elapsed = time.monotonic() - started
+    assert elapsed < DEFAULT_TIMEOUT_SECONDS + 5, elapsed

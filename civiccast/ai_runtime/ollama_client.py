@@ -34,7 +34,12 @@ DEFAULT_GENERATE_TIMEOUT_SECONDS = 600
 _GENERATE_LOCK = threading.Lock()
 # The short budget for cheap, fast metadata calls (/api/tags, /api/version,
 # /api/ps) that must fail fast when Ollama is genuinely down rather than hang.
-DEFAULT_TIMEOUT_SECONDS = 120
+# F10 (RC4 final-build field run, 2026-11-05): at 120 s, a program that held
+# 127.0.0.1:11434 and never answered kept the control plane's startup translator
+# probe (/api/tags then /api/version) silent past the supervisor's 60 s
+# no-progress detector, and setup rolled the install back. A local Ollama answers
+# these in well under a second; 10 s keeps a silent port a degraded-AI case.
+DEFAULT_TIMEOUT_SECONDS = 10
 
 
 class OllamaRuntimeUnavailableError(RuntimeError):
