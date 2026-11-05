@@ -1556,12 +1556,8 @@ def _production_selector_writer(value: RuntimeTarget) -> None:
 _OLLAMA_VERSION_TIMEOUT_SECONDS = 2.0
 
 
-def _default_ollama_version_probe() -> bool:
-    """Bounded ``GET /api/version`` against the runtime ollama base URL --
-    the same readiness gate the installer's production self-test uses
-    (``main.rs`` ``NativeOllamaSelfTestServer::wait_until_ready``). Fails
-    closed on any error, never raises (``children.check_ollama_ready`` is
-    the wrapping gate)."""
+def _ollama_version_answers() -> bool:
+    """Bounded ``GET /api/version`` against the runtime ollama base URL."""
 
     from civiccast.ai_runtime.ollama_client import DEFAULT_OLLAMA_BASE_URL
 
@@ -1569,6 +1565,91 @@ def _default_ollama_version_probe() -> bool:
     try:
         with urllib.request.urlopen(url, timeout=_OLLAMA_VERSION_TIMEOUT_SECONDS) as resp:  # noqa: S310  # nosec B310 - DEFAULT_OLLAMA_BASE_URL is the literal http://127.0.0.1:11434
             return int(getattr(resp, "status", 0) or 0) == 200
+    except Exception:
+        return False
+
+
+def _ollama_port_listener_pid() -> int | None:
+    """PID listening on the runtime ollama port (loopback or any-address), or None."""
+
+    import psutil
+
+    from civiccast.ai_runtime.ollama_client import DEFAULT_OLLAMA_BASE_URL
+
+    port = urllib.parse.urlsplit(DEFAULT_OLLAMA_BASE_URL).port or 11434
+    for conn in psutil.net_connections(kind="tcp"):
+        if (
+            conn.status == psutil.CONN_LISTEN
+            and conn.laddr
+            and conn.laddr.port == port
+            # Compared, never bound: a foreign Ollama on the any-address also shadows loopback.
+            and conn.laddr.ip in {"127.0.0.1", "0.0.0.0", "::", "::1"}  # noqa: S104  # nosec B104
+            and conn.pid
+        ):
+            return int(conn.pid)
+    return None
+
+
+def _is_supervisor_descendant(pid: int) -> bool:
+    """True when ``pid`` is a child (at any depth) of this supervisor process."""
+
+    import psutil
+
+    me = os.getpid()
+    try:
+        return any(parent.pid == me for parent in psutil.Process(pid).parents())
+    except psutil.Error:
+        return False
+
+
+def _process_label(pid: int) -> str:
+    import psutil
+
+    try:
+        proc = psutil.Process(pid)
+        try:
+            return proc.exe() or proc.name()
+        except psutil.AccessDenied:
+            return proc.name()
+    except psutil.Error:
+        return "an unknown program"
+
+
+#: One clear log line per foreign listener, not one per readiness poll.
+_FOREIGN_OLLAMA_WARNED: set[int] = set()
+
+
+def _default_ollama_version_probe() -> bool:
+    """Readiness for the station's OWN ollama child: ``GET /api/version`` answers
+    (the installer self-test's gate, ``main.rs``
+    ``NativeOllamaSelfTestServer::wait_until_ready``) AND the process listening
+    on the port is a child of this supervisor.
+
+    F10 (RC4 field run 2026-11-04): a separately installed Ollama held
+    127.0.0.1:11434; the station's child could not bind, yet the version probe
+    succeeded against the foreign Ollama and the station used an Ollama it does
+    not own. Fails closed on any error, never raises
+    (``children.check_ollama_ready`` is the wrapping gate)."""
+
+    if not _ollama_version_answers():
+        return False
+    try:
+        pid = _ollama_port_listener_pid()
+        if pid is None:
+            return False
+        if _is_supervisor_descendant(pid):
+            return True
+        if pid not in _FOREIGN_OLLAMA_WARNED:
+            _FOREIGN_OLLAMA_WARNED.add(pid)
+            logging.getLogger(LOGGER_NAME).warning(
+                "Port 11434 is held by %s (pid %s), not CivicCast's own Ollama; local AI "
+                "(translation, summaries) stays off until that program is stopped or moved "
+                "to another port (for Ollama: set OLLAMA_HOST to another port and restart it), "
+                "then restart CivicCast.",
+                _process_label(pid),
+                pid,
+            )
+        return False
     except Exception:
         return False
 
