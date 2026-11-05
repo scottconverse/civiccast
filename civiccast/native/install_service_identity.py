@@ -10,6 +10,7 @@ import stat
 import time
 from contextlib import suppress
 from pathlib import Path
+from typing import Any
 
 from civiccast.native.identity_migration import MIGRATION_ENV, station_profile_root
 from civiccast.native.service_identity import (
@@ -135,7 +136,7 @@ def _grantable_members(path: Path, *, recursive: bool) -> list[Path]:
 ERROR_SHARING_VIOLATION = 32
 
 
-def _open_for_acl_change(member: Path, desired_access: int):
+def _open_for_acl_change(member: Path, desired_access: int) -> Any:
     """Open without following a final reparse point, sharing every mode."""
     import win32con
     import win32file
@@ -186,8 +187,14 @@ def _grant_tree_native_sid(
             continue
         is_directory = bool(attributes & stat.FILE_ATTRIBUTE_DIRECTORY)
         acl_only_access = win32con.READ_CONTROL | win32con.WRITE_DAC
+        # MAXIMUM_ALLOWED keeps SetSecurityInfo from auto-propagating to children.
+        # The ACL rights are requested explicitly too: on a Windows Sandbox
+        # MappedFolder (Gate A) a MAXIMUM_ALLOWED-only handle opens without
+        # READ_CONTROL and GetSecurityInfo fails with error 5. Measured in Sandbox
+        # 2026-11-04: the combined request works there and still does not
+        # propagate, on the mapped folder and on local NTFS.
         desired_access = (
-            win32con.MAXIMUM_ALLOWED
+            win32con.MAXIMUM_ALLOWED | acl_only_access
             if is_directory and not propagate_to_children
             else acl_only_access
         )

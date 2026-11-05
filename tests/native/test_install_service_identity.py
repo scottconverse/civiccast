@@ -406,6 +406,31 @@ def test_grant_tree_opens_running_python_image_with_acl_only_access(tmp_path):
     assert "GRANT_SUCCEEDED" in result.stdout
 
 
+def test_recursive_directory_open_asks_for_acl_rights_explicitly(tmp_path, monkeypatch):
+    # Gate A 41882420078 (2026-11-04) failed with GetSecurityInfo error 5 on the Windows
+    # Sandbox MappedFolder C:\CivicCastHostStore\install. Reproduced in Sandbox: there a
+    # MAXIMUM_ALLOWED directory handle opens but lacks READ_CONTROL, while
+    # MAXIMUM_ALLOWED|READ_CONTROL|WRITE_DAC works on the mapped folder AND, like
+    # MAXIMUM_ALLOWED alone, does not auto-propagate to children (mapped and local NTFS).
+    import win32con
+
+    root = tmp_path / "data"
+    (root / "child").mkdir(parents=True)
+    (root / "child" / "state.json").write_text("{}", encoding="utf-8")
+    seen = []
+    real_open = migration._open_for_acl_change
+
+    def recording_open(member, desired_access):
+        seen.append((member.name, desired_access))
+        return real_open(member, desired_access)
+
+    monkeypatch.setattr(migration, "_open_for_acl_change", recording_open)
+    migration._grant_tree(root, "RX")
+
+    dir_access = {access for name, access in seen if name in ("data", "child")}
+    assert dir_access == {win32con.MAXIMUM_ALLOWED | win32con.READ_CONTROL | win32con.WRITE_DAC}
+
+
 def test_recursive_grant_succeeds_while_another_process_works_inside_the_tree(
     tmp_path, monkeypatch
 ):
