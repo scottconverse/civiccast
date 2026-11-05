@@ -3536,6 +3536,8 @@ The page order of the standard Windows setup comes from a template that is not i
 2. If Windows shows **Windows protected your PC**, follow [Chapter 9](#ch-planning) (check hash and signature first, then **More info**, then **Run anyway**).
 3. Approve the administrator (UAC) prompt.
 
+> **Tip:** Run setup at the station computer, signed in to Windows. On one RC4 test computer, setup started from an SSH remote shell failed its activation self-test (exit 123) because the TSDuck tool `tsp.exe` could not start in that session (Windows reported a DLL initialization failure, 0xC0000142); the same kit installed normally from the desktop. Installing through Remote Desktop has not been tested.
+
 If CivicCast (Native) is already running, setup says "CivicCast (Native) is running! Please close it first then try again." or offers to end it ("Click OK to kill it"). If it cannot end it: "Failed to kill CivicCast (Native). Please close it first then try again".
 
 If WebView2 is missing, setup installs the full offline copy it carries (the build configuration says "offlineInstaller", installed silently). The details list should show "Installing WebView2...", then "WebView2 installed successfully". The setup text also defines a line "Downloading WebView2 bootstrapper...", but that belongs to a download mode this build does not use, so we do not expect to see it; we could not confirm the exact lines on screen. On failure: "Failed to install WebView2! The app can't run without it. Try restarting the installer."
