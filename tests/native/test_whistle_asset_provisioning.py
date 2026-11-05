@@ -75,9 +75,11 @@ def test_provisioner_downloads_only_the_pinned_model_and_wheel_member(
         {"whistle.cact": (len(model), model_sha), "libneedle.dll": (len(dll), dll_sha)},
     )
 
+    # Downloads must go to the revision-pinned addresses; the moving `main`
+    # source URLs (kept as recorded provenance) must never be fetched.
     responses = {
-        assets.WHISTLE_MODEL_SOURCE_URL: model,
-        assets.WHISTLE_ENGINE_WHEEL_URL: wheel,
+        assets.WHISTLE_MODEL_DOWNLOAD_URL: model,
+        assets.WHISTLE_ENGINE_WHEEL_DOWNLOAD_URL: wheel,
     }
 
     class FakeOpener:
@@ -92,6 +94,43 @@ def test_provisioner_downloads_only_the_pinned_model_and_wheel_member(
     assert {path.name for path in output.iterdir()} == {"whistle.cact", "libneedle.dll"}
     assert (output / "whistle.cact").read_bytes() == model
     assert (output / "libneedle.dll").read_bytes() == dll
+
+
+def test_whistle_downloads_use_fixed_revisions_of_the_recorded_files() -> None:
+    """Upstream removed `python/` from needle3's `main` on 2026-11-05 (HTTP 404).
+
+    A `resolve/main/` URL can change or vanish under a pinned SHA-256, so the
+    builder fetches from an immutable 40-hex revision of the same repo path.
+    """
+    import re
+
+    from civiccast.native import app_payload
+
+    pairs = [
+        (app_payload.WHISTLE_MODEL_SOURCE_URL, app_payload.WHISTLE_MODEL_DOWNLOAD_URL),
+        (app_payload.WHISTLE_ENGINE_WHEEL_URL, app_payload.WHISTLE_ENGINE_WHEEL_DOWNLOAD_URL),
+    ]
+    for source, download in pairs:
+        assert "/resolve/main/" not in download
+        match = re.fullmatch(
+            r"(https://huggingface\.co/[^/]+/[^/]+)/resolve/[0-9a-f]{40}/(.+)", download
+        )
+        assert match, download
+        assert source == f"{match.group(1)}/resolve/main/{match.group(2)}"
+
+
+def test_whistle_pack_contract_keeps_the_recorded_source_urls() -> None:
+    """The installer validates this metadata exactly; changing it breaks pack/installer pairs."""
+    from civiccast.native import app_payload
+
+    contract = app_payload.WHISTLE_PACK_CONTRACT
+    assert contract["model_source_url"] == (
+        "https://huggingface.co/Cactus-Compute/whistle/resolve/main/whistle.cact"
+    )
+    assert contract["engine_wheel_source_url"] == (
+        "https://huggingface.co/Cactus-Compute/needle3/resolve/main/"
+        "python/cactus_needle-3.1.0-py3-none-win_amd64.whl"
+    )
 
 
 def test_downloader_rejects_non_https_urls_before_opening(tmp_path: Path, monkeypatch) -> None:

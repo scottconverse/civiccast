@@ -18,11 +18,11 @@ from civiccast.native.app_payload import (
     WHISTLE_ENGINE_DLL_SHA256,
     WHISTLE_ENGINE_MEMBER,
     WHISTLE_ENGINE_WHEEL_BYTES,
+    WHISTLE_ENGINE_WHEEL_DOWNLOAD_URL,
     WHISTLE_ENGINE_WHEEL_SHA256,
-    WHISTLE_ENGINE_WHEEL_URL,
     WHISTLE_MODEL_BYTES,
+    WHISTLE_MODEL_DOWNLOAD_URL,
     WHISTLE_MODEL_SHA256,
-    WHISTLE_MODEL_SOURCE_URL,
     WHISTLE_PACK_FILES,
 )
 
@@ -175,7 +175,7 @@ def download_engine_wheel(cache: Path) -> Path:
 
     wheel = cache / "cactus_needle-3.1.0-py3-none-win_amd64.whl"
     return download_verified_file(
-        WHISTLE_ENGINE_WHEEL_URL,
+        WHISTLE_ENGINE_WHEEL_DOWNLOAD_URL,
         wheel,
         expected_bytes=WHISTLE_ENGINE_WHEEL_BYTES,
         expected_sha256=WHISTLE_ENGINE_WHEEL_SHA256,
@@ -244,7 +244,7 @@ def provision_whistle_assets(output: Path, *, cache: Path) -> dict[str, Path]:
             "Whistle asset root contains unexpected files: " + ", ".join(sorted(unexpected))
         )
     model = download_verified_file(
-        WHISTLE_MODEL_SOURCE_URL,
+        WHISTLE_MODEL_DOWNLOAD_URL,
         cache / "whistle.cact",
         expected_bytes=WHISTLE_MODEL_BYTES,
         expected_sha256=WHISTLE_MODEL_SHA256,
