@@ -30,6 +30,11 @@ from threading import Event
 
 from sqlalchemy.orm import Session
 
+from civiccast.egress.caption_proof import (
+    DEFAULT_CAPTION_PROOF_CAPTURE_SECONDS,
+    DEFAULT_CAPTION_PROOF_TIMEOUT_SECONDS,
+)
+
 _LOG = logging.getLogger(__name__)
 
 
@@ -40,8 +45,8 @@ class CaptionProofProcessSupervisor:
         self,
         *,
         poll_seconds: float,
-        capture_seconds: float = 6.0,
-        timeout_seconds: float = 15.0,
+        capture_seconds: float = DEFAULT_CAPTION_PROOF_CAPTURE_SECONDS,
+        timeout_seconds: float = DEFAULT_CAPTION_PROOF_TIMEOUT_SECONDS,
         work_dir: Path | None = None,
         python_executable: str | None = None,
         popen: Callable[..., subprocess.Popen[str]] = subprocess.Popen,
@@ -171,8 +176,12 @@ def _run_worker(args: argparse.Namespace) -> None:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="CivicCast caption proof child")
     parser.add_argument("--worker-poll-seconds", type=float, default=30.0)
-    parser.add_argument("--capture-seconds", type=float, default=6.0)
-    parser.add_argument("--timeout-seconds", type=float, default=15.0)
+    parser.add_argument(
+        "--capture-seconds", type=float, default=DEFAULT_CAPTION_PROOF_CAPTURE_SECONDS
+    )
+    parser.add_argument(
+        "--timeout-seconds", type=float, default=DEFAULT_CAPTION_PROOF_TIMEOUT_SECONDS
+    )
     parser.add_argument("--work-dir", default=None)
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.INFO)

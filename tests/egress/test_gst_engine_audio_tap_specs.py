@@ -188,6 +188,39 @@ def test_reload_fence_is_adopted_once_even_for_same_occurrence(engine_module) ->
     assert engine_module.GLib.idle_add.call_count == 1
 
 
+def test_reload_hand_over_survives_a_denied_caption_boundary_publish(
+    engine_module, tmp_path
+) -> None:
+    """F7: the RC4 field stall. A Windows sharing denial on program-boundary.json
+    raised out of the reload commit and cost ~15 s of filler slide. The hand-over
+    must finish; the boundary is published by a later retry."""
+    engine = object.__new__(engine_module.GstPlayoutEngine)
+    writer = RollingWavSegmentWriter(tmp_path, segment_seconds=0.01, sample_rate_hz=1000)
+    engine.audio_tap_writer = writer
+    engine.caption_appsrc = None
+    real_publish = writer.publish_program_boundary
+    denials = [PermissionError(13, "Access is denied")]
+
+    def flaky_publish(token: str, first_segment: int) -> None:
+        if denials:
+            raise denials.pop()
+        real_publish(token, first_segment)
+
+    writer.publish_program_boundary = flaky_publish  # type: ignore[method-assign]
+    retries: list[tuple] = []
+    engine_module.GLib.timeout_add = lambda ms, fn, *args: retries.append((ms, fn, args)) or 1
+    try:
+        engine._begin_caption_program(100)  # must not raise into the reload commit
+        token = engine._caption_program_token
+        assert not (tmp_path / "program-boundary.json").exists()
+        assert len(retries) == 1
+        _ms, retry, args = retries[0]
+        assert retry(*args) is False  # published; do not repeat
+        assert read_program_boundary(tmp_path) == (token, 0)
+    finally:
+        assert writer.close() == "drained"
+
+
 def test_audio_ownership_pair_publishes_only_after_writer_fence(engine_module) -> None:
     engine = object.__new__(engine_module.GstPlayoutEngine)
     engine._caption_audio_state = ("outgoing", 100)

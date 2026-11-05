@@ -37,6 +37,25 @@ def test_inventory_includes_ocr_pdfium_native_server_and_excludes_build_node() -
     ]
 
 
+def test_inventory_lists_native_libraries_embedded_in_shipped_wheels() -> None:
+    """F8 (RC4 SBOM scan of the installed payload): libpq and OpenSSL inside the
+    psycopg-binary wheel and Scintilla inside pywin32 shipped but were never scanned
+    (pip-audit checks the Python package, not the DLLs it carries)."""
+    components = {component["name"]: component for component in inventory()["components"]}
+    expected = {
+        "psycopg-binary-libpq": ("18.4", "postgresql:postgresql"),
+        "psycopg-binary-openssl": ("3.6.5", "openssl:openssl"),
+        "pywin32-scintilla": ("4.4.6", "scintilla:scintilla"),
+    }
+    for name, (version, cpe) in expected.items():
+        assert components[name]["version"] == version, name
+        assert components[name]["cpe"].startswith(f"cpe:2.3:a:{cpe}:{version}:"), name
+        assert any(
+            prop["name"] == "civiccast:parent-wheel-sha256"
+            for prop in components[name]["properties"]
+        ), name
+
+
 def test_native_triage_requires_exact_version_and_current_review() -> None:
     match = {
         "artifact": {"name": "library", "version": "2"},

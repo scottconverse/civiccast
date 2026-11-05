@@ -2,9 +2,19 @@
 
 ## [Unreleased]
 
-Unpublished candidate **v1.0.0-rc.4**. These source corrections do not replace
-published RC3 assets; required CI, signed packaging and installed acceptance for
-RC4 remain pending. Speech-caption synchronization and coverage remain unresolved.
+Release candidate **v1.0.0-rc.4**. Full notes, verification and known issues:
+`docs/releases/v1.0.0-rc.4-release-notes.md`.
+
+- Programme hand-overs no longer drop to the filler slate when Windows briefly locks a caption boundary file.
+- Hardware encoders produce 2-second video segments (bounded keyframe interval).
+- Live captions use a profile measured on CPU-only stations. The live caption self-check judges only what a capture can hold. The caption proof reads the whole live window, so a positive proof reaches the database, API and operator screen.
+- The station starts with live translation off when the translation model is unavailable, and counts only its own AI runtime as ready.
+- If another program holds the AI port (127.0.0.1:11434), setup names it in a warning and the station still installs and starts with AI off. To turn AI on, close that program and restart the CivicCast service.
+- A fresh install no longer inherits an administrator left behind by an old LocalSystem-era install. Uninstall removes the migrated old profile copy, and a silent uninstall never hangs.
+- Bundled Expat, OpenSSL (psycopg), GLib, libsoup and GStreamer FFmpeg libraries updated. Security scanning covers native libraries inside shipped wheels.
+- Known issues: a bundled-Ollama Go library advisory (GO-2026-6860, loopback only), uninstall leftovers, machine-generated captions, and slower captions when the station PC is shared with other heavy work. Details are in the release notes.
+
+Also carried over from the earlier rc.4 kit:
 
 - Preserve fractional repeat durations when deriving scheduled source boundaries.
 - Preserve the full next occurrence when a schedule-recovery lookup crosses its start; keep genuine join-in-progress offsets and asset trims.

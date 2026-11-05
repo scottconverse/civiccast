@@ -46,11 +46,13 @@ try:  # package context (see the sibling-import note further down for why both f
         demote_hardware_decoders,
         prefer_cpu_decoders_by_default,
     )
+    from civiccast.egress.gst.optional_props import should_set_property
 except ImportError:  # standalone context: the gst dir is on sys.path
     from decode_policy import (  # type: ignore[import-not-found,no-redef]
         demote_hardware_decoders,
         prefer_cpu_decoders_by_default,
     )
+    from optional_props import should_set_property  # type: ignore[import-not-found,no-redef]
 
 # MUST run before ``gi``/GStreamer is imported below: GST_PLUGIN_FEATURE_RANK is read
 # during registry scan, which happens inside Gst.init().
@@ -1309,6 +1311,16 @@ class GstPlayoutEngine:
         if element is None:
             raise RuntimeError(f"GStreamer element factory missing: {spec.factory!r}")
         for key, value in spec.props.items():
+            if not should_set_property(
+                spec.factory, key, lambda name: element.find_property(name) is not None
+            ):
+                print(
+                    f"WARN: {spec.factory} on this device has no {key!r} property; "
+                    "leaving the encoder default (keyframe cadence then follows the device).",
+                    file=sys.stderr,
+                    flush=True,
+                )
+                continue
             element.set_property(
                 key,
                 coerce_serialized_property(
@@ -1842,6 +1854,55 @@ class GstPlayoutEngine:
         self._caption_audio_cutoff_ns = cutoff_ns
         return token, first_segment
 
+    #: F7: a caption boundary publish that still fails after the writer's own short
+    #: retry is retried from the main loop instead of failing the programme
+    #: hand-over (RC4 field run: a Windows sharing denial raised out of the reload
+    #: commit and the commit watchdog restarted the worker, ~15 s of slate).
+    _CAPTION_BOUNDARY_RETRY_MS: ClassVar[int] = 200
+    _CAPTION_BOUNDARY_RETRY_LIMIT: ClassVar[int] = 25
+
+    def _publish_caption_boundary(self, writer: Any, token: str, first_segment: int) -> None:
+        try:
+            writer.publish_program_boundary(token, first_segment)
+        except OSError as exc:
+            print(
+                f"WARNING: caption program boundary not published yet ({exc!r}); "
+                "the programme hand-over continues and the boundary is retried",
+                file=sys.stderr,
+                flush=True,
+            )
+            state = {"left": self._CAPTION_BOUNDARY_RETRY_LIMIT}
+            GLib.timeout_add(
+                self._CAPTION_BOUNDARY_RETRY_MS,
+                self._retry_caption_boundary,
+                writer,
+                token,
+                first_segment,
+                state,
+            )
+
+    def _retry_caption_boundary(
+        self, writer: Any, token: str, first_segment: int, state: dict[str, int]
+    ) -> bool:
+        """GLib timeout: publish a deferred boundary; False stops the timer."""
+        if token != getattr(self, "_caption_program_token", None):
+            return False  # a newer programme owns the boundary now
+        try:
+            writer.publish_program_boundary(token, first_segment)
+        except OSError as exc:
+            state["left"] -= 1
+            if state["left"] > 0:
+                return True
+            print(
+                f"ERROR: caption program boundary could not be published ({exc!r}); "
+                "captions for this programme may carry over from the previous one",
+                file=sys.stderr,
+                flush=True,
+            )
+            return False
+        print("CTRL caption: program boundary published after retry", file=sys.stderr, flush=True)
+        return False
+
     def _finish_caption_program(
         self, token: str, cutoff_ns: int, first_segment: int | None
     ) -> bool:
@@ -1856,7 +1917,7 @@ class GstPlayoutEngine:
             return False
         writer = getattr(self, "audio_tap_writer", None)
         if writer is not None and first_segment is not None:
-            writer.publish_program_boundary(token, first_segment)
+            self._publish_caption_boundary(writer, token, first_segment)
         if getattr(self, "caption_appsrc", None) is None:
             if token == self._caption_program_token:
                 self._caption_fence_pending = False

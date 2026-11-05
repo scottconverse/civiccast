@@ -288,20 +288,20 @@ APP_BUILD_REQUIREMENTS_SHA256: Final[str] = (
 #: layouts, and the exact MSVC component recipe rather than only to whichever
 #: matching executables happened to exist on one release machine.
 APP_BUILD_TOOLCHAIN_LOCK_SHA256: Final[str] = (
-    "11d9db51de065d3bf84e478545b7f3f0218aff555e70745e69beeee6c2e788f5"
+    "1548e4827468e2a8cc29ff83215d6669e36ad9c65afa7dfafd0233c08c5a5922"
 )
 #: Exact executable identities allowed to influence the deterministic
 #: application/portal build. Paths are deliberately absent so the attestation
 #: is reproducible across machines.
 APP_BUILD_TOOLCHAIN: Final[dict[str, dict[str, str]]] = {
     "node": {
-        "version": "v24.15.0",
-        "sha256": "3331e1ffe19874215472217c5e94f5a0c6d8e18c4ac7111d3937aa0ad5e9b4a5",
+        "version": "v24.16.0",
+        "sha256": "b3094d0b49f9ad602262a9921551737bb97637c05dd357a06ae98188d7290aa3",
     },
     "npm": {
         "version": "11.12.1",
         "sha256": "21b46c69ad6e2f231f02a9e120f4ba6c8e75fef5a45637103002eab99f888ab8",
-        "tree_sha256": "8b3e116059d650842ae2f263e38ff407bacfee0a4ada4bc9387bbb701d660174",
+        "tree_sha256": "5fb498757b78e3662816e7ecfa8283dc0177f35d32fedbe208833287232d716a",
     },
     "python": {
         "version": "Python 3.12.13",
@@ -344,8 +344,12 @@ APP_BUILD_TOOLCHAIN: Final[dict[str, dict[str, str]]] = {
 #: The existing single LGPL PyAV wheel and all other application pins are retained.
 #: Re-pinned 2026-10-28: add PDFium 5.14.0 for local PDF recovery/rendering;
 #: all existing distribution versions/hashes, including the LGPL PyAV override, remain.
+#: Re-pinned 2026-11-04 (RC4 F8): psycopg + psycopg-binary 3.3.4 -> 3.3.7 only. The
+#: 3.3.4 Windows wheel embeds OpenSSL 3.6.2 (41 scanner findings, 3 Critical) and
+#: libpq 18.3; 3.3.7 embeds OpenSSL 3.6.5 (0) and libpq 18.4. Lock diff read: only the
+#: two psycopg stanzas changed; the PyAV policy override and every other pin remain.
 APP_REQUIREMENTS_SHA256: Final[str] = (
-    "52f2256b1b882f28dce641d1196b8b325ae2fcc3c089baa0da9d93ede3b23411"
+    "453924f080e4522356b4bd7d17d2ea07d9308eee265ecfa1e6273995e70922ef"
 )
 #: Exact third-party license files the builder places outside site-packages.
 #: payload path -> (distribution, version, license, sha256).
@@ -391,8 +395,8 @@ INTERPRETER_DISTRIBUTION: Final[str] = "cpython-embeddable-source-build"
 INTERPRETER_VERSION: Final[str] = "3.12.16"
 INTERPRETER_SOURCE_URL: Final[str] = "https://www.python.org/ftp/python/3.12.16/Python-3.12.16.tgz"
 #: Reviewed locally built archive; the URL above identifies its official source.
-INTERPRETER_SHA256: Final[str] = "b06074f51101293e2d81059dde190ba9325665e926e4e2a16c0e3916c49be9db"
-INTERPRETER_ZIP_BYTES: Final[int] = 11474063
+INTERPRETER_SHA256: Final[str] = "cb9dda240374cedfcfad227831683779d0cd29b49a46f2e865affd5ea21aa9b6"
+INTERPRETER_ZIP_BYTES: Final[int] = 11202072
 #: PSF License Agreement (the `LICENSE.txt` inside the embeddable zip). Bundled
 #: in the payload's BOM.
 INTERPRETER_LICENSE: Final[str] = "PSF-2.0"

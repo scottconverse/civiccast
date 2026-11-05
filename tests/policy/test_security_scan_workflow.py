@@ -44,12 +44,23 @@ def test_security_scan_workflow_covers_pip_audit_bandit_and_both_npm_audits() ->
     workflow = _load_workflow()
     jobs = workflow["jobs"]
 
-    assert set(jobs) == {"pip-audit", "bandit", "npm-audit-operator", "npm-audit-public"}
+    assert set(jobs) == {
+        "pip-audit",
+        "bandit",
+        "npm-audit-operator",
+        "npm-audit-public",
+        "npm-audit-tsr",
+    }
     assert "pip-audit" in _job_run_commands(jobs["pip-audit"])
     assert "check_pip_audit_allowlist.py" in _job_run_commands(jobs["pip-audit"])
     assert "bandit -ll -r civiccast" in _job_run_commands(jobs["bandit"])
-    for npm_job in ("npm-audit-operator", "npm-audit-public"):
+    for npm_job in ("npm-audit-operator", "npm-audit-public", "npm-audit-tsr"):
         assert "npm audit --audit-level=high" in _job_run_commands(jobs[npm_job])
+    # RC4 F8: the shipped TSR control sidecar lockfile is audited without installing it.
+    assert "--package-lock-only" in _job_run_commands(jobs["npm-audit-tsr"])
+    assert jobs["npm-audit-tsr"]["defaults"]["run"]["working-directory"] == (
+        "civiccast/control_room/tsr_service"
+    )
     assert jobs["npm-audit-operator"]["defaults"]["run"]["working-directory"] == (
         "civiccast/apps/portal-operator"
     )

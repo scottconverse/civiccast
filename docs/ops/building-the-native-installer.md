@@ -53,7 +53,7 @@ python -I -B scripts/provision_native_build_toolchain.py `
 ```
 
 Every byte is pinned by SHA-256 in `native-windows-build-toolchain.lock.json`.
-On success it prints the verified identities: node `v24.15.0`, npm `11.12.1`,
+On success it prints the verified identities: node `v24.16.0`, npm `11.12.1`,
 python `3.12.13`, uv `0.11.15`, and MSVC compiler `19.50.35730`.
 
 Two things that will waste your time otherwise:

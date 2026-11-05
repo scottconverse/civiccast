@@ -33,6 +33,56 @@ SOURCE = {
     "url": "https://www.python.org/ftp/python/3.12.16/Python-3.12.16.tgz",
     "sha256": "710c3e75dac8b2f258d9cd0f76e5c4c2e9175fac9e249c98901552f7cf33b7dd",
 }
+EXPAT_SOURCE = {
+    "name": "expat",
+    "version": "2.10.0",
+    "license": "MIT",
+    "url": "https://github.com/libexpat/libexpat/releases/download/R_2_10_0/expat-2.10.0.tar.gz",
+    "sha256": "5466a341f9c692ef7a958a6881311be597f8e1ce345984cf78414f54793dea4c",
+}
+EXPAT_LIB_FILES = (
+    "lib/libexpat.map.in",
+    "lib/Makefile.in",
+    "lib/xmltok.h",
+    "lib/xmlrole.h",
+    "lib/latin1tab.h",
+    "lib/random_arc4random_buf.h",
+    "lib/random_getentropy.c",
+    "lib/xmltok_impl.h",
+    "lib/random_dev_urandom.c",
+    "lib/xcs.c",
+    "lib/siphash.h",
+    "lib/nametab.h",
+    "lib/libexpat.def.cmake",
+    "lib/random_dev_urandom.h",
+    "lib/xcs.h",
+    "lib/expat_external.h",
+    "lib/Makefile.am",
+    "lib/random_rand_s.h",
+    "lib/utf8tab.h",
+    "lib/random_getrandom.c",
+    "lib/xmlrole.c",
+    "lib/random_arc4random.h",
+    "lib/expat.h",
+    "lib/winconfig.h",
+    "lib/random_arc4random.c",
+    "lib/random_rand_s.c",
+    "lib/entities.h",
+    "lib/memory_sanitizer.h",
+    "lib/random_getentropy.h",
+    "lib/asciitab.h",
+    "lib/random_arc4random_buf.c",
+    "lib/fallthrough.h",
+    "lib/hash_table.h",
+    "lib/xmltok.c",
+    "lib/iasciitab.h",
+    "lib/xmltok_ns.c",
+    "lib/internal.h",
+    "lib/xmlparse.c",
+    "lib/xmltok_impl.c",
+    "lib/random_getrandom.h",
+    "lib/ascii.h",
+)
 # PSF dependency mirrors use immutable commits, not mutable tag downloads.
 # zlib's hash is publisher-listed; SQLite's sqlite3.c is independently checked
 # against the published release SHA3 below. Other hashes bind reviewed upstream
@@ -83,7 +133,13 @@ DEPENDENCIES = [
 ]
 SQLITE_C_SHA3 = "e2b869d3003b33c942b7dd7063604fbc53553e1b66609570df39b9b7b558ee81"
 STATIC_COMPONENTS = [
-    {"name": "libexpat", "version": "2.9.0", "license": "MIT", "source": "cpython"},
+    {
+        "name": "libexpat",
+        "version": "2.10.0",
+        "license": "MIT",
+        "source": "https://github.com/libexpat/libexpat/releases/download/R_2_10_0/expat-2.10.0.tar.gz",
+        "sha256": "5466a341f9c692ef7a958a6881311be597f8e1ce345984cf78414f54793dea4c",
+    },
     {"name": "mpdecimal", "version": "2.5.1", "license": "BSD-2-Clause", "source": "cpython"},
 ]
 
@@ -173,6 +229,122 @@ def unpack_input(archive: Path, target: Path) -> None:
                     write(entry.name, stream.read())
 
 
+EXPAT_WINDOWS_PROJECTS = ("PCbuild/pyexpat.vcxproj", "PCbuild/_elementtree.vcxproj")
+
+
+def _expat_windows_project(original: bytes) -> bytes:
+    """Add Expat's Windows entropy implementation to an original project."""
+    newline = b"\r\n" if b"\r\n" in original else b"\n"
+    anchor = b'    <ClCompile Include="..\\Modules\\expat\\xcs.c" />' + newline
+    if original.count(anchor) != 1 or b"random_rand_s.c" in original:
+        raise ValueError("CPython Expat Windows project source anchor changed")
+    addition = b'    <ClCompile Include="..\\Modules\\expat\\random_rand_s.c" />' + newline
+    return original.replace(anchor, anchor + addition)
+
+
+def copy_source_tree(pristine: Path, derived: Path) -> None:
+    """Retain generated outputs while validating every original source input."""
+    vendored = {PurePosixPath(name).name for name in EXPAT_LIB_FILES} | {"COPYING"}
+    if not derived.exists():
+        shutil.copytree(pristine, derived)
+    else:
+        for original in pristine.rglob("*"):
+            if not original.is_file():
+                continue
+            relative = original.relative_to(pristine)
+            target = derived / relative
+            if any(path.is_symlink() for path in (target, *target.parents)) or not target.is_file():
+                raise ValueError(f"modified derived runtime source: {target}")
+            # These files are immediately replaced from the verified Expat input.
+            if relative.parent.as_posix() == "Modules/expat" and relative.name in vendored:
+                continue
+            expected, actual = original.read_bytes(), target.read_bytes()
+            same_windows_text = target.suffix in {".c", ".h", ".py"} and actual.replace(
+                b"\r\n", b"\n"
+            ) == expected.replace(b"\r\n", b"\n")
+            same_project = (
+                relative.as_posix() in EXPAT_WINDOWS_PROJECTS
+                and actual == _expat_windows_project(expected)
+            )
+            if actual != expected and not same_windows_text and not same_project:
+                raise ValueError(f"modified derived runtime source: {target}")
+    for relative in EXPAT_WINDOWS_PROJECTS:
+        _write_bytes_if_changed(
+            derived / relative, _expat_windows_project((pristine / relative).read_bytes())
+        )
+
+
+def tree_hashes(root: Path) -> dict[str, str]:
+    return {
+        path.relative_to(root).as_posix(): sha256(path)
+        for path in sorted(root.rglob("*"))
+        if path.is_file()
+    }
+
+
+def _write_bytes_if_changed(path: Path, data: bytes) -> None:
+    if not path.exists() or path.read_bytes() != data:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(data)
+
+
+def vendor_expat(expat_root: Path, modules_expat: Path) -> dict[str, Any]:
+    """Vendor pinned upstream libexpat files into a derived CPython tree.
+
+    CPython's expat_config.h and pyexpatns.h are local customizations and are
+    deliberately retained. Upstream expat_external.h must include the
+    namespace header exactly as CPython's bundled copy does.
+    """
+    expected = set(EXPAT_LIB_FILES)
+    lib = expat_root / "lib"
+    actual = {path.relative_to(expat_root).as_posix() for path in lib.rglob("*") if path.is_file()}
+    if actual != expected:
+        raise ValueError(
+            "Expat 2.10.0 lib file set mismatch: "
+            f"missing={sorted(expected - actual)} extra={sorted(actual - expected)}"
+        )
+    files: dict[str, str] = {}
+    for relative in EXPAT_LIB_FILES:
+        source_file = expat_root / relative
+        target_file = modules_expat / PurePosixPath(relative).name
+        data = source_file.read_bytes()
+        _write_bytes_if_changed(target_file, data)
+        files[target_file.name] = hashlib.sha256(data).hexdigest()
+    _write_bytes_if_changed(modules_expat / "COPYING", (expat_root / "COPYING").read_bytes())
+
+    external = modules_expat / "expat_external.h"
+    text = external.read_text(encoding="utf-8")
+    include = '#include "pyexpatns.h"'
+    marker = '''/* Namespace external symbols to allow multiple libexpat version to
+   co-exist. */
+#include "pyexpatns.h"'''
+    if include not in text:
+        anchor = """#ifndef Expat_External_INCLUDED
+#  define Expat_External_INCLUDED 1
+
+/* External API definitions */"""
+        replacement = """#ifndef Expat_External_INCLUDED
+#  define Expat_External_INCLUDED 1
+/* Namespace external symbols to allow multiple libexpat version to
+   co-exist. */
+#include "pyexpatns.h"
+
+/* External API definitions */"""
+        if text.count(anchor) != 1:
+            raise ValueError("Expat expat_external.h insertion anchor is not unique")
+        text = text.replace(anchor, replacement)
+        external.write_text(text, encoding="utf-8")
+    elif text.count(include) != 1 or text.count(marker) != 1:
+        raise ValueError("Expat expat_external.h namespace include is malformed")
+    files[external.name] = sha256(external)
+    return {
+        "files": files,
+        "config_sha256": sha256(modules_expat / "expat_config.h"),
+        "namespace_sha256": sha256(modules_expat / "pyexpatns.h"),
+        "external_sha256": sha256(external),
+    }
+
+
 def run(command: list[str], *, log: Path, env: dict[str, str] | None = None) -> None:
     with log.open("a", encoding="utf-8") as handle:
         handle.write(json.dumps(command) + "\n")
@@ -238,17 +410,39 @@ def build(*, work: Path, output: Path, visual_studio: Path, cmake: str) -> dict[
         raise FileExistsError(f"refusing to overwrite runtime artifact: {output}")
     work.mkdir(parents=True, exist_ok=True)
     log = work / "python-runtime-build.log"
-    inputs = [SOURCE, *DEPENDENCIES]
+    inputs = [SOURCE, *DEPENDENCIES, EXPAT_SOURCE]
     paths: dict[str, Path] = {}
-    for item in inputs:
+    pristine = work / "pristine" / "cpython"
+    unpack_input(fetch_input(SOURCE, work / "cache"), pristine)
+    for item in DEPENDENCIES:
         archive = fetch_input(item, work / "cache")
         directory = "sqlite-3.54.1.0" if item["name"] == "sqlite" else item["name"]
-        destination = work / ("source" if item["name"] == "cpython" else f"deps/{directory}")
+        destination = work / f"deps/{directory}"
         unpack_input(archive, destination)
         paths[item["name"]] = destination
+    expat_archive = fetch_input(EXPAT_SOURCE, work / "cache")
+    expat_dir = work / "expat"
+    unpack_input(expat_archive, expat_dir)
+    paths["expat"] = expat_dir
+    source = work / "source"
+    copy_source_tree(pristine, source)
+    paths["cpython"] = source
+    modules_expat = source / "Modules" / "expat"
+    local_names = ("expat_config.h", "pyexpatns.h")
+    local_hashes = {name: sha256(modules_expat / name) for name in local_names}
+    for name in local_names:
+        if local_hashes[name] != sha256(pristine / "Modules" / "expat" / name):
+            raise ValueError(f"derived CPython local Expat customization changed: {name}")
+    bundled_original_hashes = tree_hashes(pristine / "Modules" / "expat")
+    vendored_expat = vendor_expat(paths["expat"], modules_expat)
+    vendored_expat["windows_projects"] = {
+        relative: sha256(source / relative) for relative in EXPAT_WINDOWS_PROJECTS
+    }
+    if {name: sha256(modules_expat / name) for name in local_names} != local_hashes:
+        raise ValueError("vendoring modified a CPython Expat local customization")
     if hashlib.sha3_256((paths["sqlite"] / "sqlite3.c").read_bytes()).hexdigest() != SQLITE_C_SHA3:
         raise ValueError("SQLite source differs from its published SHA3 release fingerprint")
-    source, deps = paths["cpython"], work / "deps"
+    deps = work / "deps"
     msbuild = visual_studio / "MSBuild" / "Current" / "Bin" / "MSBuild.exe"
     if not msbuild.is_file():
         raise FileNotFoundError(msbuild)
@@ -352,16 +546,24 @@ def build(*, work: Path, output: Path, visual_studio: Path, cmake: str) -> dict[
         env=environment,
     )
     smoke = (
-        "import sys,ssl,sqlite3,zlib,ctypes,bz2,lzma,html.parser,json,pyexpat;"
+        "import sys,ssl,sqlite3,zlib,ctypes,bz2,lzma,html.parser,json,pyexpat,_elementtree;"
+        "import xml.etree.ElementTree as ET;"
         "assert sys.version_info[:3]==(3,12,16);"
         "assert ssl.OPENSSL_VERSION.startswith('OpenSSL 3.5.9');"
         "assert sqlite3.sqlite_version=='3.54.1';assert zlib.ZLIB_RUNTIME_VERSION=='1.3.2';"
+        "assert pyexpat.EXPAT_VERSION=='expat_2.10.0';"
         "data=b'CivicCast runtime check'*100;"
         "assert bz2.decompress(bz2.compress(data))==data;"
         "assert lzma.decompress(lzma.compress(data))==data;"
         "assert zlib.decompress(zlib.compress(data))==data;"
         "assert sqlite3.connect(':memory:').execute('select 42').fetchone()==(42,);"
         "html.parser.HTMLParser().feed('<p>agenda</p>');"
+        "seen=[];parser=pyexpat.ParserCreate(namespace_separator='}');"
+        "parser.StartElementHandler=lambda name,attrs: seen.append(name);"
+        "q=chr(34);parser.Parse(('<r xmlns=' + q + 'urn:civiccast' + q + '><x>a&amp;b</x></r>').encode(), True);"
+        "assert 'urn:civiccast}r' in seen and 'urn:civiccast}x' in seen;"
+        "root=ET.fromstring('<r xmlns=' + q + 'urn:civiccast' + q + '><x>a&amp;b</x></r>');"
+        "assert root.tag=='{urn:civiccast}r' and root[0].text=='a&b';"
         "print(json.dumps({'python':sys.version,'openssl':ssl.OPENSSL_VERSION,"
         "'sqlite':sqlite3.sqlite_version,'zlib':zlib.ZLIB_RUNTIME_VERSION,'expat':pyexpat.EXPAT_VERSION}))"
     )
@@ -375,10 +577,10 @@ def build(*, work: Path, output: Path, visual_studio: Path, cmake: str) -> dict[
         "zlib": "LICENSE",
         "xz": "COPYING",
         "cpython": "LICENSE",
+        "expat": "COPYING",
     }.items():
         shutil.copy2(paths[name] / relative, licenses / f"{name}.txt")
     shutil.copy2(source / "PC" / "crtlicense.txt", licenses / "microsoft-crt.txt")
-    shutil.copy2(source / "Modules" / "expat" / "COPYING", licenses / "expat.txt")
     mpdecimal_header = (source / "Modules" / "_decimal" / "libmpdec" / "mpdecimal.h").read_text()
     (licenses / "mpdecimal.txt").write_text(
         mpdecimal_header.split("*/", 1)[0] + "*/\n", encoding="utf-8"
@@ -396,6 +598,13 @@ def build(*, work: Path, output: Path, visual_studio: Path, cmake: str) -> dict[
         "architecture": "amd64",
         "inputs": inputs,
         "source_bundled_components": STATIC_COMPONENTS,
+        "expat_vendored": {
+            "input": EXPAT_SOURCE,
+            "source_archive_sha256": sha256(expat_archive),
+            "cpython_bundled_original": bundled_original_hashes,
+            "local_customizations": local_hashes,
+            "derived": vendored_expat,
+        },
         "build": "official PCbuild Release x64 /m:2; official PC/layout --preset-embed",
         "native_dependency_overrides": "dependencies.props; xz upstream CMake static liblzma",
         "msbuild_sha256": sha256(msbuild),

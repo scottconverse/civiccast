@@ -1404,6 +1404,23 @@ def test_preuninstall_declining_the_transfer_prompt_aborts_with_state_untouched(
     )
 
 
+def test_preuninstall_transfer_prompt_declines_by_default_in_silent_mode() -> None:
+    # RC4 host test 2026-11-04: `uninstall.exe /S` hung 30 minutes on this
+    # prompt, which NSIS still shows in silent mode unless /SD is given. A
+    # silent uninstall must fail loud by DECLINING (the decline branch aborts
+    # with the uninstall-declined exit code and an ALERT, nothing removed),
+    # never block on a window nobody can see, and never guess "yes".
+    preuninstall = _preuninstall_block(NATIVE_HOOKS.read_text(encoding="utf-8"))
+    prompt_line = next(
+        line for line in preuninstall.splitlines() if "MB_YESNO|MB_ICONQUESTION" in line
+    )
+    assert "/SD IDNO" in prompt_line
+    assert "/SD IDYES" not in prompt_line
+    assert prompt_line.index("/SD IDNO") < prompt_line.index(
+        "IDYES civiccast_native_transfer_acknowledged"
+    )
+
+
 def test_preuninstall_transfer_failure_after_acknowledgment_aborts_before_taskkill() -> None:
     preuninstall = _preuninstall_block(NATIVE_HOOKS.read_text(encoding="utf-8"))
 

@@ -34,7 +34,7 @@ def _powershell_lines(script: str) -> tuple[str, ...]:
 
 def _assert_cpython_handoff(job: dict[str, object]) -> None:
     steps = {step["name"]: step for step in job["steps"]}
-    filename = "python-3.12.16-civiccast-embed-amd64.zip"
+    filename = "python-3.12.16-expat-2.10.0-civiccast-embed-amd64.zip"
     producer = _powershell_lines(steps["Acquire the pinned CPython payload interpreter"]["run"])
     consumer = _powershell_lines(steps["Build and verify signed component packs"]["run"])
 
@@ -42,9 +42,9 @@ def _assert_cpython_handoff(job: dict[str, object]) -> None:
     assert "$pythonEmbedZip = Join-Path $env:RUNNER_TEMP $filename" in producer
     assert "Copy-Item -LiteralPath $mirror -Destination $pythonEmbedZip" in producer
     assert any("runtime-artifact-mirror" in line for line in producer)
-    assert any("11474063" in line for line in producer)
+    assert any("11202072" in line for line in producer)
     assert any(
-        "b06074f51101293e2d81059dde190ba9325665e926e4e2a16c0e3916c49be9db" in line
+        "cb9dda240374cedfcfad227831683779d0cd29b49a46f2e865affd5ea21aa9b6" in line
         for line in producer
     )
     assert "Invoke-WebRequest" not in "\n".join(producer)
@@ -1284,12 +1284,9 @@ def test_native_beta_candidate_workflow_kit_assembly_keeps_station_and_manual_in
 PRUNE_SCRIPT = Path("scripts/ci/prune_local_candidate_roots.ps1")
 PRUNE_STEP_NAME = "Prune stale local candidate builds (self-hosted only, keep this sha)"
 PRUNING_JOBS = ("build-native-beta", "build-native-station-bundle")
-PRUNE_INVOCATION = (
-    "          pwsh -NoProfile -File scripts/ci/prune_local_candidate_roots.ps1"
-    ' -CurrentSha "${{ github.sha }}"\n'
-    '          if ($LASTEXITCODE -ne 0) { throw "Local candidate prune failed'
-    ' (exit $LASTEXITCODE)." }\n'
-)
+PRUNE_INVOCATION = """          & pwsh -NoProfile -File scripts/ci/prune_local_candidate_roots.ps1 -CurrentSha "${{ github.sha }}" @preserveArgs
+          if ($LASTEXITCODE -ne 0) { throw "Local candidate prune failed (exit $LASTEXITCODE)." }
+"""
 
 
 def _prune_steps(workflow: dict[str, object]) -> dict[str, dict[str, object]]:
@@ -1342,6 +1339,17 @@ def _assert_every_prune_keeps_the_pinned_baseline(workflow: dict[str, object]) -
             f"{job_name}'s prune carries a keep-only-this-sha filter, which is exactly the "
             "PR #124 regression: it deletes the pinned previous-candidate kit"
         )
+
+        env = step["env"]
+        run = step["run"]
+        assert env["PRUNE_PRESERVE_STATION_DIR"] == "${{ inputs.reuse_station_dir || '' }}"
+        assert env["PRUNE_PRESERVE_SOURCE_SHA"] == "${{ inputs.reuse_runtime_source_sha || '' }}"
+        assert "$preserveArgs = @()" in run
+        assert "IsNullOrEmpty($env:PRUNE_PRESERVE_STATION_DIR)" in run
+        assert "IsNullOrEmpty($env:PRUNE_PRESERVE_SOURCE_SHA)" in run
+        assert "@('-PreserveStationDir', $env:PRUNE_PRESERVE_STATION_DIR)" in run
+        assert "@('-PreserveSourceSha', $env:PRUNE_PRESERVE_SOURCE_SHA)" in run
+        assert "@preserveArgs" in run
 
 
 def test_native_beta_candidate_workflow_prunes_never_delete_the_pinned_baseline_kit() -> None:
@@ -1504,3 +1512,77 @@ def test_candidate_reuses_reviewed_local_pyav_without_release_publication() -> N
     assert (
         'if ($env:BUILD_TARGET -eq "self-hosted" -and !$env:CIVICCAST_REVIEWED_PYAV_WHEEL)' in pack
     )
+
+
+def test_prune_script_preserves_expected_shas(tmp_path: Path) -> None:
+    roots = [tmp_path / "candidates", tmp_path / "kit-staging"]
+    current_sha = "a" * 40
+    baseline_sha = "b" * 40
+    reused_station_sha = "c" * 40
+    reused_runtime_sha = "d" * 40
+    stale_sha = "e" * 40
+
+    for root in roots:
+        for sha in (current_sha, baseline_sha, reused_station_sha, reused_runtime_sha, stale_sha):
+            (root / sha).mkdir(parents=True, exist_ok=True)
+
+    station = roots[1] / reused_station_sha / "station"
+    station.mkdir(parents=True, exist_ok=True)
+
+    baseline_file = tmp_path / "baseline.json"
+    baseline_file.write_text(json.dumps({"source_sha": baseline_sha}), encoding="utf-8")
+
+    result = _run_prune(
+        "-CurrentSha",
+        current_sha,
+        "-BaselinePath",
+        str(baseline_file),
+        "-Roots",
+        f"{roots[0]};{roots[1]}",
+        "-PreserveStationDir",
+        str(station),
+        "-PreserveSourceSha",
+        reused_runtime_sha,
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    for root in roots:
+        for sha in (current_sha, baseline_sha, reused_station_sha, reused_runtime_sha):
+            assert (root / sha).is_dir()
+        assert not (root / stale_sha).exists()
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        "outside_station",
+        "missing_station",
+        "malformed_sha",
+        "uppercase_sha",
+        "whitespace_sha",
+    ],
+)
+def test_prune_script_rejects_invalid_references(tmp_path, case):
+    current, stale = "a" * 40, "e" * 40
+    root = tmp_path / "root"
+    (root / "candidates" / current).mkdir(parents=True)
+    (root / "candidates" / stale).mkdir()
+    baseline_file = tmp_path / "baseline.json"
+    baseline_file.write_text(json.dumps({"source_sha": "b" * 40}))
+    args = ["-CurrentSha", current, "-BaselinePath", str(baseline_file), "-Roots", str(root)]
+    if case == "outside_station":
+        outside = tmp_path / "outside" / ("f" * 40) / "station"
+        outside.mkdir(parents=True)
+        args += ["-PreserveStationDir", str(outside)]
+    elif case == "missing_station":
+        args += ["-PreserveStationDir", str(tmp_path / "missing" / ("f" * 40) / "station")]
+    elif case == "malformed_sha":
+        args += ["-PreserveSourceSha", "not-a-valid-sha"]
+    elif case == "uppercase_sha":
+        args += ["-PreserveSourceSha", "F" * 40]
+    else:
+        args += ["-PreserveSourceSha", " " + "f" * 39]
+    result = _run_prune(*args)
+    assert result.returncode != 0, result.stdout
+    assert (root / "candidates" / current).exists()
+    assert (root / "candidates" / stale).exists()

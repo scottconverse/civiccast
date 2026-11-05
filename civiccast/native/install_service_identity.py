@@ -10,6 +10,7 @@ import stat
 import time
 from contextlib import suppress
 from pathlib import Path
+from typing import Any
 
 from civiccast.native.identity_migration import MIGRATION_ENV, station_profile_root
 from civiccast.native.service_identity import (
@@ -132,6 +133,25 @@ def _grantable_members(path: Path, *, recursive: bool) -> list[Path]:
     return members
 
 
+ERROR_SHARING_VIOLATION = 32
+
+
+def _open_for_acl_change(member: Path, desired_access: int) -> Any:
+    """Open without following a final reparse point, sharing every mode."""
+    import win32con
+    import win32file
+
+    return win32file.CreateFile(
+        str(member),
+        desired_access,
+        win32con.FILE_SHARE_READ | win32con.FILE_SHARE_WRITE | win32con.FILE_SHARE_DELETE,
+        None,
+        win32con.OPEN_EXISTING,
+        win32file.FILE_FLAG_BACKUP_SEMANTICS | win32file.FILE_FLAG_OPEN_REPARSE_POINT,
+        None,
+    )
+
+
 def _grant_tree_native_sid(
     members: list[Path], rights: str, *, propagate_to_children: bool = False
 ) -> None:
@@ -146,6 +166,7 @@ def _grant_tree_native_sid(
     unprotected children.
     """
 
+    import pywintypes
     import win32con
     import win32file
     import win32security
@@ -165,20 +186,39 @@ def _grant_tree_native_sid(
         if attributes & stat.FILE_ATTRIBUTE_REPARSE_POINT:
             continue
         is_directory = bool(attributes & stat.FILE_ATTRIBUTE_DIRECTORY)
+        acl_only_access = win32con.READ_CONTROL | win32con.WRITE_DAC
+        # MAXIMUM_ALLOWED keeps SetSecurityInfo from auto-propagating to children.
+        # The ACL rights are requested explicitly too: on a Windows Sandbox
+        # MappedFolder (Gate A) a MAXIMUM_ALLOWED-only handle opens without
+        # READ_CONTROL and GetSecurityInfo fails with error 5. Measured in Sandbox
+        # 2026-11-04: the combined request works there and still does not
+        # propagate, on the mapped folder and on local NTFS.
         desired_access = (
-            win32con.MAXIMUM_ALLOWED
+            win32con.MAXIMUM_ALLOWED | acl_only_access
             if is_directory and not propagate_to_children
-            else win32con.READ_CONTROL | win32con.WRITE_DAC
+            else acl_only_access
         )
-        handle = win32file.CreateFile(
-            str(member),
-            desired_access,
-            win32con.FILE_SHARE_READ | win32con.FILE_SHARE_WRITE | win32con.FILE_SHARE_DELETE,
-            None,
-            win32con.OPEN_EXISTING,
-            win32file.FILE_FLAG_BACKUP_SEMANTICS | win32file.FILE_FLAG_OPEN_REPARSE_POINT,
-            None,
-        )
+        try:
+            handle = _open_for_acl_change(member, desired_access)
+        except pywintypes.error as exc:
+            # A directory that another process is working in (its current
+            # directory handle does not share DELETE) refuses MAXIMUM_ALLOWED,
+            # which includes DELETE for an administrator. ACL-only access never
+            # conflicts; its one cost is that Windows also pushes this inheritable
+            # grant to the directory's unprotected descendants, which receive the
+            # same explicit grant below anyway.
+            if exc.winerror != ERROR_SHARING_VIOLATION or desired_access == acl_only_access:
+                raise RuntimeError(
+                    f"Could not open {member} to grant restricted service access: {exc.strerror} "
+                    f"(Windows error {exc.winerror})"
+                ) from exc
+            try:
+                handle = _open_for_acl_change(member, acl_only_access)
+            except pywintypes.error as retry_exc:
+                raise RuntimeError(
+                    f"Could not open {member} to grant restricted service access: "
+                    f"{retry_exc.strerror} (Windows error {retry_exc.winerror})"
+                ) from retry_exc
         try:
             info = win32file.GetFileInformationByHandle(handle)
             if (
@@ -255,8 +295,15 @@ def prepare_model_store_permissions(install_root: Path) -> None:
         _grant_tree(model_store, "M")
 
 
-def configure_service_identity(install_root: Path) -> None:
+def configure_service_identity(install_root: Path, *, fresh_service: bool = False) -> None:
     """Run elevated after registration, before any normal service startup.
+
+    ``fresh_service`` means this setup run created the service (it did not
+    exist before registration). Registration always creates it as
+    LocalSystem, but there is no old LocalSystem station of this install to
+    export, so the migration-only start is skipped: otherwise a fresh install
+    would import whatever a long-uninstalled LocalSystem-era build left in
+    systemprofile (F4, RC4 2026-11-04).
 
     On failure, leave the former account and service environment configured.
     Added ACL entries are restricted to the product's own virtual service SID.
@@ -308,7 +355,7 @@ def configure_service_identity(install_root: Path) -> None:
             entries = list(original or [])
             retain_migration_mode = False
             try:
-                if account.casefold() != SERVICE_ACCOUNT.casefold():
+                if account.casefold() != SERVICE_ACCOUNT.casefold() and not fresh_service:
                     receipt = station_profile_root() / "identity-migration.complete"
                     receipt.unlink(missing_ok=True)
                     migration_env = [
@@ -444,8 +491,13 @@ def configure_service_identity(install_root: Path) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--install-root", type=Path, required=True)
+    parser.add_argument(
+        "--fresh-service",
+        action="store_true",
+        help="this setup run created the service; skip the old-account profile export",
+    )
     args = parser.parse_args()
-    configure_service_identity(args.install_root)
+    configure_service_identity(args.install_root, fresh_service=args.fresh_service)
     return 0
 
 

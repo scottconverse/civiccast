@@ -13,7 +13,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 LOCK_PATH = ROOT / "native-windows-security-libraries.lock.json"
-ARCHIVE_NAME = "civiccast-rc1-security-libraries-windows-x64.zip"
+ARCHIVE_NAME = "civiccast-rc4-expat-2.10.0-security-libraries-windows-x64.zip"
+EXPAT_ORDINAL_CONTRACT = ROOT / "security/native-windows-expat-2.7.1-ordinals.json"
 
 
 def policy() -> dict:
@@ -30,32 +31,76 @@ def _verify_file(path: Path, pin: dict) -> None:
         raise ValueError(f"unverified security-library input: {path}")
 
 
+def verify_expat_ordinal_contract(path: Path) -> None:
+    import pefile
+
+    contract = json.loads(EXPAT_ORDINAL_CONTRACT.read_text(encoding="utf-8"))
+    expected = {entry["ordinal"]: entry for entry in contract["exports"]}
+    if len(expected) != 69:
+        raise ValueError("Expat ordinal contract must cover all 69 legacy exports")
+    with pefile.PE(str(path)) as pe:
+        actual = {
+            symbol.ordinal: (
+                symbol.name if symbol.name else None,
+                symbol.forwarder if symbol.forwarder else None,
+            )
+            for symbol in pe.DIRECTORY_ENTRY_EXPORT.symbols
+        }
+    for ordinal, entry in expected.items():
+        if ordinal not in actual:
+            raise ValueError(f"missing Expat export ordinal {ordinal}: {entry['name']}")
+        name, forwarder = actual[ordinal]
+        if name != entry["name"].encode("ascii"):
+            raise ValueError(
+                f"Expat ordinal {ordinal} name mismatch: {name!r} != {entry['name']!r}"
+            )
+        expected_forwarder = entry["forwarder"].encode("ascii") if entry["forwarder"] else None
+        if forwarder != expected_forwarder:
+            raise ValueError(
+                f"Expat ordinal {ordinal} forwarder mismatch: {forwarder!r} != {entry['forwarder']!r}"
+            )
+
+
 def acquire_runtime(cache: Path) -> Path:
     reviewed = policy()
     out = cache / f"security-libraries-{reviewed['archive']['sha256'][:16]}"
-    if not out.exists():
-        archive = Path(
-            os.environ.get(
-                "CIVICCAST_SECURITY_LIBRARIES_ZIP",
-                str(Path("C:/CivicCastTester/runtime-artifact-mirror") / ARCHIVE_NAME),
-            )
-        )
-        _verify_file(archive, reviewed["archive"])
-        cache.mkdir(parents=True, exist_ok=True)
-        with (
-            zipfile.ZipFile(archive) as bundle,
-            tempfile.TemporaryDirectory(prefix=".security-", dir=cache) as temporary,
-        ):
-            names = bundle.namelist()
-            if len(names) != len(set(names)) or set(names) != set(reviewed["files"]):
-                raise ValueError("unexpected security-library archive members")
-            for name in names:
-                if "/" in name or "\\" in name or ":" in name or name in {".", ".."}:
-                    raise ValueError("unsafe security-library archive path")
-            bundle.extractall(temporary)
+    if out.is_dir():
+        try:
             for name, pin in reviewed["files"].items():
-                _verify_file(Path(temporary) / name, pin)
-            Path(temporary).rename(out)
+                _verify_file(out / name, pin)
+            if {p.name for p in out.iterdir()} == set(reviewed["files"]):
+                return out
+        except ValueError:
+            pass
+        # A cache that fails verification (the runner's temp cleanup can leave
+        # it emptied, or it was modified) is never used: rebuild it below from
+        # the reviewed archive, which is itself hash-checked first.
+    archive = Path(
+        os.environ.get(
+            "CIVICCAST_SECURITY_LIBRARIES_ZIP",
+            str(Path("C:/CivicCastTester/runtime-artifact-mirror") / ARCHIVE_NAME),
+        )
+    )
+    _verify_file(archive, reviewed["archive"])
+    cache.mkdir(parents=True, exist_ok=True)
+    with (
+        zipfile.ZipFile(archive) as bundle,
+        tempfile.TemporaryDirectory(prefix=".security-", dir=cache) as temporary,
+    ):
+        names = bundle.namelist()
+        if len(names) != len(set(names)) or set(names) != set(reviewed["files"]):
+            raise ValueError("unexpected security-library archive members")
+        for name in names:
+            if "/" in name or "\\" in name or ":" in name or name in {".", ".."}:
+                raise ValueError("unsafe security-library archive path")
+        fresh = Path(temporary) / "runtime"
+        bundle.extractall(fresh)
+        for name, pin in reviewed["files"].items():
+            _verify_file(fresh / name, pin)
+        # Swap in only a verified, complete tree.
+        if out.exists():
+            shutil.rmtree(out)
+        fresh.rename(out)
     for name, pin in reviewed["files"].items():
         _verify_file(out / name, pin)
     if {p.name for p in out.iterdir()} != set(reviewed["files"]):
@@ -68,11 +113,13 @@ def assert_compatible_imports(consumers: list[Path], replacements: dict[str, Pat
 
     exports = {}
     for name, path in replacements.items():
+        if Path(name).name.lower() == "libexpat.dll":
+            verify_expat_ordinal_contract(path)
         with pefile.PE(str(path)) as pe:
             exports[name.lower()] = {
                 symbol.name if symbol.name else symbol.ordinal
                 for symbol in pe.DIRECTORY_ENTRY_EXPORT.symbols
-            }
+            } | {symbol.ordinal for symbol in pe.DIRECTORY_ENTRY_EXPORT.symbols}
     for path in consumers:
         with pefile.PE(str(path)) as pe:
             for imported in [

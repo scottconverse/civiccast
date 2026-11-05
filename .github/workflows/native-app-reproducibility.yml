@@ -58,7 +58,7 @@ jobs:
           $destination = Join-Path $env:RUNNER_TEMP 'native-app-reviewed-inputs'
           New-Item -ItemType Directory -Force -Path $destination | Out-Null
           $inputs = @(
-            @{ Name = 'python-3.12.16-civiccast-embed-amd64.zip'; Bytes = 11474063; SHA256 = 'b06074f51101293e2d81059dde190ba9325665e926e4e2a16c0e3916c49be9db' },
+            @{ Name = 'python-3.12.16-expat-2.10.0-civiccast-embed-amd64.zip'; Bytes = 11202072; SHA256 = 'cb9dda240374cedfcfad227831683779d0cd29b49a46f2e865affd5ea21aa9b6' },
             @{ Name = 'av-18.0.0-cp311-abi3-win_amd64.whl'; Bytes = 4348926; SHA256 = '5ab3fae3f85d4121919f70643e026452eb2a678b4a3f557b9ca487724c1399f0' }
           )
           foreach ($inputFile in $inputs) {
@@ -76,7 +76,7 @@ jobs:
         with:
           name: native-app-reviewed-inputs
           path: |
-            ${{ runner.temp }}/native-app-reviewed-inputs/python-3.12.16-civiccast-embed-amd64.zip
+            ${{ runner.temp }}/native-app-reviewed-inputs/python-3.12.16-expat-2.10.0-civiccast-embed-amd64.zip
             ${{ runner.temp }}/native-app-reviewed-inputs/av-18.0.0-cp311-abi3-win_amd64.whl
           if-no-files-found: error
           compression-level: 0
@@ -148,7 +148,7 @@ jobs:
           runtime = 'civiccast/native/python_runtime.py'
           pyav = runpy.run_path(str(root / 'scripts/build_native_pyav_wheel.py'))
           inputs = pathlib.Path('reviewed-inputs').resolve()
-          interpreter = inputs / 'python-3.12.16-civiccast-embed-amd64.zip'
+          interpreter = inputs / 'python-3.12.16-expat-2.10.0-civiccast-embed-amd64.zip'
           wheel = inputs / 'av-18.0.0-cp311-abi3-win_amd64.whl'
           for path, size, digest in (
               (interpreter, constant(app, 'INTERPRETER_ZIP_BYTES'), constant(app, 'INTERPRETER_SHA256')),

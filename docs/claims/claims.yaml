@@ -67,6 +67,7 @@
 # presentation correction and independent review recorded in CURRENT. The
 # three-channel development proof is not transferred into historical installed
 # or Session0 claims. Same-run CI producers and assertions remain required.
+# Measured Expat 2.10 input transfer rebind; no producer/contract weakening; same-run verification still required; no historical/installed renewal.
 schema_version: 1
 
 governed_doc_set:
@@ -181,7 +182,7 @@ entries:
       # remains a drift tripwire and does not renew unrelated claim evidence.
       workflow:
         path: .github/workflows/ci-test.yml
-        blob: 6b6a50c3314227715dccc3c5283c6209b98a5ceb
+        blob: 6111f6fcb9add7d1612aabeb0da39712b13a3002
       workflow_contract:
         path: docs/claims/workflow-contract.yaml
         blob: 09ede0eb7db4b84a9ea50ef007b4451793f48000
@@ -261,7 +262,7 @@ entries:
       # remains a drift tripwire and does not renew unrelated claim evidence.
       workflow:
         path: .github/workflows/ci-test.yml
-        blob: 6b6a50c3314227715dccc3c5283c6209b98a5ceb
+        blob: 6111f6fcb9add7d1612aabeb0da39712b13a3002
       workflow_contract:
         path: docs/claims/workflow-contract.yaml
         blob: 09ede0eb7db4b84a9ea50ef007b4451793f48000
@@ -318,7 +319,7 @@ entries:
       # remains a drift tripwire and does not renew unrelated claim evidence.
       workflow:
         path: .github/workflows/ci-test.yml
-        blob: 6b6a50c3314227715dccc3c5283c6209b98a5ceb
+        blob: 6111f6fcb9add7d1612aabeb0da39712b13a3002
       workflow_contract:
         path: docs/claims/workflow-contract.yaml
         blob: 09ede0eb7db4b84a9ea50ef007b4451793f48000
@@ -383,7 +384,7 @@ entries:
       # remains a drift tripwire and does not renew unrelated claim evidence.
       workflow:
         path: .github/workflows/ci-test.yml
-        blob: 6b6a50c3314227715dccc3c5283c6209b98a5ceb
+        blob: 6111f6fcb9add7d1612aabeb0da39712b13a3002
       workflow_contract:
         path: docs/claims/workflow-contract.yaml
         blob: 09ede0eb7db4b84a9ea50ef007b4451793f48000
@@ -1116,17 +1117,26 @@ entries:
       # and hardware claims are not renewed; these are drift tripwires only.
       code:
         - path: civiccast/egress/gst/worker.py
-          blob: 78d71b73aa5f3ebdf3346a6d685108e19c459f54
+          blob: a942a2b67006c56974d4504ed9453809c9671271
         # Sprint 3: current-source bindings reviewed for output DSP and EOS
         # preservation; focused native results: .agent-runs/native-windows/
         # sprint3-output/evidence/{outputs,eos}.md. Historical acceptance stays
         # historical; these bindings do not certify a new installed package.
+        # 2026-11-05 (RC4 F7, fa722e8c): reviewed the caption-boundary sharing
+        # retry (audio_tap) and the non-raising boundary publish in the reload
+        # commit (engine); source tests in tests/egress/test_caption_boundary_
+        # sharing_f7.py. Field: final-code r9 three-channel run, 0 hand-over
+        # restarts. Source-tripwire rebind only, not installed/release proof.
         - path: civiccast/egress/gst/engine.py
-          blob: e75e6d661dfda300d8b43dca340ec4620ec7b7a4
+          blob: 2a05ca1abf9f3d33eedc893b01870e7339d75745
         - path: civiccast/egress/gst/caption_flow.py
           blob: c0c981dfa050e8ca196533c791a99028302c5ca5
         - path: civiccast/egress/gst/decode_policy.py
           blob: 076d4057051dffa2d7ba83bd0982ecebe4e9f33b
+        # 2026-11-04 (RC4 host run): gi-free optional-property rule the engine
+        # imports at module scope (mfh26xenc gop-size may be device-absent).
+        - path: civiccast/egress/gst/optional_props.py
+          blob: 7aca2983961b49a1d58dd93f914c8d8e5767ea13
         - path: civiccast/egress/gst/graph.py
           blob: d3044a541b976f8b03e364c61a74622bf19b61e4
         - path: civiccast/egress/gst/control.py
@@ -1135,7 +1145,7 @@ entries:
           # This source-tripwire rebind is not installed or release proof.
           blob: b5115d53a2767f38b488831aacdbc16dbcb10d6a
         - path: civiccast/egress/gst/audio_tap.py
-          blob: baf21b4672a5345f6dd14e5a487f20d4f6c7b3ef
+          blob: cb9dbb8990d481dceed523adb6f148e01dadf9d4
       test:
         path: tests/egress/test_gst_engine_wsl.py
         blob: 6dcc17000e49f28131e6358bccf3e079f5cd708c
@@ -1149,7 +1159,7 @@ entries:
       # remains a drift tripwire and does not renew unrelated claim evidence.
       workflow:
         path: .github/workflows/ci-test.yml
-        blob: 6b6a50c3314227715dccc3c5283c6209b98a5ceb
+        blob: 6111f6fcb9add7d1612aabeb0da39712b13a3002
       workflow_contract:
         path: docs/claims/workflow-contract.yaml
         blob: 09ede0eb7db4b84a9ea50ef007b4451793f48000
@@ -2047,17 +2057,26 @@ entries:
       # and hardware claims are not renewed; these are drift tripwires only.
       code:
         - path: civiccast/egress/gst/worker.py
-          blob: 78d71b73aa5f3ebdf3346a6d685108e19c459f54
+          blob: a942a2b67006c56974d4504ed9453809c9671271
         # Sprint 3: current-source bindings reviewed for output DSP and EOS
         # preservation; focused native results: .agent-runs/native-windows/
         # sprint3-output/evidence/{outputs,eos}.md. Historical acceptance stays
         # historical; these bindings do not certify a new installed package.
+        # 2026-11-05 (RC4 F7, fa722e8c): reviewed the caption-boundary sharing
+        # retry (audio_tap) and the non-raising boundary publish in the reload
+        # commit (engine); source tests in tests/egress/test_caption_boundary_
+        # sharing_f7.py. Field: final-code r9 three-channel run, 0 hand-over
+        # restarts. Source-tripwire rebind only, not installed/release proof.
         - path: civiccast/egress/gst/engine.py
-          blob: e75e6d661dfda300d8b43dca340ec4620ec7b7a4
+          blob: 2a05ca1abf9f3d33eedc893b01870e7339d75745
         - path: civiccast/egress/gst/caption_flow.py
           blob: c0c981dfa050e8ca196533c791a99028302c5ca5
         - path: civiccast/egress/gst/decode_policy.py
           blob: 076d4057051dffa2d7ba83bd0982ecebe4e9f33b
+        # 2026-11-04 (RC4 host run): gi-free optional-property rule the engine
+        # imports at module scope (mfh26xenc gop-size may be device-absent).
+        - path: civiccast/egress/gst/optional_props.py
+          blob: 7aca2983961b49a1d58dd93f914c8d8e5767ea13
         - path: civiccast/egress/gst/graph.py
           blob: d3044a541b976f8b03e364c61a74622bf19b61e4
         - path: civiccast/egress/gst/control.py
@@ -2066,7 +2085,7 @@ entries:
           # This source-tripwire rebind is not boot/pre-login acceptance.
           blob: b5115d53a2767f38b488831aacdbc16dbcb10d6a
         - path: civiccast/egress/gst/audio_tap.py
-          blob: baf21b4672a5345f6dd14e5a487f20d4f6c7b3ef
+          blob: cb9dbb8990d481dceed523adb6f148e01dadf9d4
       test:
         path: tests/egress/test_gst_engine_wsl.py
         blob: 6dcc17000e49f28131e6358bccf3e079f5cd708c
@@ -2080,7 +2099,7 @@ entries:
       # remains a drift tripwire and does not renew unrelated claim evidence.
       workflow:
         path: .github/workflows/ci-test.yml
-        blob: 6b6a50c3314227715dccc3c5283c6209b98a5ceb
+        blob: 6111f6fcb9add7d1612aabeb0da39712b13a3002
       workflow_contract:
         path: docs/claims/workflow-contract.yaml
         blob: 09ede0eb7db4b84a9ea50ef007b4451793f48000

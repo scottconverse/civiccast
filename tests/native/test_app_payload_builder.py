@@ -130,7 +130,7 @@ def test_build_toolchain_rejects_tampered_delegated_tool_tree(
     policy = {
         name: {
             "version": {
-                "node": "v24.15.0",
+                "node": "v24.16.0",
                 "npm": "11.12.1",
                 "uv": "uv 0.11.15",
                 "python": "Python 3.12.13",

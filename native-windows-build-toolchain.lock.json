@@ -19,12 +19,12 @@
     },
     "node": {
       "archive": "zip",
-      "bytes": 36465163,
-      "filename": "node-v24.15.0-win-x64.zip",
-      "sha256": "cc5149eabd53779ce1e7bdc5401643622d0c7e6800ade18928a767e940bb0e62",
-      "strip_prefix": "node-v24.15.0-win-x64",
-      "url": "https://nodejs.org/dist/v24.15.0/node-v24.15.0-win-x64.zip",
-      "version": "24.15.0"
+      "bytes": 36946639,
+      "filename": "node-v24.16.0-win-x64.zip",
+      "sha256": "edaca9bd58ec8e92037dac4e877d52f6b8f430b81c18b57e264b4e2fb111cd56",
+      "strip_prefix": "node-v24.16.0-win-x64",
+      "url": "https://nodejs.org/dist/v24.16.0/node-v24.16.0-win-x64.zip",
+      "version": "24.16.0"
     },
     "npm": {
       "archive": "tar.gz",
@@ -58,12 +58,12 @@
   },
   "installed_identities": {
     "node": {
-      "sha256": "3331e1ffe19874215472217c5e94f5a0c6d8e18c4ac7111d3937aa0ad5e9b4a5",
-      "version": "v24.15.0"
+      "sha256": "b3094d0b49f9ad602262a9921551737bb97637c05dd357a06ae98188d7290aa3",
+      "version": "v24.16.0"
     },
     "npm": {
       "sha256": "21b46c69ad6e2f231f02a9e120f4ba6c8e75fef5a45637103002eab99f888ab8",
-      "tree_sha256": "8b3e116059d650842ae2f263e38ff407bacfee0a4ada4bc9387bbb701d660174",
+      "tree_sha256": "5fb498757b78e3662816e7ecfa8283dc0177f35d32fedbe208833287232d716a",
       "version": "11.12.1"
     },
     "python": {

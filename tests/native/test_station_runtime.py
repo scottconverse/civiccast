@@ -160,6 +160,57 @@ def _write_station(
     return version_root, files
 
 
+_WHISTLE_LIVE_PROFILE = {
+    "CIVICCAST_CAPTION_TAP_SEGMENT_SECONDS": "3",
+    "CIVICCAST_CAPTION_TAP_OVERLAP_SECONDS": "2",
+    "CIVICCAST_CAPTION_TAP_POLL_SECONDS": "0.5",
+    "CIVICCAST_CAPTION_FEED_POLL_SECONDS": "0.5",
+    "CIVICCAST_CAPTION_TAP_OVERLOAD_PERSISTENCE_SCANS": "60",
+    "CIVICCAST_CAPTION_TAP_RECOVERY_SCANS": "12",
+}
+
+
+def _native_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> dict[str, str]:
+    from civiccast.native import station_runtime
+
+    version_root, files = _write_station(tmp_path)
+    monkeypatch.setattr(station_runtime, "WHISPER_MODEL_FILES", files)
+    monkeypatch.setattr(station_runtime, "_probe_nvidia_vram_gb", lambda: None)
+    monkeypatch.delenv("CIVICCAST_WHISPER_DEVICE", raising=False)
+    monkeypatch.delenv("CIVICCAST_WHISPER_COMPUTE_TYPE", raising=False)
+    return station_runtime.load_native_station_environment(
+        version_root, program_data_root=tmp_path / "ProgramData" / "CivicCast"
+    )
+
+
+def test_station_environment_applies_measured_whistle_live_profile(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # RC4 measurement (3 x 90 s RC4 speech, shipped d4d4ec8d engine): 5 s
+    # pieces left words 4.2 s late on average / 8 s worst before two 2 s
+    # polls; 3 s pieces + 2 s overlap matched 5 s accuracy at half the delay.
+    for name in _WHISTLE_LIVE_PROFILE:
+        monkeypatch.delenv(name, raising=False)
+
+    env = _native_env(tmp_path, monkeypatch)
+
+    for name, value in _WHISTLE_LIVE_PROFILE.items():
+        assert env[name] == value, name
+
+
+def test_station_environment_keeps_operator_caption_timing_overrides(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    overrides = {name: f"{index + 7}" for index, name in enumerate(_WHISTLE_LIVE_PROFILE)}
+    for name, value in overrides.items():
+        monkeypatch.setenv(name, value)
+
+    env = _native_env(tmp_path, monkeypatch)
+
+    for name, value in overrides.items():
+        assert env[name] == value, name
+
+
 def test_station_environment_enables_mandatory_offline_captions(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

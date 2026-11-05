@@ -24,7 +24,7 @@ EXPECTED_VERSIONS = {
     "postgres": "17.11-2",
     "tsduck": "3.44-4676",
     "ffmpeg": "N-128142-g28fda48e0b",
-    "node": "24.15.0",
+    "node": "24.16.0",
     "ollama": "0.40.13",
 }
 EXPECTED_SPDX_LICENSES = {

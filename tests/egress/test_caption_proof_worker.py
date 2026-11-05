@@ -13,6 +13,10 @@ from typing import Any
 import pytest
 
 from civiccast.captions.models import CaptionCue
+from civiccast.egress.caption_proof import (
+    DEFAULT_CAPTION_PROOF_CAPTURE_SECONDS,
+    DEFAULT_CAPTION_PROOF_TIMEOUT_SECONDS,
+)
 from civiccast.egress.caption_proof_worker import (
     CaptionProofWorker,
     _emitted_stream_target,
@@ -279,12 +283,56 @@ def test_hls_capture_reads_advertised_manifest_with_bounded_preserved_clock(
     assert "playlist.mux.m3u8" not in " ".join(args)
     assert "-sseof" not in args
     assert args.index("-re") < args.index("-i")
-    assert args[args.index("-t") + 1] == "6"
+    assert args[args.index("-t") + 1] == f"{DEFAULT_CAPTION_PROOF_CAPTURE_SECONDS:g}"
     assert args.index("-t") < args.index("-i")
     assert "-copyts" in args
     assert args[args.index("-mpegts_copyts") + 1] == "1"
     assert args[args.index("-c") + 1] == "copy"
-    assert seen["timeout"] == 15.0
+    assert seen["timeout"] == DEFAULT_CAPTION_PROOF_TIMEOUT_SECONDS
+
+
+def test_hls_capture_reads_the_whole_window_so_the_duration_limit_cannot_be_spent_before_reading(
+    tmp_path,
+) -> None:
+    # RC4 host run 2026-11-04: the shipped FFmpeg returned exit 0 and ZERO bytes for
+    # `-t 6 -i playlist.m3u8` when it joined the live window at its default point (3
+    # segments from the end, 7.5 s into a 15 s window), so every proof sample was
+    # "capture unavailable". Starting at the first listed segment captured 6 s 3/3.
+    store = InMemoryEgressStore()
+    hls_dir = tmp_path / "hls"
+    store.upsert_config(_config(EgressSinkSpec(kind="hls", label="local", uri=str(hls_dir))))
+    hls_dir.mkdir()
+    manifest = hls_dir / "playlist.m3u8"
+    manifest.write_text("#EXTM3U\n#EXTINF:2,\nseg000000001.ts\n")
+    seen = {}
+
+    def capture(args, *, timeout):
+        seen["args"] = args
+        Path(args[-1]).write_bytes(b"captured transport")
+        manifest.write_text("#EXTM3U\n#EXTINF:2,\nseg000000002.ts\n")
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    assert capture_emitted_segment(store, "gov", work_dir=tmp_path, runner=capture) is not None
+    args = seen["args"]
+    assert args[args.index("-live_start_index") + 1] == "0"
+    assert args.index("-live_start_index") < args.index("-i")
+
+
+def test_live_start_index_is_hls_only(tmp_path) -> None:
+    # The option belongs to FFmpeg's HLS demuxer; a udp/srt input must not get it.
+    store = InMemoryEgressStore()
+    store.upsert_config(
+        _config(EgressSinkSpec(kind="udp-ts", label="head", uri="udp://239.0.0.9:5000"))
+    )
+    seen = {}
+
+    def capture(args, *, timeout):
+        seen["args"] = args
+        Path(args[-1]).write_bytes(b"captured transport")
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    assert capture_emitted_segment(store, "gov", work_dir=tmp_path, runner=capture) is not None
+    assert "-live_start_index" not in seen["args"]
 
 
 def test_hls_frozen_window_never_reuses_captions_as_fresh_proof(tmp_path) -> None:
@@ -348,7 +396,7 @@ def test_capture_passes_a_bounded_timeout_and_fails_closed_on_timeout(tmp_path) 
     )
 
     assert captured is None
-    assert seen["timeout"] == 15.0
+    assert seen["timeout"] == DEFAULT_CAPTION_PROOF_TIMEOUT_SECONDS
     assert not (tmp_path / "gov" / "caption-proof" / "segment.ts").exists()
 
 

@@ -93,6 +93,31 @@ def test_existing_virtual_account_skips_old_account_export(installed):
     assert state["starts"] == 0
 
 
+def test_fresh_service_never_imports_a_leftover_localsystem_profile(installed):
+    """F4 (RC4, 2026-11-04): every install registers LocalSystem first, so a
+    FRESH install used to run the old-account export and copy whatever a
+    long-uninstalled LocalSystem-era build left in systemprofile -- the
+    "clean" station came up already set up, with that build's old admin."""
+    root, state = installed
+    migration.configure_service_identity(root, fresh_service=True)
+    assert state["starts"] == 0, "no migration-only start for a service this setup just created"
+    assert state["account"] == SERVICE_ACCOUNT
+    assert not any(item.startswith(migration.MIGRATION_ENV + "=") for item in state["environment"])
+
+
+def test_fresh_service_flag_reaches_the_cli(monkeypatch, tmp_path):
+    seen = {}
+    monkeypatch.setattr(
+        migration, "configure_service_identity", lambda root, **kw: seen.update(root=root, **kw)
+    )
+    monkeypatch.setattr("sys.argv", ["x", "--install-root", str(tmp_path), "--fresh-service"])
+    assert migration.main() == 0
+    assert seen == {"root": tmp_path, "fresh_service": True}
+    monkeypatch.setattr("sys.argv", ["x", "--install-root", str(tmp_path)])
+    migration.main()
+    assert seen["fresh_service"] is False
+
+
 def test_virtual_account_configuration_uses_null_password(installed, monkeypatch):
     import win32service
 
@@ -404,6 +429,88 @@ def test_grant_tree_opens_running_python_image_with_acl_only_access(tmp_path):
     )
     assert result.returncode == 0, f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"
     assert "GRANT_SUCCEEDED" in result.stdout
+
+
+def test_recursive_directory_open_asks_for_acl_rights_explicitly(tmp_path, monkeypatch):
+    # Gate A 41882420078 (2026-11-04) failed with GetSecurityInfo error 5 on the Windows
+    # Sandbox MappedFolder C:\CivicCastHostStore\install. Reproduced in Sandbox: there a
+    # MAXIMUM_ALLOWED directory handle opens but lacks READ_CONTROL, while
+    # MAXIMUM_ALLOWED|READ_CONTROL|WRITE_DAC works on the mapped folder AND, like
+    # MAXIMUM_ALLOWED alone, does not auto-propagate to children (mapped and local NTFS).
+    import win32con
+
+    root = tmp_path / "data"
+    (root / "child").mkdir(parents=True)
+    (root / "child" / "state.json").write_text("{}", encoding="utf-8")
+    seen = []
+    real_open = migration._open_for_acl_change
+
+    def recording_open(member, desired_access):
+        seen.append((member.name, desired_access))
+        return real_open(member, desired_access)
+
+    monkeypatch.setattr(migration, "_open_for_acl_change", recording_open)
+    migration._grant_tree(root, "RX")
+
+    dir_access = {access for name, access in seen if name in ("data", "child")}
+    assert dir_access == {win32con.MAXIMUM_ALLOWED | win32con.READ_CONTROL | win32con.WRITE_DAC}
+
+
+def test_recursive_grant_succeeds_while_another_process_works_inside_the_tree(
+    tmp_path, monkeypatch
+):
+    # RC4 Gate A run 41795787409 (2026-11-04) failed a clean install at
+    # d4-service-registration with ERROR_SHARING_VIOLATION from the recursive
+    # program-tree grant. A process whose current directory is inside the tree
+    # (an operator's Explorer or console window, or a helper process) holds that
+    # directory without FILE_SHARE_DELETE, and the MAXIMUM_ALLOWED directory open
+    # requests DELETE for an administrator, so CreateFile refused it.
+    import subprocess
+    import sys
+    import time
+
+    import win32security
+
+    fake_service_sid = "S-1-5-80-1111111111-2222222222-3333333333-1234567890-987654321"
+    monkeypatch.setattr(migration, "SERVICE_SID", fake_service_sid)
+    root = tmp_path / "app"
+    held = root / "runtime" / "Lib"
+    deep = held / "site-packages"
+    deep.mkdir(parents=True)
+    held_file = deep / "module.py"
+    held_file.write_text("x = 1\n", encoding="utf-8")
+    quiet = root / "models"
+    quiet.mkdir()
+    quiet_file = quiet / "blob"
+    quiet_file.write_bytes(b"model")
+
+    def service_aces(path):
+        acl = win32security.GetFileSecurity(
+            str(path), win32security.DACL_SECURITY_INFORMATION
+        ).GetSecurityDescriptorDacl()
+        return [
+            (acl.GetAce(index)[0][1] & win32security.INHERITED_ACE, acl.GetAce(index)[1])
+            for index in range(acl.GetAceCount())
+            if win32security.ConvertSidToStringSid(acl.GetAce(index)[2]) == fake_service_sid
+        ]
+
+    holder = subprocess.Popen(
+        [sys.executable, "-I", "-c", "import time; time.sleep(60)"], cwd=str(held)
+    )
+    try:
+        time.sleep(1.5)
+        assert holder.poll() is None
+        grant_windows_tree(root, "RX")
+    finally:
+        holder.kill()
+        holder.wait()
+
+    for path in (root, held, deep, held_file, quiet, quiet_file):
+        assert (0, 0x001200A9) in service_aces(path), path
+    # Only the directory that was in use may fall back to a propagating grant;
+    # the rest of the tree keeps exactly one explicit, non-inherited grant.
+    for path in (root, quiet, quiet_file):
+        assert service_aces(path) == [(0, 0x001200A9)], path
 
 
 @pytest.mark.parametrize("stop_finishes", [True, False])

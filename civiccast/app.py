@@ -1628,13 +1628,33 @@ def _wire_stage_f_workers(app: FastAPI, session_factory: Any) -> None:
         # keeps the batch sizing -- it runs against a published file, not
         # against the air signal.
         caption_runtime = build_caption_runtime(ai_model_service, live=True)
+        from civiccast.ai_runtime.ollama_client import OllamaRuntimeUnavailableError
         from civiccast.installer.station_state import resolve_live_captions_enabled_or_default
+
+        # F10 (RC4 field run 2026-11-04): AI is optional ("degraded AI, service
+        # healthy"). A translation model that is missing, or an Ollama that is
+        # not the station's own (another Ollama holding 127.0.0.1:11434), must
+        # leave live captions running without translation, never stop the
+        # control plane from starting -- that rolled back a whole install.
+        app.state.caption_live_translation_unavailable = None
+        try:
+            live_translation_provider = build_translator(ai_model_service)
+        except OllamaRuntimeUnavailableError as exc:
+            live_translation_provider = None
+            app.state.caption_live_translation_unavailable = str(exc)
+            _LOG.error(
+                "Live caption translation is OFF: the local translation model is not "
+                "available (%s). Live captions continue untranslated. If another program "
+                "is using port 11434 (for example a separately installed Ollama), stop it "
+                "or move it to another port, then restart CivicCast.",
+                exc,
+            )
 
         tap_worker = build_tap_worker(
             tap_settings,
             PostgresCaptionReviewStore(session_factory),
             runtime=caption_runtime,
-            translation_provider=build_translator(ai_model_service),
+            translation_provider=live_translation_provider,
             # The operator's station-level switch
             # (``StationProfile.live_captions_enabled``, default on), read on
             # EVERY scan rather than once here: an activated native station
@@ -1779,8 +1799,12 @@ def _wire_stage_f_workers(app: FastAPI, session_factory: Any) -> None:
         # the control-plane thread only supervises that child.  Unsupervised
         # unit/dev apps retain the in-process seam so tests do not spawn a child.
         proof_poll_seconds = float(os.environ.get("CIVICAST_CAPTION_PROOF_POLL_SECONDS", "30"))
+        from civiccast.egress.caption_proof import DEFAULT_CAPTION_PROOF_TIMEOUT_SECONDS
+
         proof_timeout_seconds = float(
-            os.environ.get("CIVICAST_CAPTION_PROOF_TIMEOUT_SECONDS", "15")
+            os.environ.get(
+                "CIVICAST_CAPTION_PROOF_TIMEOUT_SECONDS", str(DEFAULT_CAPTION_PROOF_TIMEOUT_SECONDS)
+            )
         )
         proof_process_mode = os.environ.get("CIVICCAST_CAPTION_PROOF_PROCESS", "").strip().lower()
         if not proof_process_mode:

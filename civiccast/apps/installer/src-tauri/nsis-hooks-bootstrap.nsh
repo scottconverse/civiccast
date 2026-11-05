@@ -258,7 +258,11 @@
 ; that asks a question silent mode cannot answer, so it keeps its dialog
 ; and remains an owner-facing policy question (a silent uninstall of the
 ; active runtime while the WSL product is present must fail loud rather
-; than guess an answer).
+; than guess an answer). It carries /SD IDNO: without it NSIS still shows
+; the dialog in silent mode and `uninstall.exe /S` blocks forever on a
+; window nobody sees (RC4 host test, 2026-11-04). Declining is the
+; fail-loud answer: the decline branch aborts with the uninstall-declined
+; exit code and an ALERT, and nothing is removed or transferred.
 !macro CIVICCAST_ALERT TEXT
   !insertmacro CIVICCAST_STEP "ALERT: ${TEXT}"
   DetailPrint "${TEXT}"
@@ -789,6 +793,41 @@ Var CIVICCAST_POSTCLEAR_ARMED
   Pop $0
 !macroend
 
+; F10 (RC4 field run, 2026-11-04): another program (typically a separately
+; installed Ollama) holding 127.0.0.1:11434 leaves the station without its own
+; AI engine. The station still installs and runs (supervisor: "degraded AI,
+; service healthy"), so this is a WARNING only -- it never refuses or quits.
+; Runs after the old service and bootstrap are stopped so an upgrade does not
+; flag CivicCast's own Ollama; anything under $INSTDIR also counts as ours.
+!define CIVICCAST_AI_PORT_PREFLIGHT_SCRIPT "${__FILEDIR__}\ai-port-preflight.ps1"
+!macro CIVICCAST_AI_PORT_PREFLIGHT
+  Push $0
+  Push $1
+  ${If} ${Errors}
+    Push "1"
+  ${Else}
+    Push "0"
+  ${EndIf}
+  ClearErrors
+  InitPluginsDir
+  File "/oname=$PLUGINSDIR\civiccast-ai-port-preflight.ps1" "${CIVICCAST_AI_PORT_PREFLIGHT_SCRIPT}"
+  nsExec::ExecToStack /TIMEOUT=30000 '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$PLUGINSDIR\civiccast-ai-port-preflight.ps1" -Port 11434 -OwnInstallRoot "$INSTDIR"'
+  Pop $0
+  Pop $1
+  !insertmacro CIVICCAST_STEP "preinstall: AI port check returned $0: $1"
+  ${If} $0 == 10
+    !insertmacro CIVICCAST_NOTICE "WARNING: another program is already using port 11434, which CivicCast's built-in AI engine needs:$\r$\n$\r$\n$1$\r$\n$\r$\nSetup will continue and the station will run normally, but AI summaries and live translation stay off until that program is stopped or moved to another port. After that, restart the CivicCast Native Supervisor service."
+  ${EndIf}
+  Pop $1
+  ${If} $1 == "1"
+    SetErrors
+  ${Else}
+    ClearErrors
+  ${EndIf}
+  Pop $1
+  Pop $0
+!macroend
+
 !macro NSIS_HOOK_PREINSTALL
   !insertmacro CIVICCAST_VERSION_PREFLIGHT
   !insertmacro CIVICCAST_TRANSACTION_BEGIN
@@ -865,6 +904,7 @@ Var CIVICCAST_POSTCLEAR_ARMED
   ${Else}
     DetailPrint "No prior CivicCast Native bootstrap process to stop (fresh install)."
   ${EndIf}
+  !insertmacro CIVICCAST_AI_PORT_PREFLIGHT
   !insertmacro CIVICCAST_TRANSACTION_SNAPSHOT
   !insertmacro CIVICCAST_STEP "preinstall: done"
 !macroend
@@ -2047,8 +2087,11 @@ Var CIVICCAST_POSTCLEAR_ARMED
   nsExec::ExecToStack '"$INSTDIR\CivicCast Native.exe" --civiccast-native-uninstall-preflight'
   Pop $0
   Pop $1
+  ; Record what the preflight decided (including an inert WSL leftover
+  ; warning) -- silent uninstalls have no details pane.
+  !insertmacro CIVICCAST_STEP "preuninstall: ownership preflight returned $0: $1"
   ${If} $0 == 74
-    MessageBox MB_YESNO|MB_ICONQUESTION "CivicCast (Native) is the active runtime and the WSL product (CivicCast Installer) is still installed.$\r$\n$\r$\nTo continue uninstalling CivicCast (Native), ActiveRuntime ownership must first be transferred to the WSL product, which will then become the active runtime that starts and transmits.$\r$\n$\r$\nTransfer ownership to the WSL product now and continue uninstalling CivicCast (Native)?" IDYES civiccast_native_transfer_acknowledged
+    MessageBox MB_YESNO|MB_ICONQUESTION "CivicCast (Native) is the active runtime and the WSL product (CivicCast Installer) is still installed.$\r$\n$\r$\nTo continue uninstalling CivicCast (Native), ActiveRuntime ownership must first be transferred to the WSL product, which will then become the active runtime that starts and transmits.$\r$\n$\r$\nTransfer ownership to the WSL product now and continue uninstalling CivicCast (Native)?" /SD IDNO IDYES civiccast_native_transfer_acknowledged
     DetailPrint "CivicCast Native uninstall was declined at the ownership transfer prompt; nothing was removed and ActiveRuntime was left unchanged."
     !insertmacro CIVICCAST_ALERT "CivicCast (Native) uninstall was cancelled. ActiveRuntime ownership was NOT transferred and nothing was removed."
     SetErrors

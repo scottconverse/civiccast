@@ -30,6 +30,64 @@ def test_verified_runtime_refuses_missing_or_modified_bytes(tmp_path, monkeypatc
         overlay.verify_runtime(tmp_path)
 
 
+def _reviewed_archive(tmp_path: Path, monkeypatch) -> tuple[Path, bytes]:
+    import zipfile
+
+    body = b"verified upstream runtime"
+    archive = tmp_path / overlay.ARCHIVE_NAME
+    with zipfile.ZipFile(archive, "w") as bundle:
+        bundle.writestr("libssl-3-x64.dll", body)
+    archive_bytes = archive.read_bytes()
+    monkeypatch.setattr(
+        overlay,
+        "policy",
+        lambda: {
+            "archive": {
+                "bytes": len(archive_bytes),
+                "sha256": hashlib.sha256(archive_bytes).hexdigest(),
+            },
+            "files": {
+                "libssl-3-x64.dll": {"bytes": len(body), "sha256": hashlib.sha256(body).hexdigest()}
+            },
+        },
+    )
+    monkeypatch.setenv("CIVICCAST_OPENSSL_RUNTIME_ZIP", str(archive))
+    return archive, body
+
+
+@pytest.mark.parametrize("stale", ["empty", "modified", "partial"])
+def test_stale_runtime_cache_is_rebuilt_from_the_reviewed_archive(tmp_path, monkeypatch, stale):
+    # RC4 candidate build 41788717204 failed on an EMPTY openssl-3.5.9-runtime
+    # cache left by an interrupted earlier run on the self-hosted runner: the
+    # old code verified the stale directory and stopped instead of rebuilding.
+    _, body = _reviewed_archive(tmp_path, monkeypatch)
+    cache = tmp_path / "cache"
+    out = cache / "openssl-3.5.9-runtime"
+    out.mkdir(parents=True)
+    if stale == "modified":
+        (out / "libssl-3-x64.dll").write_bytes(b"x" * len(body))
+        (out / "planted.dll").write_bytes(b"not reviewed")
+    elif stale == "partial":
+        out.rmdir()
+        partial = cache / "openssl-3.5.9-runtime.partial"
+        partial.mkdir()
+        (partial / "libssl-3-x64.dll").write_bytes(b"half")
+
+    assert overlay.acquire_runtime(cache) == out
+    assert sorted(p.name for p in out.iterdir()) == ["libssl-3-x64.dll"]
+    assert (out / "libssl-3-x64.dll").read_bytes() == body
+    assert not (cache / "openssl-3.5.9-runtime.partial").exists()
+
+
+def test_stale_cache_is_never_rebuilt_from_an_unreviewed_archive(tmp_path, monkeypatch):
+    archive, _ = _reviewed_archive(tmp_path, monkeypatch)
+    archive.write_bytes(archive.read_bytes() + b"tampered")
+    out = tmp_path / "cache" / "openssl-3.5.9-runtime"
+    out.mkdir(parents=True)
+    with pytest.raises(ValueError, match="missing or unverified"):
+        overlay.acquire_runtime(tmp_path / "cache")
+
+
 def test_overlay_keeps_binary_names_and_full_license_provenance(tmp_path, monkeypatch):
     runtime = tmp_path / "runtime"
     runtime.mkdir()

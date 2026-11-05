@@ -469,6 +469,11 @@ def provision_portable_toolchain(
         archive_kind=artifacts["node"]["archive"],
         strip_prefix=artifacts["node"]["strip_prefix"],
     )
+    npm_root = output / "node" / "node_modules" / "npm"
+    if npm_root.exists():
+        if not npm_root.resolve().is_relative_to(output.resolve()):
+            raise ToolchainProvisionError("npm_root escapes output")
+        shutil.rmtree(npm_root)
     safe_extract(
         acquired["npm"],
         output / "node" / "node_modules" / "npm",

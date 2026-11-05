@@ -3379,6 +3379,28 @@ class TestCaptionTapBacklogPersistence:
         with pytest.raises(ValueError, match="OVERLOAD_PERSISTENCE_SCANS"):
             CaptionTapWorkerSettings.from_env()
 
+    def test_recovery_scans_parse_from_the_environment_and_reach_the_backoff(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        from civiccast.captions.tap_backoff import DEFAULT_RECOVERY_SCANS
+
+        monkeypatch.setenv("CIVICCAST_CAPTION_TAP", "off")
+        monkeypatch.delenv("CIVICCAST_CAPTION_TAP_RECOVERY_SCANS", raising=False)
+        assert CaptionTapWorkerSettings.from_env().overload_recovery_scans == DEFAULT_RECOVERY_SCANS
+        # A faster poll keeps the same recovery time span with more scans.
+        monkeypatch.setenv("CIVICCAST_CAPTION_TAP_RECOVERY_SCANS", "12")
+        assert CaptionTapWorkerSettings.from_env().overload_recovery_scans == 12
+
+        worker = build_tap_worker(
+            CaptionTapWorkerSettings(
+                mode="inline", tap_root=tmp_path / "tap", overload_recovery_scans=12
+            ),
+            InMemoryCaptionReviewStore(),
+            runtime=_ScriptedRuntime(),
+            caption_work_dir=tmp_path / "egress",
+        )
+        assert worker._backoff._recovery_scans == 12
+
 
 #: The three ON_AIR channels of the measured station (U22).
 _CATCH_UP_CHANNELS = ("public", "government", "education")

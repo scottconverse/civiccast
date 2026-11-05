@@ -97,11 +97,13 @@
         },
         {
           "name": "gstreamer-libexpat",
-          "version": "2.7.1",
+          "version": "2.10.0",
           "cpe": "libexpat_project:libexpat",
           "files": [
             "libexpat.dll"
-          ]
+          ],
+          "source_lock": "native-windows-security-libraries.lock.json",
+          "source_component": "expat"
         },
         {
           "name": "gstreamer-glib",
@@ -453,6 +455,47 @@
         "scope": "The wheel DLL is byte-identical to the publisher attested archive. Release branch HEAD equals the newest commit named in the publisher release. Vendored forks retain source revision identities rather than invented upstream release/CPE versions; this is inventory evidence, not a claim of complete per-fork CVE coverage.",
         "attestation_verification": "Publisher release API asset digest and attestation subject digest match downloaded archive. Sigstore certificate/transparency verification was not independently run; no additional signing claim is implied."
       }
+    },
+    {
+      "parent": "wheel:psycopg-binary",
+      "wheel_version": "3.3.7",
+      "wheel_sha256": "7a1fd4e844630393800a86e55312c77dcdfa12dd7baf02da3230c7147a805793",
+      "evidence": "PE FileVersion/ProductVersion of the DLLs in psycopg_binary-3.3.7-cp312-cp312-win_amd64.whl (sha256 verified against the pinned hash): psycopg_binary.libs/libpq-14ecb377248fda9229514438015bb8c3.dll = 18.4; libssl-3-x64-e8f88b09f5f35455b9d9e135c36d15d2.dll and libcrypto-3-x64-3735cff37bdc8876ed86ca101a6c7ff7.dll = 3.6.5. These three are the only DLLs in psycopg_binary.libs. Found by the RC4 SBOM scan of the installed payload (F8: 3.3.4 shipped libpq 18.3 + OpenSSL 3.6.2); pip-audit covers the Python package, not these DLLs.",
+      "components": [
+        {
+          "name": "psycopg-binary-libpq",
+          "version": "18.4",
+          "cpe": "postgresql:postgresql",
+          "files": [
+            "psycopg_binary.libs/libpq-14ecb377248fda9229514438015bb8c3.dll"
+          ]
+        },
+        {
+          "name": "psycopg-binary-openssl",
+          "version": "3.6.5",
+          "cpe": "openssl:openssl",
+          "files": [
+            "psycopg_binary.libs/libcrypto-3-x64-3735cff37bdc8876ed86ca101a6c7ff7.dll",
+            "psycopg_binary.libs/libssl-3-x64-e8f88b09f5f35455b9d9e135c36d15d2.dll"
+          ]
+        }
+      ]
+    },
+    {
+      "parent": "wheel:pywin32",
+      "wheel_version": "312",
+      "wheel_sha256": "b457f6d628a47e8a7346ce22acb7e1a46a4a78b52e1d17e1af56871bd19a93bc",
+      "evidence": "PE FileVersion/ProductVersion of pythonwin/scintilla.dll in pywin32-312-cp312-cp312-win_amd64.whl (sha256 verified against the pinned hash) = 4.4.6 ('Scintilla.DLL - a Source Editing Component'). Loaded only by the Pythonwin IDE (win32ui); CivicCast imports neither. Found by the RC4 SBOM scan of the installed payload (F8).",
+      "components": [
+        {
+          "name": "pywin32-scintilla",
+          "version": "4.4.6",
+          "cpe": "scintilla:scintilla",
+          "files": [
+            "pythonwin/scintilla.dll"
+          ]
+        }
+      ]
     }
   ]
 }

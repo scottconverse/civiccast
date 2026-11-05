@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -57,6 +58,12 @@ def _select_body_assets(artifacts: list[dict[str, Any]]) -> list[dict[str, Any]]
 #: section is bounded to this many characters at a line boundary; the full
 #: text lives in CHANGELOG.md at the tagged commit and the body says so.
 CHANGELOG_BODY_MAX_CHARS = 90_000
+
+
+def candidate_kind(tag: str) -> str:
+    """'release candidate' for vX.Y.Z-rc.N tags; 'beta candidate' for every other tag."""
+
+    return "release candidate" if re.fullmatch(r"v\d+\.\d+\.\d+-rc\.\d+", tag) else "beta candidate"
 
 
 def bound_changelog_section(text: str, *, max_chars: int = CHANGELOG_BODY_MAX_CHARS) -> str:
@@ -217,9 +224,9 @@ def render_native_beta_candidate_notes(
                 else "Three-channel Whistle/HLS/caption observation"
             )
             lines = [
-                f"# CivicCast {tag.lstrip('v')} (Beta Candidate)",
+                f"# CivicCast {tag.lstrip('v')} ({candidate_kind(tag).title()})",
                 "",
-                "> **This is a beta candidate, not a production release.** Direct Sandbox consumer checks "
+                f"> **This is a {candidate_kind(tag)}, not a production release.**Direct Sandbox consumer checks "
                 "passed as listed below. Gate A was not run for this route, and no human acceptance "
                 "pass has been recorded.",
                 "",
@@ -278,9 +285,9 @@ def render_native_beta_candidate_notes(
                     "direct_verification must contain the validated physical-host proof summary"
                 )
             lines = [
-                f"# CivicCast {tag.lstrip('v')} (Beta Candidate)",
+                f"# CivicCast {tag.lstrip('v')} ({candidate_kind(tag).title()})",
                 "",
-                "> **This is a beta candidate.** The exact signed installer was checked on an existing "
+                f"> **This is a {candidate_kind(tag)}.** The exact signed installer was checked on an existing "
                 "physical host as listed below.",
                 "",
                 "## Source identity",
@@ -314,9 +321,9 @@ def render_native_beta_candidate_notes(
             )
         if artifact_source_sha is not None and artifact_source_sha != source_sha:
             lines = [
-                f"# CivicCast {tag.lstrip('v')} (Beta Candidate)",
+                f"# CivicCast {tag.lstrip('v')} ({candidate_kind(tag).title()})",
                 "",
-                "> **This is a beta candidate, not a production release.** It has "
+                f"> **This is a {candidate_kind(tag)}, not a production release.**It has "
                 "passed automated Gate A station-acceptance (clean install, "
                 "cross-version upgrade, and download-only upgrade lanes) but has "
                 "NOT had a human acceptance pass. Treat findings as expected; report "
@@ -337,9 +344,9 @@ def render_native_beta_candidate_notes(
             ]
         else:
             lines = [
-                f"# CivicCast {tag.lstrip('v')} (Beta Candidate)",
+                f"# CivicCast {tag.lstrip('v')} ({candidate_kind(tag).title()})",
                 "",
-                "> **This is a beta candidate, not a production release.** It has "
+                f"> **This is a {candidate_kind(tag)}, not a production release.**It has "
                 "passed automated Gate A station-acceptance (clean install, "
                 "cross-version upgrade, and download-only upgrade lanes) but has "
                 "NOT had a human acceptance pass. Treat findings as expected; report "

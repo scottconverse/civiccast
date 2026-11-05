@@ -504,13 +504,21 @@ jobs:
         # 50-test margin with a floor of 1974. The 2026-10-14 Beta16 license
         # closure assertion added one pure test (floor 1975).
         # 2026-10-19: 2029 pure tests; floor 1983 leaves a 46-test margin.
-        # Operator safety regressions: 2177 pure tests; floor 2127
+        # RC4 Expat/npm regressions: 2186 pure tests; floor 2136
         # keeps the standard 50-test margin.
+        # RC4 Whistle live profile: two native env tests, 2188 pure tests;
+        # floor 2138 keeps the standard 50-test margin.
+        # RC4 OpenSSL stale-cache rebuild: four portable cases, 2192 pure
+        # tests; floor 2142 keeps the standard 50-test margin.
+        # RC4 runtime-overlay stale-cache rebuild: nine portable cases, 2201
+        # pure tests; floor 2151 keeps the standard 50-test margin.
+        # RC4 field fixes after ad03f678: six portable cases, 2207 pure tests;
+        # floor 2157 keeps the standard 50-test margin.
         if: always()
         run: |
           python scripts/verify_native_junit_floor.py \
             --junit junit-native-pure.xml \
-            --floor 2127 \
+            --floor 2157 \
             --label "tests/native pure suite"
 
       - name: Upload junit (ws3 claims-evidence D3/D7)
@@ -559,7 +567,7 @@ jobs:
             @{ Name = 'openssl-3.5.9-civiccast-windows-x64.zip'; Bytes = 2805153; SHA256 = '062f6d64ae51eb970e46422e6791bced241867574179aa278a82a08245f82491' },
             @{ Name = 'glib-2.88.4-libsoup-3.8.1-nghttp2-1.70.0-civiccast-windows-x64.zip'; Bytes = 1966069; SHA256 = '34da86644a17511887de4f01b7ea18708f07c15e1f92f1448dda68166eebe6b9' },
             @{ Name = 'ffmpeg-7.1.5-security1-gstreamer-windows-x64.zip'; Bytes = 1968427; SHA256 = '40cf143eda356ea14573323c8dcfbd4c4e33c83a2510e50bbaae95912b143246' },
-            @{ Name = 'civiccast-rc1-security-libraries-windows-x64.zip'; Bytes = 2666766; SHA256 = '6545e5f76472135310815f68296b427a8efc9810ba28a4c4c919241cfd04e683' }
+            @{ Name = 'civiccast-rc4-expat-2.10.0-security-libraries-windows-x64.zip'; Bytes = 2811194; SHA256 = 'ed8d5a29c295e62b1081788ac185b8b978028d609a5b2cf610241b7e2fc47d29' }
           )
           foreach ($inputFile in $inputs) {
             $source = Join-Path $mirror $inputFile.Name
@@ -579,7 +587,7 @@ jobs:
             ${{ runner.temp }}/native-runtime-reviewed-inputs/openssl-3.5.9-civiccast-windows-x64.zip
             ${{ runner.temp }}/native-runtime-reviewed-inputs/glib-2.88.4-libsoup-3.8.1-nghttp2-1.70.0-civiccast-windows-x64.zip
             ${{ runner.temp }}/native-runtime-reviewed-inputs/ffmpeg-7.1.5-security1-gstreamer-windows-x64.zip
-            ${{ runner.temp }}/native-runtime-reviewed-inputs/civiccast-rc1-security-libraries-windows-x64.zip
+            ${{ runner.temp }}/native-runtime-reviewed-inputs/civiccast-rc4-expat-2.10.0-security-libraries-windows-x64.zip
           if-no-files-found: error
           compression-level: 0
           retention-days: 1
@@ -633,7 +641,7 @@ jobs:
               ('native-windows-openssl.lock.json', 'openssl-3.5.9-civiccast-windows-x64.zip', 'CIVICCAST_OPENSSL_RUNTIME_ZIP'),
               ('native-windows-glib-soup.lock.json', 'glib-2.88.4-libsoup-3.8.1-nghttp2-1.70.0-civiccast-windows-x64.zip', 'CIVICCAST_GLIB_SOUP_RUNTIME_ZIP'),
               ('native-windows-gstreamer-ffmpeg.lock.json', 'ffmpeg-7.1.5-security1-gstreamer-windows-x64.zip', 'CIVICCAST_GSTREAMER_FFMPEG_RUNTIME_ZIP'),
-              ('native-windows-security-libraries.lock.json', 'civiccast-rc1-security-libraries-windows-x64.zip', 'CIVICCAST_SECURITY_LIBRARIES_ZIP'),
+              ('native-windows-security-libraries.lock.json', 'civiccast-rc4-expat-2.10.0-security-libraries-windows-x64.zip', 'CIVICCAST_SECURITY_LIBRARIES_ZIP'),
           )
           environment = []
           for lockfile, filename, variable in reviewed:
@@ -895,14 +903,24 @@ jobs:
         # tests; preserve the 50-test margin (2218). The exact native closure
         # baseline regression adds one portable case:2269 non-integration,
         # floor2219 keeps that same margin.
-        # Current native CI collection: 2418 Windows non-integration tests;
-        # floor 2368 keeps the standard 50-test margin.
+        # RC4 native CI collection: 2427 Windows non-integration tests;
+        # floor 2377 keeps the standard 50-test margin.
+        # RC4 Whistle live profile: 2429 Windows non-integration tests;
+        # floor 2379 keeps the standard 50-test margin.
+        # RC4 OpenSSL stale-cache rebuild: 2433 Windows non-integration tests;
+        # floor 2383 keeps the standard 50-test margin.
+        # RC4 service-identity sharing-violation fix: 2434 Windows
+        # non-integration tests; floor 2384 keeps the standard 50-test margin.
+        # RC4 runtime-overlay stale-cache rebuild: 2443 Windows
+        # non-integration tests; floor 2393 keeps the standard 50-test margin.
+        # RC4 field fixes after ad03f678: 2452 Windows non-integration tests
+        # (measured collect-only); floor 2402 keeps the standard 50-test margin.
         if: always()
         shell: bash
         run: |
           python scripts/verify_native_junit_floor.py \
             --junit junit-native-win.xml \
-            --floor 2368 \
+            --floor 2402 \
             --label "tests/native Windows suite"
 
       - name: Upload Windows native junit

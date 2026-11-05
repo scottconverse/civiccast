@@ -37,10 +37,16 @@ from civiccast.stream._ffmpeg import FfmpegResult, run_ffmpeg
 
 DECODE_BACK_DECODER = "ffmpeg-subcc"
 DEFAULT_CAPTION_FRESHNESS_SECONDS = 120.0
-# A six-second proof capture is a health check, not a media transcode.  Keep
-# both the capture and decode bounded so a wedged ffmpeg child cannot monopolize
-# a worker for the stream wrapper's six-hour general-purpose default.
-DEFAULT_CAPTION_PROOF_TIMEOUT_SECONDS = 15.0
+# F11 (RC4 field run 2026-11-04): a six-second capture often held no complete
+# pop-on page, and a capture that joins while a page is loading decodes a
+# partial page whose leftovers corrupt the next one.  Eighteen seconds holds the
+# three consecutive pages a cleanly loaded page needs (pages run 1-3 s); measured
+# on a live 3-channel station: 22/24 PASS vs ~45 % at 6 s.
+DEFAULT_CAPTION_PROOF_CAPTURE_SECONDS = 18.0
+# The capture is read in real time (-re), so the bound covers it plus startup.
+# Still bounded so a wedged ffmpeg child cannot monopolize the worker for the
+# stream wrapper's six-hour general-purpose default.
+DEFAULT_CAPTION_PROOF_TIMEOUT_SECONDS = 40.0
 
 _LOG = logging.getLogger(__name__)
 
@@ -172,6 +178,44 @@ def decode_embedded_captions(
     return parse_caption_cues_from_timed_text(result.stdout, source_id=source_id)
 
 
+def _unwrapped_interval(cue: CaptionCue, origin: float) -> tuple[float, float]:
+    start = cue.start_seconds
+    # Unwrap from the actual capture clock, independently of text.
+    start += round((origin - start) / TS_CLOCK_WRAP_SECONDS) * TS_CLOCK_WRAP_SECONDS
+    return start, start + cue.end_seconds - cue.start_seconds
+
+
+def cues_cleanly_inside_capture(
+    cues: list[CaptionCue], *, origin: float, end: float
+) -> list[CaptionCue]:
+    """Expected pages a capture of ``[origin, end]`` can decode intact, relative to ``origin``.
+
+    ``cues`` are the delivery receipt's pages in display order. CEA-608 pop-on
+    loads a page into non-displayed memory and EOC displays it; the encoder only
+    starts loading page N after page N-1 displays (``gst/caption_clock``). A
+    capture that joins mid-load decodes a partial page N-1 whose leftovers are
+    glued onto page N (F11, RC4 field run). So page N is expected only when page
+    N-2 displayed at/after the origin -- page N-1 then loaded entirely inside the
+    capture -- and page N ends inside it. Pages are never dropped by text, and
+    no offset is fitted.
+    """
+
+    intervals = [_unwrapped_interval(cue, origin) for cue in cues]
+    kept: list[CaptionCue] = []
+    for index, cue in enumerate(cues):
+        if index < 2:
+            continue
+        start, finish = intervals[index]
+        if intervals[index - 2][0] < origin - 0.001 or finish > end + 0.001 or finish <= start:
+            continue
+        kept.append(
+            cue.model_copy(
+                update={"start_seconds": max(0.0, start - origin), "end_seconds": finish - origin}
+            )
+        )
+    return kept
+
+
 def sample_caption_decode_back(
     *,
     channel_id: str,
@@ -182,8 +226,13 @@ def sample_caption_decode_back(
     clock: Clock = lambda: datetime.now(UTC),
     timeout_seconds: float | None = DEFAULT_CAPTION_PROOF_TIMEOUT_SECONDS,
     align_transport_clock: bool = False,
+    require_clean_page_load: bool = False,
 ) -> EgressCaptionProofSample:
-    """Decode the emitted stream, compare to expected cues, build a proof sample."""
+    """Decode the emitted stream, compare to expected cues, build a proof sample.
+
+    ``require_clean_page_load`` (production live proof, with
+    ``align_transport_clock``) expects only pages the capture holds from the
+    start of their load; see ``cues_cleanly_inside_capture``."""
 
     decoded = decode_embedded_captions(
         emitted_stream_path,
@@ -219,9 +268,12 @@ def sample_caption_decode_back(
                     }
                 )
 
-            expected_cues = [
-                mapped for cue in expected_cues if (mapped := relative(cue)) is not None
-            ]
+            if require_clean_page_load:
+                expected_cues = cues_cleanly_inside_capture(expected_cues, origin=origin, end=end)
+            else:
+                expected_cues = [
+                    mapped for cue in expected_cues if (mapped := relative(cue)) is not None
+                ]
             decoded = [mapped for cue in decoded if (mapped := relative(cue)) is not None]
     proof = evaluate_caption_decode_back(
         channel_id=channel_id,

@@ -46,9 +46,18 @@
         "sha256": "0a9c8e34352dad46006aa82836d5383bff9dc6bc9ce5a60553c05aa30e6ad1f9"
       }
     },
+    "expat": {
+      "version": "2.10.0",
+      "source": {
+        "version": "2.10.0",
+        "directory": "expat-2.10.0",
+        "url": "https://github.com/libexpat/libexpat/releases/download/R_2_10_0/expat-2.10.0.tar.gz",
+        "sha256": "5466a341f9c692ef7a958a6881311be597f8e1ce345984cf78414f54793dea4c"
+      }
+    },
     "security-libraries-build": {
       "version": "1",
-      "sha256": "731d942dd38e732c758f2edcded3b21b68e3c583308952250dcc5ec0aa4ad18e"
+      "sha256": "721533071dda430f16def013f107b5d20652f82379e5ee8a0067895f51757bf1"
     }
   },
   "files": {
@@ -88,6 +97,13 @@
       "license": "blessing AND LicenseRef-Microsoft-VCRedist",
       "gstreamer": "bin/sqlite3-0.dll"
     },
+    "libexpat.dll": {
+      "sha256": "8ea0f57e4404959d9eec94a626d9d439ac481491dc1066c964a446fb07ad8e76",
+      "bytes": 301568,
+      "component": "expat",
+      "license": "MIT AND LicenseRef-Microsoft-VCRedist",
+      "gstreamer": "bin/libexpat.dll"
+    },
     "zlib-LICENSE.txt": {
       "sha256": "e32ff4e00d9d94930537635291da39e7e612703334bf6fde8c7f1686fe8a45a2",
       "bytes": 1002,
@@ -117,6 +133,13 @@
       "license": "MIT",
       "gstreamer": "licenses/security-libs/harfbuzz-LICENSE.txt"
     },
+    "expat-LICENSE.txt": {
+      "sha256": "31b15de82aa19a845156169a17a5488bf597e561b2c318d159ed583139b25e87",
+      "bytes": 1144,
+      "component": "expat",
+      "license": "MIT",
+      "gstreamer": "licenses/security-libs/expat-LICENSE.txt"
+    },
     "sqlite-LICENSE.txt": {
       "sha256": "592db1199aab67aafe4515db9808b420db122083807c5329b2f061951e79acbe",
       "bytes": 244,
@@ -133,8 +156,8 @@
       "postgres": "licenses/security-libs/LicenseRef-Microsoft-VCRedist.txt"
     },
     "provenance.json": {
-      "sha256": "f7a7a9e64f3f122a09b204b17ddbefccdefa0d5482c3a7dcd4bc96132157656a",
-      "bytes": 2685,
+      "sha256": "c79a0d11fe1acf6564585e1514b4978dd40a7fe333e4ba8b5d246407940b2100",
+      "bytes": 14203,
       "component": "security-libraries-build",
       "license": "Apache-2.0",
       "gstreamer": "licenses/security-libs/provenance.json",
@@ -142,8 +165,8 @@
     }
   },
   "archive": {
-    "filename": "civiccast-rc1-security-libraries-windows-x64.zip",
-    "sha256": "6545e5f76472135310815f68296b427a8efc9810ba28a4c4c919241cfd04e683",
-    "bytes": 2666766
+    "filename": "civiccast-rc4-expat-2.10.0-security-libraries-windows-x64.zip",
+    "sha256": "ed8d5a29c295e62b1081788ac185b8b978028d609a5b2cf610241b7e2fc47d29",
+    "bytes": 2811194
   }
 }

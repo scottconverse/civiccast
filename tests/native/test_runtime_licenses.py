@@ -56,6 +56,25 @@ def test_ffmpeg_libs_resolve_to_lgpl_from_direct_runtime_probe() -> None:
         assert classify_shipped_file(f"bin/{name}") == expected
 
 
+def test_gstreamer_security_overlay_pins_match_classifier_contract() -> None:
+    import json
+    from pathlib import Path
+
+    lock_path = Path(__file__).resolve().parents[2] / "native-windows-security-libraries.lock.json"
+    lock = json.loads(lock_path.read_text(encoding="utf-8"))
+
+    exercised = set()
+    for entry in lock["files"].values():
+        if "gstreamer" not in entry:
+            continue
+        gstreamer = entry["gstreamer"]
+        exercised.add(gstreamer)
+        assert classify_shipped_file(gstreamer) == entry["license"], gstreamer
+
+    assert "bin/libexpat.dll" in exercised
+    assert "licenses/security-libs/expat-LICENSE.txt" in exercised
+
+
 def test_gstreamer_plugin_dlls_resolve_per_direct_plugin_sweep() -> None:
     # gst_plugin_get_license() queried against every plugin DLL loaded from
     # the built tree (evidence memo, "34-plugin sweep" table).

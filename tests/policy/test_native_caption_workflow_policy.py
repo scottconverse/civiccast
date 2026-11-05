@@ -1218,7 +1218,17 @@ def test_native_marker_collections_match_the_workflow_floors() -> None:
     # Operator safety/transport regressions: fresh collection retained in CURRENT.
     # Five WSL manifest access/mapping cases: measured 2153 pure/2397 total.
     # Pinned HTTP parser backport: 2177 pure / 2422 total, measured collect-only.
-    assert (collect("not windows_only"), collect()) == (2177, 2422)
+    # Prior CI observed 2185 pure / 2430 total; one portable npm regression added.
+    # RC4 Whistle live profile adds two portable native env cases, measured
+    # by this test's own collection: 2188 pure / 2433 total.
+    # RC4 OpenSSL stale-cache rebuild adds four portable cases: 2192 / 2437.
+    # RC4 service-identity sharing-violation fix adds one Windows case: 2192 / 2438.
+    # RC4 runtime-overlay stale-cache rebuild adds nine portable cases: 2201 / 2447.
+    # RC4 field fixes after ad03f678 (uninstall, caption proof, encoder GOP,
+    # F7 caption-boundary sharing, F11 self-check, AI readiness, F4 identity)
+    # add six portable and three Windows-only native cases, measured by the
+    # PR #297 CI collection: 2207 / 2456.
+    assert (collect("not windows_only"), collect()) == (2207, 2456)
 
 
 def test_linux_unit_job_runs_native_tests_once_in_the_dedicated_pure_lane() -> None:

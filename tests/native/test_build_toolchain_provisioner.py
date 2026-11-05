@@ -45,13 +45,13 @@ def test_committed_lock_is_complete_and_matches_runtime_attestation() -> None:
 
     artifacts = lock["artifacts"]
     assert artifacts["node"] == {
-        "version": "24.15.0",
-        "url": "https://nodejs.org/dist/v24.15.0/node-v24.15.0-win-x64.zip",
-        "filename": "node-v24.15.0-win-x64.zip",
-        "bytes": 36_465_163,
-        "sha256": "cc5149eabd53779ce1e7bdc5401643622d0c7e6800ade18928a767e940bb0e62",
+        "version": "24.16.0",
+        "url": "https://nodejs.org/dist/v24.16.0/node-v24.16.0-win-x64.zip",
+        "filename": "node-v24.16.0-win-x64.zip",
+        "bytes": 36_946_639,
+        "sha256": "edaca9bd58ec8e92037dac4e877d52f6b8f430b81c18b57e264b4e2fb111cd56",
         "archive": "zip",
-        "strip_prefix": "node-v24.15.0-win-x64",
+        "strip_prefix": "node-v24.16.0-win-x64",
     }
     assert artifacts["npm"]["version"] == "11.12.1"
     assert artifacts["npm"]["sha256"] == (
@@ -597,3 +597,39 @@ def test_cli_is_standalone_before_civiccast_is_installed() -> None:
     )
     assert result.returncode == 0, result.stderr
     assert "reviewed native-Windows build toolchain" in result.stdout
+
+
+def test_portable_toolchain_replaces_bundled_npm_before_extracting_pin(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    lock = provisioner.load_lock()
+    output = tmp_path / "tools"
+    shims = ("npm", "npm.cmd", "npm.ps1", "npx", "npx.cmd", "npx.ps1")
+    monkeypatch.setattr(
+        provisioner, "fetch_locked_artifact", lambda name, *args, **kwargs: tmp_path / name
+    )
+
+    def fake_extract(archive: Path, destination: Path, **kwargs: object) -> None:
+        if archive.name == "node":
+            (destination / "node_modules" / "npm").mkdir(parents=True)
+            (destination / "node_modules" / "npm" / "bundled-only.js").write_bytes(b"bundled")
+        elif archive.name == "npm":
+            assert not (destination / "bundled-only.js").exists()
+            (destination / "bin").mkdir(parents=True)
+            for shim in shims:
+                (destination / "bin" / shim).write_bytes(b"pinned")
+        elif archive.name == "python":
+            (destination / "Lib").mkdir(parents=True)
+        elif archive.name == "uv":
+            destination.mkdir(parents=True, exist_ok=True)
+
+    monkeypatch.setattr(provisioner, "safe_extract", fake_extract)
+    monkeypatch.setattr(
+        provisioner, "verify_portable_toolchain", lambda *args: lock["installed_identities"]
+    )
+    result = provisioner.provision_portable_toolchain(lock, tmp_path / "cache", output)
+    assert result == lock["installed_identities"]
+    assert not (output / "node" / "node_modules" / "npm" / "bundled-only.js").exists()
+    for shim in shims:
+        assert (output / "node" / shim).read_bytes() == b"pinned"
+    assert (output / "toolchain-receipt.json").exists()

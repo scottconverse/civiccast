@@ -36,8 +36,12 @@ def test_cached_and_installed_bytes_are_independently_checked(tmp_path, monkeypa
         "gstreamer": "bin/z-1.dll",
     }
     monkeypatch.setattr(
-        overlay, "policy", lambda: {"archive": {"sha256": "a" * 64}, "files": {"z-1.dll": pin}}
+        overlay,
+        "policy",
+        lambda: {"archive": {"bytes": 1, "sha256": "a" * 64}, "files": {"z-1.dll": pin}},
     )
+    # No reviewed archive is available, so a tampered cache cannot be rebuilt.
+    monkeypatch.setenv("CIVICCAST_SECURITY_LIBRARIES_ZIP", str(tmp_path / "missing.zip"))
     cached = tmp_path / ("cache/security-libraries-" + "a" * 16)
     cached.mkdir(parents=True)
     (cached / "z-1.dll").write_bytes(body)

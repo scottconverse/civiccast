@@ -236,9 +236,32 @@ _MF_ENCODERS = frozenset({"mfh264enc", "mfh265enc"})
 # with three channel workers sharing the box. Coordinator measurement 2026-09-28.
 _OPENH264_PARALLEL_PROPS = {"slice-mode": "n-slices", "num-slices": 4, "multi-thread": 4}
 
+# Hardware encoders whose keyframe interval is the ``gop-size`` property (checked
+# with the bundled gst-inspect-1.0, 2026-11-04). graph.py pins it only for
+# openh264/x264, so these kept their own defaults: nvh264enc 75 frames (2.5 s
+# HLS segments under a 2 s target, RC4 host run), mfh264enc -1 "automatic"
+# (vendor-dependent; may be a single keyframe), d3d12h264enc 60. The live-HLS sink
+# stream-copies video, so segment length and viewer join time follow this value.
+# mfh26xenc exposes the property only when the device MFT supports it; the engine
+# skips it there with a warning (OPTIONAL_ELEMENT_PROPS) rather than failing start.
+_GOP_SIZE_HARDWARE_ENCODERS = frozenset(
+    {
+        "nvh264enc",
+        "nvh265enc",
+        "nvd3d11h264enc",
+        "nvd3d11h265enc",
+        "nvautogpuh264enc",
+        "nvautogpuh265enc",
+        "mfh264enc",
+        "mfh265enc",
+        "d3d12h264enc",
+        "d3d12h265enc",
+    }
+)
+
 
 def _apply_encoder_fixups(
-    specs: tuple[ElementSpec, ...], encoder: str, bitrate_kbps: int
+    specs: tuple[ElementSpec, ...], encoder: str, bitrate_kbps: int, gop: int | None = None
 ) -> tuple[ElementSpec, ...]:
     """Encoder-specific corrections kept OUT of the claims-governed ``graph.py``:
 
@@ -250,11 +273,20 @@ def _apply_encoder_fixups(
       high-motion source.
     * Media Foundation encoders need an explicit ``NV12`` input pinned on the conform
       capsfilter; every other encoder negotiates its own format and is left untouched.
+    * Hardware encoders in ``_GOP_SIZE_HARDWARE_ENCODERS`` get ``gop-size`` = the
+      profile GOP, so their keyframe cadence (= HLS segment length) is bounded.
     """
     fixed: list[ElementSpec] = []
     for spec in specs:
         caps = str(spec.props.get("caps", ""))
-        if spec.factory == "openh264enc" and "bitrate" in spec.props:
+        if (
+            gop is not None
+            and spec.factory == encoder
+            and encoder in _GOP_SIZE_HARDWARE_ENCODERS
+            and "gop-size" not in spec.props
+        ):
+            fixed.append(replace(spec, props={**spec.props, "gop-size": gop}))
+        elif spec.factory == "openh264enc" and "bitrate" in spec.props:
             fixed.append(
                 replace(
                     spec,
@@ -296,7 +328,7 @@ def encode_chain_from_profile(
         encoder=encoder,
         cbr=cbr,
     )
-    fixed = _apply_encoder_fixups(specs, encoder, profile.video_bitrate_kbps)
+    fixed = _apply_encoder_fixups(specs, encoder, profile.video_bitrate_kbps, profile.gop_size)
     if encoder == "openh264enc":
         # Concat emits a new segment with local PTS for each clip. OpenH264's
         # framerate estimator reads raw PTS deltas, so normalize those segments

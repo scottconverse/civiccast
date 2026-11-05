@@ -23,6 +23,7 @@ import json
 import logging
 import subprocess
 import threading
+import time
 from collections.abc import Callable
 from contextlib import AbstractContextManager
 from dataclasses import dataclass, field
@@ -36,6 +37,7 @@ from sqlalchemy.orm import Session
 from civiccast.captions.models import CaptionCue
 from civiccast.egress.caption_embed import CAPTION_EMBED_PROOF_BOUNDARY
 from civiccast.egress.caption_proof import (
+    DEFAULT_CAPTION_PROOF_CAPTURE_SECONDS,
     DEFAULT_CAPTION_PROOF_TIMEOUT_SECONDS,
     CaptionMode,
     Clock,
@@ -102,6 +104,7 @@ class CaptionProofWorker:
         is_enabled: Callable[[], bool] | None = None,
         ffmpeg_timeout_seconds: float | None = DEFAULT_CAPTION_PROOF_TIMEOUT_SECONDS,
         align_transport_clock: bool = False,
+        require_clean_page_load: bool = False,
     ) -> None:
         self._store = store
         self._on_air_channels = on_air_channels
@@ -113,6 +116,7 @@ class CaptionProofWorker:
         self._is_enabled = is_enabled or (lambda: True)
         self._ffmpeg_timeout_seconds = ffmpeg_timeout_seconds
         self._align_transport_clock = align_transport_clock
+        self._require_clean_page_load = require_clean_page_load
         self._disabled_announced = False
 
     def run_forever(
@@ -185,6 +189,7 @@ class CaptionProofWorker:
                 clock=self._clock,
                 timeout_seconds=self._ffmpeg_timeout_seconds,
                 align_transport_clock=self._align_transport_clock,
+                require_clean_page_load=self._require_clean_page_load,
             )
             self._store.append_caption_proof_sample(sample)
             sampled.append(channel_id)
@@ -237,7 +242,7 @@ def capture_emitted_segment(
     channel_id: str,
     *,
     work_dir: Path,
-    capture_seconds: float = 6.0,
+    capture_seconds: float = DEFAULT_CAPTION_PROOF_CAPTURE_SECONDS,
     runner: FfmpegRunner = run_ffmpeg,
     timeout_seconds: float | None = DEFAULT_CAPTION_PROOF_TIMEOUT_SECONDS,
 ) -> Path | None:
@@ -273,6 +278,11 @@ def capture_emitted_segment(
             # Otherwise ffmpeg can immediately copy six cached seconds from a
             # rolling window before the healthy publisher has time to advance.
             args.insert(args.index("-i"), "-re")
+            # Read from the first listed segment. Joined at FFmpeg's default live
+            # point (3 segments from the end) the shipped build measured the input
+            # -t from the window start and wrote ZERO bytes with exit 0, so every
+            # proof sample was "capture unavailable" (RC4 host run 2026-11-04).
+            args[args.index("-i") : args.index("-i")] = ["-live_start_index", "0"]
     # Preserve the emitted transport clock, including wrap, rather than
     # replacing the capture's epoch with ffmpeg's default near-zero clock.
     args.insert(0, "-copyts")
@@ -307,6 +317,76 @@ def capture_emitted_segment(
     return out
 
 
+_PRESENTATION_CLOCK = "cea608-display-control-pts-plus-mpegts-base"
+#: F11: a page is still loading about half the time on a live channel, and it
+#: displays within ~1.5 s (measured: 12 reads over 18 s, 6 pending). Re-read a
+#: bounded number of times instead of failing the whole sample on the first read.
+_RECEIPT_READ_ATTEMPTS = 8
+_RECEIPT_READ_DELAY_SECONDS = 0.6
+
+
+def _settled_receipt_cues(document: object, channel_id: str) -> list[CaptionCue] | None:
+    """Cues from a receipt with no page still loading; None while one is; [] if invalid."""
+
+    if (
+        not isinstance(document, dict)
+        or document.get("clock") != _PRESENTATION_CLOCK
+        or document.get("errors")
+    ):
+        return []
+    counts = [
+        document.get(name)
+        for name in ("encoded_page_count", "displayed_page_count", "retired_page_count")
+    ]
+    if any(type(count) is not int or count < 0 for count in counts):
+        return []
+    encoded, displayed, retired = cast(list[int], counts)
+    if document.get("pending_page_count") != 0 or encoded != displayed + retired:
+        # A completed prefix must not hide a queued page that never displayed.
+        # Only explicit program fencing retires pending text, so wait for it.
+        return None
+    pages = document["pages"]
+    if not isinstance(pages, list) or len(pages) > 512:
+        return []
+    return [
+        CaptionCue(
+            cue_id=f"{channel_id}-delivery-{index}",
+            start_seconds=page["start_seconds"],
+            end_seconds=page["end_seconds"],
+            text=page["text"],
+            confidence=1.0,
+            low_confidence=False,
+        )
+        for index, page in enumerate(pages)
+    ]
+
+
+def read_presentation_receipt(
+    path: Path,
+    *,
+    channel_id: str,
+    attempts: int = _RECEIPT_READ_ATTEMPTS,
+    delay_seconds: float = _RECEIPT_READ_DELAY_SECONDS,
+    sleep: Callable[[float], None] = time.sleep,
+) -> list[CaptionCue]:
+    """Expected cues from the encoder delivery receipt, waiting out a loading page.
+
+    Fails closed (``[]``) on an unreadable, foreign-clock or errored receipt at
+    once, and on a receipt whose queue never settles within the bounded reads --
+    a stuck queue is never read as settled."""
+
+    for attempt in range(max(1, attempts)):
+        try:
+            cues = _settled_receipt_cues(json.loads(path.read_text(encoding="utf-8")), channel_id)
+        except (OSError, ValueError, KeyError, TypeError):
+            return []
+        if cues is not None:
+            return cues
+        if attempt < attempts - 1:
+            sleep(delay_seconds)
+    return []
+
+
 SessionFactory = Callable[[], AbstractContextManager[Session]]
 
 
@@ -314,7 +394,7 @@ def build_caption_proof_worker(
     session_factory: SessionFactory,
     *,
     work_dir: Path | None = None,
-    capture_seconds: float = 6.0,
+    capture_seconds: float = DEFAULT_CAPTION_PROOF_CAPTURE_SECONDS,
     mode: CaptionMode = "cea-708",
     caption_sidecar_for: Callable[[str], Path] | None = None,
     runner: FfmpegRunner = run_ffmpeg,
@@ -360,42 +440,10 @@ def build_caption_proof_worker(
         # appsrc PTS is when pop-on memory starts LOADING, not when EOC displays
         # it. Compare independently decoded TS against actual pre-mux EOC/EDM
         # timing, preserving the existing tolerance and unknown-clock refusal.
-        receipt = resolved_work_dir / channel_id / "captions" / "presentation.json"
-        try:
-            document = json.loads(receipt.read_text(encoding="utf-8"))
-            if (
-                not isinstance(document, dict)
-                or document.get("clock") != "cea608-display-control-pts-plus-mpegts-base"
-                or document.get("errors")
-            ):
-                return []
-            counts = [
-                document.get(name)
-                for name in ("encoded_page_count", "displayed_page_count", "retired_page_count")
-            ]
-            if any(type(count) is not int or count < 0 for count in counts):
-                return []
-            encoded, displayed, retired = cast(list[int], counts)
-            if document.get("pending_page_count") != 0 or encoded != displayed + retired:
-                # A completed prefix must not hide a queued page that never
-                # displayed. Only explicit program fencing retires pending text.
-                return []
-            pages = document["pages"]
-            if not isinstance(pages, list) or len(pages) > 512:
-                return []
-            return [
-                CaptionCue(
-                    cue_id=f"{channel_id}-delivery-{index}",
-                    start_seconds=page["start_seconds"],
-                    end_seconds=page["end_seconds"],
-                    text=page["text"],
-                    confidence=1.0,
-                    low_confidence=False,
-                )
-                for index, page in enumerate(pages)
-            ]
-        except (OSError, ValueError, KeyError, TypeError):
-            return []
+        return read_presentation_receipt(
+            resolved_work_dir / channel_id / "captions" / "presentation.json",
+            channel_id=channel_id,
+        )
 
     return CaptionProofWorker(
         store=store,
@@ -407,4 +455,5 @@ def build_caption_proof_worker(
         is_enabled=is_enabled,
         ffmpeg_timeout_seconds=ffmpeg_timeout_seconds,
         align_transport_clock=True,
+        require_clean_page_load=True,
     )

@@ -521,7 +521,7 @@ def _write_direct_consumer_receipt(
         evidence_dir = tmp_path / "consumer-evidence"
         manifest = {
             "civiccast": {
-                "version": candidate_version.replace("-beta.", "b"),
+                "version": m._pep440_version(candidate_version),
                 "source_state": {"head": source_sha, "dirty": False},
             },
             "files": [],
@@ -3399,3 +3399,234 @@ def test_physical_host_current_receipt_kind_preserves_previous_version(tmp_path,
     monkeypatch.setattr(m, "run_command", fake)
     assert m.main(_direct_args(tmp_path, kit_dir, receipt_path)) == 0
     _assert_no_tag_or_public_release(fake.calls)
+
+
+# ---------------------------------------------------------------------------
+# Release-candidate (-rc.N) support: PEP 440 identity, oversize runtime-pack
+# zip wrapping, per-channel repeat schedules, and release title.
+# ---------------------------------------------------------------------------
+RC_VERSION = "1.0.0-rc.4"
+
+
+@pytest.mark.parametrize(
+    ("version", "expected"),
+    (
+        ("1.0.0", "1.0.0"),
+        ("1.0.0-beta.12", "1.0.0b12"),
+        ("1.0.0-rc.4", "1.0.0rc4"),
+        ("2.10.3-rc.11", "2.10.3rc11"),
+    ),
+)
+def test_pep440_version_maps_supported_prerelease_forms(version, expected):
+    assert m._pep440_version(version) == expected
+
+
+@pytest.mark.parametrize(
+    "version", ("1.0.0-alpha.1", "1.0.0-rc4", "1.0.0rc4", "v1.0.0-rc.4", "1.0-rc.4", "")
+)
+def test_pep440_version_refuses_unsupported_forms(version):
+    with pytest.raises(m.PublishError):
+        m._pep440_version(version)
+
+
+def _rebind_installed_manifest_version(receipt_path: Path, manifest_version: str) -> None:
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    host_install = receipt["evidence"]["host_install"]
+    install_path = Path(host_install["receipt"]["path"])
+    install = json.loads(install_path.read_text(encoding="utf-8"))
+    manifest_ref = host_install["installed_manifest"]
+    manifest_path = Path(manifest_ref["path"])
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["civiccast"]["version"] = manifest_version
+    manifest_ref.update(_write_bound_json(manifest_path, manifest))
+    install["after"]["app_payload_manifest_sha256"] = manifest_ref["sha256"]
+    host_install["receipt"].update(_write_bound_json(install_path, install))
+    receipt_path.write_text(json.dumps(receipt), encoding="utf-8")
+
+
+@pytest.mark.parametrize(
+    ("manifest_version", "accepted"),
+    (("1.0.0rc4", True), ("1.0.0-rc.4", False), ("1.0.0rc3", False)),
+)
+def test_physical_host_rc_candidate_requires_pep440_installed_manifest_version(
+    tmp_path, manifest_version, accepted
+):
+    kit_dir = tmp_path / "direct-kit"
+    receipt_path, _ = _write_direct_consumer_receipt(
+        tmp_path,
+        kit_dir,
+        consumer_mode="physical-host",
+        previous_version="1.0.0-rc.3",
+        candidate_version=RC_VERSION,
+    )
+    _rebind_installed_manifest_version(receipt_path, manifest_version)
+    kwargs = {
+        "receipt_path": receipt_path,
+        "kit_dir": kit_dir,
+        "artifact_source_sha": DIRECT_SOURCE_SHA,
+        "build_run_id": "333",
+        "candidate_version": RC_VERSION,
+    }
+    if accepted:
+        _, _, summary = m.verify_consumer_evidence_receipt(**kwargs)
+        assert summary["consumer_mode"] == "physical-host"
+    else:
+        with pytest.raises(m.PublishError, match="installed app payload manifest"):
+            m.verify_consumer_evidence_receipt(**kwargs)
+
+
+def _verify_with_host_states(tmp_path: Path, mutate) -> dict[str, str]:
+    kit_dir = tmp_path / "direct-kit"
+    receipt_path, _ = _write_direct_consumer_receipt(
+        tmp_path, kit_dir, consumer_mode="physical-host", previous_version="1.0.0-beta.11"
+    )
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    install_ref = receipt["evidence"]["host_install"]["receipt"]
+    install_path = Path(install_ref["path"])
+    install = json.loads(install_path.read_text(encoding="utf-8"))
+    mutate(install["before"], install["after"])
+    install_ref.update(_write_bound_json(install_path, install))
+    receipt_path.write_text(json.dumps(receipt), encoding="utf-8")
+    _, _, summary = m.verify_consumer_evidence_receipt(
+        receipt_path=receipt_path,
+        kit_dir=kit_dir,
+        artifact_source_sha=DIRECT_SOURCE_SHA,
+        build_run_id="333",
+        candidate_version=VERSION,
+    )
+    return summary
+
+
+_ALL_CHANNELS_REPEAT = {"public": True, "government": True, "education": True}
+
+
+@pytest.mark.parametrize("global_flag", ("absent", False))
+def test_physical_host_accepts_per_channel_repeat_schedules(tmp_path, global_flag):
+    def mutate(before, after):
+        for state in (before, after):
+            if global_flag == "absent":
+                state.pop("schedule_loop_enabled")
+            else:
+                state["schedule_loop_enabled"] = global_flag
+            state["channel_repeat_schedules"] = dict(_ALL_CHANNELS_REPEAT)
+
+    assert _verify_with_host_states(tmp_path, mutate)["consumer_mode"] == "physical-host"
+
+
+def _without(mapping: dict, key: str) -> dict:
+    return {k: v for k, v in mapping.items() if k != key}
+
+
+@pytest.mark.parametrize(
+    ("before_schedules", "after_schedules"),
+    (
+        (_without(_ALL_CHANNELS_REPEAT, "education"), _ALL_CHANNELS_REPEAT),
+        (_ALL_CHANNELS_REPEAT, _without(_ALL_CHANNELS_REPEAT, "public")),
+        ({**_ALL_CHANNELS_REPEAT, "government": False}, _ALL_CHANNELS_REPEAT),
+        (_ALL_CHANNELS_REPEAT, {**_ALL_CHANNELS_REPEAT, "education": False}),
+        ({**_ALL_CHANNELS_REPEAT, "public": 1}, _ALL_CHANNELS_REPEAT),
+        (_ALL_CHANNELS_REPEAT, {**_ALL_CHANNELS_REPEAT, "public": "true"}),
+        ({**_ALL_CHANNELS_REPEAT, "extra": True}, _ALL_CHANNELS_REPEAT),
+        (["public", "government", "education"], _ALL_CHANNELS_REPEAT),
+        (_ALL_CHANNELS_REPEAT, None),
+        (None, _ALL_CHANNELS_REPEAT),
+        (None, None),
+    ),
+)
+def test_physical_host_refuses_incomplete_per_channel_repeat_schedules(
+    tmp_path, before_schedules, after_schedules
+):
+    def mutate(before, after):
+        for state, schedules in ((before, before_schedules), (after, after_schedules)):
+            state.pop("schedule_loop_enabled")
+            if schedules is not None:
+                state["channel_repeat_schedules"] = schedules
+
+    with pytest.raises(m.PublishError, match="healthy in-place"):
+        _verify_with_host_states(tmp_path, mutate)
+
+
+@pytest.mark.parametrize("side", ("before", "after"))
+def test_physical_host_refuses_mixed_global_and_per_channel_proof(tmp_path, side):
+    """Each route must hold in BOTH snapshots; one of each is not a proof."""
+
+    def mutate(before, after):
+        target = before if side == "before" else after
+        target.pop("schedule_loop_enabled")
+        target["channel_repeat_schedules"] = dict(_ALL_CHANNELS_REPEAT)
+
+    with pytest.raises(m.PublishError, match="healthy in-place"):
+        _verify_with_host_states(tmp_path, mutate)
+
+
+def _write_oversize_ollama_kit(kit_dir: Path, payload: bytes) -> Path:
+    _write_kit(kit_dir)
+    pack = kit_dir / "packs" / "native-ollama-runtime.ccpack"
+    pack.write_bytes(payload)
+    return pack
+
+
+def test_oversize_runtime_pack_is_staged_as_single_entry_zip(tmp_path, monkeypatch):
+    import zipfile
+
+    repo_root = _base_repo_root(tmp_path)
+    kit_dir = tmp_path / "kit"
+    limit = 64 * 1024
+    pack = _write_oversize_ollama_kit(kit_dir, b"civiccast ollama runtime " * 8192)
+    assert pack.stat().st_size >= limit
+    monkeypatch.setattr(m, "GITHUB_ASSET_LIMIT_BYTES", limit)
+    monkeypatch.setattr(m, "run_command", _fake_command_factory())
+
+    assert m.main(_args(tmp_path, kit_dir, repo_root=repo_root)) == 0
+
+    out_dir = repo_root / "artifacts" / "release" / TAG
+    zip_path = out_dir / "assets" / "native-ollama-runtime.ccpack.zip"
+    assert zip_path.is_file()
+    assert zip_path.stat().st_size < limit
+    with zipfile.ZipFile(zip_path) as archive:
+        infos = archive.infolist()
+        assert [info.filename for info in infos] == ["native-ollama-runtime.ccpack"]
+        assert infos[0].file_size == pack.stat().st_size
+        assert infos[0].compress_type == zipfile.ZIP_DEFLATED
+        assert archive.read(infos[0]) == pack.read_bytes()
+
+    sums = {}
+    for line in (out_dir / "SHA256SUMS.txt").read_text(encoding="utf-8").splitlines():
+        digest, name = line.split("  ", 1)
+        sums[name] = digest
+    # The downloader verifies the zip asset AND the extracted inner pack.
+    assert sums["native-ollama-runtime.ccpack"] == m.sha256_file(pack)
+    assert sums["native-ollama-runtime.ccpack.zip"] == m.sha256_file(zip_path)
+    assert sums["native-app-payload.ccpack"] == m.sha256_file(
+        kit_dir / "packs" / "native-app-payload.ccpack"
+    )
+    assert "native-app-payload.ccpack.zip" not in sums
+
+    notes = (out_dir / "RELEASE-NOTES.md").read_text(encoding="utf-8")
+    assert "native-ollama-runtime.ccpack.zip" in notes
+    assert "native-app-payload.ccpack" in notes
+
+
+def test_runtime_pack_zip_that_stays_oversize_refuses_before_remote_mutation(tmp_path, monkeypatch):
+    repo_root = _base_repo_root(tmp_path)
+    kit_dir = tmp_path / "kit"
+    limit = 64 * 1024
+    _write_oversize_ollama_kit(kit_dir, os.urandom(128 * 1024))
+    monkeypatch.setattr(m, "GITHUB_ASSET_LIMIT_BYTES", limit)
+    fake = _fake_command_factory(mirror_uploaded_assets=True)
+    monkeypatch.setattr(m, "run_command", fake)
+
+    assert m.main(_args(tmp_path, kit_dir, dry_run=False, repo_root=repo_root)) == 1
+    assert not _gh_calls(fake.calls, "gh", "release")
+    _assert_no_tag_or_public_release(fake.calls)
+
+
+@pytest.mark.parametrize(
+    ("tag", "title"),
+    (
+        ("v1.0.0-rc.4", "CivicCast v1.0.0-rc.4 (Release Candidate)"),
+        ("v1.0.0-beta.12", "CivicCast v1.0.0-beta.12 (Beta Candidate)"),
+    ),
+)
+def test_release_title_names_release_candidates(tag, title):
+    assert m.release_title(tag) == title
