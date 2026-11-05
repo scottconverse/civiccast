@@ -202,7 +202,7 @@ These are the words used most in Part I. Each is explained again where it first 
 
 ### Source edition and release evidence
 
-This manual describes the unpublished 1.0.0-rc.2 candidate. RC1 remains the current published pre-release. Use the download and installation instructions in [Chapter 10](#ch-installing) with a package on the [releases page](https://github.com/scottconverse/civiccast-native/releases), and follow the version-specific verification record for that package. The [Beta 18 record](https://github.com/scottconverse/civiccast-native/blob/main/docs/releases/v1.0.0-beta.18-verification.md) remains historical. Keep each historical result with its named release. For publication, download, installation, and acceptance status, use the matching release page and verification record; do not infer status from this manual.
+This manual describes the 1.0.0-rc.4 edition. Use the download and installation instructions in [Chapter 10](#ch-installing) with a package on the [releases page](https://github.com/scottconverse/civiccast-native/releases), and follow the version-specific verification record for that package. The [Beta 18 record](https://github.com/scottconverse/civiccast-native/blob/main/docs/releases/v1.0.0-beta.18-verification.md) remains historical. Keep each historical result with its named release. For publication, download, installation, and acceptance status, use the matching release page and verification record; do not infer status from this manual.
 
 **Historical Beta 11 operating result:** one CivicCast host ran Public, Government, and Education channels together for 72 hours and recorded **99.78% live caption-input coverage**. This remains a Beta 11 host measurement; it does not establish performance of the current package. See the [72-hour host performance report](https://github.com/scottconverse/civiccast-native/blob/main/docs/ops/beta11-host-caption-performance-72-hour-2026-10-11.md) for the channel totals and method.
 
@@ -296,7 +296,7 @@ The **Sign out** button appears only after the console has confirmed who you are
 
 #### The top bar
 
-The top bar runs across the whole screen. From the left it shows the **C** logo, the word **CivicCast** and the installed version number, in the form `v1.0.0-beta.N`. On a wide screen the middle shows a pill reading **No live meeting broadcast** and a clock reading "Local &lt;time&gt; / Next No events scheduled". On the right are a theme button (**Switch to dark theme**), a round badge with your initials, and **Sign out**.
+The top bar runs across the whole screen. From the left it shows the **C** logo, the word **CivicCast** and the installed version number, for example `v1.0.0-rc.4`. On a wide screen the middle shows a pill reading **No live meeting broadcast** and a clock reading "Local &lt;time&gt; / Next No events scheduled". On the right are a theme button (**Switch to dark theme**), a round badge with your initials, and **Sign out**.
 
 Hover over the round badge to see your name and your roles, in the form "&lt;your display name&gt; / &lt;your role names&gt;". Setup admins can also review account role assignments in **Staff accounts**.
 
@@ -3339,7 +3339,7 @@ Windows accounts matter in one more place: the first-run window remembers that i
 
 #### What is on the release page
 
-This manual describes the unpublished 1.0.0-rc.2 candidate. RC1 remains the current published pre-release. Use the [releases page](https://github.com/scottconverse/civiccast-native/releases) and the version-specific verification record for the package you use to confirm publication, download, installation, and acceptance status. Run the release-matched helper to obtain the installer, runtime packs and signed station-model resources together. The [Beta 18 verification record](https://github.com/scottconverse/civiccast-native/blob/main/docs/releases/v1.0.0-beta.18-verification.md) remains historical.
+This manual describes the 1.0.0-rc.4 edition. Use the [releases page](https://github.com/scottconverse/civiccast-native/releases) and the version-specific verification record for the package you use to confirm publication, download, installation, and acceptance status. Run the release-matched helper to obtain the installer, runtime packs and signed station-model resources together. The [Beta 18 verification record](https://github.com/scottconverse/civiccast-native/blob/main/docs/releases/v1.0.0-beta.18-verification.md) remains historical.
 
 The complete offline kit contains the installer, its verification metadata, runtime packs, and signed station index/model packs. The exact file list comes from the matching release manifest; the Chapter 10 tree shows the working layout rather than every download or checksum file. The release helper uses `station-models.json` and every matching `station-models.zip.*` part, verifies the set and prepares the folders before setup. Raw model downloads or unsigned substitutes are not activation packs.
 
@@ -3420,7 +3420,7 @@ This chapter walks through Windows setup, first run, first setup in the operator
 
 ### Before you start
 
-The published RC2 package is `v1.0.0-rc.2`. Use the install page’s explicit `-Tag v1.0.0-rc.2 -Version 1.0.0-rc.2` command, its setup and its manual together; a later source checkout does not change the frozen release assets.
+The published RC4 package is `v1.0.0-rc.4`. Use the install page’s explicit `-Tag v1.0.0-rc.4 -Version 1.0.0-rc.4` command, its setup and its manual together; a later source checkout does not change the frozen release assets.
 
 - For a first install, use the release-matched helper linked in [Install CivicCast on Windows](https://github.com/scottconverse/civiccast-native/blob/main/INSTALL-WINDOWS.md). Its `-Install` option verifies the release assets, reuses matching published model packs where specified, assembles the complete kit, then runs setup with `/S`.
 - You checked the installer's hash and signature ([Chapter 9](#ch-planning), "Download and verify what you need").
@@ -3596,7 +3596,7 @@ The self-test runs the real programs once. The caption test is forced onto the p
 | 1 | The bundled Python imports CivicCast, the caption libraries (faster-whisper 1.2.1, ctranslate2 4.8.1) | It prints `native-core-ok` | 30 s |
 | 2 | PostgreSQL tools `postgres` and `pg_ctl` run | Output names each | 30 s each |
 | 3 | `ffmpeg` runs | Output contains "ffmpeg" | 30 s |
-| 4 | The AI engine runs | Output matches the installed runtime lock (0.40.13 in RC2) | 30 s |
+| 4 | The AI engine runs | Output matches the installed runtime lock (0.40.13 in RC4) | 30 s |
 | 5 | TSDuck `tsp`, only if present | Absent is allowed and logged | 30 s |
 | 6 | Caption test: a short recording, using Large if installed, else Medium, on the processor | The text contains "fellow americans" and "country" | 300 s |
 | 7 | AI test: a private Ollama starts on a free local port; asks `gemma4:12b` to reply `CIVICCAST_OK`, `gemma4:e4b` to reply `CIVICCAST_FALLBACK_OK`, and `translategemma:4b` to translate "The council meeting is open." into Spanish | Exact replies | Ready within 300 s; each request up to 300 s |
@@ -3836,12 +3836,14 @@ if they differ from the saved values; do not reset the station to diagnose it.
 
 To upgrade, run the newer `setup.exe` over the existing installation. Use the release helper to assemble the runtime `packs\` and signed `station\` folders. Make a separate backup first ([Chapter 12](#ch-operations)); the installer's upgrade backup is not your only recovery copy.
 
-> **Warning:** Setup stops the CivicCast service before it replaces any file. That takes every channel off the air until setup finishes and the service starts again. Do not run an upgrade during a meeting or a scheduled program.
+> **Warning:** Setup stops the CivicCast service before it replaces any file. That takes every channel off the air until setup finishes and the service starts again. Do not run an upgrade during a meeting or a scheduled program. In the field upgrade from rc.3 to rc.4 (Ryzen 7 test station, November 5, 2026) the channels were off the air for about 13 minutes. Downloading the release beforehand does not take the station off the air; setup itself does.
 
 1. Close the first-run window if it is open.
 2. Use the release helper with `-Install`, or run the new complete kit's `setup.exe /S` from an administrator PowerShell session. Approve UAC when requested and wait for setup's exit code. The native installer skips Tauri's generic **Already Installed** page and does not call the old uninstaller first.
 3. Wait. Setup records the prior service and station state, stops the old service, makes its temporary recovery copy, replaces and verifies files, then runs the upgrade engine, which backs up, migrates and health-checks the database.
 4. Confirm with "Verify the install".
+
+> **Note:** In the first minute after the upgraded service starts, the control-plane log can show one ERROR per channel: "HLS relay child for channel … is running but has never written a live window … Attempting a bounded relay self-heal." In the rc.4 field upgrade the station repaired this by itself within a few minutes. Check that each channel's web preview plays a few minutes after setup finishes; if one still does not, stop and start that channel on **Channels**.
 
 Run setup directly over the existing installation. The generic reinstall page could invoke the old uninstaller before setup had a chance to save recovery state, so the corrected native installer suppresses that page and uses its own recoverable in-place transaction. It also clears Tauri's saved install-location marker on uninstall, so a later clean reinstall is not misidentified as an already-installed product. Take a separate backup first; the temporary recovery copy is limited to the setup paths described above and is removed after commit or restoration.
 
@@ -10109,7 +10111,7 @@ NWS
 **O**
 
 Ollama
-:   The local AI engine program (version 0.40.13 in the RC2 runtime lock), started by the service on `127.0.0.1:11434`.
+:   The local AI engine program (version 0.40.13 in the RC4 runtime lock), started by the service on `127.0.0.1:11434`.
 
 On-Air Mode
 :   A Control Room session type that really fires cues. It expires after 30 minutes. The other type, Test Mode, fires nothing.
@@ -10390,7 +10392,7 @@ LGPL means you receive the right to use and replace the library, and CivicCast s
 
 | Component | Version / source record | License (as the project records it) | What it does here |
 | --- | --- | --- | --- |
-| CivicCast program and web portals | 1.0.0-rc.2 published release; source may contain later fixes | Apache-2.0 | The station itself; use each installed package's matching component records. |
+| CivicCast program and web portals | 1.0.0-rc.4 published release; source may contain later fixes | Apache-2.0 | The station itself; use each installed package's matching component records. |
 | GStreamer libraries and plugins | 1.28 series | LGPL-2.1-or-later for the libraries and almost all plugins; the Rust-based plugins (`hlssink3`, closed captions) are MPL-2.0 | The playout engine. |
 | Cisco OpenH264 | in the closure | BSD-2-Clause | H.264 video encoding. Its patent position is a separate question that the license text does not answer. |
 | VisualOn AAC encoder | in the closure | Apache-2.0 for the encoder library; the GStreamer plugin that wraps it is LGPL-2.1-or-later | AAC audio encoding. |
@@ -10449,7 +10451,7 @@ The installer is signed with an Authenticode signature (publisher Scott Converse
 
 The native Windows release history and the source edition covered by this manual, newest first. The project's release-truth file and GitHub release page establish package publication state. "Superseded" means a newer release replaced it; it does not mean it was bad.
 
-> **Note:** This manual describes the unpublished RC2 candidate. RC1 is the current published pre-release. The [Beta 20 verification record](https://github.com/scottconverse/civiccast-native/blob/main/docs/releases/v1.0.0-beta.20-verification.md) identifies that published package; the [Beta 18 verification record](https://github.com/scottconverse/civiccast-native/blob/main/docs/releases/v1.0.0-beta.18-verification.md) remains historical. A 72-hour Beta 11 host run recorded **99.78% live caption-input coverage** across three channels; see the [host report](https://github.com/scottconverse/civiccast-native/blob/main/docs/ops/beta11-host-caption-performance-72-hour-2026-10-11.md). The earlier 48-hour window remains in its dated report.
+> **Note:** This manual describes the 1.0.0-rc.4 edition. The [RC4 release notes](https://github.com/scottconverse/civiccast-native/blob/main/docs/releases/v1.0.0-rc.4-release-notes.md) identify that package; the [Beta 20 verification record](https://github.com/scottconverse/civiccast-native/blob/main/docs/releases/v1.0.0-beta.20-verification.md) and the [Beta 18 verification record](https://github.com/scottconverse/civiccast-native/blob/main/docs/releases/v1.0.0-beta.18-verification.md) remain historical. A 72-hour Beta 11 host run recorded **99.78% live caption-input coverage** across three channels; see the [host report](https://github.com/scottconverse/civiccast-native/blob/main/docs/ops/beta11-host-caption-performance-72-hour-2026-10-11.md). The earlier 48-hour window remains in its dated report.
 
 | Release | Date | Status | What it was |
 | --- | --- | --- | --- |
