@@ -1,4 +1,48 @@
-# CURRENT — RC4 corrective assignment OPEN; DO NOT PUBLISH
+# CURRENT — RC4 final candidate a3bb99a4 (Claude takeover, 2026-11-05)
+
+Updated 2026-11-05 03:15 MST by Claude (Opus 5.5). Owner instruction (Scott, 2026-11-05): "finish the product and ship rc4", including push and merge; Claude has the helm. This section supersedes the corrective-assignment section below. The older text is kept as history.
+
+**Final candidate**
+- Branch `fix/rc4-whistle-live-profile`, source `a3bb99a4d520f2d1d604b99fb269e99edc1806d7`.
+- Build run 42005343731: all 4 jobs green.
+- Kit: `C:\CivicCastTester\kit-staging\a3bb99a4d520f2d1d604b99fb269e99edc1806d7`, also copied to `C:\CivicCastTester\preserved\`.
+- setup.exe: 261,550,648 bytes; SHA-256 `d86e1faeaa6284bd646211cb2592a4ceaf930dfafb539b717d14c26005a53f8d`; Authenticode Valid; thumbprint `FB21DC5C48074A878812D32CC2FAB58946050218`. The signing certificate is valid until 2026-11-06 08:25 UTC; the timestamp keeps the signature valid after that.
+- Release notes: `docs/releases/v1.0.0-rc.4-release-notes.md` v2.0.
+
+**Fixed tonight, on top of the November 3 candidate**
+
+| Fix | What it fixes | Commit |
+|---|---|---|
+| F4 | A fresh install no longer inherits a leftover LocalSystem-era admin | `32d6e89c` |
+| F5 | The caption proof reads the whole HLS window | `32411b02` |
+| F6 | Hardware encoders keep the keyframe interval bounded (2.0 s segments) | `0907a850` |
+| F7 | A caption boundary file can no longer stall a programme hand-over | `fa722e8c` |
+| F8 | psycopg OpenSSL patched; wheel-native scanning | `0f483ea9` |
+| F10 | Setup warns when another program holds 127.0.0.1:11434 | `5fe270ee` |
+| F10 | Metadata calls to the AI port time out in 10 s, not 120 s, so a silent port leaves AI off instead of rolling setup back | `a3bb99a4` |
+| F11 | The live caption self-check judges only what a capture can hold | `2f371ecb` |
+| — | CVE-2026-116566 triaged | `113b17a7` |
+
+**Evidence**
+- Folder: `C:\Dev\Claude\rc4-phase4\results\`.
+- Running ledger: `C:\Users\scott\Desktop\CODE\civiccast-rc4-takeover\RC4-SHIP-TASKS.md`.
+- Clean install on real hardware: r9 (Ryzen 9).
+- Download-only upgrade with existing data: r7.
+- 24-hour soak on the Beelink, on the earlier rc.4 build.
+- Install on this PC with port 11434 held: running.
+
+**Gate A**
+- The Windows Sandbox lane freezes inside the guest (G2, a harness problem).
+- The download-only lane cannot run on this runner, because the pinned beta.5 kit is missing.
+- Publication therefore uses the consumer-evidence receipt path, not `--gate-a-run-id`.
+
+**Known issues:** listed in the release notes. In short: the R9 black-picture problem was not reproduced and its cause is unknown; uninstall leaves `uninstall.exe` and the virtual-account profile folder; captions are machine-generated.
+
+**Not committed on purpose:** Codex's three untracked RC4 handoff files in `docs/handoff/`. Codex's uncommitted edit to this file is preserved at `C:\CivicCastTester\preserved\codex-handoff-docs-20261105\`.
+
+---
+
+# (History) CURRENT — RC4 corrective assignment OPEN; DO NOT PUBLISH
 
 Updated 2026-11-03T21:25:44.387992+00:00. All eight packages OPEN. Pushed ff02eff219b6e7ecb76a43e598bc325eb6d086a9; new reproducibility failed at npm tree verification. Actual archive-level cause reproduced and focused replacement/pin correction prepared for one follow-up push. No corrected candidate build/install/caption workload yet. Ordinary push/PR/merge authorized with actual required CI/review; NO tag/release/binary publication/distribution/deployment without Scott OK.
 
