@@ -386,6 +386,21 @@
     {
       "package": "cpython",
       "version": "3.12.16",
+      "id": "CVE-2026-116566",
+      "reviewed": "2026-11-05",
+      "review_by": "2026-12-05",
+      "reason": "getaddrinfo() truncating a host at an embedded null byte cannot bypass a CivicCast outbound-destination check: every guard over untrusted hosts (ActivityPub remote fetch, CG feed fetcher, subscription webhooks) decides by RESOLVING the name with getaddrinfo and rejecting non-global resulting addresses, and the connection resolves through the same function (ActivityPub and webhooks additionally pin the validated address), so check and connect see the same truncated name. No product check allow-lists by host-name string before resolution; the trusted-host set in subscribe/router.py resolves only this machine's own hostname. Upstream fix is in 3.16.0; revisit when a 3.12 security release carries it.",
+      "evidence": [
+        "https://github.com/python/cpython/issues/160898",
+        "civiccast/activitypub/remote.py",
+        "civiccast/cg/feed_fetcher.py",
+        "civiccast/subscribe/webhook.py",
+        "civiccast/subscribe/router.py"
+      ]
+    },
+    {
+      "package": "cpython",
+      "version": "3.12.16",
       "id": "CVE-2025-15367",
       "reviewed": "2026-10-29",
       "review_by": "2026-11-29",
