@@ -3549,7 +3549,13 @@ try {
                             "manual_enqueue_attempted=true route=none detail=$manualEnqueueDetail" | Add-Content -Path $capLog -Encoding UTF8
                         } else {
                             $enqueueUrl = "$BASE$capEnqueueEndpoint"
-                            $enqueueBody = [ordered]@{ asset_id = $loopAssetId }
+                            # The batch route takes a LIST (RC4 Gate A 2026-11-04 sent asset_id
+                            # and got 422 "body.asset_ids Field required"); single routes take one id.
+                            if ($capEnqueueEndpoint -like '*/batch') {
+                                $enqueueBody = [ordered]@{ asset_ids = @($loopAssetId) }
+                            } else {
+                                $enqueueBody = [ordered]@{ asset_id = $loopAssetId }
+                            }
                             "manual_enqueue_request: POST $enqueueUrl body=$(($enqueueBody | ConvertTo-Json -Compress))" | Add-Content -Path $capLog -Encoding UTF8
                             $enq = Invoke-CivicCastApi -Method 'Post' -Url $enqueueUrl -LogFile $t3loop -BodyObj $enqueueBody -BearerToken $token
                             "manual_enqueue_response: status=$($enq.status) body=$($enq.body_raw)" | Add-Content -Path $capLog -Encoding UTF8
