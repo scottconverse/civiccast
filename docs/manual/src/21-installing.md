@@ -4,7 +4,7 @@ This chapter walks through Windows setup, first run, first setup in the operator
 
 ## Before you start
 
-The published RC2 package is `v1.0.0-rc.2`. Use the install page’s explicit `-Tag v1.0.0-rc.2 -Version 1.0.0-rc.2` command, its setup and its manual together; a later source checkout does not change the frozen release assets.
+The published RC4 package is `v1.0.0-rc.4`. Use the install page’s explicit `-Tag v1.0.0-rc.4 -Version 1.0.0-rc.4` command, its setup and its manual together; a later source checkout does not change the frozen release assets.
 
 - For a first install, use the release-matched helper linked in [Install CivicCast on Windows](https://github.com/scottconverse/civiccast-native/blob/main/INSTALL-WINDOWS.md). Its `-Install` option verifies the release assets, reuses matching published model packs where specified, assembles the complete kit, then runs setup with `/S`.
 - You checked the installer's hash and signature ([Chapter 9](#ch-planning), "Download and verify what you need").
@@ -199,7 +199,7 @@ The self-test runs the real programs once. The caption test is forced onto the p
 | 1 | The bundled Python imports CivicCast, the caption libraries (faster-whisper 1.2.1, ctranslate2 4.8.1) | It prints `native-core-ok` | 30 s |
 | 2 | PostgreSQL tools `postgres` and `pg_ctl` run | Output names each | 30 s each |
 | 3 | `ffmpeg` runs | Output contains "ffmpeg" | 30 s |
-| 4 | The AI engine runs | Output matches the installed runtime lock (0.40.13 in RC2) | 30 s |
+| 4 | The AI engine runs | Output matches the installed runtime lock (0.40.13 in RC4) | 30 s |
 | 5 | TSDuck `tsp`, only if present | Absent is allowed and logged | 30 s |
 | 6 | Caption test: a short recording, using Large if installed, else Medium, on the processor | The text contains "fellow americans" and "country" | 300 s |
 | 7 | AI test: a private Ollama starts on a free local port; asks `gemma4:12b` to reply `CIVICCAST_OK`, `gemma4:e4b` to reply `CIVICCAST_FALLBACK_OK`, and `translategemma:4b` to translate "The council meeting is open." into Spanish | Exact replies | Ready within 300 s; each request up to 300 s |
@@ -439,12 +439,14 @@ if they differ from the saved values; do not reset the station to diagnose it.
 
 To upgrade, run the newer `setup.exe` over the existing installation. Use the release helper to assemble the runtime `packs\` and signed `station\` folders. Make a separate backup first ([Chapter 12](#ch-operations)); the installer's upgrade backup is not your only recovery copy.
 
-> **Warning:** Setup stops the CivicCast service before it replaces any file. That takes every channel off the air until setup finishes and the service starts again. Do not run an upgrade during a meeting or a scheduled program.
+> **Warning:** Setup stops the CivicCast service before it replaces any file. That takes every channel off the air until setup finishes and the service starts again. Do not run an upgrade during a meeting or a scheduled program. In the field upgrade from rc.3 to rc.4 (Ryzen 7 test station, November 5, 2026) the channels were off the air for about 13 minutes. Downloading the release beforehand does not take the station off the air; setup itself does.
 
 1. Close the first-run window if it is open.
 2. Use the release helper with `-Install`, or run the new complete kit's `setup.exe /S` from an administrator PowerShell session. Approve UAC when requested and wait for setup's exit code. The native installer skips Tauri's generic **Already Installed** page and does not call the old uninstaller first.
 3. Wait. Setup records the prior service and station state, stops the old service, makes its temporary recovery copy, replaces and verifies files, then runs the upgrade engine, which backs up, migrates and health-checks the database.
 4. Confirm with "Verify the install".
+
+> **Note:** In the first minute after the upgraded service starts, the control-plane log can show one ERROR per channel: "HLS relay child for channel … is running but has never written a live window … Attempting a bounded relay self-heal." In the rc.4 field upgrade the station repaired this by itself within a few minutes. Check that each channel's web preview plays a few minutes after setup finishes; if one still does not, stop and start that channel on **Channels**.
 
 Run setup directly over the existing installation. The generic reinstall page could invoke the old uninstaller before setup had a chance to save recovery state, so the corrected native installer suppresses that page and uses its own recoverable in-place transaction. It also clears Tauri's saved install-location marker on uninstall, so a later clean reinstall is not misidentified as an already-installed product. Take a separate backup first; the temporary recovery copy is limited to the setup paths described above and is removed after commit or restoration.
 
