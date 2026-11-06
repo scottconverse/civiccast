@@ -269,6 +269,34 @@ independent, compounding reasons:
   unaffected) and under a per-minute-of-source timeout budget
   (`_transcode_timeout_seconds`: 10 minute floor, 10x-realtime budget, 2
   hour ceiling) instead of the flat 6-hour default.
+- **Amended 2026-11-05 (FT-7, RC4 field test):** `lower_priority` now maps to
+  Windows `IDLE_PRIORITY_CLASS`, not `BELOW_NORMAL_PRIORITY_CLASS`. The live
+  caption speech child is itself started at `BELOW_NORMAL`, so background
+  transcodes and warm conforms tied with it, out-threaded it, and on the
+  Beelink live captions were discarded while hour-long programmes were being
+  prepared. IDLE keeps this background work strictly below the captions while
+  still giving it every spare cycle. POSIX keeps `nice 10` (captions run at
+  normal priority there, so the order was already right).
+- **Amended 2026-11-06 (FT-7, measured on the Beelink):** IDLE alone was not
+  enough. There `h264_mf` is the Microsoft software H.264 MFT (no hardware MFT
+  is offered), which threads across every core and ignores `-threads`, so a warm
+  conform at IDLE still left live captions 20-33 s late; with no background
+  encode they were 3.3 s. Windows background ffmpeg is therefore also pinned,
+  right after start, to the top quarter of the cores the process may use (never
+  fewer than 4; boxes with 4 or fewer cores stay unpinned; a failed pin never
+  fails the job). Measured: 4 of 16 cores conform at 12.3x realtime (2 cores
+  5.9x, too close to the warm timeout's 8x/1.5 bound; 16 cores 19.2x) for the
+  same total CPU time.
+- **Amended 2026-11-06 (FT-7, programme changes):** the source preparer's
+  air-path encodes (the next window's speech-leveling program mux when its warm
+  is not ready) ran at NORMAL on all 16 cores, above the BELOW_NORMAL caption
+  speech child, and left captions 10-20 s late for minutes after each programme
+  change. The Windows ladder is now: playout encoders ABOVE_NORMAL > control
+  plane and the caption speech child NORMAL > air-path preparation BELOW_NORMAL,
+  pinned to the lower half of the cores (`run_ffmpeg(half_cores=True)`) >
+  background preparation IDLE, pinned to the top quarter. Emulated on the
+  Beelink, a programme change at 97 % CPU left captions at a 3.1-3.5 s mean,
+  max 5.3 s, none over 10 s.
 - `tests/policy/test_ffmpeg_h264_encoder.py`'s sweep is widened from a
   single hard-coded `"libx264"` string to a `_FORBIDDEN_GPL_ENCODER_LITERALS`
   set (currently `{"libx264", "libx265"}`), proved against a planted

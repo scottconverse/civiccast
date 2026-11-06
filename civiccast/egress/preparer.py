@@ -2537,8 +2537,8 @@ class SourcePreparer:
 
         BETA.10 U29: ``timeout_seconds`` overrides the configured preparation
         timeout for this one call, and ``lower_priority`` asks the runner to
-        start the child one scheduling step down (Windows BELOW_NORMAL, POSIX
-        ``nice`` -- see ``civiccast.stream._ffmpeg.run_ffmpeg``). Both are
+        start the child below the live caption child (Windows IDLE, POSIX
+        ``nice`` -- see ``civiccast.stream._ffmpeg.run_ffmpeg`` and FT-7). Both are
         warm-only knobs: the conform-cache warm is unattended whole-asset
         background work whose budget is scaled to the asset
         (``warm_preparation_timeout_seconds``) and which must yield to the live
@@ -2558,6 +2558,12 @@ class SourcePreparer:
                     cancel_event=cancel_event,
                     timeout=effective_timeout,
                     lower_priority=lower_priority,
+                    # FT-7: on Windows an air-path encode runs one step under
+                    # the live caption child (BELOW_NORMAL; it has an airing
+                    # deadline, so not IDLE) and is held to half the cores,
+                    # which _foreground_thread_cap's -threads already intends
+                    # and the software h264_mf ignores.
+                    half_cores=not lower_priority,
                 )
             else:
                 result = self._ffmpeg_runner(args)

@@ -28,6 +28,34 @@ from civiccast.stream._ffmpeg import (
 )
 
 
+def _finished_process(pid: int = 1234) -> MagicMock:
+    """A Popen stand-in that has already exited cleanly."""
+    process = MagicMock(pid=pid, returncode=0)
+    process.communicate.return_value = ("", "")
+    return process
+
+
+class _FakePsutil:
+    """Records the cores each child pid is pinned to (no real processes)."""
+
+    def __init__(self, own_cores: list[int], *, fail_pin: bool = False) -> None:
+        self._own = own_cores
+        self._fail = fail_pin
+        self.pinned: dict[int, list[int]] = {}
+
+    def Process(self, pid: int | None = None) -> SimpleNamespace:  # psutil's API name
+        def cpu_affinity(cpus: list[int] | None = None) -> list[int] | None:
+            if cpus is None:
+                return list(self._own)
+            if self._fail:
+                raise OSError("access denied")
+            assert pid is not None
+            self.pinned[pid] = list(cpus)
+            return None
+
+        return SimpleNamespace(cpu_affinity=cpu_affinity)
+
+
 @pytest.mark.parametrize(
     "changed",
     [
@@ -537,16 +565,150 @@ class TestRunFfmpeg:
 
         assert spawn.call_args.kwargs["creationflags"] == 0
 
-    def test_lower_priority_sets_below_normal_creationflags(self) -> None:
-        mock_completed = MagicMock(returncode=0, stdout="", stderr="")
+    def test_lower_priority_sets_idle_creationflags(self) -> None:
+        """FT-7 (RC4 field test, 2026-11-05): background ffmpeg (the warm
+        conform of the next programme and the media-lifecycle proxy transcode)
+        must sit BELOW the live caption speech child, which Windows starts at
+        BELOW_NORMAL. At BELOW_NORMAL these whole-programme encodes tied with
+        the captions, out-threaded them, and on the Beelink live captions were
+        discarded while every hour-long programme was being prepared."""
+        nt_os = SimpleNamespace(name="nt")
         with (
+            patch.object(ffmpeg_module, "os", nt_os),
             patch("civiccast.stream._ffmpeg.shutil.which", return_value="/usr/bin/ffmpeg"),
-            patch("civiccast.stream._ffmpeg.subprocess.run", return_value=mock_completed) as spawn,
+            patch(
+                "civiccast.stream._ffmpeg.subprocess.Popen", return_value=_finished_process()
+            ) as spawn,
+            patch("civiccast.stream._ffmpeg.psutil", _FakePsutil(list(range(16))), create=True),
         ):
             run_ffmpeg(["-version"], lower_priority=True)
 
-        expected = getattr(ffmpeg_module.subprocess, "BELOW_NORMAL_PRIORITY_CLASS", 0)
-        assert spawn.call_args.kwargs["creationflags"] == expected
+        assert spawn.call_args.kwargs["creationflags"] == 0x40  # IDLE_PRIORITY_CLASS
+
+    def test_background_priority_is_below_the_caption_child(self) -> None:
+        """The FT-7 ladder, pinned as numbers so it holds on a non-Windows
+        test host too. Windows priority classes rank IDLE (0x40) <
+        BELOW_NORMAL (0x4000) < NORMAL (0x20) < ABOVE_NORMAL (0x8000). The
+        station must order: playout encoders ABOVE_NORMAL > the live caption
+        speech child NORMAL > air-path preparation BELOW_NORMAL > background
+        preparation IDLE. Beelink 2026-11-06: with the caption child at
+        BELOW_NORMAL, the NORMAL air-path encode at each programme change left
+        captions 10-20 s late for minutes; with this ladder, 3.1-3.5 s."""
+        from civiccast.captions.whistle import SPEECH_CHILD_PRIORITY_CLASS
+
+        rank = {0x40: 4, 0x4000: 6, 0x20: 8, 0x8000: 10}  # base priority per class
+        assert ffmpeg_module._BACKGROUND_PRIORITY_CLASS == 0x40
+        assert ffmpeg_module._AIR_PATH_PRIORITY_CLASS == 0x4000
+        assert SPEECH_CHILD_PRIORITY_CLASS == 0x20
+        playout = rank[0x8000]
+        captions = rank[SPEECH_CHILD_PRIORITY_CLASS]
+        air_path = rank[ffmpeg_module._AIR_PATH_PRIORITY_CLASS]
+        background = rank[ffmpeg_module._BACKGROUND_PRIORITY_CLASS]
+        assert playout > captions > air_path > background
+
+    @pytest.mark.parametrize(
+        ("available", "expected"),
+        [
+            (list(range(4)), None),  # a 4-core box keeps every core
+            (list(range(8)), [4, 5, 6, 7]),  # never fewer than 4
+            (list(range(16)), [12, 13, 14, 15]),  # the Beelink: a quarter
+            (list(range(32)), list(range(24, 32))),
+            ([0, 2, 4, 6, 8, 10, 12, 14], [8, 10, 12, 14]),  # an already-restricted parent
+        ],
+    )
+    def test_background_cores_are_the_top_quarter_never_fewer_than_four(
+        self, available: list[int], expected: list[int] | None
+    ) -> None:
+        """FT-7 (measured on the Beelink, 2026-11-06): h264_mf there is the
+        Microsoft software H.264 MFT, which threads across every core and
+        ignores ``-threads 1``, so IDLE priority alone still left live
+        captions 20-33 s late while a warm ran. 4 of 16 cores ran the conform
+        at 12.3x (2 cores: 5.9x, too close to the 8x/1.5 warm timeout);
+        all 16: 19.2x. With no background encode, captions were 3.3 s."""
+        assert ffmpeg_module._background_cores(available) == expected
+
+    def test_windows_background_ffmpeg_is_pinned_to_the_background_cores(self) -> None:
+        nt_os = SimpleNamespace(name="nt")
+        fake_psutil = _FakePsutil(list(range(16)))
+        with (
+            patch.object(ffmpeg_module, "os", nt_os),
+            patch("civiccast.stream._ffmpeg.shutil.which", return_value="/usr/bin/ffmpeg"),
+            patch(
+                "civiccast.stream._ffmpeg.subprocess.Popen",
+                return_value=_finished_process(pid=4321),
+            ),
+            patch("civiccast.stream._ffmpeg.psutil", fake_psutil, create=True),
+        ):
+            result = run_ffmpeg(["-version"], lower_priority=True)
+
+        assert result.returncode == 0
+        assert fake_psutil.pinned == {4321: [12, 13, 14, 15]}
+
+    def test_a_failed_core_pin_never_fails_the_background_job(self) -> None:
+        nt_os = SimpleNamespace(name="nt")
+        fake_psutil = _FakePsutil(list(range(16)), fail_pin=True)
+        with (
+            patch.object(ffmpeg_module, "os", nt_os),
+            patch("civiccast.stream._ffmpeg.shutil.which", return_value="/usr/bin/ffmpeg"),
+            patch("civiccast.stream._ffmpeg.subprocess.Popen", return_value=_finished_process()),
+            patch("civiccast.stream._ffmpeg.psutil", fake_psutil, create=True),
+        ):
+            result = run_ffmpeg(["-version"], lower_priority=True)
+
+        assert result.returncode == 0
+        assert fake_psutil.pinned == {}
+
+    @pytest.mark.parametrize(
+        ("available", "expected"),
+        [
+            (list(range(4)), None),
+            (list(range(8)), [0, 1, 2, 3]),
+            (list(range(16)), list(range(8))),
+        ],
+    )
+    def test_half_cores_are_the_lower_half_apart_from_the_background_quarter(
+        self, available: list[int], expected: list[int] | None
+    ) -> None:
+        """FT-7 (Beelink, 2026-11-06): the air path's speech-leveling program
+        mux ran at NORMAL on all 16 cores (56-58 % of the box) because the
+        software h264_mf ignores the preparer's half-machine ``-threads``."""
+        assert ffmpeg_module._half_cores(available) == expected
+        background = ffmpeg_module._background_cores(available)
+        if expected is not None and background is not None:
+            assert not set(expected) & set(background)
+
+    def test_half_cores_pins_a_normal_priority_windows_run(self) -> None:
+        nt_os = SimpleNamespace(name="nt")
+        fake_psutil = _FakePsutil(list(range(16)))
+        with (
+            patch.object(ffmpeg_module, "os", nt_os),
+            patch("civiccast.stream._ffmpeg.shutil.which", return_value="/usr/bin/ffmpeg"),
+            patch(
+                "civiccast.stream._ffmpeg.subprocess.Popen",
+                return_value=_finished_process(pid=77),
+            ) as spawn,
+            patch("civiccast.stream._ffmpeg.psutil", fake_psutil, create=True),
+        ):
+            result = run_ffmpeg(["-version"], half_cores=True)
+
+        assert result.returncode == 0
+        # BELOW_NORMAL: one step under the NORMAL live caption child (FT-7).
+        assert spawn.call_args.kwargs["creationflags"] == 0x4000
+        assert fake_psutil.pinned == {77: list(range(8))}
+
+    def test_foreground_ffmpeg_is_never_pinned(self) -> None:
+        nt_os = SimpleNamespace(name="nt")
+        fake_psutil = _FakePsutil(list(range(16)))
+        mock_completed = MagicMock(returncode=0, stdout="", stderr="")
+        with (
+            patch.object(ffmpeg_module, "os", nt_os),
+            patch("civiccast.stream._ffmpeg.shutil.which", return_value="/usr/bin/ffmpeg"),
+            patch("civiccast.stream._ffmpeg.subprocess.run", return_value=mock_completed),
+            patch("civiccast.stream._ffmpeg.psutil", fake_psutil, create=True),
+        ):
+            run_ffmpeg(["-version"])
+
+        assert fake_psutil.pinned == {}
 
     def test_lower_priority_prefixes_nice_on_posix(self) -> None:
         """U29 3b: Windows has no ``nice``; the equivalent there is the

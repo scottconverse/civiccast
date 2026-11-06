@@ -3984,8 +3984,16 @@ def _warm_kwargs_capturing_runner(
         cancel_event: threading.Event | None = None,
         timeout: float | None = None,
         lower_priority: bool = False,
+        half_cores: bool = False,
     ) -> FfmpegResult:
-        calls.append({"args": args, "timeout": timeout, "lower_priority": lower_priority})
+        calls.append(
+            {
+                "args": args,
+                "timeout": timeout,
+                "lower_priority": lower_priority,
+                "half_cores": half_cores,
+            }
+        )
         if "print_format=json" in " ".join(args):
             return FfmpegResult(returncode=0, stdout="", stderr=_loudnorm_probe_stderr())
         _write_fake_output(args)
@@ -4098,6 +4106,10 @@ def test_long_asset_warm_uses_the_scaled_timeout_at_lower_priority(
     assert conforms[0]["timeout"] == pytest.approx(expected)
     assert probes[0]["lower_priority"] is True
     assert conforms[0]["lower_priority"] is True
+    # A warm takes the background quarter (lower_priority), never the air
+    # path's half of the cores (FT-7).
+    assert probes[0]["half_cores"] is False
+    assert conforms[0]["half_cores"] is False
 
 
 def test_on_demand_preparation_keeps_the_base_timeout_and_normal_priority(
@@ -4131,6 +4143,8 @@ def test_on_demand_preparation_keeps_the_base_timeout_and_normal_priority(
         # The BASE timeout -- the air path's own budget, exactly as before U29.
         assert call["timeout"] == 300.0
         assert call["lower_priority"] is False
+        # FT-7: normal priority, but held to half the cores on Windows.
+        assert call["half_cores"] is True
     # The same duration WOULD have been scaled had this asset gone to a warm.
     assert preparer_module.warm_preparation_timeout_seconds(3600.0, 300.0) > 300.0
     assert warm_jobs == []  # an untrimmed airing that populated the cache warms nothing
@@ -4152,6 +4166,7 @@ def test_a_failed_warm_backs_off_and_warns_once(
         cancel_event: threading.Event | None = None,
         timeout: float | None = None,
         lower_priority: bool = False,
+        half_cores: bool = False,
     ) -> FfmpegResult:
         if mode["fail"]:
             raise subprocess.TimeoutExpired(args, timeout=timeout or 300.0)
@@ -4251,6 +4266,7 @@ def test_a_cancelled_warm_neither_warns_nor_backs_off(
         cancel_event: threading.Event | None = None,
         timeout: float | None = None,
         lower_priority: bool = False,
+        half_cores: bool = False,
     ) -> FfmpegResult:
         raise SourcePreparationCancelledError("Source preparation was cancelled.")
 

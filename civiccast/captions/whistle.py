@@ -29,6 +29,18 @@ from civiccast.captions.runtime import CaptionRuntime
 _LOG = logging.getLogger(__name__)
 WEIGHTS_SHA256 = "b6e02f048568ac5d01a2042556c658061e699acbc0aa2a1439f52f3d461dffeb"
 LIBRARY_SHA256 = "de2e2c39cd311fbd9971fad4736abc329ed970653674c203e149c4ef27fd1c62"
+#: Windows priority class of the live caption speech child: NORMAL
+#: (``NORMAL_PRIORITY_CLASS``, 0x20). FT-7 (RC4 field test, Beelink,
+#: 2026-11-06): at BELOW_NORMAL the child lost to the source preparer's
+#: air-path encode (NORMAL) at every programme change, and live captions ran
+#: 10-20 s late for minutes afterwards. The station's ladder is now: playout
+#: encoders ABOVE_NORMAL > control plane and this child NORMAL > air-path
+#: preparation BELOW_NORMAL > background preparation IDLE
+#: (civiccast.stream._ffmpeg). NORMAL still cannot preempt the ABOVE_NORMAL
+#: playout encoders, which is what BELOW_NORMAL was protecting. Measured with
+#: this ladder emulated on the Beelink, an air-path preparation at 97 % CPU
+#: left captions at a 3.1-3.5 s mean, max 5.3 s, none over 10 s.
+SPEECH_CHILD_PRIORITY_CLASS = 0x20
 _FALLBACK_RETRY_COOLDOWN_SECONDS = 30.0
 _WHISTLE_REQUEST_TIMEOUT_SECONDS = 30.0
 _WHISPER_REQUEST_TIMEOUT_SECONDS = 120.0
@@ -219,7 +231,7 @@ class _SpeechProcess:
                 encoding="utf8",
                 env=env,
                 stderr=subprocess.PIPE,
-                creationflags=0x4 | 0x08000000 | 0x4000,
+                creationflags=0x4 | 0x08000000 | SPEECH_CHILD_PRIORITY_CLASS,
             )
             self._process = process
             self._stderr = cast(IO[str], process.stderr)

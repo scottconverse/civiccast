@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import contextlib
 import json
+import logging
 import os
 import re
 import shutil
@@ -29,7 +30,11 @@ from functools import cache
 from pathlib import Path
 from typing import IO, Final
 
+import psutil
+
 from civiccast.stream.config import FFMPEG_MIN_VERSION
+
+_LOG = logging.getLogger(__name__)
 
 __all__ = [
     "FfmpegError",
@@ -553,13 +558,91 @@ _DEFAULT_TIMEOUT_SECONDS = 6 * 3600  # generous: won't kill a legitimate large c
 _CANCEL_POLL_SECONDS = 0.1
 _CANCEL_TERMINATE_SECONDS = 2.0
 
-#: U29: the POSIX counterpart of Windows' BELOW_NORMAL priority class -- one
+#: U29: the POSIX counterpart of the Windows background priority class -- one
 #: scheduling step down, so unattended background work yields to the live
 #: encoders, live caption ASR and the air path's own preparation. ``nice``
 #: values are relative and capped at 19 by the kernel; 10 is the conventional
 #: "background job" step and leaves the warm comfortably above the 19 a
 #: batch-of-last-resort would use.
 _LOWER_PRIORITY_NICE_ADJUSTMENT: Final = 10
+
+#: Windows priority class for ``lower_priority`` background ffmpeg: IDLE
+#: (``IDLE_PRIORITY_CLASS``, 0x40). FT-7 (RC4 field test, 2026-11-05/06): the
+#: station's priority ladder is playout encoders ABOVE_NORMAL > control plane
+#: and the live caption speech child NORMAL
+#: (civiccast.captions.whistle.SPEECH_CHILD_PRIORITY_CLASS) > air-path
+#: preparation BELOW_NORMAL (:data:`_AIR_PATH_PRIORITY_CLASS`) > background
+#: preparation IDLE. When background encodes ran at the caption child's own
+#: class they tied with it; a whole-programme warm conform or proxy transcode
+#: has many more threads, took most of the CPU, and on the Beelink the caption
+#: tap discarded queued audio while every hour-long programme was being
+#: prepared. IDLE still gets every spare cycle, and its own timeout budget
+#: still bounds it. The literals (not ``getattr(subprocess, ...)``) keep the
+#: ordering checkable on any host; the flags are only ever passed to
+#: subprocess on Windows.
+_BACKGROUND_PRIORITY_CLASS: Final = 0x40
+
+#: Windows priority class for ``half_cores`` (air-path preparation) ffmpeg:
+#: BELOW_NORMAL (0x4000), one step under the NORMAL caption speech child. FT-7,
+#: Beelink 2026-11-06: at NORMAL the air-path speech-leveling encode of the next
+#: programme beat the captions at every programme change (10-20 s late for
+#: minutes); with this ladder emulated, the same change at 97 % CPU left
+#: captions at a 3.1-3.5 s mean, none over 10 s. BELOW_NORMAL still outranks
+#: idle background work, and the air-path encode keeps everything the
+#: higher classes leave (playout plus captions use roughly a third of the box).
+_AIR_PATH_PRIORITY_CLASS: Final = 0x4000
+
+#: Background ffmpeg on Windows is also pinned to a quarter of the cores this
+#: process may use, never fewer than this many. FT-7, measured on the Beelink
+#: (16 logical cores, 2026-11-06): its h264_mf is the Microsoft *software* H.264
+#: MFT (no hardware MFT offered), which threads across every core and ignores
+#: ``-threads``, so even at IDLE a warm conform left live captions 20-33 s late;
+#: with no background encode they were 3.3 s. Pinned to 4 cores the conform ran
+#: at 12.3x realtime (2 cores 5.9x, too close to the warm timeout's 8x/1.5;
+#: all 16 cores 19.2x) and used the same total CPU time.
+_BACKGROUND_MIN_CORES: Final = 4
+
+
+def _background_cores(available: list[int]) -> list[int] | None:
+    """The cores background ffmpeg is pinned to, or None to leave it unpinned.
+
+    The highest-numbered quarter of ``available`` (the cores this process may
+    run on), at least :data:`_BACKGROUND_MIN_CORES`. A box with that many
+    cores or fewer is left unpinned.
+    """
+    if len(available) <= _BACKGROUND_MIN_CORES:
+        return None
+    count = max(_BACKGROUND_MIN_CORES, len(available) // 4)
+    return sorted(available)[-count:]
+
+
+def _half_cores(available: list[int]) -> list[int] | None:
+    """The cores a ``half_cores`` (air-path preparation) ffmpeg is pinned to.
+
+    The lowest-numbered half of ``available``, kept apart from the background
+    quarter at the top, so live captions always have cores neither kind of
+    preparation can take. FT-7, Beelink 2026-11-06: the speech-leveling program
+    mux of the next window ran at NORMAL priority on all 16 cores (56-58 % of
+    the box) because the software h264_mf ignores the half-machine
+    ``-threads`` cap the preparer already asks for. A box with
+    :data:`_BACKGROUND_MIN_CORES` cores or fewer is left unpinned.
+    """
+    if len(available) <= _BACKGROUND_MIN_CORES:
+        return None
+    return sorted(available)[: len(available) // 2]
+
+
+def _pin_cores(pid: int, choose: Callable[[list[int]], list[int] | None]) -> None:
+    """Best effort: restrict a just-started ffmpeg to the cores ``choose`` picks.
+
+    Degrading this hint must never fail the job, the same rule as ``nice``.
+    """
+    try:
+        cores = choose(list(psutil.Process().cpu_affinity() or []))
+        if cores is not None:
+            psutil.Process(pid).cpu_affinity(cores)
+    except Exception:  # any failure leaves ffmpeg unpinned; it never fails the job
+        _LOG.warning("Could not pin ffmpeg pid %s to its cores.", pid)
 
 
 class FfmpegCancelledError(RuntimeError):
@@ -573,6 +656,7 @@ def run_ffmpeg(
     timeout: float | None = _DEFAULT_TIMEOUT_SECONDS,
     lower_priority: bool = False,
     cancel_event: threading.Event | None = None,
+    half_cores: bool = False,
 ) -> FfmpegResult:
     """Run ffmpeg with the given argument list.
 
@@ -592,15 +676,22 @@ def run_ffmpeg(
     handling should catch it explicitly (see
     ``civiccast.recording.runtime._finalize_segments``).
 
-    ``lower_priority`` starts the subprocess at Windows' BELOW_NORMAL
-    priority class (same ``getattr(subprocess, ..., 0)`` degrade-to-0
-    pattern :func:`start_ffmpeg` already uses for ``CREATE_NO_WINDOW``, so
-    it is a harmless no-op on non-Windows/test platforms). Default is
+    ``lower_priority`` starts the subprocess at Windows' IDLE priority class
+    (:data:`_BACKGROUND_PRIORITY_CLASS`: the bottom of the FT-7 ladder, below the
+    NORMAL live caption child) pinned to a quarter of the cores (:func:`_background_cores`),
+    and, on POSIX, under ``nice``. Default is
     ``False`` — unattended background work (S7's media lifecycle worker)
     opts in explicitly; real-time/latency-sensitive callers (live egress,
     the VOD packager answering an operator's HTTP request) must keep
     running at the process's normal priority, so this must never become a
     blanket default here.
+
+    ``half_cores`` (Windows only; ignored with ``lower_priority``) starts the
+    child at BELOW_NORMAL (:data:`_AIR_PATH_PRIORITY_CLASS`, one step under the
+    NORMAL caption child) and pins it to the lower half of the cores
+    (:func:`_half_cores`). The source preparer's air-path encodes use it: they
+    have an airing deadline, so they do not drop to IDLE, but they must never
+    outrank live captions (FT-7).
     """
     if cancel_event is not None and cancel_event.is_set():
         raise FfmpegCancelledError("ffmpeg cancelled before launch")
@@ -620,13 +711,20 @@ def run_ffmpeg(
     # host with no ``nice`` on PATH runs ffmpeg at normal priority rather than
     # failing the job: degrading the priority hint must never fail the work.
     creationflags = 0
+    # Affinity can only be set on a started process, so a pinned Windows run
+    # takes the Popen path below.
+    choose_cores: Callable[[list[int]], list[int] | None] | None = None
     if lower_priority:
         if os.name == "nt":
-            creationflags = getattr(subprocess, "BELOW_NORMAL_PRIORITY_CLASS", 0)
+            creationflags = _BACKGROUND_PRIORITY_CLASS
+            choose_cores = _background_cores
         elif shutil.which("nice") is not None:
             cmd = ["nice", "-n", str(_LOWER_PRIORITY_NICE_ADJUSTMENT), *cmd]
+    elif half_cores and os.name == "nt":
+        creationflags = _AIR_PATH_PRIORITY_CLASS
+        choose_cores = _half_cores
 
-    if cancel_event is None:
+    if cancel_event is None and choose_cores is None:
         completed = subprocess.run(  # noqa: S603
             cmd,
             capture_output=True,
@@ -637,7 +735,7 @@ def run_ffmpeg(
             creationflags=creationflags,
         )
     else:
-        if cancel_event.is_set():
+        if cancel_event is not None and cancel_event.is_set():
             raise FfmpegCancelledError("ffmpeg cancelled before launch")
         process = subprocess.Popen(  # noqa: S603
             cmd,
@@ -648,9 +746,11 @@ def run_ffmpeg(
             errors="replace",
             creationflags=creationflags,
         )
+        if choose_cores is not None:
+            _pin_cores(process.pid, choose_cores)
         started = time.monotonic()
         while True:
-            if cancel_event.is_set():
+            if cancel_event is not None and cancel_event.is_set():
                 with contextlib.suppress(ProcessLookupError):
                     process.terminate()
                 try:
