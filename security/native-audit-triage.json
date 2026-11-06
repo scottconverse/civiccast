@@ -2218,6 +2218,236 @@
         "https://nvd.nist.gov/vuln/detail/CVE-2019-16294",
         "security/native-bundled-components.json"
       ]
+    },
+    {
+      "package": "ffmpeg",
+      "version": "N-128142-g28fda48e0b",
+      "id": "CVE-2026-120210",
+      "reviewed": "2026-11-06",
+      "review_by": "2026-11-20",
+      "reason": "The IMF demuxer IS compiled into this BtbN build and the upstream fix (FFmpeg pull 25341) is not merged as of 2026-11-06, so this rests on CivicCast never handing it an IMF package. The demuxer only reads a composition playlist that libxml2 parses as an XML document. civiccast.schedule.ingest.run_ffprobe, the single intake probe for staff uploads, file replacements, the watch folder and contributor submissions, refuses any file that begins as an XML document (every libxml2-autodetected encoding) before ffprobe runs; the refusal (UnsafeMediaError) is not an FfprobeError, so the contributor broken-media override cannot ingest past it. Residual, stated plainly: an operator-configured SRT/HLS/MPEG-TS network live source whose remote sender serves an IMF playlist would still be auto-detected; those endpoints are staff-configured (SRT passphrase-protected). Short review date: re-pin FFmpeg to a build with the upstream fix.",
+      "evidence": [
+        "https://code.ffmpeg.org/FFmpeg/FFmpeg/pulls/25341",
+        "https://github.com/FFmpeg/FFmpeg/blob/28fda48e0bf6d9b47d450250f769a58998f0491f/libavformat/imfdec.c",
+        "civiccast/schedule/ingest.py:_looks_like_xml_document",
+        "tests/schedule/test_ingest.py::TestXmlDocumentRefusal",
+        "tests/contribute/test_router.py::test_accept_operator_override_cannot_ingest_an_xml_document"
+      ]
+    },
+    {
+      "package": "ffmpeg",
+      "version": "N-128142-g28fda48e0b",
+      "id": "CVE-2026-120243",
+      "reviewed": "2026-11-06",
+      "review_by": "2026-12-06",
+      "reason": "Fixed in the shipped source. The pinned snapshot 28fda48e0bf6d9b47d450250f769a58998f0491f (2026-10-28) contains the G2M Kempf palette-index fix edad2d0dafcf44fa315eab716fd0183ce808053b (2026-10-10); GitHub compare of the fix against the snapshot reports the snapshot ahead by 844 commits and behind by 0. The scanner matches the release9.0.2 baseline, not the shipped revision.",
+      "evidence": [
+        "https://github.com/FFmpeg/FFmpeg/commit/edad2d0dafcf44fa315eab716fd0183ce808053b",
+        "https://github.com/FFmpeg/FFmpeg/compare/edad2d0dafcf44fa315eab716fd0183ce808053b...28fda48e0bf6d9b47d450250f769a58998f0491f",
+        "native-windows-runtime-dependencies.lock.json",
+        "scripts/build_native_ffmpeg_pack.py"
+      ]
+    },
+    {
+      "package": "ffmpeg",
+      "version": "N-128142-g28fda48e0b",
+      "id": "CVE-2026-120244",
+      "reviewed": "2026-11-06",
+      "review_by": "2026-12-06",
+      "reason": "Fixed in the shipped source. The pinned snapshot 28fda48e0bf6d9b47d450250f769a58998f0491f (2026-10-28) contains the PCX truncated-scanline fix ecd5dfc308a164757e7f25b1afefd8db21b43cf9 (2026-10-11); GitHub compare reports the snapshot ahead by 819 commits and behind by 0. The scanner matches the release9.0.2 baseline, not the shipped revision.",
+      "evidence": [
+        "https://github.com/FFmpeg/FFmpeg/commit/ecd5dfc308a164757e7f25b1afefd8db21b43cf9",
+        "https://github.com/FFmpeg/FFmpeg/compare/ecd5dfc308a164757e7f25b1afefd8db21b43cf9...28fda48e0bf6d9b47d450250f769a58998f0491f",
+        "native-windows-runtime-dependencies.lock.json",
+        "scripts/build_native_ffmpeg_pack.py"
+      ]
+    },
+    {
+      "package": "ffmpeg",
+      "version": "N-128142-g28fda48e0b",
+      "id": "CVE-2026-120245",
+      "reviewed": "2026-11-06",
+      "review_by": "2026-12-06",
+      "reason": "Fixed in the shipped source. The pinned snapshot 28fda48e0bf6d9b47d450250f769a58998f0491f (2026-10-28) contains both Sun Raster fixes, 356a391bf57df2fb80fd61f2821c8c83d15ce180 (2026-10-10, ahead 837 / behind 0) and 66b6ca270b33fd74367d7d371f6de16ec664446e (2026-10-12, ahead 697 / behind 0) per GitHub compare. The scanner matches the release9.0.2 baseline, not the shipped revision.",
+      "evidence": [
+        "https://github.com/FFmpeg/FFmpeg/commit/356a391bf57df2fb80fd61f2821c8c83d15ce180",
+        "https://github.com/FFmpeg/FFmpeg/commit/66b6ca270b33fd74367d7d371f6de16ec664446e",
+        "https://github.com/FFmpeg/FFmpeg/compare/66b6ca270b33fd74367d7d371f6de16ec664446e...28fda48e0bf6d9b47d450250f769a58998f0491f",
+        "native-windows-runtime-dependencies.lock.json",
+        "scripts/build_native_ffmpeg_pack.py"
+      ]
+    },
+    {
+      "package": "ffmpeg",
+      "version": "N-128142-g28fda48e0b",
+      "id": "CVE-2026-120246",
+      "reviewed": "2026-11-06",
+      "review_by": "2026-12-06",
+      "reason": "Fixed in the shipped source. The pinned snapshot 28fda48e0bf6d9b47d450250f769a58998f0491f (2026-10-28) contains the CDXL HAM palette-index fix 47313ad3f9f33b892384b976fb7c09b3c85fd74e (2026-10-05); GitHub compare reports the snapshot ahead by 924 commits and behind by 0. The scanner matches the release9.0.2 baseline, not the shipped revision.",
+      "evidence": [
+        "https://github.com/FFmpeg/FFmpeg/commit/47313ad3f9f33b892384b976fb7c09b3c85fd74e",
+        "https://github.com/FFmpeg/FFmpeg/compare/47313ad3f9f33b892384b976fb7c09b3c85fd74e...28fda48e0bf6d9b47d450250f769a58998f0491f",
+        "native-windows-runtime-dependencies.lock.json",
+        "scripts/build_native_ffmpeg_pack.py"
+      ]
+    },
+    {
+      "package": "ffmpeg",
+      "version": "N-128142-g28fda48e0b",
+      "id": "CVE-2026-120247",
+      "reviewed": "2026-11-06",
+      "review_by": "2026-12-06",
+      "reason": "Fixed in the shipped source. The pinned snapshot 28fda48e0bf6d9b47d450250f769a58998f0491f (2026-10-28) contains the Huffyuv truncated-row fix 7c73707355708c846f718cca90096bc1a33c8989 (2026-10-11); GitHub compare reports the snapshot ahead by 813 commits and behind by 0. The scanner matches the release9.0.2 baseline, not the shipped revision.",
+      "evidence": [
+        "https://github.com/FFmpeg/FFmpeg/commit/7c73707355708c846f718cca90096bc1a33c8989",
+        "https://github.com/FFmpeg/FFmpeg/compare/7c73707355708c846f718cca90096bc1a33c8989...28fda48e0bf6d9b47d450250f769a58998f0491f",
+        "native-windows-runtime-dependencies.lock.json",
+        "scripts/build_native_ffmpeg_pack.py"
+      ]
+    },
+    {
+      "package": "gstreamer-ffmpeg",
+      "version": "7.1.5-security1",
+      "id": "CVE-2026-120210",
+      "reviewed": "2026-11-06",
+      "review_by": "2026-12-06",
+      "reason": "The IMF demuxer is excluded. The retained binary enumeration shows av_demuxer_iterate empty (no FFmpeg demuxers at all) and the recorded configure line uses --disable-everything with only the h264 and aac decoders enabled.",
+      "evidence": [
+        "docs/ops/evidence/rc1-native-security/secured-capabilities.json",
+        "docs/ops/evidence/rc1-native-security/gstreamer-ffmpeg-applicability.json"
+      ]
+    },
+    {
+      "package": "gstreamer-ffmpeg",
+      "version": "7.1.5-security1",
+      "id": "CVE-2026-120243",
+      "reviewed": "2026-11-06",
+      "review_by": "2026-12-06",
+      "reason": "The G2M decoder is excluded. The retained binary enumeration (av_codec_iterate) lists only the h264 and aac decoders and the aac encoder; the recorded configure line uses --disable-everything --enable-decoder='h264,aac'.",
+      "evidence": [
+        "docs/ops/evidence/rc1-native-security/secured-capabilities.json",
+        "docs/ops/evidence/rc1-native-security/gstreamer-ffmpeg-applicability.json"
+      ]
+    },
+    {
+      "package": "gstreamer-ffmpeg",
+      "version": "7.1.5-security1",
+      "id": "CVE-2026-120244",
+      "reviewed": "2026-11-06",
+      "review_by": "2026-12-06",
+      "reason": "The PCX decoder is excluded. The retained binary enumeration (av_codec_iterate) lists only the h264 and aac decoders and the aac encoder; the recorded configure line uses --disable-everything --enable-decoder='h264,aac'.",
+      "evidence": [
+        "docs/ops/evidence/rc1-native-security/secured-capabilities.json",
+        "docs/ops/evidence/rc1-native-security/gstreamer-ffmpeg-applicability.json"
+      ]
+    },
+    {
+      "package": "gstreamer-ffmpeg",
+      "version": "7.1.5-security1",
+      "id": "CVE-2026-120245",
+      "reviewed": "2026-11-06",
+      "review_by": "2026-12-06",
+      "reason": "The Sun Raster decoder is excluded. The retained binary enumeration (av_codec_iterate) lists only the h264 and aac decoders and the aac encoder; the recorded configure line uses --disable-everything --enable-decoder='h264,aac'.",
+      "evidence": [
+        "docs/ops/evidence/rc1-native-security/secured-capabilities.json",
+        "docs/ops/evidence/rc1-native-security/gstreamer-ffmpeg-applicability.json"
+      ]
+    },
+    {
+      "package": "gstreamer-ffmpeg",
+      "version": "7.1.5-security1",
+      "id": "CVE-2026-120246",
+      "reviewed": "2026-11-06",
+      "review_by": "2026-12-06",
+      "reason": "The CDXL decoder is excluded. The retained binary enumeration (av_codec_iterate) lists only the h264 and aac decoders and the aac encoder; the recorded configure line uses --disable-everything --enable-decoder='h264,aac'.",
+      "evidence": [
+        "docs/ops/evidence/rc1-native-security/secured-capabilities.json",
+        "docs/ops/evidence/rc1-native-security/gstreamer-ffmpeg-applicability.json"
+      ]
+    },
+    {
+      "package": "gstreamer-ffmpeg",
+      "version": "7.1.5-security1",
+      "id": "CVE-2026-120247",
+      "reviewed": "2026-11-06",
+      "review_by": "2026-12-06",
+      "reason": "The Huffyuv decoder is excluded. The retained binary enumeration (av_codec_iterate) lists only the h264 and aac decoders and the aac encoder; the recorded configure line uses --disable-everything --enable-decoder='h264,aac'.",
+      "evidence": [
+        "docs/ops/evidence/rc1-native-security/secured-capabilities.json",
+        "docs/ops/evidence/rc1-native-security/gstreamer-ffmpeg-applicability.json"
+      ]
+    },
+    {
+      "package": "pyav-ffmpeg",
+      "version": "611cec792a-security1-minimal-msvc",
+      "id": "CVE-2026-120210",
+      "reviewed": "2026-11-06",
+      "review_by": "2026-12-06",
+      "reason": "The IMF demuxer is excluded from this exact minimal MSVC build: FFMPEG_CONFIGURE_OPTIONS uses --disable-everything and enables only the wav, mov, matroska, mp3, flac, ogg, mpegts and aac demuxers. Applies only to the separately identified PyAV FFmpeg build.",
+      "evidence": [
+        "scripts/build_native_pyav_wheel.py:FFMPEG_CONFIGURE_OPTIONS",
+        "https://github.com/FFmpeg/FFmpeg/blob/611cec792aa54e2e53dbc1be95dcf5955d9a99ba/configure"
+      ]
+    },
+    {
+      "package": "pyav-ffmpeg",
+      "version": "611cec792a-security1-minimal-msvc",
+      "id": "CVE-2026-120243",
+      "reviewed": "2026-11-06",
+      "review_by": "2026-12-06",
+      "reason": "The G2M decoder is excluded from this exact minimal MSVC build: FFMPEG_CONFIGURE_OPTIONS uses --disable-everything and enables only the pcm_s16le, pcm_s24le, pcm_s32le, pcm_f32le, aac, mp3, flac, opus, vorbis, h264, hevc and mpeg2video decoders. Applies only to the separately identified PyAV FFmpeg build.",
+      "evidence": [
+        "scripts/build_native_pyav_wheel.py:FFMPEG_CONFIGURE_OPTIONS",
+        "https://github.com/FFmpeg/FFmpeg/blob/611cec792aa54e2e53dbc1be95dcf5955d9a99ba/configure"
+      ]
+    },
+    {
+      "package": "pyav-ffmpeg",
+      "version": "611cec792a-security1-minimal-msvc",
+      "id": "CVE-2026-120244",
+      "reviewed": "2026-11-06",
+      "review_by": "2026-12-06",
+      "reason": "The PCX decoder is excluded from this exact minimal MSVC build: FFMPEG_CONFIGURE_OPTIONS uses --disable-everything and enables only the pcm_s16le, pcm_s24le, pcm_s32le, pcm_f32le, aac, mp3, flac, opus, vorbis, h264, hevc and mpeg2video decoders. Applies only to the separately identified PyAV FFmpeg build.",
+      "evidence": [
+        "scripts/build_native_pyav_wheel.py:FFMPEG_CONFIGURE_OPTIONS",
+        "https://github.com/FFmpeg/FFmpeg/blob/611cec792aa54e2e53dbc1be95dcf5955d9a99ba/configure"
+      ]
+    },
+    {
+      "package": "pyav-ffmpeg",
+      "version": "611cec792a-security1-minimal-msvc",
+      "id": "CVE-2026-120245",
+      "reviewed": "2026-11-06",
+      "review_by": "2026-12-06",
+      "reason": "The Sun Raster decoder is excluded from this exact minimal MSVC build: FFMPEG_CONFIGURE_OPTIONS uses --disable-everything and enables only the pcm_s16le, pcm_s24le, pcm_s32le, pcm_f32le, aac, mp3, flac, opus, vorbis, h264, hevc and mpeg2video decoders. Applies only to the separately identified PyAV FFmpeg build.",
+      "evidence": [
+        "scripts/build_native_pyav_wheel.py:FFMPEG_CONFIGURE_OPTIONS",
+        "https://github.com/FFmpeg/FFmpeg/blob/611cec792aa54e2e53dbc1be95dcf5955d9a99ba/configure"
+      ]
+    },
+    {
+      "package": "pyav-ffmpeg",
+      "version": "611cec792a-security1-minimal-msvc",
+      "id": "CVE-2026-120246",
+      "reviewed": "2026-11-06",
+      "review_by": "2026-12-06",
+      "reason": "The CDXL decoder is excluded from this exact minimal MSVC build: FFMPEG_CONFIGURE_OPTIONS uses --disable-everything and enables only the pcm_s16le, pcm_s24le, pcm_s32le, pcm_f32le, aac, mp3, flac, opus, vorbis, h264, hevc and mpeg2video decoders. Applies only to the separately identified PyAV FFmpeg build.",
+      "evidence": [
+        "scripts/build_native_pyav_wheel.py:FFMPEG_CONFIGURE_OPTIONS",
+        "https://github.com/FFmpeg/FFmpeg/blob/611cec792aa54e2e53dbc1be95dcf5955d9a99ba/configure"
+      ]
+    },
+    {
+      "package": "pyav-ffmpeg",
+      "version": "611cec792a-security1-minimal-msvc",
+      "id": "CVE-2026-120247",
+      "reviewed": "2026-11-06",
+      "review_by": "2026-12-06",
+      "reason": "The Huffyuv decoder is excluded from this exact minimal MSVC build: FFMPEG_CONFIGURE_OPTIONS uses --disable-everything and enables only the pcm_s16le, pcm_s24le, pcm_s32le, pcm_f32le, aac, mp3, flac, opus, vorbis, h264, hevc and mpeg2video decoders. Applies only to the separately identified PyAV FFmpeg build.",
+      "evidence": [
+        "scripts/build_native_pyav_wheel.py:FFMPEG_CONFIGURE_OPTIONS",
+        "https://github.com/FFmpeg/FFmpeg/blob/611cec792aa54e2e53dbc1be95dcf5955d9a99ba/configure"
+      ]
     }
   ]
 }
