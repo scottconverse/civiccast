@@ -1228,7 +1228,9 @@ def test_native_marker_collections_match_the_workflow_floors() -> None:
     # F7 caption-boundary sharing, F11 self-check, AI readiness, F4 identity)
     # add six portable and three Windows-only native cases, measured by the
     # PR #297 CI collection: 2207 / 2456.
-    assert (collect("not windows_only"), collect()) == (2207, 2456)
+    # Whistle download-revision pin adds two portable cases (PR #300 CI
+    # collection): 2209 / 2458.
+    assert (collect("not windows_only"), collect()) == (2209, 2458)
 
 
 def test_linux_unit_job_runs_native_tests_once_in_the_dedicated_pure_lane() -> None:
