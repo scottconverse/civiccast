@@ -1287,6 +1287,11 @@ async def upload_asset(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail=str(exc),
             ) from exc
+        except UnsupportedFormatError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail=exc.reason,
+            ) from exc
 
         await asyncio.to_thread(asset_dir.mkdir, parents=True, exist_ok=True)
         await asyncio.to_thread(os.replace, temp_path, dest_path)
@@ -1506,6 +1511,11 @@ async def relink_asset(
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=str(exc),
+        ) from exc
+    except UnsupportedFormatError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=exc.reason,
         ) from exc
     except FfprobeError as exc:
         raise HTTPException(

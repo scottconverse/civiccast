@@ -25,6 +25,7 @@ from civiccast.schedule.ingest import (
     FfprobeError,
     FfprobeNotFoundError,
     FfprobeResult,
+    UnsafeMediaError,
     UnsupportedFormatError,
     _parse_ffprobe_json,
     check_ffprobe,
@@ -475,3 +476,71 @@ class TestExtractThumbnail:
 
         with pytest.raises(FfprobeError):
             extract_thumbnail(bad_path, tmp_path / "thumb.jpg")
+
+
+# ---------------------------------------------------------------------------
+# XML documents are refused before ffprobe runs (CVE-2026-120210, IMF demuxer)
+# ---------------------------------------------------------------------------
+
+_IMF_CPL = (
+    '<?xml version="1.0" encoding="UTF-8"?>\n'
+    '<CompositionPlaylist xmlns="http://www.smpte-ra.org/schemas/2067-3/2016">'
+    "<ContentTitle>x</ContentTitle></CompositionPlaylist>\n"
+)
+
+_XML_STARTS = {
+    "utf8-decl": _IMF_CPL.encode("utf-8"),
+    "utf8-bom": b"\xef\xbb\xbf" + _IMF_CPL.encode("utf-8"),
+    "utf8-no-decl-leading-ws": b"\r\n\t  " + _IMF_CPL.split("\n", 1)[1].encode("utf-8"),
+    "utf8-comment-first": b"<!-- x -->" + _IMF_CPL.split("\n", 1)[1].encode("utf-8"),
+    "utf16le-bom": _IMF_CPL.encode("utf-16"),
+    "utf16be-no-bom": _IMF_CPL.encode("utf-16-be"),
+    "utf32le-bom": _IMF_CPL.encode("utf-32"),
+    "utf32be-no-bom": _IMF_CPL.encode("utf-32-be"),
+    "ebcdic": _IMF_CPL.encode("cp500"),
+    "ucs4-2143": b"\x00\x00\x3c\x00" + b"\x00" * 12,
+    "ucs4-3412": b"\x00\x3c\x00\x00" + b"\x00" * 12,
+    "whitespace-padded-past-window": b" " * (70 * 1024) + _IMF_CPL.encode("utf-8"),
+}
+
+_BINARY_STARTS = {
+    # 60-byte ftyp box: first non-zero byte is "<" (0x3C) in UTF-32-BE terms.
+    "mp4-ftyp-60": b"\x00\x00\x00\x3cftypisom\x00\x00\x02\x00isomiso2avc1mp41" + b"\x00" * 64,
+    "mp4-mdat-first-near-1gb": b"\x3cAB\x10mdat\x00\x00\x00\x01\x67\x64\x00\x1f" + b"\x00" * 64,
+    "matroska": b"\x1a\x45\xdf\xa3\x9f\x42\x86\x81\x01\x42\xf7\x81\x01" + b"\x00" * 64,
+    "mpegts": (b"\x47\x40\x00\x10" + b"\x00" * 184) * 4,
+    "avi": b"RIFF\x24\x10\x00\x00AVI LIST" + b"\x00" * 64,
+    "all-zero": b"\x00" * 4096,
+    "empty": b"",
+}
+
+
+class TestXmlDocumentRefusal:
+    @pytest.mark.parametrize("name", sorted(_XML_STARTS))
+    def test_xml_documents_are_refused_before_ffprobe(self, name: str, tmp_path: Path) -> None:
+        path = tmp_path / "meeting.mp4"
+        path.write_bytes(_XML_STARTS[name])
+        with (
+            patch("civiccast.schedule.ingest.shutil.which", return_value="ffprobe"),
+            patch("civiccast.schedule.ingest.subprocess.run") as run,
+            pytest.raises(UnsafeMediaError) as excinfo,
+        ):
+            run_ffprobe(path)
+        run.assert_not_called()
+        # Not an FfprobeError, so the contribution broken-media override
+        # (which only catches FfprobeError) can never ingest past it.
+        assert not isinstance(excinfo.value, FfprobeError)
+        assert isinstance(excinfo.value, UnsupportedFormatError)
+
+    @pytest.mark.parametrize("name", sorted(_BINARY_STARTS))
+    def test_binary_containers_still_reach_ffprobe(self, name: str, tmp_path: Path) -> None:
+        path = tmp_path / "meeting.mp4"
+        path.write_bytes(_BINARY_STARTS[name])
+        completed = MagicMock(returncode=1, stdout="", stderr="")
+        with (
+            patch("civiccast.schedule.ingest.shutil.which", return_value="ffprobe"),
+            patch("civiccast.schedule.ingest.subprocess.run", return_value=completed) as run,
+            pytest.raises(FfprobeError),
+        ):
+            run_ffprobe(path)
+        run.assert_called_once()
