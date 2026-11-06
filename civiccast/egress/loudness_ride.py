@@ -183,6 +183,7 @@ from pathlib import Path
 from typing import Any, BinaryIO, Protocol
 
 from civiccast.egress.models import CanonicalProfile, EgressSourceSegment
+from civiccast.stream._ffmpeg import ffmpeg_seconds
 
 __all__ = [
     "DIGITAL_SILENCE",
@@ -742,10 +743,10 @@ def build_source_series_args(
             ]
         )
     if segment is not None and segment.inpoint_seconds is not None:
-        args.extend(["-ss", f"{segment.inpoint_seconds:g}"])
+        args.extend(["-ss", ffmpeg_seconds(segment.inpoint_seconds)])
     args.extend(["-i", str(source_path)])
     if segment is not None:
-        args.extend(["-t", f"{segment.duration_seconds:g}"])
+        args.extend(["-t", ffmpeg_seconds(segment.duration_seconds)])
     args.extend(["-vn", "-af", "ebur128=peak=true", "-f", "null", "-"])
     return args
 
@@ -776,10 +777,10 @@ def build_decoder_args(
             ]
         )
     if segment is not None and segment.inpoint_seconds is not None:
-        args.extend(["-ss", f"{segment.inpoint_seconds:g}"])
+        args.extend(["-ss", ffmpeg_seconds(segment.inpoint_seconds)])
     args.extend(["-i", str(source_path)])
     if segment is not None:
-        args.extend(["-t", f"{segment.duration_seconds:g}"])
+        args.extend(["-t", ffmpeg_seconds(segment.duration_seconds)])
     args.extend(
         [
             "-vn",
@@ -1073,11 +1074,11 @@ def build_video_from_source_args(
             ]
         )
     if segment is not None and segment.inpoint_seconds is not None:
-        args.extend(["-ss", f"{segment.inpoint_seconds:g}"])
+        args.extend(["-ss", ffmpeg_seconds(segment.inpoint_seconds)])
     args.extend(["-i", str(source_path)])
     args.extend(["-i", str(audio_path)])
     if segment is not None:
-        args.extend(["-t", f"{segment.duration_seconds:g}"])
+        args.extend(["-t", ffmpeg_seconds(segment.duration_seconds)])
     args.extend(["-map", "0:v:0", "-map", "1:a:0"])
     if not copy_video:
         args.extend(["-vf", canonical_video_filter(profile)])

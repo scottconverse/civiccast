@@ -9,7 +9,7 @@ import threading
 from dataclasses import dataclass
 from pathlib import Path
 
-from civiccast.stream._ffmpeg import check_ffmpeg, run_ffmpeg
+from civiccast.stream._ffmpeg import check_ffmpeg, ffmpeg_seconds, run_ffmpeg
 
 
 @dataclass(frozen=True)
@@ -120,7 +120,7 @@ def check_loudness(
         # own threading separately; ``-threads`` alone does not bound it.
         args.extend(["-threads", str(threads), "-filter_complex_threads", str(threads)])
     if probe_start_seconds is not None:
-        args.extend(["-ss", f"{probe_start_seconds:g}"])
+        args.extend(["-ss", ffmpeg_seconds(probe_start_seconds)])
     args.extend(["-i", str(media_path)])
     # Item 66 follow-up (measured on HALO): the loudness gate only needs
     # the audio stream -- ``-vn`` drops video decode from the ebur128 pass
@@ -129,7 +129,7 @@ def check_loudness(
     # changes the LUFS measurement (video frames never feed ebur128).
     args.append("-vn")
     if probe_duration_seconds is not None:
-        args.extend(["-t", f"{probe_duration_seconds:g}"])
+        args.extend(["-t", ffmpeg_seconds(probe_duration_seconds)])
     args.extend(["-filter_complex", "ebur128=peak=true", "-f", "null", "-"])
     if cancel_event is None:
         result = run_ffmpeg(args)
