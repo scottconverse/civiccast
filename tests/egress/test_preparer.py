@@ -42,7 +42,7 @@ from civiccast.egress.preparer import (
     build_loudnorm_probe_args,
     preparation_timeout_seconds_from_env,
 )
-from civiccast.stream._ffmpeg import FfmpegResult
+from civiccast.stream._ffmpeg import FfmpegResult, ffmpeg_seconds
 from civiccast.stream.loudness import LoudnessGateResult
 
 
@@ -1772,7 +1772,8 @@ def test_nonzero_cache_trim_decodes_original_when_engine_cannot_trim(
     assert calls
     assert all(args[args.index("-i") + 1] == str(source) for args in calls)
     conform_args = calls[-1]
-    assert conform_args[conform_args.index("-ss") + 1] == f"{inpoint:g}"
+    # FT-8: the exact offset, not ``:g``'s six significant digits (5.16638).
+    assert conform_args[conform_args.index("-ss") + 1] == ffmpeg_seconds(inpoint)
     assert conform_args[conform_args.index("-t") + 1] == "12.5"
     assert conform_args[conform_args.index("-c:v") + 1] == _config().canonical_profile.video_codec
     assert "-c" not in conform_args

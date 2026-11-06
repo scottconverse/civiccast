@@ -378,6 +378,17 @@ _TRANSITIONING_WATCHDOG_SECONDS = (
 # the longest a re-issue can take to arm something -- so a pin still standing
 # after it has declined a second time, with nothing in flight, is a dead end.
 _TRANSITIONING_WATCHDOG_REISSUE_GRACE_SECONDS = 300.0
+# FT-8 (r7, 2026-11-06): a rollover whose media preparation FAILED has nothing
+# in flight -- no conform, no settlement -- so the only thing its pin can
+# honestly wait for is the outgoing programme's own end. The watchdog re-issues
+# the rollover this long after the recorded plan end (when the slate has gone
+# on air), not after the flat 1650s bound, which left r7's public channel on
+# the slate for about 28 minutes. It never fires before that plan end, so a bad
+# next programme cannot cut a healthy one short.
+_FAILED_PREPARATION_STALL_MARGIN_SECONDS = 60.0
+# FT-8: a recorded preparation failure is honoured only by the pin it leads to
+# directly (armed in the same daemon tick), never by a later, unrelated pin.
+_FAILED_PREPARATION_RECORD_TTL_SECONDS = 30.0
 # U36 item 7: how many times a boundary reload the worker ABORTED pre-commit is
 # re-resolved and re-armed before the channel gives up on the seamless path and
 # arms the fallback slate at the boundary instead. Two, because the abort's
@@ -1225,6 +1236,12 @@ class EgressDaemon:
         self._reload_stall_since: dict[str, float] = {}
         self._reload_stall_bound_s: dict[str, float] = {}
         self._reload_stall_rungs: dict[str, int] = {}
+        # FT-8: a reload whose media preparation FAILED, recorded as
+        # ``(monotonic time of the failure, the rollover's recorded plan end)``
+        # by ``_reload_steps`` and consumed by the ``_arm_pending_reload`` that
+        # the same failure leads to, which then bounds the pin from that plan
+        # end instead of the flat U67 bound.
+        self._failed_reload_preparations: dict[str, tuple[float, datetime]] = {}
         # F3 fix: the per-plan prepared/ directory (SourcePreparationReport.
         # plan_dir) backing the CURRENTLY on-air plan for each channel, if the
         # configured source_preparer reports one. Updated when a reload
@@ -6168,6 +6185,14 @@ class EgressDaemon:
                     channel_id,
                     time.monotonic() - prepare_started,
                 )
+                if rollover_plan_end_at is not None:
+                    # FT-8: nothing is in flight now, so the pin this failure
+                    # arms is bounded by the outgoing plan's end, not U67's
+                    # flat bound. See ``_arm_pending_reload``.
+                    self._failed_reload_preparations[channel_id] = (
+                        self._monotonic(),
+                        rollover_plan_end_at,
+                    )
                 return False
             _LOG.info(
                 "Content-reload source preparation for %s took %.1fs for %d segment(s) "
@@ -6744,8 +6769,23 @@ class EgressDaemon:
             state.state if state else None,
             state.current_source_label if state else None,
         )
-        self._reload_stall_since[channel_id] = self._monotonic()
-        self._reload_stall_bound_s[channel_id] = _reload_stall_bound_seconds(plan_end_at)
+        now = self._monotonic()
+        self._reload_stall_since[channel_id] = now
+        failed = self._failed_reload_preparations.pop(channel_id, None)
+        if failed is not None and now - failed[0] <= _FAILED_PREPARATION_RECORD_TTL_SECONDS:
+            bound = _failed_preparation_stall_bound_seconds(failed[1])
+            _LOG.warning(
+                "Channel %s: the rollover's preparation failed, so nothing is in flight; "
+                "re-issuing it %.0fs from now (%.0fs after the outgoing plan ends) "
+                "instead of waiting out the %.0fs reload-stall bound.",
+                channel_id,
+                bound,
+                _FAILED_PREPARATION_STALL_MARGIN_SECONDS,
+                _TRANSITIONING_WATCHDOG_SECONDS,
+            )
+        else:
+            bound = _reload_stall_bound_seconds(plan_end_at)
+        self._reload_stall_bound_s[channel_id] = bound
         self._reload_stall_rungs.pop(channel_id, None)
 
     def _poll_reload_stall_watchdog(self, channel_id: str) -> None:
@@ -7604,6 +7644,14 @@ def _reload_stall_bound_seconds(plan_end_at: datetime | None) -> float:
         _TRANSITIONING_WATCHDOG_SECONDS,
         remaining + _TRANSITIONING_WATCHDOG_LEAD_SECONDS + _PENDING_RELOAD_SETTLE_DEADLINE_S,
     )
+
+
+def _failed_preparation_stall_bound_seconds(plan_end_at: datetime) -> float:
+    """FT-8: the pin bound for a rollover whose preparation failed -- the
+    outgoing plan that is left, plus ``_FAILED_PREPARATION_STALL_MARGIN_SECONDS``.
+    A plan end already past leaves just the margin."""
+    remaining = (plan_end_at - datetime.now(UTC)).total_seconds()
+    return max(0.0, remaining) + _FAILED_PREPARATION_STALL_MARGIN_SECONDS
 
 
 def _stderr_log_size(path: Path) -> int:

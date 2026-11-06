@@ -48,7 +48,7 @@ from civiccast.egress.caption_proof import (
 from civiccast.egress.models import EgressCaptionProofSample
 from civiccast.egress.sinks import HlsSink
 from civiccast.egress.store import EgressStore
-from civiccast.stream._ffmpeg import FfmpegNotFoundError, run_ffmpeg
+from civiccast.stream._ffmpeg import FfmpegNotFoundError, ffmpeg_seconds, run_ffmpeg
 
 _LOG = logging.getLogger(__name__)
 
@@ -267,7 +267,7 @@ def capture_emitted_segment(
             return None
     out = work_dir / channel_id / "caption-proof" / "segment.ts"
     out.parent.mkdir(parents=True, exist_ok=True)
-    seconds = f"{capture_seconds:g}"
+    seconds = ffmpeg_seconds(capture_seconds)
     if is_file:
         if not Path(uri).exists():
             return None

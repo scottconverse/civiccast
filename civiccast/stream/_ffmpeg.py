@@ -17,6 +17,7 @@ from __future__ import annotations
 import contextlib
 import json
 import logging
+import math
 import os
 import re
 import shutil
@@ -141,6 +142,27 @@ class FfmpegProcessHandle:
         for file_obj in (self._stdout_file, self._stderr_file):
             if file_obj is not None and hasattr(file_obj, "close"):
                 file_obj.close()
+
+
+# ---------------------------------------------------------------------------
+# Time arguments
+# ---------------------------------------------------------------------------
+
+
+def ffmpeg_seconds(value: float) -> str:
+    """Render seconds for an FFmpeg time option (``-ss``, ``-t``, ffconcat
+    ``inpoint``/``outpoint``) as a plain decimal at microsecond precision.
+
+    FT-8: ``f"{x:g}"`` printed a drifted 5.6e-05 s offset as ``5.6e-05``,
+    which FFmpeg's duration parser rejects, failing the preparation; it also
+    kept only six significant digits (74564.970002 became ``74565``). FFmpeg
+    resolves time to microseconds, so six decimals lose nothing it can use.
+    """
+    seconds = float(value)
+    if not math.isfinite(seconds):
+        raise ValueError(f"FFmpeg time value must be finite, got {value!r}")
+    text = f"{seconds:.6f}".rstrip("0").rstrip(".")
+    return "0" if text in {"", "-0"} else text
 
 
 # ---------------------------------------------------------------------------

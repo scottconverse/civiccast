@@ -71,6 +71,7 @@ from civiccast.stream._ffmpeg import (
     FfmpegCancelledError,
     FfmpegNotFoundError,
     FfmpegResult,
+    ffmpeg_seconds,
     probe_canonical_video,
     probe_has_decodable_stream,
     probe_media_duration_seconds,
@@ -1684,13 +1685,13 @@ class SourcePreparer:
             tmp_output_path = output_path.with_name(output_path.name + ".tmp")
             args = ["-hide_banner", "-loglevel", "warning"]
             if inpoint is not None:
-                args.extend(["-ss", f"{inpoint:g}"])
+                args.extend(["-ss", ffmpeg_seconds(inpoint)])
             args.extend(
                 [
                     "-i",
                     str(cached_ts),
                     "-t",
-                    f"{segment.duration_seconds:g}",
+                    ffmpeg_seconds(segment.duration_seconds),
                     "-c",
                     "copy",
                     "-f",
@@ -3447,10 +3448,10 @@ def build_loudnorm_probe_args(
             ]
         )
     if segment is not None and segment.inpoint_seconds is not None:
-        args.extend(["-ss", f"{segment.inpoint_seconds:g}"])
+        args.extend(["-ss", ffmpeg_seconds(segment.inpoint_seconds)])
     args.extend(["-i", str(source_path)])
     if segment is not None:
-        args.extend(["-t", f"{segment.duration_seconds:g}"])
+        args.extend(["-t", ffmpeg_seconds(segment.duration_seconds)])
     args.extend(
         [
             "-vn",
@@ -3509,10 +3510,10 @@ def build_conform_source_args(
             ]
         )
     if segment is not None and segment.inpoint_seconds is not None:
-        args.extend(["-ss", f"{segment.inpoint_seconds:g}"])
+        args.extend(["-ss", ffmpeg_seconds(segment.inpoint_seconds)])
     args.extend(["-i", str(source_path)])
     if segment is not None:
-        args.extend(["-t", f"{segment.duration_seconds:g}"])
+        args.extend(["-t", ffmpeg_seconds(segment.duration_seconds)])
     # U25: this used to build the identical string inline.  It is now the one
     # shared definition (``loudness_ride.canonical_video_filter``), which the
     # ride's program mux calls too -- so a ridden conform and a loudnorm

@@ -15,7 +15,13 @@ from civiccast.egress.errors import EgressError
 from civiccast.egress.loudness_plan import SinkLoudnessResolution, build_loudness_plan
 from civiccast.egress.models import CanonicalProfile, EgressConfig, EgressSourcePlan
 from civiccast.egress.sinks import SecretResolver, build_sink
-from civiccast.stream._ffmpeg import FfmpegProcessHandle, FfmpegResult, run_ffmpeg, start_ffmpeg
+from civiccast.stream._ffmpeg import (
+    FfmpegProcessHandle,
+    FfmpegResult,
+    ffmpeg_seconds,
+    run_ffmpeg,
+    start_ffmpeg,
+)
 
 FfmpegRunner = Callable[[list[str]], FfmpegResult]
 FfmpegStarter = Callable[[list[str]], FfmpegProcessHandle]
@@ -29,9 +35,9 @@ def write_concat_plan(path: Path, source_plan: EgressSourcePlan) -> None:
     for segment in source_plan.segments:
         lines.append(f"file '{_escape_ffconcat_path(_ffconcat_source(segment.path))}'")
         if segment.inpoint_seconds is not None:
-            lines.append(f"inpoint {segment.inpoint_seconds:g}")
+            lines.append(f"inpoint {ffmpeg_seconds(segment.inpoint_seconds)}")
         if segment.outpoint_seconds is not None:
-            lines.append(f"outpoint {segment.outpoint_seconds:g}")
+            lines.append(f"outpoint {ffmpeg_seconds(segment.outpoint_seconds)}")
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
