@@ -20,6 +20,15 @@ It replaces [`v1.0.0-rc.3`](https://github.com/scottconverse/civiccast-native/re
 whose [package record](docs/releases/v1.0.0-rc.3-verification.md) is retained as history.
 Windows 11 is the verified platform.
 
+## Unpublished source candidate
+
+`v1.0.0-rc.5` is an unpublished candidate and is not available as a public release.
+It keeps live captions on time while the station prepares upcoming programmes, and
+refuses XML documents at media intake (CVE-2026-120210). The
+[RC5 release notes](docs/releases/v1.0.0-rc.5-release-notes.md) list what is verified
+and what is still pending. Source changes do not update an installed station or
+replace the published RC4 downloads below.
+
 ## Previous published package (Beta 19)
 
 The signed Beta 19 [release page](https://github.com/scottconverse/civiccast-native/releases/tag/v1.0.0-beta.19)

@@ -31,4 +31,4 @@ back to ``civiccast._version.__version__`` when unset -- i.e. every other
 hosting context, including the WSL line, is completely unaffected).
 """
 
-__version__ = "1.0.0-rc.4"
+__version__ = "1.0.0-rc.5"
