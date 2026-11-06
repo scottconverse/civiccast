@@ -287,6 +287,16 @@ independent, compounding reasons:
   fails the job). Measured: 4 of 16 cores conform at 12.3x realtime (2 cores
   5.9x, too close to the warm timeout's 8x/1.5 bound; 16 cores 19.2x) for the
   same total CPU time.
+- **Amended 2026-11-06 (FT-7, programme changes):** the source preparer's
+  air-path encodes (the next window's speech-leveling program mux when its warm
+  is not ready) ran at NORMAL on all 16 cores, above the BELOW_NORMAL caption
+  speech child, and left captions 10-20 s late for minutes after each programme
+  change. The Windows ladder is now: playout encoders ABOVE_NORMAL > control
+  plane and the caption speech child NORMAL > air-path preparation BELOW_NORMAL,
+  pinned to the lower half of the cores (`run_ffmpeg(half_cores=True)`) >
+  background preparation IDLE, pinned to the top quarter. Emulated on the
+  Beelink, a programme change at 97 % CPU left captions at a 3.1-3.5 s mean,
+  max 5.3 s, none over 10 s.
 - `tests/policy/test_ffmpeg_h264_encoder.py`'s sweep is widened from a
   single hard-coded `"libx264"` string to a `_FORBIDDEN_GPL_ENCODER_LITERALS`
   set (currently `{"libx264", "libx265"}`), proved against a planted

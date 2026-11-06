@@ -567,18 +567,30 @@ _CANCEL_TERMINATE_SECONDS = 2.0
 _LOWER_PRIORITY_NICE_ADJUSTMENT: Final = 10
 
 #: Windows priority class for ``lower_priority`` background ffmpeg: IDLE
-#: (``IDLE_PRIORITY_CLASS``, 0x40). FT-7 (RC4 field test, 2026-11-05): the live
-#: caption speech child is started at BELOW_NORMAL (0x4000,
-#: civiccast.captions.whistle) so it can never disturb the ABOVE_NORMAL playout
-#: encoders. When background encodes also ran at BELOW_NORMAL they tied with
-#: the captions; a whole-programme warm conform or proxy transcode has many
-#: more threads, took most of the CPU, and on the Beelink the caption tap
-#: discarded queued audio while every hour-long programme was being prepared.
-#: IDLE puts that work strictly below the captions: it still gets every spare
-#: cycle, and its own timeout budget still bounds it. The literal (not
-#: ``getattr(subprocess, ...)``) keeps the ordering checkable on any host;
-#: the flag is only ever passed to subprocess on Windows.
+#: (``IDLE_PRIORITY_CLASS``, 0x40). FT-7 (RC4 field test, 2026-11-05/06): the
+#: station's priority ladder is playout encoders ABOVE_NORMAL > control plane
+#: and the live caption speech child NORMAL
+#: (civiccast.captions.whistle.SPEECH_CHILD_PRIORITY_CLASS) > air-path
+#: preparation BELOW_NORMAL (:data:`_AIR_PATH_PRIORITY_CLASS`) > background
+#: preparation IDLE. When background encodes ran at the caption child's own
+#: class they tied with it; a whole-programme warm conform or proxy transcode
+#: has many more threads, took most of the CPU, and on the Beelink the caption
+#: tap discarded queued audio while every hour-long programme was being
+#: prepared. IDLE still gets every spare cycle, and its own timeout budget
+#: still bounds it. The literals (not ``getattr(subprocess, ...)``) keep the
+#: ordering checkable on any host; the flags are only ever passed to
+#: subprocess on Windows.
 _BACKGROUND_PRIORITY_CLASS: Final = 0x40
+
+#: Windows priority class for ``half_cores`` (air-path preparation) ffmpeg:
+#: BELOW_NORMAL (0x4000), one step under the NORMAL caption speech child. FT-7,
+#: Beelink 2026-11-06: at NORMAL the air-path speech-leveling encode of the next
+#: programme beat the captions at every programme change (10-20 s late for
+#: minutes); with this ladder emulated, the same change at 97 % CPU left
+#: captions at a 3.1-3.5 s mean, none over 10 s. BELOW_NORMAL still outranks
+#: idle background work, and the air-path encode keeps everything the
+#: higher classes leave (playout plus captions use roughly a third of the box).
+_AIR_PATH_PRIORITY_CLASS: Final = 0x4000
 
 #: Background ffmpeg on Windows is also pinned to a quarter of the cores this
 #: process may use, never fewer than this many. FT-7, measured on the Beelink
@@ -665,8 +677,8 @@ def run_ffmpeg(
     ``civiccast.recording.runtime._finalize_segments``).
 
     ``lower_priority`` starts the subprocess at Windows' IDLE priority class
-    (:data:`_BACKGROUND_PRIORITY_CLASS`: below the BELOW_NORMAL live caption
-    child, see FT-7) pinned to a quarter of the cores (:func:`_background_cores`),
+    (:data:`_BACKGROUND_PRIORITY_CLASS`: the bottom of the FT-7 ladder, below the
+    NORMAL live caption child) pinned to a quarter of the cores (:func:`_background_cores`),
     and, on POSIX, under ``nice``. Default is
     ``False`` — unattended background work (S7's media lifecycle worker)
     opts in explicitly; real-time/latency-sensitive callers (live egress,
@@ -674,11 +686,12 @@ def run_ffmpeg(
     running at the process's normal priority, so this must never become a
     blanket default here.
 
-    ``half_cores`` (Windows only; ignored with ``lower_priority``) keeps normal
-    priority but pins the child to the lower half of the cores
+    ``half_cores`` (Windows only; ignored with ``lower_priority``) starts the
+    child at BELOW_NORMAL (:data:`_AIR_PATH_PRIORITY_CLASS`, one step under the
+    NORMAL caption child) and pins it to the lower half of the cores
     (:func:`_half_cores`). The source preparer's air-path encodes use it: they
-    have an airing deadline, so they cannot drop to IDLE, but they must not take
-    the whole box from live captions (FT-7).
+    have an airing deadline, so they do not drop to IDLE, but they must never
+    outrank live captions (FT-7).
     """
     if cancel_event is not None and cancel_event.is_set():
         raise FfmpegCancelledError("ffmpeg cancelled before launch")
@@ -708,6 +721,7 @@ def run_ffmpeg(
         elif shutil.which("nice") is not None:
             cmd = ["nice", "-n", str(_LOWER_PRIORITY_NICE_ADJUSTMENT), *cmd]
     elif half_cores and os.name == "nt":
+        creationflags = _AIR_PATH_PRIORITY_CLASS
         choose_cores = _half_cores
 
     if cancel_event is None and choose_cores is None:

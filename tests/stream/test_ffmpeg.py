@@ -586,14 +586,25 @@ class TestRunFfmpeg:
         assert spawn.call_args.kwargs["creationflags"] == 0x40  # IDLE_PRIORITY_CLASS
 
     def test_background_priority_is_below_the_caption_child(self) -> None:
-        """The ordering FT-7 depends on, pinned as numbers so it holds on a
-        non-Windows test host too: Windows priority classes rank
-        IDLE (0x40) < BELOW_NORMAL (0x4000) < NORMAL (0x20). The caption
-        speech child is spawned with BELOW_NORMAL (0x4000, see
-        civiccast.captions.whistle); background ffmpeg must use IDLE."""
-        rank = {0x40: 4, 0x4000: 6, 0x20: 8}  # Windows base priority per class
+        """The FT-7 ladder, pinned as numbers so it holds on a non-Windows
+        test host too. Windows priority classes rank IDLE (0x40) <
+        BELOW_NORMAL (0x4000) < NORMAL (0x20) < ABOVE_NORMAL (0x8000). The
+        station must order: playout encoders ABOVE_NORMAL > the live caption
+        speech child NORMAL > air-path preparation BELOW_NORMAL > background
+        preparation IDLE. Beelink 2026-11-06: with the caption child at
+        BELOW_NORMAL, the NORMAL air-path encode at each programme change left
+        captions 10-20 s late for minutes; with this ladder, 3.1-3.5 s."""
+        from civiccast.captions.whistle import SPEECH_CHILD_PRIORITY_CLASS
+
+        rank = {0x40: 4, 0x4000: 6, 0x20: 8, 0x8000: 10}  # base priority per class
         assert ffmpeg_module._BACKGROUND_PRIORITY_CLASS == 0x40
-        assert rank[ffmpeg_module._BACKGROUND_PRIORITY_CLASS] < rank[0x4000]
+        assert ffmpeg_module._AIR_PATH_PRIORITY_CLASS == 0x4000
+        assert SPEECH_CHILD_PRIORITY_CLASS == 0x20
+        playout = rank[0x8000]
+        captions = rank[SPEECH_CHILD_PRIORITY_CLASS]
+        air_path = rank[ffmpeg_module._AIR_PATH_PRIORITY_CLASS]
+        background = rank[ffmpeg_module._BACKGROUND_PRIORITY_CLASS]
+        assert playout > captions > air_path > background
 
     @pytest.mark.parametrize(
         ("available", "expected"),
@@ -681,7 +692,8 @@ class TestRunFfmpeg:
             result = run_ffmpeg(["-version"], half_cores=True)
 
         assert result.returncode == 0
-        assert spawn.call_args.kwargs["creationflags"] == 0  # normal priority
+        # BELOW_NORMAL: one step under the NORMAL live caption child (FT-7).
+        assert spawn.call_args.kwargs["creationflags"] == 0x4000
         assert fake_psutil.pinned == {77: list(range(8))}
 
     def test_foreground_ffmpeg_is_never_pinned(self) -> None:

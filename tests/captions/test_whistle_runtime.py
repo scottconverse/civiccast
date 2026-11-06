@@ -2,10 +2,24 @@
 # Copyright (c) The CivicCast Authors
 
 
+import inspect
+
 import pytest
 
+from civiccast.captions import whistle
 from civiccast.captions.models import AudioChunk
 from civiccast.captions.whistle import WhistleRuntime
+
+
+def test_speech_child_starts_at_normal_priority():
+    """FT-7 (Beelink, 2026-11-06): the live caption speech child starts at
+    NORMAL (0x20), above the BELOW_NORMAL air-path preparation and the IDLE
+    background preparation, still below the ABOVE_NORMAL playout encoders. At
+    BELOW_NORMAL it lost to the air-path encode at every programme change."""
+    assert whistle.SPEECH_CHILD_PRIORITY_CLASS == 0x20
+    source = inspect.getsource(whistle._SpeechProcess.__init__)
+    assert "creationflags=0x4 | 0x08000000 | SPEECH_CHILD_PRIORITY_CLASS" in source
+    assert "0x4000" not in source
 
 
 def chunk(channel="public", index=1):
