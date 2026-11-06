@@ -1230,7 +1230,8 @@ def test_native_marker_collections_match_the_workflow_floors() -> None:
     # PR #297 CI collection: 2207 / 2456.
     # Whistle download-revision pin adds two portable cases (PR #300 CI
     # collection): 2209 / 2458.
-    assert (collect("not windows_only"), collect()) == (2209, 2458)
+    # Whistle own-mirror download order adds five portable cases: 2214 / 2463.
+    assert (collect("not windows_only"), collect()) == (2214, 2463)
 
 
 def test_linux_unit_job_runs_native_tests_once_in_the_dedicated_pure_lane() -> None:

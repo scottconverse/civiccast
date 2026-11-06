@@ -75,11 +75,12 @@ def test_provisioner_downloads_only_the_pinned_model_and_wheel_member(
         {"whistle.cact": (len(model), model_sha), "libneedle.dll": (len(dll), dll_sha)},
     )
 
-    # Downloads must go to the revision-pinned addresses; the moving `main`
-    # source URLs (kept as recorded provenance) must never be fetched.
+    # Only CivicCast's own copies are served: provisioning must succeed without
+    # any upstream request, and the moving `main` source URLs (kept as recorded
+    # provenance) must never be fetched.
     responses = {
-        assets.WHISTLE_MODEL_DOWNLOAD_URL: model,
-        assets.WHISTLE_ENGINE_WHEEL_DOWNLOAD_URL: wheel,
+        assets.WHISTLE_MODEL_DOWNLOAD_URLS[0]: model,
+        assets.WHISTLE_ENGINE_WHEEL_DOWNLOAD_URLS[0]: wheel,
     }
 
     class FakeOpener:
@@ -117,6 +118,95 @@ def test_whistle_downloads_use_fixed_revisions_of_the_recorded_files() -> None:
         )
         assert match, download
         assert source == f"{match.group(1)}/resolve/main/{match.group(2)}"
+
+
+def test_whistle_downloads_try_civiccast_own_copy_first() -> None:
+    """CivicCast keeps byte-exact copies so upstream moves can't break a build."""
+    from civiccast.native import app_payload
+
+    release = (
+        "https://github.com/scottconverse/civiccast-third-party/releases/download/whistle-3.1.0/"
+    )
+    for urls, upstream in (
+        (app_payload.WHISTLE_MODEL_DOWNLOAD_URLS, app_payload.WHISTLE_MODEL_DOWNLOAD_URL),
+        (
+            app_payload.WHISTLE_ENGINE_WHEEL_DOWNLOAD_URLS,
+            app_payload.WHISTLE_ENGINE_WHEEL_DOWNLOAD_URL,
+        ),
+    ):
+        assert urls == (release + upstream.rsplit("/", 1)[1], upstream)
+
+
+def _serve(monkeypatch, responses: dict[str, bytes]) -> list[str]:
+    requested: list[str] = []
+
+    class FakeOpener:
+        def open(self, request, *, timeout):
+            requested.append(request.full_url)
+            if request.full_url not in responses:
+                raise OSError("HTTP Error 404: Not Found")
+            return io.BytesIO(responses[request.full_url])
+
+    monkeypatch.setattr(assets.urllib.request, "build_opener", lambda *_handlers: FakeOpener())
+    return requested
+
+
+def test_download_falls_back_when_the_own_copy_is_missing(tmp_path: Path, monkeypatch) -> None:
+    body = b"pinned bytes"
+    requested = _serve(monkeypatch, {"https://upstream.example/f": body})
+    result = assets.download_first_verified(
+        ("https://mirror.example/f", "https://upstream.example/f"),
+        tmp_path / "f",
+        expected_bytes=len(body),
+        expected_sha256=hashlib.sha256(body).hexdigest(),
+    )
+    assert result.read_bytes() == body
+    assert requested == ["https://mirror.example/f", "https://upstream.example/f"]
+
+
+def test_download_rejects_wrong_bytes_from_the_own_copy_and_falls_back(
+    tmp_path: Path, monkeypatch
+) -> None:
+    body = b"pinned bytes"
+    _serve(
+        monkeypatch,
+        {"https://mirror.example/f": b"tampered!!!!", "https://upstream.example/f": body},
+    )
+    result = assets.download_first_verified(
+        ("https://mirror.example/f", "https://upstream.example/f"),
+        tmp_path / "f",
+        expected_bytes=len(body),
+        expected_sha256=hashlib.sha256(body).hexdigest(),
+    )
+    assert result.read_bytes() == body
+    assert [p.name for p in tmp_path.iterdir()] == ["f"]
+
+
+def test_download_uses_the_own_copy_without_touching_upstream(tmp_path: Path, monkeypatch) -> None:
+    body = b"pinned bytes"
+    requested = _serve(monkeypatch, {"https://mirror.example/f": body})
+    assets.download_first_verified(
+        ("https://mirror.example/f", "https://upstream.example/f"),
+        tmp_path / "f",
+        expected_bytes=len(body),
+        expected_sha256=hashlib.sha256(body).hexdigest(),
+    )
+    assert requested == ["https://mirror.example/f"]
+
+
+def test_download_names_every_source_when_all_fail(tmp_path: Path, monkeypatch) -> None:
+    _serve(monkeypatch, {})
+    with pytest.raises(assets.WhistleAssetError) as excinfo:
+        assets.download_first_verified(
+            ("https://mirror.example/f", "https://upstream.example/f"),
+            tmp_path / "f",
+            expected_bytes=3,
+            expected_sha256="0" * 64,
+        )
+    message = str(excinfo.value)
+    assert "any source" in message
+    assert "mirror.example" in message and "upstream.example" in message
+    assert not (tmp_path / "f").exists()
 
 
 def test_whistle_pack_contract_keeps_the_recorded_source_urls() -> None:

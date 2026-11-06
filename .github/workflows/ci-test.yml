@@ -516,11 +516,13 @@ jobs:
         # floor 2157 keeps the standard 50-test margin.
         # Whistle download-revision pin: two portable cases, 2209 pure tests;
         # floor 2159 keeps the standard 50-test margin.
+        # Whistle own-mirror download order: five portable cases, 2214 pure
+        # tests; floor 2164 keeps the standard 50-test margin.
         if: always()
         run: |
           python scripts/verify_native_junit_floor.py \
             --junit junit-native-pure.xml \
-            --floor 2159 \
+            --floor 2164 \
             --label "tests/native pure suite"
 
       - name: Upload junit (ws3 claims-evidence D3/D7)
@@ -919,12 +921,14 @@ jobs:
         # (measured collect-only); floor 2402 keeps the standard 50-test margin.
         # Whistle download-revision pin: two portable cases, 2454 Windows
         # non-integration tests; floor 2404 keeps the standard 50-test margin.
+        # Whistle own-mirror download order: five portable cases, 2459 Windows
+        # non-integration tests; floor 2409 keeps the standard 50-test margin.
         if: always()
         shell: bash
         run: |
           python scripts/verify_native_junit_floor.py \
             --junit junit-native-win.xml \
-            --floor 2404 \
+            --floor 2409 \
             --label "tests/native Windows suite"
 
       - name: Upload Windows native junit
