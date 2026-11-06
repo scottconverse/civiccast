@@ -32,6 +32,7 @@ __all__ = [
     "FfprobeError",
     "FfprobeNotFoundError",
     "FfprobeResult",
+    "UnsafeMediaError",
     "UnsupportedFormatError",
     "check_ffprobe",
     "extract_thumbnail",
@@ -94,6 +95,69 @@ class UnsupportedFormatError(ValueError):
         self.reason = reason
 
 
+class UnsafeMediaError(UnsupportedFormatError):
+    """The file is refused before ffprobe ever opens it.
+
+    Deliberately NOT an :class:`FfprobeError`: the contribution broken-media
+    override ingests past ffprobe failures, and this refusal must not be
+    overridable.
+    """
+
+
+# FFmpeg's IMF demuxer (CVE-2026-120210, unfixed upstream as of 2026-11-06)
+# follows ASSETMAP paths outside the package, so an IMF composition playlist
+# handed to the shipped ffmpeg can read local MXF files or make network
+# requests. That demuxer only accepts a file that libxml2 parses as an XML
+# document. Every accepted container (MP4/MOV, Matroska/WebM, AVI, MPEG-TS) is
+# binary, so intake refuses anything that starts like an XML document, in any
+# encoding libxml2 autodetects, before ffprobe runs. All file intake goes
+# through run_ffprobe, so no XML document becomes station media.
+_XML_SNIFF_BYTES = 64 * 1024
+_XML_WHITESPACE = " \t\r\n﻿"
+_XML_TEXT_ENCODINGS = ("utf-8", "utf-16-le", "utf-16-be", "utf-32-le", "utf-32-be")
+# libxml2's other autodetected starts: EBCDIC "<?xm" and the two unusual
+# UCS-4 byte orders.
+_XML_RAW_STARTS = (b"\x4c\x6f\xa7\x94", b"\x00\x00\x3c\x00", b"\x00\x3c\x00\x00")
+
+
+def _looks_like_xml_document(head: bytes) -> bool:
+    """True if ``head`` (the start of a file) could begin an XML document."""
+    if head.startswith(_XML_RAW_STARTS):
+        return True
+    for encoding in _XML_TEXT_ENCODINGS:
+        text = head.decode(encoding, errors="replace").lstrip(_XML_WHITESPACE)
+        if not text:
+            # The whole sniffed window is whitespace: libxml2 would keep
+            # skipping it, and no accepted container starts this way.
+            if head:
+                return True
+            continue
+        start = text[:16]
+        if (
+            start.startswith("<")
+            and len(start) > 1
+            and (start[1] in "?!_:" or start[1].isalpha())
+            and "\x00" not in start
+            and "�" not in start
+        ):
+            return True
+    return False
+
+
+def _refuse_xml_document(path: Path) -> None:
+    try:
+        with path.open("rb") as f:
+            head = f.read(_XML_SNIFF_BYTES)
+    except OSError:
+        # Unreadable or missing: ffprobe reports it as FfprobeError, as before.
+        return
+    if _looks_like_xml_document(head):
+        raise UnsafeMediaError(
+            f"{path.name} is a text/XML document, not a video file. CivicCast "
+            "accepts MP4, MOV, Matroska/WebM, AVI and MPEG-TS video only."
+        )
+
+
 # ---------------------------------------------------------------------------
 # Result type
 # ---------------------------------------------------------------------------
@@ -126,9 +190,12 @@ class FfprobeResult:
 def run_ffprobe(path: Path) -> FfprobeResult:
     """Run ffprobe on ``path`` and return a parsed :class:`FfprobeResult`.
 
+    Raises :class:`UnsafeMediaError` (before ffprobe runs) if the file is an
+    XML document -- see ``_looks_like_xml_document``.
     Raises :class:`FfprobeNotFoundError` if the binary is absent.
     Raises :class:`FfprobeError` on non-zero exit or JSON parse failure.
     """
+    _refuse_xml_document(path)
     if shutil.which(_FFPROBE_EXECUTABLE) is None:
         raise FfprobeNotFoundError(
             "ffprobe not found on PATH. "

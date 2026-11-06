@@ -790,6 +790,13 @@ def _ingest_accepted_media(
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)
         ) from exc
+    except UnsupportedFormatError as exc:
+        # Includes UnsafeMediaError (an XML document refused before ffprobe
+        # runs). Never overridable: the broken-media override below covers
+        # only ffprobe failures.
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=exc.reason
+        ) from exc
     except FfprobeError as exc:
         if not override:
             raise HTTPException(

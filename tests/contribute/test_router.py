@@ -523,6 +523,63 @@ def test_accept_operator_override_ingests_without_a_fabricated_pass(
     )
 
 
+def test_accept_operator_override_cannot_ingest_an_xml_document(
+    monkeypatch: MonkeyPatch, tmp_path: Path
+) -> None:
+    """CVE-2026-120210: an IMF composition playlist (XML) submitted as a
+    "video" must never become station media, even when an operator overrides
+    a failed probe -- ffmpeg's IMF demuxer would follow its ASSETMAP paths
+    outside the package. The refusal happens before ffprobe runs, so it is
+    not the overridable probe failure."""
+    real_run = sp.run
+    ffprobe_calls: list[object] = []
+
+    def fake_run(cmd: object, *args: object, **kwargs: object) -> object:
+        if isinstance(cmd, list) and cmd and cmd[0] == "ffprobe":
+            # Stand-in for ffprobe failing on the document (no ffmpeg needed).
+            ffprobe_calls.append(cmd)
+            return sp.CompletedProcess(cmd, 1, stdout="", stderr="Invalid data")
+        return real_run(cmd, *args, **kwargs)  # type: ignore[call-overload]
+
+    monkeypatch.setattr("civiccast.schedule.ingest.shutil.which", lambda _name: "ffprobe")
+    monkeypatch.setattr("civiccast.schedule.ingest.subprocess.run", fake_run)
+    client = _client(monkeypatch, tmp_path)
+    cpl = (
+        b'<?xml version="1.0" encoding="UTF-8"?>\n'
+        b'<CompositionPlaylist xmlns="http://www.smpte-ra.org/schemas/2067-3/2016">'
+        b"<ContentTitle>Council</ContentTitle></CompositionPlaylist>\n"
+    )
+    created = client.post(
+        "/api/public/contribute/submissions",
+        json=_payload(_real_media(tmp_path, name="council-meeting.mov", content=cpl)),
+    ).json()
+
+    response = client.post(
+        f"/api/staff/contribute/submissions/{created['submission_id']}/review",
+        headers=_STAFF_HEADERS,
+        json={
+            "action": "accept",
+            "broken_media_gate": {
+                "state": "override_accepted",
+                "checked_at": "2026-05-31T18:05:00Z",
+                "summary": "Operator approved despite the probe.",
+            },
+        },
+    )
+
+    assert response.status_code == 422, response.text
+    assert "XML document" in response.json()["detail"]
+    assert ffprobe_calls == []
+    queue = client.get("/api/staff/contribute/submissions", headers=_STAFF_HEADERS)
+    row = next(
+        item
+        for item in queue.json()["submissions"]
+        if item["submission_id"] == created["submission_id"]
+    )
+    assert row["state"] == "submitted"
+    assert row["asset_id"] is None
+
+
 def test_contributor_openapi_exports_contracts(monkeypatch: MonkeyPatch, tmp_path: Path) -> None:
     client = _client(monkeypatch, tmp_path)
 

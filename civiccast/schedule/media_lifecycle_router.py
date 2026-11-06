@@ -557,6 +557,10 @@ async def replace_asset_source(
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)
             ) from exc
+        except UnsupportedFormatError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=exc.reason
+            ) from exc
         try:
             validate_ingest(ffprobe_result)
         except UnsupportedFormatError as exc:
