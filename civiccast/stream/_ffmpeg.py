@@ -553,13 +553,27 @@ _DEFAULT_TIMEOUT_SECONDS = 6 * 3600  # generous: won't kill a legitimate large c
 _CANCEL_POLL_SECONDS = 0.1
 _CANCEL_TERMINATE_SECONDS = 2.0
 
-#: U29: the POSIX counterpart of Windows' BELOW_NORMAL priority class -- one
+#: U29: the POSIX counterpart of the Windows background priority class -- one
 #: scheduling step down, so unattended background work yields to the live
 #: encoders, live caption ASR and the air path's own preparation. ``nice``
 #: values are relative and capped at 19 by the kernel; 10 is the conventional
 #: "background job" step and leaves the warm comfortably above the 19 a
 #: batch-of-last-resort would use.
 _LOWER_PRIORITY_NICE_ADJUSTMENT: Final = 10
+
+#: Windows priority class for ``lower_priority`` background ffmpeg: IDLE
+#: (``IDLE_PRIORITY_CLASS``, 0x40). FT-7 (RC4 field test, 2026-11-05): the live
+#: caption speech child is started at BELOW_NORMAL (0x4000,
+#: civiccast.captions.whistle) so it can never disturb the ABOVE_NORMAL playout
+#: encoders. When background encodes also ran at BELOW_NORMAL they tied with
+#: the captions; a whole-programme warm conform or proxy transcode has many
+#: more threads, took most of the CPU, and on the Beelink the caption tap
+#: discarded queued audio while every hour-long programme was being prepared.
+#: IDLE puts that work strictly below the captions: it still gets every spare
+#: cycle, and its own timeout budget still bounds it. The literal (not
+#: ``getattr(subprocess, ...)``) keeps the ordering checkable on any host;
+#: the flag is only ever passed to subprocess on Windows.
+_BACKGROUND_PRIORITY_CLASS: Final = 0x40
 
 
 class FfmpegCancelledError(RuntimeError):
@@ -592,10 +606,9 @@ def run_ffmpeg(
     handling should catch it explicitly (see
     ``civiccast.recording.runtime._finalize_segments``).
 
-    ``lower_priority`` starts the subprocess at Windows' BELOW_NORMAL
-    priority class (same ``getattr(subprocess, ..., 0)`` degrade-to-0
-    pattern :func:`start_ffmpeg` already uses for ``CREATE_NO_WINDOW``, so
-    it is a harmless no-op on non-Windows/test platforms). Default is
+    ``lower_priority`` starts the subprocess at Windows' IDLE priority class
+    (:data:`_BACKGROUND_PRIORITY_CLASS`: below the BELOW_NORMAL live caption
+    child, see FT-7) and, on POSIX, under ``nice``. Default is
     ``False`` — unattended background work (S7's media lifecycle worker)
     opts in explicitly; real-time/latency-sensitive callers (live egress,
     the VOD packager answering an operator's HTTP request) must keep
@@ -622,7 +635,7 @@ def run_ffmpeg(
     creationflags = 0
     if lower_priority:
         if os.name == "nt":
-            creationflags = getattr(subprocess, "BELOW_NORMAL_PRIORITY_CLASS", 0)
+            creationflags = _BACKGROUND_PRIORITY_CLASS
         elif shutil.which("nice") is not None:
             cmd = ["nice", "-n", str(_LOWER_PRIORITY_NICE_ADJUSTMENT), *cmd]
 

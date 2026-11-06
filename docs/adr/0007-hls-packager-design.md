@@ -269,6 +269,14 @@ independent, compounding reasons:
   unaffected) and under a per-minute-of-source timeout budget
   (`_transcode_timeout_seconds`: 10 minute floor, 10x-realtime budget, 2
   hour ceiling) instead of the flat 6-hour default.
+- **Amended 2026-11-05 (FT-7, RC4 field test):** `lower_priority` now maps to
+  Windows `IDLE_PRIORITY_CLASS`, not `BELOW_NORMAL_PRIORITY_CLASS`. The live
+  caption speech child is itself started at `BELOW_NORMAL`, so background
+  transcodes and warm conforms tied with it, out-threaded it, and on the
+  Beelink live captions were discarded while hour-long programmes were being
+  prepared. IDLE keeps this background work strictly below the captions while
+  still giving it every spare cycle. POSIX keeps `nice 10` (captions run at
+  normal priority there, so the order was already right).
 - `tests/policy/test_ffmpeg_h264_encoder.py`'s sweep is widened from a
   single hard-coded `"libx264"` string to a `_FORBIDDEN_GPL_ENCODER_LITERALS`
   set (currently `{"libx264", "libx265"}`), proved against a planted

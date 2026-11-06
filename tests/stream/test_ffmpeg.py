@@ -537,16 +537,33 @@ class TestRunFfmpeg:
 
         assert spawn.call_args.kwargs["creationflags"] == 0
 
-    def test_lower_priority_sets_below_normal_creationflags(self) -> None:
+    def test_lower_priority_sets_idle_creationflags(self) -> None:
+        """FT-7 (RC4 field test, 2026-11-05): background ffmpeg (the warm
+        conform of the next programme and the media-lifecycle proxy transcode)
+        must sit BELOW the live caption speech child, which Windows starts at
+        BELOW_NORMAL. At BELOW_NORMAL these whole-programme encodes tied with
+        the captions, out-threaded them, and on the Beelink live captions were
+        discarded while every hour-long programme was being prepared."""
         mock_completed = MagicMock(returncode=0, stdout="", stderr="")
+        nt_os = SimpleNamespace(name="nt")
         with (
+            patch.object(ffmpeg_module, "os", nt_os),
             patch("civiccast.stream._ffmpeg.shutil.which", return_value="/usr/bin/ffmpeg"),
             patch("civiccast.stream._ffmpeg.subprocess.run", return_value=mock_completed) as spawn,
         ):
             run_ffmpeg(["-version"], lower_priority=True)
 
-        expected = getattr(ffmpeg_module.subprocess, "BELOW_NORMAL_PRIORITY_CLASS", 0)
-        assert spawn.call_args.kwargs["creationflags"] == expected
+        assert spawn.call_args.kwargs["creationflags"] == 0x40  # IDLE_PRIORITY_CLASS
+
+    def test_background_priority_is_below_the_caption_child(self) -> None:
+        """The ordering FT-7 depends on, pinned as numbers so it holds on a
+        non-Windows test host too: Windows priority classes rank
+        IDLE (0x40) < BELOW_NORMAL (0x4000) < NORMAL (0x20). The caption
+        speech child is spawned with BELOW_NORMAL (0x4000, see
+        civiccast.captions.whistle); background ffmpeg must use IDLE."""
+        rank = {0x40: 4, 0x4000: 6, 0x20: 8}  # Windows base priority per class
+        assert ffmpeg_module._BACKGROUND_PRIORITY_CLASS == 0x40
+        assert rank[ffmpeg_module._BACKGROUND_PRIORITY_CLASS] < rank[0x4000]
 
     def test_lower_priority_prefixes_nice_on_posix(self) -> None:
         """U29 3b: Windows has no ``nice``; the equivalent there is the

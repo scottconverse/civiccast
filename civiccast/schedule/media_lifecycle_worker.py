@@ -64,7 +64,7 @@ now a single resolution-aware web rendition that never upscales past the
 source's own probed height (mirrors PR #45's ``select_ladder`` fix to the
 VOD packager), transcode seeding itself has a station-level off switch
 (``transcode_seeding_enabled``), and each dispatched job runs at
-BELOW_NORMAL process priority under a per-minute-of-source timeout budget
+background (Windows IDLE) process priority under a per-minute-of-source timeout budget
 instead of the flat 6h ceiling. See ``_FORMAT_FFMPEG_ARGS``,
 ``MediaLifecycleWorkerSettings``, and ``_transcode_timeout_seconds`` below,
 and ``DEFAULT_TRANSCODE_FORMATS``' docstring in ``media_lifecycle_models``
@@ -349,7 +349,8 @@ class FfmpegTranscodeExecutor:
         output_path = output_dir / f"{asset.asset_id}.{output_format}.mp4"
         # Resource posture (ADR 0007 amendment): this is unattended
         # background work sharing the box with operator requests, so it
-        # runs BELOW_NORMAL priority (Windows; harmless no-op elsewhere) and
+        # runs at background priority (Windows IDLE, below the live caption
+        # child -- FT-7; POSIX nice) and
         # under a per-minute-of-source timeout budget instead of ffmpeg's
         # flat 6-hour default -- see _transcode_timeout_seconds.
         result = run_ffmpeg(

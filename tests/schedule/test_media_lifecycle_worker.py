@@ -809,7 +809,7 @@ class TestFfmpegTranscodeExecutorResourcePosture:
         assert captured["kwargs"]["timeout"] == worker_module._transcode_timeout_seconds(120)
         assert captured["kwargs"]["timeout"] < ffmpeg_module._DEFAULT_TIMEOUT_SECONDS
 
-    def test_dispatches_at_below_normal_priority(
+    def test_dispatches_at_background_priority(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
         captured = self._install_fakes(monkeypatch)
