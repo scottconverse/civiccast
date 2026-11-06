@@ -1,0 +1,35 @@
+# SPDX-License-Identifier: Apache-2.0
+# Proves CivicCast's own copies of pinned third-party build inputs are still
+# reachable and byte-exact (scottconverse/civiccast-third-party releases).
+#
+# Why this exists: on 2026-11-05 upstream removed the cactus-needle wheel from
+# Hugging Face `main` and every native payload build failed with HTTP 404.
+# Builds now fetch CivicCast's copy first; this check makes a missing or
+# altered copy fail a pull request (and the weekly run) instead of a release.
+
+name: ci-third-party-mirror
+
+on:
+  pull_request:
+  schedule:
+    - cron: "17 9 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  whistle-mirror:
+    name: CivicCast copies of Whistle assets are reachable and exact
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download and verify against the pins in app_payload.py
+        run: python3 scripts/check_whistle_mirror.py

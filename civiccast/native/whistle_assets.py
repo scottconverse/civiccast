@@ -18,10 +18,10 @@ from civiccast.native.app_payload import (
     WHISTLE_ENGINE_DLL_SHA256,
     WHISTLE_ENGINE_MEMBER,
     WHISTLE_ENGINE_WHEEL_BYTES,
-    WHISTLE_ENGINE_WHEEL_DOWNLOAD_URL,
+    WHISTLE_ENGINE_WHEEL_DOWNLOAD_URLS,
     WHISTLE_ENGINE_WHEEL_SHA256,
     WHISTLE_MODEL_BYTES,
-    WHISTLE_MODEL_DOWNLOAD_URL,
+    WHISTLE_MODEL_DOWNLOAD_URLS,
     WHISTLE_MODEL_SHA256,
     WHISTLE_PACK_FILES,
 )
@@ -170,12 +170,44 @@ def download_verified_file(
         ) from exc
 
 
+def download_first_verified(
+    urls: tuple[str, ...],
+    destination: Path,
+    *,
+    expected_bytes: int,
+    expected_sha256: str,
+) -> Path:
+    """Try each source in order; keep the first that passes the exact checks.
+
+    The list is CivicCast's own copy first, then the upstream revision. Every
+    candidate meets the same pinned size and SHA-256, so falling back can only
+    change where the bytes come from, never which bytes are accepted.
+    """
+
+    if not urls:
+        raise WhistleAssetError("no download sources configured for a pinned Whistle asset")
+    failures: list[str] = []
+    for url in urls:
+        try:
+            return download_verified_file(
+                url,
+                destination,
+                expected_bytes=expected_bytes,
+                expected_sha256=expected_sha256,
+            )
+        except WhistleAssetError as exc:
+            failures.append(str(exc))
+    raise WhistleAssetError(
+        "could not acquire a pinned Whistle asset from any source: " + " | ".join(failures)
+    )
+
+
 def download_engine_wheel(cache: Path) -> Path:
     """Acquire the pinned upstream Windows wheel used for its Needle DLL."""
 
     wheel = cache / "cactus_needle-3.1.0-py3-none-win_amd64.whl"
-    return download_verified_file(
-        WHISTLE_ENGINE_WHEEL_DOWNLOAD_URL,
+    return download_first_verified(
+        WHISTLE_ENGINE_WHEEL_DOWNLOAD_URLS,
         wheel,
         expected_bytes=WHISTLE_ENGINE_WHEEL_BYTES,
         expected_sha256=WHISTLE_ENGINE_WHEEL_SHA256,
@@ -243,8 +275,8 @@ def provision_whistle_assets(output: Path, *, cache: Path) -> dict[str, Path]:
         raise WhistleAssetError(
             "Whistle asset root contains unexpected files: " + ", ".join(sorted(unexpected))
         )
-    model = download_verified_file(
-        WHISTLE_MODEL_DOWNLOAD_URL,
+    model = download_first_verified(
+        WHISTLE_MODEL_DOWNLOAD_URLS,
         cache / "whistle.cact",
         expected_bytes=WHISTLE_MODEL_BYTES,
         expected_sha256=WHISTLE_MODEL_SHA256,

@@ -87,16 +87,21 @@ __all__ = [
     "WHISTLE_ENGINE_VERSION",
     "WHISTLE_ENGINE_WHEEL_BYTES",
     "WHISTLE_ENGINE_WHEEL_DOWNLOAD_URL",
+    "WHISTLE_ENGINE_WHEEL_DOWNLOAD_URLS",
+    "WHISTLE_ENGINE_WHEEL_MIRROR_URL",
     "WHISTLE_ENGINE_WHEEL_SHA256",
     "WHISTLE_ENGINE_WHEEL_URL",
     "WHISTLE_MODEL_BYTES",
     "WHISTLE_MODEL_DOWNLOAD_URL",
+    "WHISTLE_MODEL_DOWNLOAD_URLS",
     "WHISTLE_MODEL_LICENSE",
+    "WHISTLE_MODEL_MIRROR_URL",
     "WHISTLE_MODEL_SHA256",
     "WHISTLE_MODEL_SOURCE_URL",
     "WHISTLE_PACK_COMPONENT",
     "WHISTLE_PACK_CONTRACT",
     "WHISTLE_PACK_FILES",
+    "WHISTLE_THIRD_PARTY_RELEASE",
     "AppPayloadError",
     "ProhibitedLicenseError",
     "UnauthorizedAppDistributionError",
@@ -229,6 +234,25 @@ WHISTLE_ENGINE_WHEEL_DOWNLOAD_URL: Final[str] = (
     "https://huggingface.co/Cactus-Compute/needle3/resolve/"
     "d6c7d6a2e9655505e0f8e23339356dd1705900eb/"
     "python/cactus_needle-3.1.0-py3-none-win_amd64.whl"
+)
+# CivicCast's own byte-exact copies (release `whistle-3.1.0` of
+# scottconverse/civiccast-third-party, never edited once referenced). Builds try
+# these first and fall back to the upstream revision; every candidate is held to
+# the same pinned size and SHA-256, so a fallback can never change the bytes.
+WHISTLE_THIRD_PARTY_RELEASE: Final[str] = (
+    "https://github.com/scottconverse/civiccast-third-party/releases/download/whistle-3.1.0/"
+)
+WHISTLE_MODEL_MIRROR_URL: Final[str] = WHISTLE_THIRD_PARTY_RELEASE + "whistle.cact"
+WHISTLE_ENGINE_WHEEL_MIRROR_URL: Final[str] = (
+    WHISTLE_THIRD_PARTY_RELEASE + "cactus_needle-3.1.0-py3-none-win_amd64.whl"
+)
+WHISTLE_MODEL_DOWNLOAD_URLS: Final[tuple[str, ...]] = (
+    WHISTLE_MODEL_MIRROR_URL,
+    WHISTLE_MODEL_DOWNLOAD_URL,
+)
+WHISTLE_ENGINE_WHEEL_DOWNLOAD_URLS: Final[tuple[str, ...]] = (
+    WHISTLE_ENGINE_WHEEL_MIRROR_URL,
+    WHISTLE_ENGINE_WHEEL_DOWNLOAD_URL,
 )
 WHISTLE_ENGINE_WHEEL_BYTES: Final[int] = 683_889
 WHISTLE_ENGINE_WHEEL_SHA256: Final[str] = (
