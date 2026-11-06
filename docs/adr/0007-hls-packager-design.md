@@ -277,6 +277,16 @@ independent, compounding reasons:
   prepared. IDLE keeps this background work strictly below the captions while
   still giving it every spare cycle. POSIX keeps `nice 10` (captions run at
   normal priority there, so the order was already right).
+- **Amended 2026-11-06 (FT-7, measured on the Beelink):** IDLE alone was not
+  enough. There `h264_mf` is the Microsoft software H.264 MFT (no hardware MFT
+  is offered), which threads across every core and ignores `-threads`, so a warm
+  conform at IDLE still left live captions 20-33 s late; with no background
+  encode they were 3.3 s. Windows background ffmpeg is therefore also pinned,
+  right after start, to the top quarter of the cores the process may use (never
+  fewer than 4; boxes with 4 or fewer cores stay unpinned; a failed pin never
+  fails the job). Measured: 4 of 16 cores conform at 12.3x realtime (2 cores
+  5.9x, too close to the warm timeout's 8x/1.5 bound; 16 cores 19.2x) for the
+  same total CPU time.
 - `tests/policy/test_ffmpeg_h264_encoder.py`'s sweep is widened from a
   single hard-coded `"libx264"` string to a `_FORBIDDEN_GPL_ENCODER_LITERALS`
   set (currently `{"libx264", "libx265"}`), proved against a planted

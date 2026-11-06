@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import contextlib
 import json
+import logging
 import os
 import re
 import shutil
@@ -29,7 +30,11 @@ from functools import cache
 from pathlib import Path
 from typing import IO, Final
 
+import psutil
+
 from civiccast.stream.config import FFMPEG_MIN_VERSION
+
+_LOG = logging.getLogger(__name__)
 
 __all__ = [
     "FfmpegError",
@@ -575,6 +580,42 @@ _LOWER_PRIORITY_NICE_ADJUSTMENT: Final = 10
 #: the flag is only ever passed to subprocess on Windows.
 _BACKGROUND_PRIORITY_CLASS: Final = 0x40
 
+#: Background ffmpeg on Windows is also pinned to a quarter of the cores this
+#: process may use, never fewer than this many. FT-7, measured on the Beelink
+#: (16 logical cores, 2026-11-06): its h264_mf is the Microsoft *software* H.264
+#: MFT (no hardware MFT offered), which threads across every core and ignores
+#: ``-threads``, so even at IDLE a warm conform left live captions 20-33 s late;
+#: with no background encode they were 3.3 s. Pinned to 4 cores the conform ran
+#: at 12.3x realtime (2 cores 5.9x, too close to the warm timeout's 8x/1.5;
+#: all 16 cores 19.2x) and used the same total CPU time.
+_BACKGROUND_MIN_CORES: Final = 4
+
+
+def _background_cores(available: list[int]) -> list[int] | None:
+    """The cores background ffmpeg is pinned to, or None to leave it unpinned.
+
+    The highest-numbered quarter of ``available`` (the cores this process may
+    run on), at least :data:`_BACKGROUND_MIN_CORES`. A box with that many
+    cores or fewer is left unpinned.
+    """
+    if len(available) <= _BACKGROUND_MIN_CORES:
+        return None
+    count = max(_BACKGROUND_MIN_CORES, len(available) // 4)
+    return sorted(available)[-count:]
+
+
+def _pin_to_background_cores(pid: int) -> None:
+    """Best effort: restrict a just-started background ffmpeg to its cores.
+
+    Degrading this hint must never fail the job, the same rule as ``nice``.
+    """
+    try:
+        cores = _background_cores(list(psutil.Process().cpu_affinity() or []))
+        if cores is not None:
+            psutil.Process(pid).cpu_affinity(cores)
+    except Exception:  # any failure leaves ffmpeg unpinned; it never fails the job
+        _LOG.warning("Could not pin background ffmpeg pid %s to background cores.", pid)
+
 
 class FfmpegCancelledError(RuntimeError):
     """Raised when an owned ffmpeg process is stopped by its caller."""
@@ -608,7 +649,8 @@ def run_ffmpeg(
 
     ``lower_priority`` starts the subprocess at Windows' IDLE priority class
     (:data:`_BACKGROUND_PRIORITY_CLASS`: below the BELOW_NORMAL live caption
-    child, see FT-7) and, on POSIX, under ``nice``. Default is
+    child, see FT-7) pinned to a quarter of the cores (:func:`_background_cores`),
+    and, on POSIX, under ``nice``. Default is
     ``False`` — unattended background work (S7's media lifecycle worker)
     opts in explicitly; real-time/latency-sensitive callers (live egress,
     the VOD packager answering an operator's HTTP request) must keep
@@ -633,13 +675,17 @@ def run_ffmpeg(
     # host with no ``nice`` on PATH runs ffmpeg at normal priority rather than
     # failing the job: degrading the priority hint must never fail the work.
     creationflags = 0
+    pin_cores = False
     if lower_priority:
         if os.name == "nt":
             creationflags = _BACKGROUND_PRIORITY_CLASS
+            # Affinity can only be set on a started process, so Windows
+            # background work takes the Popen path below.
+            pin_cores = True
         elif shutil.which("nice") is not None:
             cmd = ["nice", "-n", str(_LOWER_PRIORITY_NICE_ADJUSTMENT), *cmd]
 
-    if cancel_event is None:
+    if cancel_event is None and not pin_cores:
         completed = subprocess.run(  # noqa: S603
             cmd,
             capture_output=True,
@@ -650,7 +696,7 @@ def run_ffmpeg(
             creationflags=creationflags,
         )
     else:
-        if cancel_event.is_set():
+        if cancel_event is not None and cancel_event.is_set():
             raise FfmpegCancelledError("ffmpeg cancelled before launch")
         process = subprocess.Popen(  # noqa: S603
             cmd,
@@ -661,9 +707,11 @@ def run_ffmpeg(
             errors="replace",
             creationflags=creationflags,
         )
+        if pin_cores:
+            _pin_to_background_cores(process.pid)
         started = time.monotonic()
         while True:
-            if cancel_event.is_set():
+            if cancel_event is not None and cancel_event.is_set():
                 with contextlib.suppress(ProcessLookupError):
                     process.terminate()
                 try:
