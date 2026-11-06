@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+Release candidate **v1.0.0-rc.5** (unpublished candidate). Full notes, verification and known issues:
+`docs/releases/v1.0.0-rc.5-release-notes.md`.
+
+- Live captions stay on time while the station prepares upcoming programmes (FT-7). Windows priorities now run in a strict order: playout encoders, then the control plane and the live caption engine, then on-the-spot preparation (held to the lower half of the processor cores), then background preparation (idle priority, held to the top quarter of the cores). On the Beelink target station, captions had been dropped or 10–33 s late during preparation and programme changes; with this order they measured 3.0–3.5 s on average, worst 5.9 s, none over 10 s, including programme changes at 97–99 % CPU.
+- Uploads, watch-folder imports and contributions refuse XML documents before FFmpeg opens them, and the operator override cannot bypass the refusal. This closes the IMF package-reader flaw (CVE-2026-120210), which let a crafted package read files outside it. The other five FFmpeg advisories of November 6, 2026 are triaged in `security/native-audit-triage.json`: already fixed in the bundled FFmpeg source or not built into the smaller copies.
+
 ## [1.0.0-rc.4] - 2026-11-05
 
 Release candidate **v1.0.0-rc.4**. Full notes, verification and known issues:
