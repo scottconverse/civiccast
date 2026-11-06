@@ -647,6 +647,43 @@ class TestRunFfmpeg:
         assert result.returncode == 0
         assert fake_psutil.pinned == {}
 
+    @pytest.mark.parametrize(
+        ("available", "expected"),
+        [
+            (list(range(4)), None),
+            (list(range(8)), [0, 1, 2, 3]),
+            (list(range(16)), list(range(8))),
+        ],
+    )
+    def test_half_cores_are_the_lower_half_apart_from_the_background_quarter(
+        self, available: list[int], expected: list[int] | None
+    ) -> None:
+        """FT-7 (Beelink, 2026-11-06): the air path's speech-leveling program
+        mux ran at NORMAL on all 16 cores (56-58 % of the box) because the
+        software h264_mf ignores the preparer's half-machine ``-threads``."""
+        assert ffmpeg_module._half_cores(available) == expected
+        background = ffmpeg_module._background_cores(available)
+        if expected is not None and background is not None:
+            assert not set(expected) & set(background)
+
+    def test_half_cores_pins_a_normal_priority_windows_run(self) -> None:
+        nt_os = SimpleNamespace(name="nt")
+        fake_psutil = _FakePsutil(list(range(16)))
+        with (
+            patch.object(ffmpeg_module, "os", nt_os),
+            patch("civiccast.stream._ffmpeg.shutil.which", return_value="/usr/bin/ffmpeg"),
+            patch(
+                "civiccast.stream._ffmpeg.subprocess.Popen",
+                return_value=_finished_process(pid=77),
+            ) as spawn,
+            patch("civiccast.stream._ffmpeg.psutil", fake_psutil, create=True),
+        ):
+            result = run_ffmpeg(["-version"], half_cores=True)
+
+        assert result.returncode == 0
+        assert spawn.call_args.kwargs["creationflags"] == 0  # normal priority
+        assert fake_psutil.pinned == {77: list(range(8))}
+
     def test_foreground_ffmpeg_is_never_pinned(self) -> None:
         nt_os = SimpleNamespace(name="nt")
         fake_psutil = _FakePsutil(list(range(16)))

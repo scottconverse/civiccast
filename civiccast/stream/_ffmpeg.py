@@ -604,17 +604,33 @@ def _background_cores(available: list[int]) -> list[int] | None:
     return sorted(available)[-count:]
 
 
-def _pin_to_background_cores(pid: int) -> None:
-    """Best effort: restrict a just-started background ffmpeg to its cores.
+def _half_cores(available: list[int]) -> list[int] | None:
+    """The cores a ``half_cores`` (air-path preparation) ffmpeg is pinned to.
+
+    The lowest-numbered half of ``available``, kept apart from the background
+    quarter at the top, so live captions always have cores neither kind of
+    preparation can take. FT-7, Beelink 2026-11-06: the speech-leveling program
+    mux of the next window ran at NORMAL priority on all 16 cores (56-58 % of
+    the box) because the software h264_mf ignores the half-machine
+    ``-threads`` cap the preparer already asks for. A box with
+    :data:`_BACKGROUND_MIN_CORES` cores or fewer is left unpinned.
+    """
+    if len(available) <= _BACKGROUND_MIN_CORES:
+        return None
+    return sorted(available)[: len(available) // 2]
+
+
+def _pin_cores(pid: int, choose: Callable[[list[int]], list[int] | None]) -> None:
+    """Best effort: restrict a just-started ffmpeg to the cores ``choose`` picks.
 
     Degrading this hint must never fail the job, the same rule as ``nice``.
     """
     try:
-        cores = _background_cores(list(psutil.Process().cpu_affinity() or []))
+        cores = choose(list(psutil.Process().cpu_affinity() or []))
         if cores is not None:
             psutil.Process(pid).cpu_affinity(cores)
     except Exception:  # any failure leaves ffmpeg unpinned; it never fails the job
-        _LOG.warning("Could not pin background ffmpeg pid %s to background cores.", pid)
+        _LOG.warning("Could not pin ffmpeg pid %s to its cores.", pid)
 
 
 class FfmpegCancelledError(RuntimeError):
@@ -628,6 +644,7 @@ def run_ffmpeg(
     timeout: float | None = _DEFAULT_TIMEOUT_SECONDS,
     lower_priority: bool = False,
     cancel_event: threading.Event | None = None,
+    half_cores: bool = False,
 ) -> FfmpegResult:
     """Run ffmpeg with the given argument list.
 
@@ -656,6 +673,12 @@ def run_ffmpeg(
     the VOD packager answering an operator's HTTP request) must keep
     running at the process's normal priority, so this must never become a
     blanket default here.
+
+    ``half_cores`` (Windows only; ignored with ``lower_priority``) keeps normal
+    priority but pins the child to the lower half of the cores
+    (:func:`_half_cores`). The source preparer's air-path encodes use it: they
+    have an airing deadline, so they cannot drop to IDLE, but they must not take
+    the whole box from live captions (FT-7).
     """
     if cancel_event is not None and cancel_event.is_set():
         raise FfmpegCancelledError("ffmpeg cancelled before launch")
@@ -675,17 +698,19 @@ def run_ffmpeg(
     # host with no ``nice`` on PATH runs ffmpeg at normal priority rather than
     # failing the job: degrading the priority hint must never fail the work.
     creationflags = 0
-    pin_cores = False
+    # Affinity can only be set on a started process, so a pinned Windows run
+    # takes the Popen path below.
+    choose_cores: Callable[[list[int]], list[int] | None] | None = None
     if lower_priority:
         if os.name == "nt":
             creationflags = _BACKGROUND_PRIORITY_CLASS
-            # Affinity can only be set on a started process, so Windows
-            # background work takes the Popen path below.
-            pin_cores = True
+            choose_cores = _background_cores
         elif shutil.which("nice") is not None:
             cmd = ["nice", "-n", str(_LOWER_PRIORITY_NICE_ADJUSTMENT), *cmd]
+    elif half_cores and os.name == "nt":
+        choose_cores = _half_cores
 
-    if cancel_event is None and not pin_cores:
+    if cancel_event is None and choose_cores is None:
         completed = subprocess.run(  # noqa: S603
             cmd,
             capture_output=True,
@@ -707,8 +732,8 @@ def run_ffmpeg(
             errors="replace",
             creationflags=creationflags,
         )
-        if pin_cores:
-            _pin_to_background_cores(process.pid)
+        if choose_cores is not None:
+            _pin_cores(process.pid, choose_cores)
         started = time.monotonic()
         while True:
             if cancel_event is not None and cancel_event.is_set():

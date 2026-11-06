@@ -2558,6 +2558,11 @@ class SourcePreparer:
                     cancel_event=cancel_event,
                     timeout=effective_timeout,
                     lower_priority=lower_priority,
+                    # FT-7: an air-path encode keeps normal priority (it has
+                    # an airing deadline) but is held to half the cores on
+                    # Windows, which is what _foreground_thread_cap's
+                    # -threads already intends and the software h264_mf ignores.
+                    half_cores=not lower_priority,
                 )
             else:
                 result = self._ffmpeg_runner(args)
