@@ -514,11 +514,13 @@ jobs:
         # pure tests; floor 2151 keeps the standard 50-test margin.
         # RC4 field fixes after ad03f678: six portable cases, 2207 pure tests;
         # floor 2157 keeps the standard 50-test margin.
+        # Whistle download-revision pin: two portable cases, 2209 pure tests;
+        # floor 2159 keeps the standard 50-test margin.
         if: always()
         run: |
           python scripts/verify_native_junit_floor.py \
             --junit junit-native-pure.xml \
-            --floor 2157 \
+            --floor 2159 \
             --label "tests/native pure suite"
 
       - name: Upload junit (ws3 claims-evidence D3/D7)
@@ -915,12 +917,14 @@ jobs:
         # non-integration tests; floor 2393 keeps the standard 50-test margin.
         # RC4 field fixes after ad03f678: 2452 Windows non-integration tests
         # (measured collect-only); floor 2402 keeps the standard 50-test margin.
+        # Whistle download-revision pin: two portable cases, 2454 Windows
+        # non-integration tests; floor 2404 keeps the standard 50-test margin.
         if: always()
         shell: bash
         run: |
           python scripts/verify_native_junit_floor.py \
             --junit junit-native-win.xml \
-            --floor 2402 \
+            --floor 2404 \
             --label "tests/native Windows suite"
 
       - name: Upload Windows native junit

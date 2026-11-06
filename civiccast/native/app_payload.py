@@ -86,9 +86,11 @@ __all__ = [
     "WHISTLE_ENGINE_MEMBER",
     "WHISTLE_ENGINE_VERSION",
     "WHISTLE_ENGINE_WHEEL_BYTES",
+    "WHISTLE_ENGINE_WHEEL_DOWNLOAD_URL",
     "WHISTLE_ENGINE_WHEEL_SHA256",
     "WHISTLE_ENGINE_WHEEL_URL",
     "WHISTLE_MODEL_BYTES",
+    "WHISTLE_MODEL_DOWNLOAD_URL",
     "WHISTLE_MODEL_LICENSE",
     "WHISTLE_MODEL_SHA256",
     "WHISTLE_MODEL_SOURCE_URL",
@@ -211,6 +213,21 @@ WHISTLE_MODEL_LICENSE: Final[str] = "Apache-2.0"
 WHISTLE_ENGINE_VERSION: Final[str] = "3.1.0"
 WHISTLE_ENGINE_WHEEL_URL: Final[str] = (
     "https://huggingface.co/Cactus-Compute/needle3/resolve/main/"
+    "python/cactus_needle-3.1.0-py3-none-win_amd64.whl"
+)
+# The *_SOURCE_URL / *_WHEEL_URL values above are recorded provenance: the
+# installer validates the pack metadata against them exactly, so they stay
+# fixed. Builds download from these immutable revisions of the same files
+# instead. Upstream removed needle3's `python/` folder from `main` on
+# 2026-11-05 (HTTP 404); revision d6c7d6a2 still serves the identical wheel.
+# Both revisions were checked to serve the pinned bytes and SHA-256.
+WHISTLE_MODEL_DOWNLOAD_URL: Final[str] = (
+    "https://huggingface.co/Cactus-Compute/whistle/resolve/"
+    "ad73f1468dd5203791e0cc81d31544c553563645/whistle.cact"
+)
+WHISTLE_ENGINE_WHEEL_DOWNLOAD_URL: Final[str] = (
+    "https://huggingface.co/Cactus-Compute/needle3/resolve/"
+    "d6c7d6a2e9655505e0f8e23339356dd1705900eb/"
     "python/cactus_needle-3.1.0-py3-none-win_amd64.whl"
 )
 WHISTLE_ENGINE_WHEEL_BYTES: Final[int] = 683_889
