@@ -2,7 +2,7 @@
 
 ## [Unreleased]
 
-Release candidate **v1.0.0-rc.5** (unpublished candidate). Full notes, verification and known issues:
+Release candidate **v1.0.0-rc.5**. Full notes, verification and known issues:
 `docs/releases/v1.0.0-rc.5-release-notes.md`.
 
 - Live captions stay on time while the station prepares upcoming programmes (FT-7). Windows priorities now run in a strict order: playout encoders, then the control plane and the live caption engine, then on-the-spot preparation (held to the lower half of the processor cores), then background preparation (idle priority, held to the top quarter of the cores). On the Beelink target station, captions had been dropped or 10–33 s late during preparation and programme changes; with this order they measured 3.0–3.5 s on average, worst 5.9 s, none over 10 s, including programme changes at 97–99 % CPU.
