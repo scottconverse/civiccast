@@ -28,7 +28,7 @@ community-driven; there is no commercial support contract or SLA.
 The source manual describes current station operation, scheduling,
 output and recorded-caption settings. For an installed station, use the Help
 bundled with its release or the matching manual assets from that release page.
-RC4 is published ([release notes](docs/releases/v1.0.0-rc.4-release-notes.md)). Its known issues are listed there. Source changes after publication do not update an installed station.
+RC5 is published ([release notes](docs/releases/v1.0.0-rc.5-release-notes.md)). Its known issues are listed there. Source changes after publication do not update an installed station.
 
 ## Retired WSL2 Support History
 
@@ -60,13 +60,13 @@ enabled throwaway development.
 ## Native Windows Beta
 
 The native Windows runtime ([ADR 0021](docs/adr/0021-native-windows-runtime.md))
-is a public beta. The current published package is `v1.0.0-rc.4`, available
-from its [GitHub Release](https://github.com/scottconverse/civiccast-native/releases/tag/v1.0.0-rc.4).
-Its [release notes](docs/releases/v1.0.0-rc.4-release-notes.md)
+is a public beta. The current published package is `v1.0.0-rc.5`, available
+from its [GitHub Release](https://github.com/scottconverse/civiccast-native/releases/tag/v1.0.0-rc.5).
+Its [release notes](docs/releases/v1.0.0-rc.5-release-notes.md)
 identify the signed installer, verification and known issues.
 Package and installation claims must name the exact published version; source
 changes do not update an installed station. The
-[RC4 release notes](docs/releases/v1.0.0-rc.4-release-notes.md)
+[RC5 release notes](docs/releases/v1.0.0-rc.5-release-notes.md)
 contain package-specific results and boundaries. There is no dedicated,
 SLA-backed support intake for the native beta.
 
