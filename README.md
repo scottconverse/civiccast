@@ -14,7 +14,8 @@ Its source tag is commit `e85242fe`; the signed artifacts were built from
 `b7ee4b76` in build run 42266094111. The signed `setup.exe` has SHA-256
 `c8ea7e91bb93b644d9829a041080735478332b526b48d214701c43eb1cd68813`,
 a valid Authenticode signature and signer `CN=Scott Converse`. The
-[RC5 release notes](docs/releases/v1.0.0-rc.5-release-notes.md) identify the package, its verification and its known issues.
+[RC5 release notes](docs/releases/v1.0.0-rc.5-release-notes.md) identify the package and its known issues; the
+[RC5 verification record](docs/releases/v1.0.0-rc.5-verification.md) lists the checks behind it.
 It keeps live captions on time while the station prepares upcoming programmes, and
 refuses XML documents at media intake (CVE-2026-120210). A 24-hour soak on the
 Beelink target station follows before v1.0.0.
