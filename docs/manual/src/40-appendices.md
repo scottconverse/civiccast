@@ -1261,7 +1261,7 @@ NWS
 **O**
 
 Ollama
-:   The local AI engine program (version 0.40.13 in the RC4 runtime lock), started by the service on `127.0.0.1:11434`.
+:   The local AI engine program (version 0.40.13 in the RC5 runtime lock), started by the service on `127.0.0.1:11434`.
 
 On-Air Mode
 :   A Control Room session type that really fires cues. It expires after 30 minutes. The other type, Test Mode, fires nothing.
@@ -1542,7 +1542,7 @@ LGPL means you receive the right to use and replace the library, and CivicCast s
 
 | Component | Version / source record | License (as the project records it) | What it does here |
 | --- | --- | --- | --- |
-| CivicCast program and web portals | 1.0.0-rc.4 published release; source may contain later fixes | Apache-2.0 | The station itself; use each installed package's matching component records. |
+| CivicCast program and web portals | 1.0.0-rc.5 published release; source may contain later fixes | Apache-2.0 | The station itself; use each installed package's matching component records. |
 | GStreamer libraries and plugins | 1.28 series | LGPL-2.1-or-later for the libraries and almost all plugins; the Rust-based plugins (`hlssink3`, closed captions) are MPL-2.0 | The playout engine. |
 | Cisco OpenH264 | in the closure | BSD-2-Clause | H.264 video encoding. Its patent position is a separate question that the license text does not answer. |
 | VisualOn AAC encoder | in the closure | Apache-2.0 for the encoder library; the GStreamer plugin that wraps it is LGPL-2.1-or-later | AAC audio encoding. |
@@ -1601,7 +1601,7 @@ The installer is signed with an Authenticode signature (publisher Scott Converse
 
 The native Windows release history and the source edition covered by this manual, newest first. The project's release-truth file and GitHub release page establish package publication state. "Superseded" means a newer release replaced it; it does not mean it was bad.
 
-> **Note:** This manual describes the 1.0.0-rc.5 edition. The [RC4 release notes](https://github.com/scottconverse/civiccast-native/blob/main/docs/releases/v1.0.0-rc.4-release-notes.md) identify that package; the [Beta 20 verification record](https://github.com/scottconverse/civiccast-native/blob/main/docs/releases/v1.0.0-beta.20-verification.md) and the [Beta 18 verification record](https://github.com/scottconverse/civiccast-native/blob/main/docs/releases/v1.0.0-beta.18-verification.md) remain historical. A 72-hour Beta 11 host run recorded **99.78% live caption-input coverage** across three channels; see the [host report](https://github.com/scottconverse/civiccast-native/blob/main/docs/ops/beta11-host-caption-performance-72-hour-2026-10-11.md). The earlier 48-hour window remains in its dated report.
+> **Note:** This manual describes the 1.0.0-rc.5 edition. The [RC5 release notes](https://github.com/scottconverse/civiccast-native/blob/main/docs/releases/v1.0.0-rc.5-release-notes.md) identify that package; the [Beta 20 verification record](https://github.com/scottconverse/civiccast-native/blob/main/docs/releases/v1.0.0-beta.20-verification.md) and the [Beta 18 verification record](https://github.com/scottconverse/civiccast-native/blob/main/docs/releases/v1.0.0-beta.18-verification.md) remain historical. A 72-hour Beta 11 host run recorded **99.78% live caption-input coverage** across three channels; see the [host report](https://github.com/scottconverse/civiccast-native/blob/main/docs/ops/beta11-host-caption-performance-72-hour-2026-10-11.md). The earlier 48-hour window remains in its dated report.
 
 | Release | Date | Status | What it was |
 | --- | --- | --- | --- |

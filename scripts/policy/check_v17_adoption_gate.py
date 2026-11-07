@@ -48,8 +48,10 @@ REQUIRED_DOCS: dict[Path, tuple[str, ...]] = {
         PUBLISHED_RELEASE_TAG,
         PUBLISHED_RELEASE_LINK,
         # Marketing copy links to release evidence rather than repeating
-        # historical measurements as front-page product claims.
-        f"docs/releases/{PUBLISHED_RELEASE_TAG}-verification.md",
+        # historical measurements as front-page product claims. Since rc.4
+        # the release notes are the package record; rc.5 has no separate
+        # verification file.
+        f"docs/releases/{PUBLISHED_RELEASE_TAG}-release-notes.md",
     ),
     Path("docs/install-windows.html"): (
         PUBLISHED_RELEASE_TAG,

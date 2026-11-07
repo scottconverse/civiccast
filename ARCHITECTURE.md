@@ -2,11 +2,11 @@
 
 CivicCast combines native Windows playout, local AI captions, station backup,
 staff administration, and resident publication in one installation. This
-architecture describes current source as of the published RC4 release. Later source changes do not replace RC4's signed assets; its known issues are in the release notes.
+architecture describes current source as of the published RC5 release. Later source changes do not replace RC5's signed assets; its known issues are in the release notes.
 
-The current published download is signed `v1.0.0-rc.4` ([release
-page](https://github.com/scottconverse/civiccast-native/releases/tag/v1.0.0-rc.4)).
-The [RC4 release notes](docs/releases/v1.0.0-rc.4-release-notes.md)
+The current published download is signed `v1.0.0-rc.5` ([release
+page](https://github.com/scottconverse/civiccast-native/releases/tag/v1.0.0-rc.5)).
+The [RC5 release notes](docs/releases/v1.0.0-rc.5-release-notes.md)
 identify exact package provenance, verification and known issues.
 
 This document orients engineers and integrators to the current CivicCast
@@ -267,7 +267,7 @@ supersedes ADR 0001's NATS JetStream choice).
 
 ## Current Source Contracts
 
-These describe current source behavior and test coverage. The [RC4 release notes](docs/releases/v1.0.0-rc.4-release-notes.md) identify the signed artifacts and scoped verification:
+These describe current source behavior and test coverage. The [RC5 release notes](docs/releases/v1.0.0-rc.5-release-notes.md) identify the signed artifacts and scoped verification:
 
 Sprint 6 source adds trusted-station catalog browsing and central channel controls
 through `civiccast.federation`. Administrators provision separate public/staff HTTPS
@@ -297,10 +297,11 @@ TownLight: Station, to 2.0; see the
 
 ## Release evidence and history
 
-RC4 is the published download. Its package-specific checks are in the
-[RC4 release notes](docs/releases/v1.0.0-rc.4-release-notes.md), which identify exact
+RC5 is the published download. Its package-specific checks are in the
+[RC5 release notes](docs/releases/v1.0.0-rc.5-release-notes.md), which identify exact
 package provenance, verification and known issues. The previous release's
-[RC3 record](docs/releases/v1.0.0-rc.3-verification.md) is retained as history. Historical package results are retained
+[RC4 release notes](docs/releases/v1.0.0-rc.4-release-notes.md) and the earlier
+[RC3 record](docs/releases/v1.0.0-rc.3-verification.md) are retained as history. Historical package results are retained
 in the [Beta 19 record](docs/releases/v1.0.0-beta.19-verification.md) and the
 [Beta 16 record](docs/releases/v1.0.0-beta.16-verification.md);
 [Beta 17 follow-up](docs/ops/beta17-deferred.md) records the owner-deferred field findings.
