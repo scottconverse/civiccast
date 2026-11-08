@@ -1,7 +1,7 @@
 # Beta Tester Handoff
 
 > **Historical: describes the retired public WSL2 line, not this
-> repository.** `civiccast-native` ships one product, the native Windows
+> repository.** `civiccast` (formerly `civiccast-native`) ships one product, the native Windows
 > station (session-0 Windows service, no WSL) -- see
 > [BRANCHES.md](../../BRANCHES.md). This document's `v1.0.0-rc18` handoff
 > process, and the `docs/releases/v1.0.0-rc17-verification.md` link below,

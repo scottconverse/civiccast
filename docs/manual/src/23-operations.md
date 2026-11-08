@@ -30,7 +30,7 @@ You need:
 
 ## What the service runs
 
-CivicCast on Windows is one Windows service named **CivicCastSupervisor** (display name **CivicCast Native Supervisor**). It starts automatically at boot as the restricted virtual account `NT SERVICE\CivicCastSupervisor` and is registered so that Windows restarts it on failure: restart after 5 seconds, then 10 seconds, then 30 seconds, with the failure count resetting after 86,400 seconds (one day). Existing default LocalSystem installations migrate their profile and CivicCast credentials before the account changes; see the [restricted service identity guide](https://github.com/scottconverse/civiccast-native/blob/main/docs/ops/restricted-service-identity.md). The supervisor starts and watches a small number of child programs. Everything else (the playout workers, relays and caption tap) lives inside the control plane child.
+CivicCast on Windows is one Windows service named **CivicCastSupervisor** (display name **CivicCast Native Supervisor**). It starts automatically at boot as the restricted virtual account `NT SERVICE\CivicCastSupervisor` and is registered so that Windows restarts it on failure: restart after 5 seconds, then 10 seconds, then 30 seconds, with the failure count resetting after 86,400 seconds (one day). Existing default LocalSystem installations migrate their profile and CivicCast credentials before the account changes; see the [restricted service identity guide](https://github.com/scottconverse/civiccast/blob/main/docs/ops/restricted-service-identity.md). The supervisor starts and watches a small number of child programs. Everything else (the playout workers, relays and caption tap) lives inside the control plane child.
 
 ```mermaid
 flowchart TB
@@ -47,7 +47,7 @@ flowchart TB
 
 *Figure: the processes CivicCast runs. A solid arrow means the parent starts and restarts the child; the dotted arrow means the child is optional.*
 
-The supervisor itself starts only three kinds of child, in this order: **Postgres** first, then the **control plane**, then **Ollama** if it is present. The control plane is the CivicCast application (a Python web service). It listens on a configured loopback address (`127.0.0.1` by default, or `::1`) and runs the playout workers, the transport-stream relay, the HLS relay and the caption tap itself. Those are not separate Windows services and you do not manage them individually. Supported remote HTTPS uses Caddy in front of this listener; see the [network access guide](https://github.com/scottconverse/civiccast-native/blob/main/docs/ops/network-access.md).
+The supervisor itself starts only three kinds of child, in this order: **Postgres** first, then the **control plane**, then **Ollama** if it is present. The control plane is the CivicCast application (a Python web service). It listens on a configured loopback address (`127.0.0.1` by default, or `::1`) and runs the playout workers, the transport-stream relay, the HLS relay and the caption tap itself. Those are not separate Windows services and you do not manage them individually. Supported remote HTTPS uses Caddy in front of this listener; see the [network access guide](https://github.com/scottconverse/civiccast/blob/main/docs/ops/network-access.md).
 
 | Piece | What it is | Who starts it | Notes |
 | --- | --- | --- | --- |
@@ -253,7 +253,7 @@ This routine uses checks that exist in beta.11.
 | `C:\ProgramData\CivicCast\logs` | Logs | Yes | Only the rotated logs |
 | `C:\ProgramData\CivicCast\upgrade` | Upgrade engine log, journal and pre-upgrade backups | Per upgrade | No |
 
-> **Note:** A Beta 15 field run measured a 15.117 GiB drop in free space on the R9 station, but did not identify the responsible paths. This is a Beta 17 storage-accounting follow-up, not a confirmed CivicCast leak or a statement about Beta 16. See the [deferred field follow-up](https://github.com/scottconverse/civiccast-native/blob/main/docs/ops/beta17-deferred.md).
+> **Note:** A Beta 15 field run measured a 15.117 GiB drop in free space on the R9 station, but did not identify the responsible paths. This is a Beta 17 storage-accounting follow-up, not a confirmed CivicCast leak or a statement about Beta 16. See the [deferred field follow-up](https://github.com/scottconverse/civiccast/blob/main/docs/ops/beta17-deferred.md).
 
 ### The conform cache
 
@@ -293,7 +293,7 @@ Original recordings, archived caption tracks and recorded-caption review remain 
 
 Managed agenda originals, their hashes, completed-page checkpoints and preview/confirmation state are included automatically with the associated database records. You do not need to select the agenda document directory as a media root. Agenda source settings are part of station configuration. On a replacement installation, restore the archive through the existing offline restore workflow; managed agenda files map to the replacement installation’s document directory. Resume uses the retained original and completed pages. Keep the recovery passphrase and verify your archive before replacing a station.
 
-Use **Station backup and restore** to create, verify and restore portable station archives. The encrypted `.ccbackup` contains the database, configured station files and portable CivicCast credentials, plus every file beneath the selected media roots. Choose an absolute destination, keep the recovery passphrase separately, and verify an off-station copy. A daily UTC schedule and bounded retention are available after saving the unattended passphrase in protected station storage. The station screen shows progress and the last run; the detailed inventory, restore steps and limitations are in the [station backup guide](https://github.com/scottconverse/civiccast-native/blob/main/docs/ops/station-backup.md).
+Use **Station backup and restore** to create, verify and restore portable station archives. The encrypted `.ccbackup` contains the database, configured station files and portable CivicCast credentials, plus every file beneath the selected media roots. Choose an absolute destination, keep the recovery passphrase separately, and verify an off-station copy. A daily UTC schedule and bounded retention are available after saving the unattended passphrase in protected station storage. The station screen shows progress and the last run; the detailed inventory, restore steps and limitations are in the [station backup guide](https://github.com/scottconverse/civiccast/blob/main/docs/ops/station-backup.md).
 
 Restore is an offline maintenance operation. Stop CivicCast and other station writers, provision the replacement service/database, then use `civiccast backup inventory` to inspect archive paths and `civiccast backup restore` with an explicit replacement database URL (`--target-database-url` or `CIVICCAST_TARGET_DATABASE_URL`), target mappings, `--restore-local-station-settings` and the `RESTORE` confirmation. The command never defaults to the installed database. It previews the destinations and requests confirmation before prompting for the passphrase. Run this full restore on the replacement computer: database/file mappings do not redirect the local credential vault or service settings, so this is not an isolated clone-verification command. Effective app-platform configuration, including branding, is included even when station-state uses another path. Do not overlay a running station. A database restore can complete before later file or credential copies fail, so keep the source archive and rerun after correcting a path or permission problem.
 
@@ -348,11 +348,11 @@ The `--out` folder must have room for a full copy of the database. Choose a driv
 
 On an installed Windows station, open an interactive PowerShell with **Run as administrator** for `civiccast backup` commands. The CLI checks privileges before reading protected service settings or asking for a passphrase. Portable environments without an installed service have no blanket administrator requirement. Backup failures retain the failed phase and progress, an operation identifier and safe corrective guidance. Keep that identifier for support; never include credentials. A retention failure may follow publication, so verify any new archive before retrying.
 
-The station archive uses the installed integration's configured database, files, portable credential adapter and selected media roots. It is encrypted before publication; do not copy individual machine-protected DPAPI or Windows Credential Manager blobs as a substitute. Program files, packs and models are not part of the archive and must be reinstalled. Review the exact inventory and the portable credential boundaries in the [station backup guide](https://github.com/scottconverse/civiccast-native/blob/main/docs/ops/station-backup.md).
+The station archive uses the installed integration's configured database, files, portable credential adapter and selected media roots. It is encrypted before publication; do not copy individual machine-protected DPAPI or Windows Credential Manager blobs as a substitute. Program files, packs and models are not part of the archive and must be reinstalled. Review the exact inventory and the portable credential boundaries in the [station backup guide](https://github.com/scottconverse/civiccast/blob/main/docs/ops/station-backup.md).
 
 ## Recover from a disaster
 
-The station archive is intended for a replacement installation: provision the station, stop all writers, inventory the archive, map old paths to their replacement locations, restore, import portable credentials and verify service health before returning to air. Use the [station backup guide](https://github.com/scottconverse/civiccast-native/blob/main/docs/ops/station-backup.md) for the complete sequence and failure boundaries. Keep installer rollback and station disaster recovery as separate copies and procedures.
+The station archive is intended for a replacement installation: provision the station, stop all writers, inventory the archive, map old paths to their replacement locations, restore, import portable credentials and verify service health before returning to air. Use the [station backup guide](https://github.com/scottconverse/civiccast/blob/main/docs/ops/station-backup.md) for the complete sequence and failure boundaries. Keep installer rollback and station disaster recovery as separate copies and procedures.
 
 ## Update and upgrade
 
@@ -383,11 +383,11 @@ After any upgrade, run through the daily routine, then run the drill.
 
 ## Capacity guidance
 
-The 72-hour three-channel host measurement is recorded in the [Beta 11 host report](https://github.com/scottconverse/civiccast-native/blob/main/docs/ops/beta11-host-caption-performance-72-hour-2026-10-11.md). Historical Beta 12 upgrade observations are described in the [verification record](https://github.com/scottconverse/civiccast-native/blob/main/docs/releases/v1.0.0-beta.12-verification.md).
+The 72-hour three-channel host measurement is recorded in the [Beta 11 host report](https://github.com/scottconverse/civiccast/blob/main/docs/ops/beta11-host-caption-performance-72-hour-2026-10-11.md). Historical Beta 12 upgrade observations are described in the [verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.12-verification.md).
 
 - In the historical eight-hour C16 lab run, the cache used 46 GB of its 60 GB cap and the longest conform took 389 seconds.
 - That earlier run used a single service process and had 0 holes in 50 program changes. Its recorded limits included 13 live-caption catch-up discards, two self-recovered program-change aborts and one single-frame drop. These are historical C16 observations, not Beta 16 measurements. DeckLink SDI output and a real cable headend were not exercised in that run.
-- The separate historical Beta 11, 72-hour, three-channel host measurement is documented in the [host report](https://github.com/scottconverse/civiccast-native/blob/main/docs/ops/beta11-host-caption-performance-72-hour-2026-10-11.md).
+- The separate historical Beta 11, 72-hour, three-channel host measurement is documented in the [host report](https://github.com/scottconverse/civiccast/blob/main/docs/ops/beta11-host-caption-performance-72-hour-2026-10-11.md).
 
 Hardware sizing (CPU, memory, number of channels) is in [Chapter 9](#ch-planning) and is not repeated here.
 
@@ -412,7 +412,7 @@ Hardware sizing (CPU, memory, number of channels) is in [Chapter 9](#ch-planning
 
 ## Package status and verification
 
-This chapter describes the published Beta 20 edition. For package results, use the [Beta 20 verification record](https://github.com/scottconverse/civiccast-native/blob/main/docs/releases/v1.0.0-beta.20-verification.md). The [Beta 18 record](https://github.com/scottconverse/civiccast-native/blob/main/docs/releases/v1.0.0-beta.18-verification.md) and [Beta 15 verification record](https://github.com/scottconverse/civiccast-native/blob/main/docs/releases/v1.0.0-beta.15-verification.md) remain historical. Historical host measurements retain their Beta 11 or C16 run identity.
+This chapter describes the published Beta 20 edition. For package results, use the [Beta 20 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.20-verification.md). The [Beta 18 record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.18-verification.md) and [Beta 15 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.15-verification.md) remain historical. Historical host measurements retain their Beta 11 or C16 run identity.
 
 ## Related
 

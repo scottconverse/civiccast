@@ -14,10 +14,11 @@ kit as a public release. For that historical beta.10 release,
 `setup.exe`, the five per-pack runtime `.ccpack` assets, a
 `SHA256SUMS.txt` checksum file, and `setup.exe.sidecar.json` metadata are
 attached to the
-[`v1.0.0-beta.10` GitHub Release](https://github.com/scottconverse/civiccast-native/releases/tag/v1.0.0-beta.10)
+[`v1.0.0-beta.10` GitHub Release](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-beta.10)
 as a **pre-release** (a "Beta Candidate", not a production release) -- watch
-<https://github.com/scottconverse/civiccast-native/releases> for Sergio's
-next check, not `scottconverse/civiccast-wsl-legacy` (the retired, separate WSL2-line
+<https://github.com/scottconverse/civiccast/releases> for Sergio's
+next check (this repository, `scottconverse/civiccast`, formerly `civiccast-native`), not
+`scottconverse/civiccast-wsl-legacy` (the retired, separate WSL2-line
 repository) and not any `v1.0.0-rcNN` tag, which belongs to that other
 repository. See
 [`docs/releases/release-truth.yaml`](../releases/release-truth.yaml) for the
@@ -114,7 +115,7 @@ The run is meant to answer:
 verified against its own hash-pinned delivery manifest. A GitHub package is used
 only after its exact beta tag is published and is verified against that
 release's sidecar and checksum assets. This handoff's release was
-[`v1.0.0-beta.10`](https://github.com/scottconverse/civiccast-native/releases/tag/v1.0.0-beta.10)
+[`v1.0.0-beta.10`](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-beta.10)
 (a GitHub pre-release, published 2026-10-02); its `setup.exe` is 242,367,640
 bytes, to be checked against that release's `SHA256SUMS.txt` and sidecar.
 
@@ -126,7 +127,7 @@ published; a USB-delivered station has no GitHub artifacts to check):
 | Field | Value |
 | --- | --- |
 | Release tag | the exact `v1.0.0-beta.N` tag named in your active handoff |
-| Candidate asset source | [GitHub Releases page](https://github.com/scottconverse/civiccast-native/releases) |
+| Candidate asset source | [GitHub Releases page](https://github.com/scottconverse/civiccast/releases) |
 | Windows installer | `setup.exe` |
 | Checksum file | `SHA256SUMS.txt` |
 | Installer sidecar | `setup.exe.sidecar.json` |

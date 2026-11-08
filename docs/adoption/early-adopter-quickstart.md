@@ -1,7 +1,7 @@
 # Early-Adopter Quickstart
 
 > **Historical: describes the retired public WSL2 line, not this
-> repository.** `civiccast-native` ships one product, the native Windows
+> repository.** `civiccast` (formerly `civiccast-native`) ships one product, the native Windows
 > station (session-0 Windows service, no WSL2) -- see
 > [BRANCHES.md](../../BRANCHES.md). The `v1.0.0-rc18` release, its GitHub
 > release page, and the `docs/releases/v1.0.0-rc18-verification.md` link

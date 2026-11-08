@@ -36,7 +36,7 @@ Every failure in the install steps goes through one macro: it stops the CivicCas
 ## Proposed text
 Dialog prefix. Now: add to every dialog, at the front, "Setup error N." (N is the code in the table below). One-line coder change at Hooks:420: `!insertmacro CIVICCAST_ALERT "Setup error ${CODE}.$\r$\n$\r$\n${TEXT}"`; Hooks:262 then writes it to the log too. The uninstall exits call `CIVICCAST_ALERT` directly and need the same prefix at their own call sites.
 
-Support line, one wording everywhere: "Help: https://github.com/scottconverse/civiccast-native/issues (the project's issue page; community run; remove anything private, such as passwords and recovery codes, before posting)."
+Support line, one wording everywhere: "Help: https://github.com/scottconverse/civiccast/issues (the project's issue page; community run; remove anything private, such as passwords and recovery codes, before posting)."
 
 In-app help text: how to find the code (now): "Setup shows the error number at the top of the error message. If you ran setup silently, the number is the exit code. For an install, the last lines of C:\ProgramData\CivicCast\install-progress.log also say 'postinstall: FAILED, aborting with exit code N'. To read it: press the Windows key and R, paste C:\ProgramData\CivicCast\install-progress.log and press Enter."
 

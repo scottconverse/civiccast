@@ -126,7 +126,7 @@ channel <id>: egress state -> <STATE> (source=..., pid=..., last_error=...)
 
 The `last_error` part is the reason. Search the application log for it: `Select-String -Path C:\ProgramData\CivicCast\logs\control_plane-app.log* -Pattern "egress state ->"`.
 
-> **Note:** A Beta 15 field run found that some worker labels and process/PID status did not agree with fresh process evidence. The reason was not established; use both the station logs and Windows process state when investigating, and do not treat this as a confirmed Beta 16 defect. See the [Beta 17 deferred follow-up](https://github.com/scottconverse/civiccast-native/blob/main/docs/ops/beta17-deferred.md).
+> **Note:** A Beta 15 field run found that some worker labels and process/PID status did not agree with fresh process evidence. The reason was not established; use both the station logs and Windows process state when investigating, and do not treat this as a confirmed Beta 16 defect. See the [Beta 17 deferred follow-up](https://github.com/scottconverse/civiccast/blob/main/docs/ops/beta17-deferred.md).
 
 A channel that shows **Showing slate** is on air with the "technical difficulties" picture instead of its program. The station chose that rather than dead air. It is a symptom, not a fault in itself. The `last_error` tells you which of these it is:
 
@@ -162,9 +162,9 @@ A program change is the moment a channel moves from one scheduled item to the ne
 | A single dropped frame at a join between two pieces | A known single-frame drop. | `CTRL mux diagnostic: dropped future-dated video arrival`. | None. It is one frame. |
 | A change aired only the tail of the closing item | The plan was resolved against a short remainder. | `Plan for <channel> resolved to a N.Ns tail of the closing scheduled item`. | Check the schedule's station time zone and the slot's planned start and end. |
 
-> **Historical Beta 15 observation:** An initial Beta 15 candidate showed repeated rollover attempts after a 20-second Welcome clip ended inside a 60-second slot. The corrected Beta 15 package passed both the 20-second and 60-second slot checks and returned to slate. The [Beta 15 verification record](https://github.com/scottconverse/civiccast-native/blob/main/docs/releases/v1.0.0-beta.15-verification.md) preserves both results; they do not establish Beta 16 package behavior.
+> **Historical Beta 15 observation:** An initial Beta 15 candidate showed repeated rollover attempts after a 20-second Welcome clip ended inside a 60-second slot. The corrected Beta 15 package passed both the 20-second and 60-second slot checks and returned to slate. The [Beta 15 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.15-verification.md) preserves both results; they do not establish Beta 16 package behavior.
 
-> **Note:** A Beta 15 field run found scheduled speech windows on three channels showing slate with silent audio and header-only captions. The cause was not established, and the observation does not identify Whistle as the cause or establish Beta 16 behavior. This is a Beta 17 follow-up; see the [deferred field report](https://github.com/scottconverse/civiccast-native/blob/main/docs/ops/beta17-deferred.md).
+> **Note:** A Beta 15 field run found scheduled speech windows on three channels showing slate with silent audio and header-only captions. The cause was not established, and the observation does not identify Whistle as the cause or establish Beta 16 behavior. This is a Beta 17 follow-up; see the [deferred field report](https://github.com/scottconverse/civiccast/blob/main/docs/ops/beta17-deferred.md).
 
 > **Historical Beta 10 observation:** An unexplained rebuild appeared during the eight-hour C16 development run. Its cause was not established; that observation is not evidence about the current package. Keep the logs if you see an unexplained rebuild.
 
@@ -248,7 +248,7 @@ The Publish screen records "operator-dashboard" as the operator for every approv
 
 ## The portal does not show video
 
-Residents can reach the portal through the configured public Caddy hostname. Staff use the separate hostname restricted to approved CIDRs. The application itself remains bound to loopback at `http://127.0.0.1:8000/`; the installer firewall rule does not make that listener directly reachable from another computer. Follow the [network access guide](https://github.com/scottconverse/civiccast-native/blob/main/docs/ops/network-access.md) and test from both allowed and denied networks.
+Residents can reach the portal through the configured public Caddy hostname. Staff use the separate hostname restricted to approved CIDRs. The application itself remains bound to loopback at `http://127.0.0.1:8000/`; the installer firewall rule does not make that listener directly reachable from another computer. Follow the [network access guide](https://github.com/scottconverse/civiccast/blob/main/docs/ops/network-access.md) and test from both allowed and denied networks.
 
 | Symptom | Likely cause | How to confirm | Fix |
 |---|---|---|---|
@@ -300,7 +300,7 @@ The default encoder path is GStreamer. On Windows, a hardware H.264 request is m
 
 ## Upgrade problems
 
-> **Upgrade evidence (Beta 12):** One normal upgrade from the pinned Beta 11 baseline exited 0 and recorded a healthy service/API, current schema 0089, a saved preservation marker, and initial HLS audio/video plus Whistle observations on three channels. The post-upgrade recorder failed during its first JSON save; no five-snapshot PASS was recorded. Fresh-install and repair checks remain unrun, and no sustained-operation result is claimed. Take a separate backup of `C:\ProgramData\CivicCast` before an upgrade. See the [Beta 12 verification record](https://github.com/scottconverse/civiccast-native/blob/main/docs/releases/v1.0.0-beta.12-verification.md).
+> **Upgrade evidence (Beta 12):** One normal upgrade from the pinned Beta 11 baseline exited 0 and recorded a healthy service/API, current schema 0089, a saved preservation marker, and initial HLS audio/video plus Whistle observations on three channels. The post-upgrade recorder failed during its first JSON save; no five-snapshot PASS was recorded. Fresh-install and repair checks remain unrun, and no sustained-operation result is claimed. Take a separate backup of `C:\ProgramData\CivicCast` before an upgrade. See the [Beta 12 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.12-verification.md).
 
 An upgrade is the same `setup.exe` run over an existing install. The generic **Already Installed** page is suppressed; setup does not uninstall first. The installer first checks versions without stopping the service or replacing files. For an accepted upgrade, setup saves a temporary, size-checked snapshot before replacing files, re-verifies packs, and runs the database upgrade. If a later step fails, the engine rolls back its database work and the enclosing installer transaction attempts to restore the prior application and station state. Exit 136 means recovery could not be prepared or completed; keep `install-transaction` and station data intact and let the recovery task or next setup run retry.
 
@@ -403,7 +403,7 @@ If nothing here matches, do the following in order. First, run `curl.exe http://
 
 ## Package status and verification
 
-This chapter describes the published Beta 20 edition. For package-specific results, use the [Beta 20 verification record](https://github.com/scottconverse/civiccast-native/blob/main/docs/releases/v1.0.0-beta.20-verification.md). The [Beta 18 record](https://github.com/scottconverse/civiccast-native/blob/main/docs/releases/v1.0.0-beta.18-verification.md) and [Beta 15 verification record](https://github.com/scottconverse/civiccast-native/blob/main/docs/releases/v1.0.0-beta.15-verification.md) remain historical.
+This chapter describes the published Beta 20 edition. For package-specific results, use the [Beta 20 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.20-verification.md). The [Beta 18 record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.18-verification.md) and [Beta 15 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.15-verification.md) remain historical.
 
 ## Related
 

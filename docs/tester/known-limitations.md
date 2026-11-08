@@ -13,7 +13,7 @@
 `v1.0.0-beta.10` was the published release on 2026-10-02:
 `setup.exe` + `.ccpack` runtime packs + `SHA256SUMS.txt`, published as a GitHub
 pre-release (a "Beta Candidate", not a production release) at
-<https://github.com/scottconverse/civiccast-native/releases/tag/v1.0.0-beta.10>.
+<https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-beta.10>.
 `v1.0.0-beta.7` is superseded history (as are beta.5, beta.4, and
 `v1.0.0-beta.3`, the first downloadable release); `v1.0.0-beta.8` and
 `v1.0.0-beta.9` were never published.
@@ -74,7 +74,7 @@ a later GauntletGate rebuild.
 ## WSL Public-Beta Line - Windows Runtime
 
 > **Historical: describes the retired public WSL2 line, not this
-> repository.** `civiccast-native` ships one product, the native Windows
+> repository.** `civiccast` (formerly `civiccast-native`) ships one product, the native Windows
 > station (session-0 Windows service, no WSL) -- see
 > [BRANCHES.md](../../BRANCHES.md). This section's `rc15`/WSL2 setup
 > behavior belongs to the separate, private `scottconverse/civiccast-wsl-legacy`

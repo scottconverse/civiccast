@@ -112,7 +112,7 @@ To see what CivicCast itself detects after install, open `http://127.0.0.1:8000/
 
 ### What listens where
 
-The application services listen on the station computer's loopback address. To provide remote resident and staff access, use the supported Caddy configuration with separate public and CIDR-restricted staff hostnames; do not expose port 8000 directly. See the [network access guide](https://github.com/scottconverse/civiccast-native/blob/main/docs/ops/network-access.md).
+The application services listen on the station computer's loopback address. To provide remote resident and staff access, use the supported Caddy configuration with separate public and CIDR-restricted staff hostnames; do not expose port 8000 directly. See the [network access guide](https://github.com/scottconverse/civiccast/blob/main/docs/ops/network-access.md).
 
 | Port | Used by | Reachable from | Source |
 | --- | --- | --- | --- |
@@ -186,7 +186,7 @@ Windows accounts matter in one more place: the first-run window remembers that i
 
 ### What is on the release page
 
-This manual describes the 1.0.0-rc.5 edition. Use the [releases page](https://github.com/scottconverse/civiccast-native/releases) and the version-specific verification record for the package you use to confirm publication, download, installation, and acceptance status. Run the release-matched helper to obtain the installer, runtime packs and signed station-model resources together. The [Beta 18 verification record](https://github.com/scottconverse/civiccast-native/blob/main/docs/releases/v1.0.0-beta.18-verification.md) remains historical.
+This manual describes the 1.0.0-rc.5 edition. Use the [releases page](https://github.com/scottconverse/civiccast/releases) and the version-specific verification record for the package you use to confirm publication, download, installation, and acceptance status. Run the release-matched helper to obtain the installer, runtime packs and signed station-model resources together. The [Beta 18 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.18-verification.md) remains historical.
 
 The complete offline kit contains the installer, its verification metadata, runtime packs, and signed station index/model packs. The exact file list comes from the matching release manifest; the Chapter 10 tree shows the working layout rather than every download or checksum file. The release helper uses `station-models.json` and every matching `station-models.zip.*` part, verifies the set and prepares the folders before setup. Raw model downloads or unsigned substitutes are not activation packs.
 
@@ -246,7 +246,7 @@ Windows may show a blue **Windows protected your PC** screen. That screen is abo
 
 ## Historical measurements and package evidence
 
-These host measurements belong to Beta 11 and are not Beta 16 capacity results. The 72-hour run covered Public, Government and Education without a service restart and recorded **99.78% live caption-input coverage**; the earlier 48-hour window recorded **99.88% rounded coverage**. See the [Beta 11 72-hour host report](https://github.com/scottconverse/civiccast-native/blob/main/docs/ops/beta11-host-caption-performance-72-hour-2026-10-11.md) and [Beta 11 48-hour host report](https://github.com/scottconverse/civiccast-native/blob/main/docs/ops/beta11-host-caption-performance-48-hour-2026-10-10.md) for the methods and run identities. Package checks belong to the verification record for the matching release; the [Beta 18 record](https://github.com/scottconverse/civiccast-native/blob/main/docs/releases/v1.0.0-beta.18-verification.md) tracks its package results.
+These host measurements belong to Beta 11 and are not Beta 16 capacity results. The 72-hour run covered Public, Government and Education without a service restart and recorded **99.78% live caption-input coverage**; the earlier 48-hour window recorded **99.88% rounded coverage**. See the [Beta 11 72-hour host report](https://github.com/scottconverse/civiccast/blob/main/docs/ops/beta11-host-caption-performance-72-hour-2026-10-11.md) and [Beta 11 48-hour host report](https://github.com/scottconverse/civiccast/blob/main/docs/ops/beta11-host-caption-performance-48-hour-2026-10-10.md) for the methods and run identities. Package checks belong to the verification record for the matching release; the [Beta 18 record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.18-verification.md) tracks its package results.
 
 ## Related
 

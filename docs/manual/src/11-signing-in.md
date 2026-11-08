@@ -4,7 +4,7 @@ This chapter shows you how to open the operator console, sign in, recover a lost
 
 ## Before you start
 
-- For **first setup, first-admin sign-in and recovery**, use a browser on the station computer (a remote-desktop session to that computer also works). Staff accounts can sign in from the station or, when the separate staff hostname is configured, from an approved staff network. See the [network access guide](https://github.com/scottconverse/civiccast-native/blob/main/docs/ops/network-access.md) and [staff accounts guide](https://github.com/scottconverse/civiccast-native/blob/main/docs/ops/staff-accounts.md).
+- For **first setup, first-admin sign-in and recovery**, use a browser on the station computer (a remote-desktop session to that computer also works). Staff accounts can sign in from the station or, when the separate staff hostname is configured, from an approved staff network. See the [network access guide](https://github.com/scottconverse/civiccast/blob/main/docs/ops/network-access.md) and [staff accounts guide](https://github.com/scottconverse/civiccast/blob/main/docs/ops/staff-accounts.md).
 - You need the **admin username and password** from the station's recovery kit. The kit is the printout or saved file made when the station was first set up.
 - CivicCast has to be running in the background. If it is not, the shortcut opens a browser error page instead of the console.
 - If nobody has set this station up yet, go straight to [Set up a brand-new station](#signing-in-first-run).
@@ -302,7 +302,7 @@ The role message lists raw role names. They map to the names in the console like
 
 > **Known issue (beta.11):** The message "First setup can only be done from the station computer itself" also appears for first-admin sign-in and recovery when `/operator/#/setup` is opened remotely. Those `/api/setup/*` actions remain local-only. Staff use `/operator/#/login` and, when configured, the CIDR-restricted staff hostname.
 
-> **Note:** Setup admins can add staff, assign roles and disable access in **Staff accounts**. See the [staff accounts guide](https://github.com/scottconverse/civiccast-native/blob/main/docs/ops/staff-accounts.md) for account and session management.
+> **Note:** Setup admins can add staff, assign roles and disable access in **Staff accounts**. See the [staff accounts guide](https://github.com/scottconverse/civiccast/blob/main/docs/ops/staff-accounts.md) for account and session management.
 
 ## Related
 

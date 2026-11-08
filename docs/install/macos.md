@@ -28,7 +28,7 @@ that a package is safe.
 **There is no approved macOS install source in this beta.** The beta line
 ships no macOS installer or package. The current native Windows release is
 `v1.0.0-beta.20`, a published pre-release, not a macOS package. See its
-[release page](https://github.com/scottconverse/civiccast-native/releases/tag/v1.0.0-beta.20),
+[release page](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-beta.20),
 the [Beta 20 verification record](../releases/v1.0.0-beta.20-verification.md),
 and the [Windows install guide](../../INSTALL-WINDOWS.md) plus
 [Windows Release Trust And Verification](windows-release-trust.md).

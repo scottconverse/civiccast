@@ -1,6 +1,6 @@
 # Branch Protection on `main`
 
-GitHub branch protection for `scottconverse/civiccast-native`.
+GitHub branch protection for `scottconverse/civiccast`.
 
 ## Why this exists
 
@@ -68,7 +68,7 @@ reliably build the nested object). Payload as applied:
 ```
 
 ```bash
-gh api -X PUT repos/scottconverse/civiccast-native/branches/main/protection --input payload.json
+gh api -X PUT repos/scottconverse/civiccast/branches/main/protection --input payload.json
 ```
 
 Notes:
@@ -99,7 +99,7 @@ Notes:
 ## How to verify
 
 ```bash
-gh api repos/scottconverse/civiccast-native/branches/main/protection | jq
+gh api repos/scottconverse/civiccast/branches/main/protection | jq
 ```
 
 The response should show every status check listed above as required.

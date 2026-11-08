@@ -95,7 +95,7 @@ Each card has nine rows. Each row shows a status dot, a name, badges such as **R
 | Subscriber notifications | Optional. When selected, CivicCast sends notices to confirmed subscribers through configured mail or webhook providers, records each delivery outcome and retries eligible failures. The row shows delivered, queued and failed counts. Mock providers are labeled simulated. |
 | Cable file package | Builds a ZIP with the video, captions, details and file fingerprints for the cable headend, in a folder IT has chosen. If no folder is set the row says it is "not set up (optional)". |
 
-Provider selectors default to mocks, which do not send or archive media. The Setup Provider form saves values for station setup but does not configure these publishing adapters; IT must set the service environment described in [Integrations](#ch-integrations). The [capability matrix](https://github.com/scottconverse/civiccast-native/blob/main/CAPABILITIES.md) lists the current support boundary.
+Provider selectors default to mocks, which do not send or archive media. The Setup Provider form saves values for station setup but does not configure these publishing adapters; IT must set the service environment described in [Integrations](#ch-integrations). The [capability matrix](https://github.com/scottconverse/civiccast/blob/main/CAPABILITIES.md) lists the current support boundary.
 
 A step's status reads **Not run yet**, **Running**, **Succeeded**, **Failed**, **Blocked**, **Overridden** or **Not set up yet**. The recording as a whole shows one of **Draft**, **Preflight blocked**, **Publishing**, **Archive pending**, **Archive verified**, **Reaching fewer places than planned**, **Complete** or **Needs action**.
 
@@ -260,7 +260,7 @@ A resident opens a recording by clicking **Watch recording**. The page shows **B
 
 > **Note:** The share link uses the address the resident used to reach the portal. If your station is reached by an inside address, a copied link will not work for people outside.
 
-> **Note:** A Beta 15 field run could not confirm that **Copy share link** changed the clipboard: the clipboard still held an earlier Library URL, and the action itself was not verified. This remains an unconfirmed Beta 15 observation; it does not establish a defect in the current package. See the [Beta 17 deferred follow-up](https://github.com/scottconverse/civiccast-native/blob/main/docs/ops/beta17-deferred.md).
+> **Note:** A Beta 15 field run could not confirm that **Copy share link** changed the clipboard: the clipboard still held an earlier Library URL, and the action itself was not verified. This remains an unconfirmed Beta 15 observation; it does not establish a defect in the current package. See the [Beta 17 deferred follow-up](https://github.com/scottconverse/civiccast/blob/main/docs/ops/beta17-deferred.md).
 
 ### What a resident sees when the paywall is on
 

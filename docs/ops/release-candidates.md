@@ -3,7 +3,7 @@
 Runbook for cutting and publishing a native-Windows beta-candidate release.
 Owner decision 2026-09-02: the coordinating agent cuts these releases going
 forward, because the beta tester (Sergio, "LPM") checks
-`scottconverse/civiccast-native`'s GitHub Releases page daily for new
+`scottconverse/civiccast`'s GitHub Releases page daily for new
 versions. This document is the checklist that agent follows -- and the
 checklist Scott follows to withdraw a bad one.
 
@@ -382,7 +382,7 @@ first failure:
 | gh auth / layout / version / signature / Gate A / pre-flight | nothing remote | refuses | fix the cause, re-run |
 | `gh release create --draft` | maybe a partial draft, no tag | best-effort `gh release delete`, refuses | confirm no draft remains on GitHub, re-run |
 | draft verification (missing asset / size mismatch / not a draft) | draft, no tag | `gh release delete`, refuses | confirm no draft remains, investigate the asset, re-run |
-| `gh release edit --draft=false` | verified draft, tag state uncertain | refuses, does NOT delete | first run `gh release view <tag> -R scottconverse/civiccast-native --json isDraft,url` to learn whether the release actually went public (a failed un-draft may have partially applied), then publish it by hand if it is intact and still a draft, or delete it |
+| `gh release edit --draft=false` | verified draft, tag state uncertain | refuses, does NOT delete | first run `gh release view <tag> -R scottconverse/civiccast --json isDraft,url` to learn whether the release actually went public (a failed un-draft may have partially applied), then publish it by hand if it is intact and still a draft, or delete it |
 | `release-truth.yaml` update | public prerelease + tag, manifest not updated | refuses | edit `release-truth.yaml` by hand to match what is live |
 
 `--truth-status staging` for a first publish under review; flip a later
@@ -391,7 +391,7 @@ recommended install target.
 
 ## 4. What Sergio (LPM) sees on GitHub
 
-The exact tag appears on the `scottconverse/civiccast-native` Releases page
+The exact tag appears on the `scottconverse/civiccast` Releases page
 as a **prerelease**, not a full Latest release. Its assets include:
 
 - `setup.exe`, all five runtime packs and the four candidate manual files.
@@ -418,7 +418,7 @@ If a published beta candidate turns out to be broken:
 
 1. Unpublish it on GitHub:
    ```powershell
-   gh release edit <tag> --draft -R scottconverse/civiccast-native
+   gh release edit <tag> --draft -R scottconverse/civiccast
    ```
    This pulls it off the public Releases page immediately (a draft release
    is not visible to Sergio or anyone else without direct owner access).

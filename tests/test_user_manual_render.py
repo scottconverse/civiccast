@@ -49,7 +49,7 @@ def test_packaged_manual_does_not_freeze_mutable_publication_status() -> None:
     assert "current published release described in this manual" not in introduction
     assert "installation and sustained-operation checks are pending" not in introduction
     assert "remains the current public pre-release" not in introduction
-    assert "https://github.com/scottconverse/civiccast-native/releases" in manual
+    assert "https://github.com/scottconverse/civiccast/releases" in manual
     assert "package record](" in manual
     assert "remains historical" in manual
     manual_version = render_user_manual._source_version_token(manual)

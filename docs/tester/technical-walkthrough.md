@@ -19,7 +19,7 @@ when the handoff assigns it.
 
 ## Package acquisition
 
-1. Acquire the complete kit from the [Beta 18 release page](https://github.com/scottconverse/civiccast-native/releases/tag/v1.0.0-beta.18).
+1. Acquire the complete kit from the [Beta 18 release page](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-beta.18).
 2. If the handoff names `download_windows_release_artifacts.ps1`, pass its
    exact `-Tag` and `-Version` values with the requested asset options. Do not
    rely on a generic latest download or mix packages from different builds.
@@ -85,7 +85,7 @@ written (published 2026-10-02); use only the exact release named
 in the handoff. It is `setup.exe` + `.ccpack` runtime packs + `SHA256SUMS.txt`
 + `setup.exe.sidecar.json`, published as a GitHub pre-release (a "Beta
 Candidate", not a production release) at
-<https://github.com/scottconverse/civiccast-native/releases/tag/v1.0.0-beta.10>.
+<https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-beta.10>.
 `v1.0.0-beta.7` was a download-only upgrade proven for stations already on
 `v1.0.0-beta.5`; it is now superseded history, as are beta.5, beta.4 and
 `v1.0.0-beta.3` (the first downloadable release).

@@ -1,6 +1,6 @@
 # CivicCast Release Policy
 
-> **Release state:** [v1.0.0-beta.20](https://github.com/scottconverse/civiccast-native/releases/tag/v1.0.0-beta.20)
+> **Release state:** [v1.0.0-beta.20](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-beta.20)
 > is the current published GitHub pre-release. Its
 > [verification record](../releases/v1.0.0-beta.20-verification.md) describes
 > the exact public package and its evidence limitations; an owner-held
@@ -14,7 +14,7 @@
 > package to source 8053fb1cf05b989fb1f23e650893cc6abfa659d4 and producer run
 > 38160778457; normal upgrade, interrupted-install repair, and fresh-install
 > five-minute observations passed across all three channels. See the
-> [GitHub release](https://github.com/scottconverse/civiccast-native/releases/tag/v1.0.0-beta.13).
+> [GitHub release](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-beta.13).
 > release-truth.yaml is the authored release-state record. Earlier published
 > beta releases are superseded; Beta 8 and 9 were never published. Beta 2 was
 > never published and exists only as an internal upgrade-baseline kit. See

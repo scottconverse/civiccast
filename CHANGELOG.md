@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 - Repository renamed from `scottconverse/civiccast-native` to `scottconverse/civiccast`; the retired WSL2-line repository is now `scottconverse/civiccast-wsl-legacy` (archived). Docs, website links, the download helper default and release tooling updated; the old address still redirects. Internal product identifiers (`civiccast-native`) are unchanged.
+- Second rename pass: the remaining current docs (operator quickstart, roadmap, tester, adoption, installer, install and ops docs), the in-app help specifications and the user manual now link to `scottconverse/civiccast`. The manual and its in-product copy were re-rendered. The rc.5 verification record now carries the 24-hour Beelink soak result, and the rc.5 release notes summarise it.
 
 ## [1.0.0-rc.5] - 2026-11-07
 

@@ -116,7 +116,7 @@ A passing check means the stream is well formed. It does not prove that the cabl
 
 The shipped GStreamer runtime has no HLS writer. So for an output of kind `hls`, the code redirects the encoder's feed to a loopback UDP address `udp://127.0.0.1:<port>`, where the port is 18000 plus a number derived from the output's address (range 18000 to 18499, base set by `CIVICCAST_HLS_RELAY_BASE_PORT`). A supervised FFmpeg process reads that feed and writes the video pieces (`seg%09d.ts`) and `playlist.m3u8`, with a window of about 12 seconds (6 pieces). The playlist is served at `/media/live/<channel>/playlist.m3u8`; recordings are served at `/media/vod/<asset>/...`. The relay's own log is `C:\ProgramData\CivicCast\data\egress\<channel>\logs\hls-relay.<output label>.stderr.log`.
 
-> **Note:** A Beta 15 field run found a synthetic CG playlist listing segment files that returned HTTP 404. The serving cause was not established, and the observation does not establish Beta 16 behavior. This is a Beta 17 follow-up; see the [deferred field report](https://github.com/scottconverse/civiccast-native/blob/main/docs/ops/beta17-deferred.md).
+> **Note:** A Beta 15 field run found a synthetic CG playlist listing segment files that returned HTTP 404. The serving cause was not established, and the observation does not establish Beta 16 behavior. This is a Beta 17 follow-up; see the [deferred field report](https://github.com/scottconverse/civiccast/blob/main/docs/ops/beta17-deferred.md).
 
 | Log fragment | Meaning |
 |---|---|
@@ -462,7 +462,7 @@ Other things worth reading with a token: `GET /api/staff/runtime-safe-to-air`, `
 
 ## Package status and verification
 
-This chapter describes the published Beta 20 edition. Use the [Beta 20 verification record](https://github.com/scottconverse/civiccast-native/blob/main/docs/releases/v1.0.0-beta.20-verification.md) for that package's scoped checks; the [Beta 18 record](https://github.com/scottconverse/civiccast-native/blob/main/docs/releases/v1.0.0-beta.18-verification.md) remains historical. Commission each external service and headend for the station's actual configuration.
+This chapter describes the published Beta 20 edition. Use the [Beta 20 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.20-verification.md) for that package's scoped checks; the [Beta 18 record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.18-verification.md) remains historical. Commission each external service and headend for the station's actual configuration.
 
 ## Related
 

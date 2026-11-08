@@ -13,7 +13,7 @@ host station.
 - Version: `1.0.0-beta.20` (the established source version; no version-source
   change was made for this preparation).
 - Build: `native-beta-candidate-artifacts` run
-  [`40616252842`](https://github.com/scottconverse/civiccast-native/actions/runs/40616252842),
+  [`40616252842`](https://github.com/scottconverse/civiccast/actions/runs/40616252842),
   conclusion success. Exact-source manual, signed station resources, signed
   app/server/runtime packs, signed installer, and local kit all completed.
 - Reused required source CI: run `40583199781` passed Unit, Windows WS4 and
