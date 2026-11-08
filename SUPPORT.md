@@ -11,7 +11,7 @@ community-driven; there is no commercial support contract or SLA.
    [docs/adoption/support-intake.md](docs/adoption/support-intake.md),
    [FAQ.md](FAQ.md), [docs/USER-MANUAL.md](docs/USER-MANUAL.md), and
    [docs/tester/START-HERE.md](docs/tester/START-HERE.md).
-2. **Search existing issues.** [GitHub Issues](https://github.com/scottconverse/civiccast-native/issues)
+2. **Search existing issues.** [GitHub Issues](https://github.com/scottconverse/civiccast/issues)
    may already cover your question.
 3. **Open a question or bug issue.** Use **Report a beta issue** in the
    installer, operator console, or resident portal, or open the repository's
@@ -20,7 +20,7 @@ community-driven; there is no commercial support contract or SLA.
    message, and the steps already tried. Never
    include passwords, recovery codes, staff tokens, or private meeting
    material in a public report.
-4. **Use [GitHub Issues](https://github.com/scottconverse/civiccast-native/issues) for
+4. **Use [GitHub Issues](https://github.com/scottconverse/civiccast/issues) for
    open-ended planning too** (GitHub Discussions is not enabled on this
    repository). Examples: whether CivicCast is a fit for an HOA,
    public-access station, school board, or nonprofit workflow.
@@ -43,7 +43,7 @@ and recovery kit, backup and scoped database restore, private rehearsal and
 packaging, the publish privacy gate, resident playback, and unaided
 cold-reboot recovery. Captions were not exercised in that pass. (The
 verification record for that run is not present in this repository -- it
-belongs to the separate, private `scottconverse/civiccast` repository.)
+belongs to the separate, private `scottconverse/civiccast-wsl-legacy` repository.)
 Preserve the installer log and support bundle for every failure.
 
 Supported early-adopter paths are documented self-hosted deployment profiles,
@@ -61,7 +61,7 @@ enabled throwaway development.
 
 The native Windows runtime ([ADR 0021](docs/adr/0021-native-windows-runtime.md))
 is a public beta. The current published package is `v1.0.0-rc.5`, available
-from its [GitHub Release](https://github.com/scottconverse/civiccast-native/releases/tag/v1.0.0-rc.5).
+from its [GitHub Release](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-rc.5).
 Its [release notes](docs/releases/v1.0.0-rc.5-release-notes.md)
 identify the signed installer, verification and known issues.
 Package and installation claims must name the exact published version; source
@@ -77,7 +77,7 @@ If you are working on, evaluating, or running the native line:
 - When reporting a source issue, include the branch or commit being used. The
   station-operation, unattended-scheduling, broadcast-output, and recorded-
   caption updates ship in Beta 16; Beta 15 remains a separate historical package.
-- Use a regular [GitHub Issue](https://github.com/scottconverse/civiccast-native/issues)
+- Use a regular [GitHub Issue](https://github.com/scottconverse/civiccast/issues)
   for questions (GitHub Discussions is not enabled on this repository), and say explicitly in the report
   that it concerns the native line and which release tag or source commit you're on -- the templates don't yet
   have a native-specific path, so context has to be spelled out by hand.

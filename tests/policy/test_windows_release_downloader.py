@@ -110,7 +110,7 @@ def test_windows_release_downloader_verifies_manifest_hashes() -> None:
 def test_windows_install_doc_matches_current_release_posture() -> None:
     source = INSTALL_DOC.read_text(encoding="utf-8")
     assert f"`{PUBLISHED_RELEASE_TAG}`" in source
-    assert f"civiccast-native/releases/tag/{PUBLISHED_RELEASE_TAG}" in source
+    assert f"scottconverse/civiccast/releases/tag/{PUBLISHED_RELEASE_TAG}" in source
     assert f"-Tag {PUBLISHED_RELEASE_TAG} -Version {PUBLISHED_RELEASE_VERSION} -Install" in source
 
 
@@ -153,8 +153,12 @@ def test_native_candidate_mode_asset_names_match_the_publisher() -> None:
     assert f'$NativePackSuffix = "{publisher.PACK_SUFFIX}"' in source
     # Default repository is the native repo, and the native mode is the
     # default there; the rc-line modes are kept for the old repository.
-    assert '$Repository = "scottconverse/civiccast-native"' in source
-    assert 'if ($Repository -eq "scottconverse/civiccast-native") {' in source
+    assert '$Repository = "scottconverse/civiccast"' in source
+    # Both the current name and the pre-2026-11-08 name select native mode.
+    assert (
+        'if ($Repository -in @("scottconverse/civiccast", "scottconverse/civiccast-native")) {'
+        in source
+    )
     assert '$AssetSet = "NativeCandidate"' in source
     assert "[switch]$IncludePacks" in source
     # Every native asset is hash-verified against SHA256SUMS.txt, and the

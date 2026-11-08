@@ -7,7 +7,8 @@ Download and verify CivicCast Windows release artifacts.
 .DESCRIPTION
 Two asset-set families are supported:
 
-  NativeCandidate (default when -Repository is scottconverse/civiccast-native):
+  NativeCandidate (default when -Repository is scottconverse/civiccast, or its
+  pre-2026-11-08 name scottconverse/civiccast-native):
     the native beta-candidate release shape published by
     scripts/release/publish_beta_candidate.py -- SHA256SUMS.txt, setup.exe,
     setup.exe.sidecar.json, and (with -IncludePacks) every *.ccpack runtime
@@ -29,7 +30,7 @@ For a historical release, specify `-Tag`; `-Version`, if supplied, must match fo
 
 [CmdletBinding()]
 param(
-  [string]$Repository = "scottconverse/civiccast-native",
+  [string]$Repository = "scottconverse/civiccast",
   [string]$Tag = "v1.0.0-rc.5",
   [string]$Version = "",
   [ValidateSet("", "NativeCandidate", "ProofKit", "TesterPackage", "All")]
@@ -54,7 +55,7 @@ $NativeSidecarSuffix = ".sidecar.json"
 $NativePackSuffix = ".ccpack"
 
 if ([string]::IsNullOrWhiteSpace($AssetSet)) {
-  if ($Repository -eq "scottconverse/civiccast-native") {
+  if ($Repository -in @("scottconverse/civiccast", "scottconverse/civiccast-native")) {
     $AssetSet = "NativeCandidate"
   } else {
     $AssetSet = "ProofKit"

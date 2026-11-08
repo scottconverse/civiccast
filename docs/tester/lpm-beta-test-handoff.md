@@ -17,7 +17,7 @@ attached to the
 [`v1.0.0-beta.10` GitHub Release](https://github.com/scottconverse/civiccast-native/releases/tag/v1.0.0-beta.10)
 as a **pre-release** (a "Beta Candidate", not a production release) -- watch
 <https://github.com/scottconverse/civiccast-native/releases> for Sergio's
-next check, not `scottconverse/civiccast` (the retired, separate WSL2-line
+next check, not `scottconverse/civiccast-wsl-legacy` (the retired, separate WSL2-line
 repository) and not any `v1.0.0-rcNN` tag, which belongs to that other
 repository. See
 [`docs/releases/release-truth.yaml`](../releases/release-truth.yaml) for the
@@ -436,7 +436,7 @@ evidence is complete.
 ## Historical: retired WSL2-line (rc13-rc18) handoff
 
 Everything below describes the retired public WSL2 line
-(`v1.0.0-rc18` and earlier, repository `scottconverse/civiccast`) that this
+(`v1.0.0-rc18` and earlier, repository `scottconverse/civiccast-wsl-legacy`) that this
 repository does not carry. It is preserved as historical evidence only, not
 as current tester guidance. The verification document it used to cite
 (`docs/releases/v1.0.0-rc17-verification.md`,

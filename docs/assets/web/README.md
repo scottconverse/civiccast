@@ -1,7 +1,7 @@
 # CivicCast project site (GitHub Pages)
 
 The site is plain static HTML and CSS served by GitHub Pages from `main` `/docs`:
-<https://scottconverse.github.io/civiccast-native/>. There is no build step and no framework.
+<https://scottconverse.github.io/civiccast/>. There is no build step and no framework.
 
 | File | What it is |
 | --- | --- |

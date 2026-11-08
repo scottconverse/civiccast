@@ -69,7 +69,7 @@ To verify a downloaded release artifact yourself:
 Releases are published at: https://github.com/scottconverse/civiccast-native/releases
 (beta candidates appear there as prereleases under the `v1.0.0-beta.N` tag family; see
 `docs/ops/release-candidates.md`). The retired WSL2 line's `v1.0.0-rcNN` releases live in
-the separate, private `scottconverse/civiccast` repository and are not an install target.
+the separate, private `scottconverse/civiccast-wsl-legacy` repository and are not an install target.
 
 ## Privacy
 

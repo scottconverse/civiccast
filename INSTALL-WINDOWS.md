@@ -2,9 +2,9 @@
 
 CivicCast RC5 is a complete native Windows station. It includes Python, PostgreSQL, FFmpeg, GStreamer and local AI runtimes. You do not need Git, Python, Docker, WSL, Ollama or GitHub CLI installed separately.
 
-[RC5 manual PDF](https://github.com/scottconverse/civiccast-native/releases/download/v1.0.0-rc.5/USER-MANUAL.pdf) · [RC5 release notes](docs/releases/v1.0.0-rc.5-release-notes.md) · [Current source manual](docs/USER-MANUAL.md)
+[RC5 manual PDF](https://github.com/scottconverse/civiccast/releases/download/v1.0.0-rc.5/USER-MANUAL.pdf) · [RC5 release notes](docs/releases/v1.0.0-rc.5-release-notes.md) · [Current source manual](docs/USER-MANUAL.md)
 
-`v1.0.0-rc.5` is the current [published release](https://github.com/scottconverse/civiccast-native/releases/tag/v1.0.0-rc.5). Check `setup.exe` against the SHA-256 in the [release notes](docs/releases/v1.0.0-rc.5-release-notes.md), then run it with the adjacent `packs` and `station` folders intact, or use the download command below.
+`v1.0.0-rc.5` is the current [published release](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-rc.5). Check `setup.exe` against the SHA-256 in the [release notes](docs/releases/v1.0.0-rc.5-release-notes.md), then run it with the adjacent `packs` and `station` folders intact, or use the download command below.
 
 ## Download and install the complete station
 
@@ -14,7 +14,7 @@ Open **Windows PowerShell** and paste:
 
 ```powershell
 $installerScript = Join-Path $env:TEMP 'CivicCast-Install-RC5.ps1'
-Invoke-WebRequest -UseBasicParsing -Uri 'https://github.com/scottconverse/civiccast-native/releases/download/v1.0.0-rc.5/download_windows_release_artifacts.ps1' -OutFile $installerScript
+Invoke-WebRequest -UseBasicParsing -Uri 'https://github.com/scottconverse/civiccast/releases/download/v1.0.0-rc.5/download_windows_release_artifacts.ps1' -OutFile $installerScript
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installerScript -Tag v1.0.0-rc.5 -Version 1.0.0-rc.5 -Install -Destination "$env:USERPROFILE\Downloads\CivicCast-RC5"
 ```
 

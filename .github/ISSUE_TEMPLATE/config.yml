@@ -2,13 +2,12 @@
 blank_issues_enabled: false
 contact_links:
   - name: Security vulnerability
-    url: https://github.com/scottconverse/civiccast-native/blob/main/SECURITY.md
+    url: https://github.com/scottconverse/civiccast/blob/main/SECURITY.md
     about: Security reports are handled privately. Do not file public issues.
   - name: Question or general discussion
-    url: https://github.com/scottconverse/civiccast/discussions
-    about: This repository does not have Discussions enabled yet. The
-      project's community discussion board lives on the original
-      scottconverse/civiccast repository for now.
+    url: https://github.com/scottconverse/civiccast/issues
+    about: GitHub Discussions is not enabled on this repository. Open an
+      issue and say that it is a question.
   - name: Read the release plan
-    url: https://github.com/scottconverse/civiccast-native/blob/main/docs/spec/release-plan.md
+    url: https://github.com/scottconverse/civiccast/blob/main/docs/spec/release-plan.md
     about: Confirm what's planned for the current rung before filing.

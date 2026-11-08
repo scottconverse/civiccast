@@ -284,7 +284,7 @@ jobs:
           $sha = "${{ github.event.workflow_run.head_sha }}"
           if ([string]::IsNullOrWhiteSpace($sha)) {
             Write-Host "No workflow_run head_sha available (workflow_dispatch trigger) -- resolving via gh run view $runId."
-            $runJson = & gh run view $runId -R "scottconverse/civiccast-native" --json headSha 2>&1
+            $runJson = & gh run view $runId -R "scottconverse/civiccast" --json headSha 2>&1
             if ($LASTEXITCODE -ne 0) {
               throw "gh run view $runId failed: $runJson"
             }
@@ -574,7 +574,7 @@ jobs:
           $sha = "${{ github.event.workflow_run.head_sha }}"
           if ([string]::IsNullOrWhiteSpace($sha)) {
             Write-Host "No workflow_run head_sha available (workflow_dispatch trigger) -- resolving via gh run view $runId."
-            $runJson = & gh run view $runId -R "scottconverse/civiccast-native" --json headSha 2>&1
+            $runJson = & gh run view $runId -R "scottconverse/civiccast" --json headSha 2>&1
             if ($LASTEXITCODE -ne 0) {
               throw "gh run view $runId failed: $runJson"
             }
@@ -658,7 +658,7 @@ jobs:
           if ($previousSha -eq "${{ steps.run_id.outputs.source_sha }}") {
             throw "Pinned previous source SHA equals the current candidate; this would be a same-candidate reinstall."
           }
-          $runJson = & gh run view $previousRunId -R "scottconverse/civiccast-native" --json headSha,workflowName,conclusion,status 2>&1
+          $runJson = & gh run view $previousRunId -R "scottconverse/civiccast" --json headSha,workflowName,conclusion,status 2>&1
           if ($LASTEXITCODE -ne 0) { throw "Could not verify pinned previous candidate run ${previousRunId}: $runJson" }
           $run = $runJson | ConvertFrom-Json
           if ($run.headSha -ne $previousSha -or $run.workflowName -ne 'native-beta-candidate-artifacts' -or $run.conclusion -ne 'success') {
@@ -974,7 +974,7 @@ jobs:
           $sha = "${{ github.event.workflow_run.head_sha }}"
           if ([string]::IsNullOrWhiteSpace($sha)) {
             Write-Host "No workflow_run head_sha available (workflow_dispatch trigger) -- resolving via gh run view $runId."
-            $runJson = & gh run view $runId -R "scottconverse/civiccast-native" --json headSha 2>&1
+            $runJson = & gh run view $runId -R "scottconverse/civiccast" --json headSha 2>&1
             if ($LASTEXITCODE -ne 0) {
               throw "gh run view $runId failed: $runJson"
             }
@@ -1061,7 +1061,7 @@ jobs:
           if ($previousSha -eq "${{ steps.run_id.outputs.source_sha }}") {
             throw "Pinned previous source SHA equals the current candidate; this would be a same-candidate reinstall."
           }
-          $runJson = & gh run view $previousRunId -R "scottconverse/civiccast-native" --json headSha,workflowName,conclusion,status 2>&1
+          $runJson = & gh run view $previousRunId -R "scottconverse/civiccast" --json headSha,workflowName,conclusion,status 2>&1
           if ($LASTEXITCODE -ne 0) { throw "Could not verify pinned previous candidate run ${previousRunId}: $runJson" }
           $run = $runJson | ConvertFrom-Json
           if ($run.headSha -ne $previousSha -or $run.workflowName -ne 'native-beta-candidate-artifacts' -or $run.conclusion -ne 'success') {

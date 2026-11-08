@@ -12,7 +12,7 @@ The current cleanroom-proven beta1 release is:
 - Tag: `v3.0.0-beta1-cleanroom-r19-runtime-isolation-formatfix`
 - Commit: `93f8958a0373d6daca7118713a3aab2ca6563dbb`
 - Release:
-  `https://github.com/scottconverse/civiccast/releases/tag/v3.0.0-beta1-cleanroom-r19-runtime-isolation-formatfix`
+  `https://github.com/scottconverse/civiccast-wsl-legacy/releases/tag/v3.0.0-beta1-cleanroom-r19-runtime-isolation-formatfix`
 - GitHub release-artifacts run: `28196906486`, success
 - GitHub ci-cleanroom-e2e run: `28196906460`, success
 

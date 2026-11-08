@@ -5,7 +5,7 @@
 > Windows product this project used to also ship, retired under the
 > owner's "no linux" decision (2026-08-19) -- see
 > [BRANCHES.md](../../BRANCHES.md). Its history lives in the separate,
-> private `scottconverse/civiccast` repository, not here. The paragraph and
+> private `scottconverse/civiccast-wsl-legacy` repository, not here. The paragraph and
 > platform-matrix row below are kept as historical context for why
 > `civiccast.installer.platform` still exists as a Linux/macOS-only module
 > and why the native product's own identity work (ADR 0021) had to be

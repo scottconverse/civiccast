@@ -45,7 +45,7 @@ does not match an official CivicCast release.
 <summary>Historical: retired WSL2-line macOS reference (repository not present here)</summary>
 
 An earlier revision of this page pointed testers at
-`https://github.com/scottconverse/civiccast` as an approved source. That
+`https://github.com/scottconverse/civiccast-wsl-legacy` as an approved source. That
 repository was the retired, separate WSL2-line product -- it is now private
 and not part of this repository's product line; its GitHub page does not
 resolve from here. It never shipped an approved macOS package either.

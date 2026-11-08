@@ -20,7 +20,7 @@ Start by reading the docs, then install from the release assets:
 - Windows install guide: `INSTALL-WINDOWS.md`
 - Trust and verification: `docs/install/windows-release-trust.md`
 - RC evidence boundary: `docs/releases/v0.2.0-verification.md`
-- Release tag: `https://github.com/scottconverse/civiccast/releases/tag/v0.2.0`
+- Release tag: `https://github.com/scottconverse/civiccast-wsl-legacy/releases/tag/v0.2.0`
 
 The clean-machine proof should confirm the published manifest and setup sidecar,
 run the Windows setup app, handle any required helper reboot, and prove the app
