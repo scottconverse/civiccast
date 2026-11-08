@@ -259,7 +259,7 @@ service, registered through the SCM under a session-0 identity, built
 under [ADR 0021](docs/adr/0021-native-windows-runtime.md) -- no WSL, no
 Docker, no Linux install target (see [BRANCHES.md](BRANCHES.md)). The
 retired WSL2/Ubuntu-with-systemd deployment described in earlier revisions
-of this section belonged to the separate, private `scottconverse/civiccast`
+of this section belonged to the separate, private `scottconverse/civiccast-wsl-legacy`
 repository. Local-CA mTLS is a production-like foundation. The in-process
 broker (`civiccast.platform.broker.InProcessBrokerClient`) is the sole
 event-bus implementation for all deployments (see ADR 0023, which

@@ -196,7 +196,7 @@ class TestUserManualVersionHeaderConsistency:
         assert render_user_manual._rendered_header_version_token(pdf_path) == published
         website = (_REPO_ROOT / "docs/index.html").read_text(encoding="utf-8")
         downloads = re.findall(
-            r"https://github\.com/scottconverse/civiccast-native/releases/download/"
+            r"https://github\.com/scottconverse/civiccast/releases/download/"
             r"([^/]+)/USER-MANUAL\.(?:pdf|docx)",
             website,
         )

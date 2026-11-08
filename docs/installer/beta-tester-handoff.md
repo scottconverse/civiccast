@@ -5,7 +5,7 @@
 > station (session-0 Windows service, no WSL) -- see
 > [BRANCHES.md](../../BRANCHES.md). This document's `v1.0.0-rc18` handoff
 > process, and the `docs/releases/v1.0.0-rc17-verification.md` link below,
-> belong to the separate, private `scottconverse/civiccast` repository and
+> belong to the separate, private `scottconverse/civiccast-wsl-legacy` repository and
 > do not resolve or apply here. Kept as historical reference pending a
 > native-line beta-handoff guide.
 
@@ -135,5 +135,5 @@ package -> Portal approval -> resident playback -- and cold-reboot recovery
 were last proven end to end against rc17's exact bytes on 2026-07-20 and had
 not been repeated on rc18's bytes as of that line's retirement. (That
 evidence document is not present in this repository -- it belonged to the
-separate, private `scottconverse/civiccast` repository.) This is historical
+separate, private `scottconverse/civiccast-wsl-legacy` repository.) This is historical
 record only, not proof of anything about this repository's native line.

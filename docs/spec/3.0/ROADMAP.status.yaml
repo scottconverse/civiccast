@@ -241,7 +241,7 @@ rows:
     # Downgraded from `built` at the native-repo migration, deliberately.
     # The evidence this row used to cite was the v3.0.0-beta1 24h public soak
     # — a WSL-line release. That proof is real and still lives in the archived
-    # scottconverse/civiccast under docs/releases/, but it proves nothing about
+    # scottconverse/civiccast-wsl-legacy under docs/releases/, but it proves nothing about
     # the native Windows product, which has not been soaked for 24h. Carrying
     # the documents across to keep this row green would have made the roadmap
     # assert a soak this product never had.

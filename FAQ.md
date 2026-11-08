@@ -170,7 +170,7 @@ tokens, passwords, private keys, resident data, or private meeting content.
 - [Release-state record](docs/releases/release-truth.yaml) -- the authored
   source of truth for which tag is current, staging, or historical. (The rc11
   through rc18 and v0.2.0/v0.1.0-rc6 verification documents this FAQ used to
-  link here belonged to the retired, separate `scottconverse/civiccast`
+  link here belonged to the retired, separate `scottconverse/civiccast-wsl-legacy`
   repository and are not present in this repository, so they are not linked.)
 - [LPM beta handoff](docs/tester/lpm-beta-test-handoff.md) for the controlled
   Longmont Public Media tester artifact and station-side proof steps.

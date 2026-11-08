@@ -17,8 +17,10 @@ Branch from `main`, target `main`. There is no second line to choose between.
 ## Where the old line went
 
 This repository was created on 2026-08-19 by copying the native product out of
-[`scottconverse/civiccast`](https://github.com/scottconverse/civiccast) with
-**fresh history**. That repository is now private and still holds:
+[`scottconverse/civiccast-wsl-legacy`](https://github.com/scottconverse/civiccast-wsl-legacy) with
+**fresh history**. That repository (named `scottconverse/civiccast` until
+2026-11-08, when it was renamed and archived; this repository then took the
+`scottconverse/civiccast` name) is now private and still holds:
 
 * the WSL2/Ubuntu install path and its `docker/`, `deploy/systemd/` and
   Linux-GStreamer tooling,

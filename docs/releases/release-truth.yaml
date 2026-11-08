@@ -15,7 +15,7 @@
 #   in docs/releases/ verification documents and release assets.
 
 schema_version: 1
-# Was scottconverse/civiccast. This manifest governs THIS repository's
+# Was scottconverse/civiccast-wsl-legacy. This manifest governs THIS repository's
 # release state; pointing it at the archived repo would have made every
 # release claim here checked against a line this repo does not ship.
 repository: scottconverse/civiccast-native
@@ -264,7 +264,7 @@ entries:
       GitHub release/tag exists or will exist for this entry; a live-mode
       run of `check_release_truth.py` against this manifest is expected to
       report it as having no matching live release for exactly that reason.
-  # Below: the retired, separate WSL2-line product (scottconverse/civiccast,
+  # Below: the retired, separate WSL2-line product (scottconverse/civiccast-wsl-legacy,
   # NOT this repository). None of these tags are live releases on
   # civiccast-native; retained here only because prior entries already
   # existed at the time this manifest was repointed to the native repo (see
@@ -275,7 +275,7 @@ entries:
   - tag: v1.0.0-rc15
     status: historical
     notes: >-
-      Retired WSL2-line release (scottconverse/civiccast, a different
+      Retired WSL2-line release (scottconverse/civiccast-wsl-legacy, a different
       repository) -- NOT a civiccast-native release. Kept as a historical
       record only; was incorrectly carried as this manifest's `current` entry
       before 2026-09-02 even though this manifest's `repository:` field

@@ -5,7 +5,7 @@
 > ships one product, the native Windows station (session-0 Windows
 > service, no WSL) -- see [BRANCHES.md](../../BRANCHES.md). This
 > walkthrough's rc13/rc-artifact-soak process belongs to the separate,
-> private `scottconverse/civiccast` repository and does not apply here.
+> private `scottconverse/civiccast-wsl-legacy` repository and does not apply here.
 > The native line's station-acceptance gate is Gate A -- see
 > [docs/ops/gate-a.md](../ops/gate-a.md). For current Beta 20 guidance, use the
 > [current User Manual](../USER-MANUAL.md), [Beta 20 verification

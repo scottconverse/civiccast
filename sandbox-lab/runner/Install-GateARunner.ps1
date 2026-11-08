@@ -2,7 +2,7 @@
 # Copyright (c) The CivicCast Authors
 #
 # Install-GateARunner.ps1 -- installs a GitHub Actions self-hosted runner for
-# scottconverse/civiccast-native, labeled for Gate A (sandbox-lab), on this
+# scottconverse/civiccast, labeled for Gate A (sandbox-lab), on this
 # Windows box.
 #
 # IMPORTANT: this runner MUST start as an INTERACTIVE logon scheduled task
@@ -21,7 +21,7 @@
 #
 # This script CANNOT be tested end-to-end here: registration requires a
 # short-lived GitHub registration token the caller must supply (from
-# `gh api repos/scottconverse/civiccast-native/actions/runners/registration-token`
+# `gh api repos/scottconverse/civiccast/actions/runners/registration-token`
 # or the repo's Settings > Actions > Runners > New self-hosted runner page),
 # and this environment has none. What IS verified (see docs/ops/gate-a.md):
 # this file parses clean under
@@ -39,7 +39,7 @@ param(
     [string]$Token,
 
     [string]$RunnerDir = 'C:\actions-runner-gate-a',
-    [string]$Repo = 'scottconverse/civiccast-native',
+    [string]$Repo = 'scottconverse/civiccast',
     [string[]]$Labels = @('self-hosted', 'windows', 'sandbox-lab'),
     [string]$RunnerName = $null,
 

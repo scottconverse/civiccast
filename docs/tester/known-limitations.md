@@ -77,7 +77,7 @@ a later GauntletGate rebuild.
 > repository.** `civiccast-native` ships one product, the native Windows
 > station (session-0 Windows service, no WSL) -- see
 > [BRANCHES.md](../../BRANCHES.md). This section's `rc15`/WSL2 setup
-> behavior belongs to the separate, private `scottconverse/civiccast`
+> behavior belongs to the separate, private `scottconverse/civiccast-wsl-legacy`
 > repository and does not apply here. Kept as historical reference pending
 > a native-line known-limitations section.
 
@@ -185,7 +185,7 @@ caption-SEI lane depends on the CivicCast-bundled private GStreamer runtime,
 which the installer must extract and verify before claiming readiness.
 
 **Historical: the paragraph below describes the retired public WSL2 line**
-(`v1.0.0-rc18` and earlier, repository `scottconverse/civiccast`), not this
+(`v1.0.0-rc18` and earlier, repository `scottconverse/civiccast-wsl-legacy`), not this
 repository's native Windows line. Its cited verification documents
 (`docs/releases/v1.0.0-rc{13,17,18}-verification.md`) are not present in this
 repository and are not linked here for that reason. `v1.0.0-beta.1` (the

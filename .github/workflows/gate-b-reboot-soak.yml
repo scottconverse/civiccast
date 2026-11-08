@@ -132,7 +132,7 @@ jobs:
             $leaf = Split-Path $kitDir -Leaf
             if ($leaf -match '^[0-9a-f]{7,40}$') { $sha = $leaf }
           } elseif (-not [string]::IsNullOrWhiteSpace($runId)) {
-            $runJson = & gh run view $runId -R "scottconverse/civiccast-native" --json headSha 2>&1
+            $runJson = & gh run view $runId -R "scottconverse/civiccast" --json headSha 2>&1
             if ($LASTEXITCODE -ne 0) { throw "gh run view $runId failed: $runJson" }
             $sha = ($runJson | ConvertFrom-Json).headSha
             # Prefer a kit this box already has -- the same local-first

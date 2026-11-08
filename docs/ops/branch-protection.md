@@ -22,7 +22,7 @@ status-check requirements are still load-bearing:
 
 GitHub gates branch protection and repository rulesets behind **either**
 GitHub Pro **or** a public repo. CivicCast remains at
-`scottconverse/civiccast`; do not assume an org transfer as the hardening path.
+`scottconverse/civiccast-wsl-legacy`; do not assume an org transfer as the hardening path.
 Attempting to read or apply protection on the current private repo returns:
 
 ```
@@ -31,7 +31,7 @@ Attempting to read or apply protection on the current private repo returns:
 
 Two paths to unblock:
 
-- **Path A:** Upgrade the current `scottconverse/civiccast` private repo to a
+- **Path A:** Upgrade the current `scottconverse/civiccast-wsl-legacy` private repo to a
   GitHub plan that supports branch protection/rulesets.
 - **Path B:** Make the current repo public when the project is ready for that
   exposure, then apply protection in place.
@@ -108,7 +108,8 @@ The response should show every status check listed above as required.
 
 - When a new CI workflow is added: add its job name to the contexts list.
 - When the repo becomes public or the account plan supports protection:
-  apply the command above against `scottconverse/civiccast`.
+  apply the command above against `scottconverse/civiccast` (this repository; renamed from
+  `scottconverse/civiccast-native` on 2026-11-08).
 - When the Steering Committee phase begins: tighten the
   `required_pull_request_reviews` field.
 
@@ -117,7 +118,7 @@ The response should show every status check listed above as required.
 - 2026-05-09: protection not yet applied. Day 0 finding tracked in
   `next-cleanup.md`. Doc shipped as part of cleanup batch A; Scott to
   apply when convenient.
-- 2026-05-15: Scott decided to keep the repo at `scottconverse/civiccast`.
+- 2026-05-15: Scott decided to keep the repo at `scottconverse/civiccast-wsl-legacy`.
   Protection remains approved but blocked by GitHub plan/private-repo limits.
 - 2026-06-16: **APPLIED.** The repo is now public (the plan gate lifted), and
   Scott gave the go. Verify-then-apply found that two of the seven pre-staged

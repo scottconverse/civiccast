@@ -5,7 +5,7 @@
 > station (session-0 Windows service, no WSL2) -- see
 > [BRANCHES.md](../../BRANCHES.md). The `v1.0.0-rc18` release, its GitHub
 > release page, and the `docs/releases/v1.0.0-rc18-verification.md` link
-> below belong to the separate, private `scottconverse/civiccast`
+> below belong to the separate, private `scottconverse/civiccast-wsl-legacy`
 > repository and do not resolve or apply here. ADR 0021, referenced below
 > as "in development," is what this repository now ships. Kept as
 > historical reference pending a native-line early-adopter quickstart.
@@ -57,7 +57,7 @@ stage-gate remediations that defined it. Its exact bytes passed a clean-host
 install, launch, reinstall, uninstall and rc17-to-rc18 upgrade on a pristine
 Windows 11 machine, and an interactive installer walkthrough. Its GitHub
 release page and verification record are not present in this repository --
-they belonged to the separate, private `scottconverse/civiccast` repository.
+they belonged to the separate, private `scottconverse/civiccast-wsl-legacy` repository.
 
 ## Historical: Before You Install (retired WSL2 line)
 

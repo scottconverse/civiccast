@@ -77,7 +77,7 @@ param(
     # sandbox) < 170 (host poll), and the host's -QuietShareMinutes ends a
     # dead channel long before either.
     [int]$TimeoutMinutes = 170,
-    [string]$Repo = 'scottconverse/civiccast-native',
+    [string]$Repo = 'scottconverse/civiccast',
 
     # Passed straight through to Host-Launch-Sandbox-Test.ps1: minutes to
     # wait for Windows Sandbox to become free before giving up. Windows

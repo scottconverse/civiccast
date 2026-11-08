@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Repository renamed from `scottconverse/civiccast-native` to `scottconverse/civiccast`; the retired WSL2-line repository is now `scottconverse/civiccast-wsl-legacy` (archived). Docs, website links, the download helper default and release tooling updated; the old address still redirects. Internal product identifiers (`civiccast-native`) are unchanged.
+
 ## [1.0.0-rc.5] - 2026-11-07
 
 Release candidate **v1.0.0-rc.5**. Full notes, verification and known issues:

@@ -5,7 +5,7 @@
 
 Owner decision 2026-09-02: the coordinating agent cuts beta-candidate
 releases going forward. Every green build gets tagged and published on the
-PUBLIC repo ``scottconverse/civiccast-native`` as a GitHub pre-release,
+PUBLIC repo ``scottconverse/civiccast`` as a GitHub pre-release,
 because the beta tester (Sergio, "LPM") checks GitHub daily for new
 versions. The existing ``v1.0.0-beta.1`` release has NO assets (it was
 USB-delivered). GitHub release assets are capped at 2 GiB/file, so the large
@@ -80,7 +80,7 @@ from scripts.release.candidate_manual import (  # noqa: E402
 )
 from scripts.render_release_notes import render_native_beta_candidate_notes  # noqa: E402
 
-DEFAULT_REPOSITORY = "scottconverse/civiccast-native"
+DEFAULT_REPOSITORY = "scottconverse/civiccast"
 # GitHub's documented per-file release-asset cap is 2 GiB
 # (docs.github.com "Managing releases in a repository": "Each file included
 # in a release must be under 2 GiB"). Enforced as a pre-flight BEFORE any

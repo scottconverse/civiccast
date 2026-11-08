@@ -8,7 +8,7 @@ has no per-minute software fee.
 
 ## Current published package
 
-[`v1.0.0-rc.5`](https://github.com/scottconverse/civiccast-native/releases/tag/v1.0.0-rc.5)
+[`v1.0.0-rc.5`](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-rc.5)
 is the current published native Windows pre-release (published November 7, 2026).
 Its source tag is commit `e85242fe`; the signed artifacts were built from
 `b7ee4b76` in build run 42266094111. The signed `setup.exe` has SHA-256
@@ -19,7 +19,7 @@ a valid Authenticode signature and signer `CN=Scott Converse`. The
 It keeps live captions on time while the station prepares upcoming programmes, and
 refuses XML documents at media intake (CVE-2026-120210). A 24-hour soak on the
 Beelink target station follows before v1.0.0.
-It replaces [`v1.0.0-rc.4`](https://github.com/scottconverse/civiccast-native/releases/tag/v1.0.0-rc.4)
+It replaces [`v1.0.0-rc.4`](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-rc.4)
 (published November 5, 2026), whose [release notes](docs/releases/v1.0.0-rc.4-release-notes.md)
 and [preparation record](docs/releases/v1.0.0-rc.4-verification.md) are retained as history.
 Windows 11 is the verified platform. Source changes after publication do not
@@ -27,7 +27,7 @@ update an installed station.
 
 ## Previous published package (Beta 19)
 
-The signed Beta 19 [release page](https://github.com/scottconverse/civiccast-native/releases/tag/v1.0.0-beta.19)
+The signed Beta 19 [release page](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-beta.19)
 provides the installer, runtime packs, station-model bundle, manuals, and
 checksums. The [Beta 19 verification record](docs/releases/v1.0.0-beta.19-verification.md)
 identifies the exact package and its scoped verification results. For
@@ -57,7 +57,7 @@ Download the signed RC5 station with the Windows helper. It obtains the installe
 
 ```powershell
 $installerScript = Join-Path $env:TEMP 'CivicCast-Install-RC5.ps1'
-Invoke-WebRequest -UseBasicParsing -Uri 'https://github.com/scottconverse/civiccast-native/releases/download/v1.0.0-rc.5/download_windows_release_artifacts.ps1' -OutFile $installerScript
+Invoke-WebRequest -UseBasicParsing -Uri 'https://github.com/scottconverse/civiccast/releases/download/v1.0.0-rc.5/download_windows_release_artifacts.ps1' -OutFile $installerScript
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installerScript -Tag v1.0.0-rc.5 -Version 1.0.0-rc.5 -Install -Destination "$env:USERPROFILE\Downloads\CivicCast-RC5"
 ```
 
@@ -68,7 +68,7 @@ names the step in progress. If a download is interrupted, rerun the same command
 
 See [Install CivicCast on Windows](INSTALL-WINDOWS.md) for first setup, existing installations, offline copies and password recovery. Open **CivicCast Operator Console** after setup finishes.
 
-The [source manual](docs/USER-MANUAL.md) describes the current controls. The published RC5 manual ([PDF](https://github.com/scottconverse/civiccast-native/releases/download/v1.0.0-rc.5/USER-MANUAL.pdf), [Word](https://github.com/scottconverse/civiccast-native/releases/download/v1.0.0-rc.5/USER-MANUAL.docx)) covers that package's operation, installation and architecture. Online manual revisions reach installed copies with a replacement application package. Additional guides: [Admin](docs/admin-guide.md), [Meeting Operator](docs/meeting-operator-guide.md), [Records Clerk](docs/records-clerk-guide.md) and [Tester Start Here](docs/tester/START-HERE.md).
+The [source manual](docs/USER-MANUAL.md) describes the current controls. The published RC5 manual ([PDF](https://github.com/scottconverse/civiccast/releases/download/v1.0.0-rc.5/USER-MANUAL.pdf), [Word](https://github.com/scottconverse/civiccast/releases/download/v1.0.0-rc.5/USER-MANUAL.docx)) covers that package's operation, installation and architecture. Online manual revisions reach installed copies with a replacement application package. Additional guides: [Admin](docs/admin-guide.md), [Meeting Operator](docs/meeting-operator-guide.md), [Records Clerk](docs/records-clerk-guide.md) and [Tester Start Here](docs/tester/START-HERE.md).
 
 ### Developer — run from source, contribute
 
@@ -167,7 +167,7 @@ displays CAP/IPAWS and never claims "EAS-compliant").
 - [3.0 Master Spec](docs/spec/3.0/civiccast-3.0-station-in-a-box-MASTER.md)
 - [Roadmap Status Manifest](docs/spec/3.0/ROADMAP.status.yaml)
 - [Legal Notices](LEGAL-NOTICES.md)
-- [GitHub Issues](https://github.com/scottconverse/civiccast-native/issues) (GitHub Discussions is not enabled on this repository)
+- [GitHub Issues](https://github.com/scottconverse/civiccast/issues) (GitHub Discussions is not enabled on this repository)
 
 ## Contributing
 

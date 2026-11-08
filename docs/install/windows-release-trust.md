@@ -7,7 +7,7 @@
 
 ## Current Release State
 
-`v1.0.0-rc.5` is the current signed public release. Download the complete kit from its [release page](https://github.com/scottconverse/civiccast-native/releases/tag/v1.0.0-rc.5),
+`v1.0.0-rc.5` is the current signed public release. Download the complete kit from its [release page](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-rc.5),
 and use that release's `SHA256SUMS.txt`, installer signature and station/pack
 manifests to verify the bytes you receive. The [RC5 release
 notes](../releases/v1.0.0-rc.5-release-notes.md) identify the exact signed
@@ -17,8 +17,11 @@ known issues. Earlier installation results remain
 in their own verification records.
 [release-truth.yaml](../releases/release-truth.yaml)
 is the authored release-state record. Watch the official native release page,
-not `scottconverse/civiccast` (the retired, separate WSL2-line repository) and
+not `scottconverse/civiccast-wsl-legacy` (the retired, separate WSL2-line repository) and
 not any `v1.0.0-rcNN` tag, which belongs to that other repository.
+
+This repository was renamed from `scottconverse/civiccast-native` to
+`scottconverse/civiccast` on 2026-11-08; the old address redirects to it.
 
 `v1.0.0-beta.11` and earlier published betas are superseded. Beta 8 and 9
 were never published; their work was included in Beta 10. See their
@@ -87,7 +90,7 @@ Use the helper asset from the exact tagged release. Download the helper and
 
 ```powershell
 $tag = "v1.0.0-beta.20"
-$base = "https://github.com/scottconverse/civiccast-native/releases/download/$tag"
+$base = "https://github.com/scottconverse/civiccast/releases/download/$tag"
 $helper = Join-Path $env:TEMP "CivicCast-Install-Beta20.ps1"
 $sums = Join-Path $env:TEMP "CivicCast-Beta20-SHA256SUMS.txt"
 Invoke-WebRequest -UseBasicParsing "$base/download_windows_release_artifacts.ps1" -OutFile $helper
@@ -201,7 +204,7 @@ the hash and release provenance.
 ## Historical: retired rc line
 
 Everything below describes the retired public WSL2 line
-(`v1.0.0-rc18` and earlier, repository `scottconverse/civiccast`) that this
+(`v1.0.0-rc18` and earlier, repository `scottconverse/civiccast-wsl-legacy`) that this
 repository does not carry. It is preserved as historical evidence only. The
 verification document it used to cite
 (`docs/releases/v1.0.0-rc18-verification.md`) is not present in this
