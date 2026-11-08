@@ -1,6 +1,6 @@
 # New PEG operator: install and run three channels
 
-Use the complete signed kit matching the release. The current public download is [v1.0.0-rc.5](https://github.com/scottconverse/civiccast-native/releases/tag/v1.0.0-rc.5), published November 7, 2026; see its [release notes](https://github.com/scottconverse/civiccast-native/blob/main/docs/releases/v1.0.0-rc.5-release-notes.md) for verification and known issues. Start with the [Windows installation guide](https://github.com/scottconverse/civiccast-native/blob/main/INSTALL-WINDOWS.md) and [release-trust guide](https://github.com/scottconverse/civiccast-native/blob/main/docs/install/windows-release-trust.md). In the kit, read `manual/USER-MANUAL.pdf` or use Help in the app.
+Use the complete signed kit matching the release. The current public download is [v1.0.0-rc.5](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-rc.5), published November 7, 2026; see its [release notes](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-rc.5-release-notes.md) for verification and known issues. Start with the [Windows installation guide](https://github.com/scottconverse/civiccast/blob/main/INSTALL-WINDOWS.md) and [release-trust guide](https://github.com/scottconverse/civiccast/blob/main/docs/install/windows-release-trust.md). In the kit, read `manual/USER-MANUAL.pdf` or use Help in the app.
 
 1. Back up a working station before upgrading. Install only the complete matching signed kit and wait for successful completion. In First Setup, save the recovery kit away from the station.
 2. Open the local operator console at `http://127.0.0.1:8000/operator/` on the station.
@@ -29,7 +29,7 @@ underwriting daypart selection. This quick start
 covers the published kit, first setup, recovery, and closed field testing.
 The [Beta 18 verification record](releases/v1.0.0-beta.18-verification.md)
 identifies its signed build and scoped checks. Use the complete kit from the
-[Beta 18 release](https://github.com/scottconverse/civiccast-native/releases/tag/v1.0.0-beta.18).
+[Beta 18 release](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-beta.18).
 
 ## Before you begin
 

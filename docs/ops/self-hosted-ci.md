@@ -40,7 +40,7 @@ terminal process. If GitHub reports `scott-desktop-wsl` as offline, the correct
 first check is:
 
 ```powershell
-gh api repos/scottconverse/civiccast-native/actions/runners
+gh api repos/scottconverse/civiccast/actions/runners
 wsl -u root bash -lc "cd /root/actions-runner-civiccast && ./svc.sh status"
 ```
 

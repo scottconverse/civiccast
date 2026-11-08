@@ -214,27 +214,27 @@ are in the Sprint 6 record above. No package build or production cutover occurre
 
 Publication branch was `main`. Read current branch and HEAD from Git.
 Current published tag: `v1.0.0-beta.19`.
-PR #257: https://github.com/scottconverse/civiccast-native/pull/257;
+PR #257: https://github.com/scottconverse/civiccast/pull/257;
 merge/tag target `b5204750bd96986dcde1adadffc0fe4b4e81f695`.
 Current source includes Sprint 5 remote-guest composition and relay
 commissioning, bulletin-board live video and audio, and native viewer
 completion, along with the earlier Beta 17/18 publication/import work.
 Beta 19's signed kit was built from
 `7d61cbede3123a65b4a0d6d4b413ae99edbc3f04` in
-[workflow 38797808863](https://github.com/scottconverse/civiccast-native/actions/runs/38797808863).
+[workflow 38797808863](https://github.com/scottconverse/civiccast/actions/runs/38797808863).
 Its package identity and scoped checks are in the
 [Beta 19 verification record](docs/releases/v1.0.0-beta.19-verification.md).
-The [public Beta 19 release](https://github.com/scottconverse/civiccast-native/releases/tag/v1.0.0-beta.19)
+The [public Beta 19 release](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-beta.19)
 has 26 verified assets. The exact package has no fresh-install, upgrade,
 uninstall or extended-soak result; those outcomes remain for later evaluation.
 The historical Beta 17 record below is retained for attribution.
 
 ## Beta 17 release (2026-10-15)
 
-[PR #251](https://github.com/scottconverse/civiccast-native/pull/251) merged as
+[PR #251](https://github.com/scottconverse/civiccast/pull/251) merged as
 `4a5804608c38774bc04b4c2a5c6f34f56ebdea26`, the Beta 17 tag target.
 The signed installer was built from `597b97fd21ad1e9e5fd52bb399f81214ffdb88f0`.
-The [Beta 17 release](https://github.com/scottconverse/civiccast-native/releases/tag/v1.0.0-beta.17)
+The [Beta 17 release](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-beta.17)
 and [package record](docs/releases/v1.0.0-beta.17-verification.md) identify
 its assets and scoped checks.
 
@@ -249,14 +249,14 @@ below belong only to Beta 16.
 
 At Beta 17, the source brought together station operations, unattended scheduling,
 broadcast output, programme transitions, HLS retention, and recorded-caption
-work. Signed `v1.0.0-beta.17` was that edition's [published release](https://github.com/scottconverse/civiccast-native/releases/tag/v1.0.0-beta.17); the
+work. Signed `v1.0.0-beta.17` was that edition's [published release](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-beta.17); the
 [package verification record](docs/releases/v1.0.0-beta.17-verification.md)
 identifies its installer and checks.
 
 PR #249 merged to `main` as `efcab4c1f618e4a46bf62491ee410a9fcd9e7618`, the Beta 16 tag target.
 The signed Beta 16 package was built from
 `e92bebd4b5289dce969f81b72515cfa0d45eba55`, successful
-[build 38635220200](https://github.com/scottconverse/civiccast-native/actions/runs/38635220200).
+[build 38635220200](https://github.com/scottconverse/civiccast/actions/runs/38635220200).
 The corrected package passed upgrade, administrator/profile preservation,
 restricted service/process identity, installed GStreamer smoke, and uninstall
 in the 240 GiB Hyper-V guest. Clean fresh installation also passed, including
@@ -264,7 +264,7 @@ new administrator setup, healthy/current Beta 16, restricted process ownership
 and installed runtime smoke. The owner subsequently authorized publication.
 The earlier candidate used
 `9b83d7b89cddc987fbbcc5e23a1433339810d5d6` on `codex/beta16-release`,
-[build 38579665236](https://github.com/scottconverse/civiccast-native/actions/runs/38579665236).
+[build 38579665236](https://github.com/scottconverse/civiccast/actions/runs/38579665236).
 That candidate failed upgrade service registration in the replacement 160 GiB
 Hyper-V guest and restored healthy Beta 15 with the saved station profile.
 The corrected source stops the service before migrating its identity.
@@ -277,7 +277,7 @@ Current source work includes:
 - [Sprint 3](docs/ops/sprint3-output-completion.md): RTMP output, per-output audio processing, complete programme endings, coordinated HLS retention, and recorded-caption settings.
 - Updated product guidance for the combined source edition; see the [roadmap](docs/ROADMAP.md).
 
-The previous [CivicCast Beta 15 release](https://github.com/scottconverse/civiccast-native/releases/tag/v1.0.0-beta.15), published October 13, 2026, retains its exact package identity and scoped results in the [Beta 15 verification record](docs/releases/v1.0.0-beta.15-verification.md).
+The previous [CivicCast Beta 15 release](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-beta.15), published October 13, 2026, retains its exact package identity and scoped results in the [Beta 15 verification record](docs/releases/v1.0.0-beta.15-verification.md).
 
 The Beta 15 R9 field report recorded scheduled speech appearing as slate, a CG
 playlist referring to missing segments, an unsigned installed native
@@ -286,13 +286,13 @@ workflows remain bounded as described in the [Beta 17 deferred
 backlog](docs/ops/beta17-deferred.md). The owner deferred those follow-ups
 until after Beta 16 is released. They are not Beta 16 package results.
 
-Historical source merges remain traceable through [PR #245](https://github.com/scottconverse/civiccast-native/pull/245), [PR #246](https://github.com/scottconverse/civiccast-native/pull/246), and [PR #247](https://github.com/scottconverse/civiccast-native/pull/247). Their sprint records preserve contemporaneous implementation evidence and limitations.
+Historical source merges remain traceable through [PR #245](https://github.com/scottconverse/civiccast/pull/245), [PR #246](https://github.com/scottconverse/civiccast/pull/246), and [PR #247](https://github.com/scottconverse/civiccast/pull/247). Their sprint records preserve contemporaneous implementation evidence and limitations.
 
 ## Historical Beta 14 publication handoff
 
 The following is retained history, not the current station or work status.
 
-Beta 14 is published: https://github.com/scottconverse/civiccast-native/releases/tag/v1.0.0-beta.14
+Beta 14 is published: https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-beta.14
 Published 2026-10-12 10:25:01 UTC. All 26 assets passed name/size and SHA-256
 digest verification. Six actual public downloads matched SHA-256; the
 downloaded installer has a Valid Scott Converse Authenticode signature.

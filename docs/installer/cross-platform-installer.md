@@ -1,6 +1,6 @@
 # Cross-Platform Installer
 
-> **This repository (`civiccast-native`) ships ONE Windows product: the
+> **This repository (`civiccast`, formerly `civiccast-native`) ships ONE Windows product: the
 > native line.** The "WSL line" described below was a real, separate
 > Windows product this project used to also ship, retired under the
 > owner's "no linux" decision (2026-08-19) -- see

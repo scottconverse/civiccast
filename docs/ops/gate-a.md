@@ -1116,7 +1116,7 @@ rationale.
 
 ```powershell
 # Get a registration token first:
-gh api repos/scottconverse/civiccast-native/actions/runners/registration-token --method POST
+gh api repos/scottconverse/civiccast/actions/runners/registration-token --method POST
 
 pwsh -File sandbox-lab/runner/Install-GateARunner.ps1 -Token <token>
 ```
@@ -1127,7 +1127,7 @@ This installs to `C:\actions-runner-gate-a` by default, registers with labels
 launched by this install (no token available in this environment to actually
 register against GitHub) — after registering, either log off/on once or run
 `Start-ScheduledTask -TaskName 'CivicCastGateARunner-<name>'` to start it,
-then confirm with `gh api repos/scottconverse/civiccast-native/actions/runners`.
+then confirm with `gh api repos/scottconverse/civiccast/actions/runners`.
 
 ## Dirty lane: the cross-version install-over-existing gate
 

@@ -7,7 +7,7 @@
 
 # Beta 20 tester quickstart
 
-Historical Beta20 testing used the complete kit from the [release page](https://github.com/scottconverse/civiccast-native/releases/tag/v1.0.0-beta.20). Check the [package verification record](../releases/v1.0.0-beta.20-verification.md) for the exact signed installer and scoped results.
+Historical Beta20 testing used the complete kit from the [release page](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-beta.20). Check the [package verification record](../releases/v1.0.0-beta.20-verification.md) for the exact signed installer and scoped results.
 
 ## Install, open, and check
 
@@ -70,6 +70,6 @@ live caption-input coverage and 216 healthy scheduled checkpoints. See the
 Older Beta10 and earlier verification records are retained in
 [`docs/releases`](../releases/). They describe their specific packages and do
 not establish Beta 20 results. Current native Windows source is in
-[civiccast-native](https://github.com/scottconverse/civiccast-native). The
+[civiccast](https://github.com/scottconverse/civiccast) (formerly `civiccast-native`). The
 retired WSL2 product line and its `rc` releases belong to a separate repository
 and are not current tester instructions.

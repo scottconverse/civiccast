@@ -16,7 +16,7 @@ Live pre-flight uses the local rehearsal video only for the unchanged bundled
 sample source. Editing its channel, type, address or credentials switches the
 check to the configured live source; the sample file cannot stand in for it.
 
-Audited 2026-10-08 against the Beta.11 manual source and application code. This is a dated source audit, not a release-status statement; check the [project releases page](https://github.com/scottconverse/civiccast-native/releases) for current publication and download status. Its Beta 11 observations are retained as historical audit evidence. The linked per-screen sheets indexed by [README.md](README.md) are historical Beta 10 snapshots.
+Audited 2026-10-08 against the Beta.11 manual source and application code. This is a dated source audit, not a release-status statement; check the [project releases page](https://github.com/scottconverse/civiccast/releases) for current publication and download status. Its Beta 11 observations are retained as historical audit evidence. The linked per-screen sheets indexed by [README.md](README.md) are historical Beta 10 snapshots.
 
 ## Source coverage
 

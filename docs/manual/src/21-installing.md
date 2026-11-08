@@ -6,13 +6,13 @@ This chapter walks through Windows setup, first run, first setup in the operator
 
 The published RC5 package is `v1.0.0-rc.5`. Use the install page’s explicit `-Tag v1.0.0-rc.5 -Version 1.0.0-rc.5` command, its setup and its manual together; a later source checkout does not change the frozen release assets.
 
-- For a first install, use the release-matched helper linked in [Install CivicCast on Windows](https://github.com/scottconverse/civiccast-native/blob/main/INSTALL-WINDOWS.md). Its `-Install` option verifies the release assets, reuses matching published model packs where specified, assembles the complete kit, then runs setup with `/S`.
+- For a first install, use the release-matched helper linked in [Install CivicCast on Windows](https://github.com/scottconverse/civiccast/blob/main/INSTALL-WINDOWS.md). Its `-Install` option verifies the release assets, reuses matching published model packs where specified, assembles the complete kit, then runs setup with `/S`.
 - You checked the installer's hash and signature ([Chapter 9](#ch-planning), "Download and verify what you need").
 - You have a Windows administrator account. Allow about 55 GB on the install drive for a prepared offline kit, or about 100 GB when the download preparation and installation share one drive, plus space for media and recordings.
 - The computer will stay on, awake and connected to power for the whole install.
 - For an upgrade, you also have a backup and you accept that the station goes off air while setup runs.
 
-> **Note:** Use only a package listed on the [releases page](https://github.com/scottconverse/civiccast-native/releases) or named by the active owner-authorized handoff. A previous release's verification record does not qualify the package you install. Keep a separate backup and a station recovery path before upgrading.
+> **Note:** Use only a package listed on the [releases page](https://github.com/scottconverse/civiccast/releases) or named by the active owner-authorized handoff. A previous release's verification record does not qualify the package you install. Keep a separate backup and a station recovery path before upgrading.
 
 ## What the release and local kit contain
 
@@ -208,7 +208,7 @@ The self-test runs the real programs once. The caption test is forced onto the p
 
 #### Service, firewall and finish
 
-Setup registers **CivicCast Native Supervisor** (`CivicCastSupervisor`) to run automatically as the restricted Windows virtual account `NT SERVICE\CivicCastSupervisor`, starts it, and waits up to 120 seconds for Windows to report it running and up to 180 seconds for the web server to answer `/health`. On an existing default LocalSystem installation, setup first migrates the old service profile and CivicCast credentials before changing the account. See the [restricted service identity guide](https://github.com/scottconverse/civiccast-native/blob/main/docs/ops/restricted-service-identity.md). Setup then adds the firewall rule, records the version, fixes the "Apps" entry's size and uninstall command, and writes three shortcuts: **CivicCast Operator Console** on the Desktop and in the Start menu folder "CivicCast (Native)", and **CivicCast Public Portal** in that folder. The shortcuts open the local loopback listener at `http://127.0.0.1:8000/operator/` and `http://127.0.0.1:8000/`.
+Setup registers **CivicCast Native Supervisor** (`CivicCastSupervisor`) to run automatically as the restricted Windows virtual account `NT SERVICE\CivicCastSupervisor`, starts it, and waits up to 120 seconds for Windows to report it running and up to 180 seconds for the web server to answer `/health`. On an existing default LocalSystem installation, setup first migrates the old service profile and CivicCast credentials before changing the account. See the [restricted service identity guide](https://github.com/scottconverse/civiccast/blob/main/docs/ops/restricted-service-identity.md). Setup then adds the firewall rule, records the version, fixes the "Apps" entry's size and uninstall command, and writes three shortcuts: **CivicCast Operator Console** on the Desktop and in the Start menu folder "CivicCast (Native)", and **CivicCast Public Portal** in that folder. The shortcuts open the local loopback listener at `http://127.0.0.1:8000/operator/` and `http://127.0.0.1:8000/`.
 
 > **Known issue (beta.11):** The shortcuts are plain web links. If the service is stopped they show a browser error, and nothing tells the operator to start the service. See "If it did not work".
 
@@ -261,7 +261,7 @@ Two alert bars may also appear: "No files have started downloading yet. CivicCas
 
 ### Step 6: First setup in the operator console
 
-Open the **CivicCast Operator Console** shortcut (or **Open operator console**) in a browser on the station computer. The address is `http://127.0.0.1:8000/operator/`. Use `/operator/#/setup` on that computer to create or recover the first administrator. Ordinary staff use the separate `/operator/#/login` page; when the staff hostname is configured, they can sign in from an approved staff network. See the [network access guide](https://github.com/scottconverse/civiccast-native/blob/main/docs/ops/network-access.md) and [staff accounts guide](https://github.com/scottconverse/civiccast-native/blob/main/docs/ops/staff-accounts.md). A remote-control tool remains suitable for first setup because its browser runs on the station.
+Open the **CivicCast Operator Console** shortcut (or **Open operator console**) in a browser on the station computer. The address is `http://127.0.0.1:8000/operator/`. Use `/operator/#/setup` on that computer to create or recover the first administrator. Ordinary staff use the separate `/operator/#/login` page; when the staff hostname is configured, they can sign in from an approved staff network. See the [network access guide](https://github.com/scottconverse/civiccast/blob/main/docs/ops/network-access.md) and [staff accounts guide](https://github.com/scottconverse/civiccast/blob/main/docs/ops/staff-accounts.md). A remote-control tool remains suitable for first setup because its browser runs on the station.
 
 1. Read the header: "First setup. Create the station identity, first local admin, and recovery kit before a public meeting."
 2. If the **Durable storage** card shows a **Prepare storage** button, select it. Until storage is ready the page shows "Create the first admin after storage is ready".
@@ -301,7 +301,7 @@ same Welcome asset for a new future time; approving an expired item does not
 move its airtime. The corrected Beta 15 package played the sample in both a
 20-second slot and a 60-second slot, then returned the channel to slate. An
 earlier Beta 15 candidate had repeated rollover attempts in the 60-second slot;
-the [Beta 15 verification record](https://github.com/scottconverse/civiccast-native/blob/main/docs/releases/v1.0.0-beta.15-verification.md)
+the [Beta 15 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.15-verification.md)
 distinguishes that initial observation from the corrected package result.
 
 ## Silent install
@@ -523,7 +523,7 @@ Because the database password is deleted from the registry, the surviving databa
 
 ## Package status and verification
 
-This chapter identifies the Beta 20 software edition. Install only a package on the [releases page](https://github.com/scottconverse/civiccast-native/releases), and follow its bundled Help and the version-specific verification record for that package. The [Beta 18 record](https://github.com/scottconverse/civiccast-native/blob/main/docs/releases/v1.0.0-beta.18-verification.md) remains historical. A historical Beta 15 field report found the installed `CivicCast Native.exe` unsigned while the outer setup was signed; that observation does not establish another package's status.
+This chapter identifies the Beta 20 software edition. Install only a package on the [releases page](https://github.com/scottconverse/civiccast/releases), and follow its bundled Help and the version-specific verification record for that package. The [Beta 18 record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.18-verification.md) remains historical. A historical Beta 15 field report found the installed `CivicCast Native.exe` unsigned while the outer setup was signed; that observation does not establish another package's status.
 
 ## Related
 

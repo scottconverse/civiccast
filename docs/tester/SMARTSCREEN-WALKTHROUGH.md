@@ -107,7 +107,7 @@ and do not qualify Beta 20.
 `v1.0.0-beta.10` was the current published release when this page was written
 (published 2026-10-02), a
 GitHub **pre-release** (a "Beta Candidate", not a production release) at
-<https://github.com/scottconverse/civiccast-native/releases/tag/v1.0.0-beta.10>:
+<https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-beta.10>:
 `setup.exe`, `.ccpack` runtime packs, `SHA256SUMS.txt`, and
 `setup.exe.sidecar.json`. `v1.0.0-beta.7` is superseded history (as are beta.5,
 beta.4, and `v1.0.0-beta.3`, the first downloadable release); beta.8 and beta.9

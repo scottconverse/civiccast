@@ -17,11 +17,11 @@ release evidence retains its original identity.
 
 ## Beta 20 release
 
-The [published Beta 20 release](https://github.com/scottconverse/civiccast-native/releases/tag/v1.0.0-beta.20) ships the Sprint 6 source work and the current manual. The [Beta 20 package record](releases/v1.0.0-beta.20-verification.md) records its release identity and scoped checks. Earlier release records remain historical.
+The [published Beta 20 release](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-beta.20) ships the Sprint 6 source work and the current manual. The [Beta 20 package record](releases/v1.0.0-beta.20-verification.md) records its release identity and scoped checks. Earlier release records remain historical.
 
 ## Beta 19 release
 
-The [published Beta 19 release](https://github.com/scottconverse/civiccast-native/releases/tag/v1.0.0-beta.19) connects remote guests to channel output, adds live
+The [published Beta 19 release](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-beta.19) connects remote guests to channel output, adds live
 video and an audio bed to the bulletin board, and completes the native
 viewer app controls for channel/replay browsing, artwork, search, deep
 links and playback options. The earlier Beta 17 and 18 packages delivered
@@ -30,11 +30,11 @@ dayparts and Cablecast station import. The [Beta 19 package record](releases/v1.
 
 ## Beta 18 release
 
-The [Beta 18 release](https://github.com/scottconverse/civiccast-native/releases/tag/v1.0.0-beta.18) adds the Setup-admin Cablecast station-import workflow: connect, preview proposed show and schedule metadata with conflicts and skips, explicitly apply, inspect the batch, and confirm rollback. The [package record](releases/v1.0.0-beta.18-verification.md) identifies the signed candidate and its checks. This package predates Beta 19's remote-guest, bulletin-board and native-viewer additions.
+The [Beta 18 release](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-beta.18) adds the Setup-admin Cablecast station-import workflow: connect, preview proposed show and schedule metadata with conflicts and skips, explicitly apply, inspect the batch, and confirm rollback. The [package record](releases/v1.0.0-beta.18-verification.md) identifies the signed candidate and its checks. This package predates Beta 19's remote-guest, bulletin-board and native-viewer additions.
 
 ## Beta 17 release
 
-The [published Beta 17 release](https://github.com/scottconverse/civiccast-native/releases/tag/v1.0.0-beta.17) adds three completed Sprint 5 workflows: subscriber
+The [published Beta 17 release](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-beta.17) adds three completed Sprint 5 workflows: subscriber
 publication notices with delivery outcomes and retries; Podcast MP3 episodes,
 enclosures and RSS; and selection of saved
 underwriting dayparts. The [package record](releases/v1.0.0-beta.17-verification.md)
@@ -42,7 +42,7 @@ identifies the signed package and its scoped checks. The later Beta 18 and 19 re
 
 ## Beta 16 release
 
-The [published Beta 16 release](https://github.com/scottconverse/civiccast-native/releases/tag/v1.0.0-beta.16) adds:
+The [published Beta 16 release](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-beta.16) adds:
 
 - Encrypted station backup and restore, supported network setup, staff accounts and sessions, and a restricted Windows service identity. See the [station operations record](ops/station-operations-goal.md).
 - Station-local scheduling across daylight-saving changes, bounded operational storage with usage reporting, low-disk handling, and automatic output recovery. See [Sprint 2](ops/sprint2-unattended.md).

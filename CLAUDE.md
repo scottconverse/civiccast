@@ -50,7 +50,7 @@ owner authorization. Do not bypass branch protection or move published tags.
 
 ## Sources of truth and working path
 
-- Source: `https://github.com/scottconverse/civiccast-native`; use the current checkout root, not a fixed drive path.
+- Source: `https://github.com/scottconverse/civiccast`; use the current checkout root, not a fixed drive path.
 - Current portable state: `docs/handoff/CURRENT.md`; build inputs: `docs/handoff/BUILD-ASSETS.md`. Update this existing handoff when work resumes, rather than creating parallel ledgers.
 - Product spec: `docs/spec/3.0/civiccast-3.0-station-in-a-box-MASTER.md`.
 - Branch policy: `BRANCHES.md`. Architectural decisions: `docs/adr/`.
@@ -93,7 +93,7 @@ These are decided. Do not reopen them without surfacing to the human director fi
 
 - **License: Apache 2.0 for code, CC BY 4.0 for documentation.** No relicensing without the multi-layer approval defined in spec §14.8.
 
-- **Repository layout:** the native product is in `scottconverse/civiccast-native`, with Python modules under `civiccast/`, apps under `civiccast/apps/`, build tools under `scripts/`, and documentation under `docs/`. Follow actual module boundaries and documented APIs.
+- **Repository layout:** the native product is in `scottconverse/civiccast`, with Python modules under `civiccast/`, apps under `civiccast/apps/`, build tools under `scripts/`, and documentation under `docs/`. Follow actual module boundaries and documented APIs.
 
 - **Schema: `civiccast.*` PostgreSQL namespace.** Mode A: only schema in DB. Mode B: lives alongside `civiccore.*`, `civicclerk.*`, etc. CivicCast never reads or writes outside its own schema except through documented APIs.
 

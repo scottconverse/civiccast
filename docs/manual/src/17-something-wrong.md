@@ -343,11 +343,11 @@ If you have the Support admin role, you can also make a *support bundle*. This i
 
 ## Report a beta issue
 
-CivicCast is a beta. Check the [releases page](https://github.com/scottconverse/civiccast-native/releases) for available downloads and use the verification record that matches the installed package. Support is community-driven, with no contract and no guaranteed response time. Problems that stop broadcasting or installation, lose data or expose a secret are handled first.
+CivicCast is a beta. Check the [releases page](https://github.com/scottconverse/civiccast/releases) for available downloads and use the verification record that matches the installed package. Support is community-driven, with no contract and no guaranteed response time. Problems that stop broadcasting or installation, lose data or expose a secret are handled first.
 
 1. In the operator console, click **Report a beta issue** at the bottom of the sidebar. It opens this **Report a beta issue** section in the Manual.
-2. If you have a free GitHub account, open a new issue on the project's issue page: <https://github.com/scottconverse/civiccast-native/issues>.
-3. If you do not have an account, ask your IT lead or anyone on staff who has one to post your description. Use the private contact in the project's security policy for security reports: <https://github.com/scottconverse/civiccast-native/blob/main/SECURITY.md>.
+2. If you have a free GitHub account, open a new issue on the project's issue page: <https://github.com/scottconverse/civiccast/issues>.
+3. If you do not have an account, ask your IT lead or anyone on staff who has one to post your description. Use the private contact in the project's security policy for security reports: <https://github.com/scottconverse/civiccast/blob/main/SECURITY.md>.
 
 In every report, include:
 

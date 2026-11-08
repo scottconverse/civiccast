@@ -1,7 +1,7 @@
 # Public Station Implementation Walkthrough
 
 > **Historical: describes the retired public WSL2 line's rc-numbered
-> release-artifact workflow, not this repository.** `civiccast-native`
+> release-artifact workflow, not this repository.** `civiccast` (formerly `civiccast-native`)
 > ships one product, the native Windows station (session-0 Windows
 > service, no WSL) -- see [BRANCHES.md](../../BRANCHES.md). This
 > walkthrough's rc13/rc-artifact-soak process belongs to the separate,
