@@ -276,6 +276,62 @@ def test_program_boundary_refuses_delayed_asr_and_feeds_only_incoming_captions(
     assert calls[0]["program_token"] == "incoming"
 
 
+class _BoundaryDuringAsrRuntime(_ScriptedRuntime):
+    """Starts a new programme session while ASR is running (r7 field shape)."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.worker: CaptionTapWorker | None = None
+
+    def transcribe(
+        self,
+        chunks: Iterable[AudioChunk],
+        vocabulary: CustomVocabulary | None = None,
+    ) -> Iterable[CaptionHypothesis]:
+        assert self.worker is not None
+        self.worker._clear_channel_captions("public")
+        yield from super().transcribe(chunks, vocabulary=vocabulary)
+
+
+def test_boundary_during_asr_still_records_the_input_as_processed(tmp_path: Path) -> None:
+    """RC4 soak, r7 2026-11-09: a programme boundary landing while a batch was in
+    ASR left ``last_input_at`` ahead of ``last_processed_at`` with nothing in
+    flight, so ``/health`` answered degraded / live captions ``unknown`` until the
+    next chunk. ASR did finish that input; only publication is refused.
+    """
+    from datetime import datetime
+
+    from civiccast.alerting.runtime_status import derive_live_caption_processing_status
+
+    tap_root = tmp_path / "tap"
+    runtime = _BoundaryDuringAsrRuntime()
+    worker = _worker(tap_root, runtime, InMemoryCaptionReviewStore(), atomic_segments=True)
+    runtime.worker = worker
+    _write_wav(tap_root / "public" / "chunk-000001.wav")
+
+    worker.run_once()
+    # Field order: the egress writes the new programme's marker, so the next scan
+    # drops the outgoing chunk and publishes an idle status for the channel.
+    (tap_root / "public" / "program-boundary.json").write_text(
+        json.dumps({"token": "incoming", "first_segment": 2})
+    )
+    worker.run_once()
+
+    payload = _runtime_status(tap_root, "public")
+    assert payload["last_input_at"] is not None
+    assert payload["last_processed_at"] is not None
+    assert payload["last_processed_at"] >= payload["last_input_at"]
+    status = derive_live_caption_processing_status(
+        payload,
+        egress_state="ON_AIR",
+        captions_expected=True,
+        now=datetime.fromisoformat(payload["worker_heartbeat_at"]),
+    )
+    assert status.processing_state != "waiting"
+    # The refused batch published nothing into the new session.
+    assert "council" not in _active_vtt(tap_root, "public").read_text(encoding="utf-8")
+
+
 def _runtime_status(tap_root: Path, channel_id: str) -> dict:
     path = tap_root.parent / "egress" / channel_id / "captions" / "runtime-status.json"
     return json.loads(path.read_text(encoding="utf-8"))

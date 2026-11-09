@@ -1809,14 +1809,22 @@ class CaptionTapWorker:
             committed += len(result.committed_review_items)
             expired += len(result.expired_unconfirmed_cues)
             with self._session_lock(channel_id):
+                # ASR finished this input even if a programme boundary started a
+                # new session meanwhile; only publication is refused. Record the
+                # progress first, or the channel reads "waiting" (last input ahead
+                # of last processed, nothing in flight) and /health reports
+                # degraded until the next chunk (RC4 soak, r7 2026-11-09). A new
+                # broadcast session clears the input clock; a stale batch must
+                # not repopulate the progress clock it reset.
+                if channel_id in self._last_input_at:
+                    self._last_processed_at[channel_id] = datetime.now(UTC)
+                    self._audio_signal[channel_id] = (
+                        "audio-present" if any(raw_chunk.pcm_s16le) else "digital-silence"
+                    )
                 if generation != self._session_generation.get(channel_id, 0):
                     # A new writer may already have reused this numbered path.
                     # Do not move it or restore the old session's overlap.
                     break
-                self._last_processed_at[channel_id] = datetime.now(UTC)
-                self._audio_signal[channel_id] = (
-                    "audio-present" if any(raw_chunk.pcm_s16le) else "digital-silence"
-                )
                 with self._retention_lock:
                     retention_ready = self._retention_ready
                     retention_in_flight = self._retention_in_flight

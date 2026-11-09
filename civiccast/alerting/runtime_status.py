@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from collections.abc import Mapping
 from datetime import UTC, datetime
 from pathlib import Path
@@ -54,6 +55,9 @@ _COLOR_RANK: dict[SafeToAirColor, int] = {"green": 0, "yellow": 1, "red": 2}
 _CAPTION_HEARTBEAT_STALE_SECONDS = 90
 _CAPTION_PROGRESS_STALE_SECONDS = 120
 _CAPTION_STARTUP_GRACE_SECONDS = 180
+# Bounded retry for the worker's atomic status replace (see the reader below).
+_STATUS_READ_ATTEMPTS = 4
+_STATUS_READ_BACKOFF_SECONDS = 0.02
 _CAPTION_FAILURE_CAPACITY_STATES = {"overloaded", "storage-refused", "paused", "disabled"}
 _CAPTION_PROVIDER_STATES = {
     "whistle-primary",
@@ -224,12 +228,22 @@ def read_live_caption_processing_status(
         from civiccast.captions.live_sidecar import caption_runtime_status_path
 
         path = caption_runtime_status_path(work_dir, channel_id)
-        try:
-            loaded = json.loads(path.read_text(encoding="utf-8"))
+        # The worker replaces this file atomically every scan. On Windows a read
+        # that lands on the replace fails (PermissionError, Errno 13); the writer
+        # already retries its side, so the reader retries too before a transient
+        # race is reported as an unknown caption state (RC4 soak, r7 2026-11-09).
+        for attempt in range(_STATUS_READ_ATTEMPTS):
+            try:
+                loaded = json.loads(path.read_text(encoding="utf-8"))
+            except FileNotFoundError:
+                break
+            except (OSError, json.JSONDecodeError):
+                if attempt + 1 < _STATUS_READ_ATTEMPTS:
+                    time.sleep(_STATUS_READ_BACKOFF_SECONDS)
+                continue
             if isinstance(loaded, dict):
                 payload = loaded
-        except (OSError, json.JSONDecodeError):
-            pass
+            break
     return derive_live_caption_processing_status(
         payload,
         egress_state=egress_state,
