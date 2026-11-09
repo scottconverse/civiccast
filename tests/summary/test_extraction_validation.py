@@ -110,7 +110,7 @@ class TestSummaryGenerationRetry:
         )
 
         assert result.status == "pending_review"
-        assert model.prompt_versions == ["summary-v0.6", "summary-v0.6-retry-sourced-claims"]
+        assert model.prompt_versions == ["summary-v0.7", "summary-v0.7-retry-sourced-claims"]
 
     def test_second_invalid_output_surfaces_refusal_to_operator(self) -> None:
         model = DeterministicSummaryModel(outputs=[{}, {}])

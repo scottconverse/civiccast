@@ -120,6 +120,8 @@ def generate_with_ollama(
     prompt: str,
     base_url: str = DEFAULT_OLLAMA_BASE_URL,
     timeout: float = DEFAULT_GENERATE_TIMEOUT_SECONDS,
+    think: bool | None = None,
+    options: dict[str, Any] | None = None,
 ) -> str:
     """Generate a non-streaming completion from local Ollama.
 
@@ -127,15 +129,22 @@ def generate_with_ollama(
     the short metadata-call budget -- see that constant's docstring for the field
     evidence a 120s socket timeout here used to discard a completion Ollama had
     already finished computing.
+
+    ``think`` is sent only when given: ``False`` stops a reasoning model (Gemma 4)
+    from spending its whole budget on hidden reasoning before it answers.
+    ``options`` are merged over the fixed ``temperature: 0`` (e.g. ``num_ctx``).
+    Callers that pass neither send exactly the request they always did.
     """
 
-    payload = {
+    payload: dict[str, Any] = {
         "model": model,
         "prompt": prompt,
         "stream": False,
         "keep_alive": 0,
-        "options": {"temperature": 0},
+        "options": {"temperature": 0, **(options or {})},
     }
+    if think is not None:
+        payload["think"] = think
     with _GENERATE_LOCK:
         response = _request_json(
             "POST", f"{base_url.rstrip('/')}/api/generate", payload, timeout=timeout
