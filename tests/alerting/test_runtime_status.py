@@ -737,3 +737,52 @@ class TestCaptionGateFollowsTheOperatorSwitch:
         )
         r = compute_runtime_safe_to_air(self._unverified_store(), [], now=_NOW)
         assert all(c.captions_expected is LIVE_CAPTIONS_DEFAULT for c in r.channels)
+
+
+def test_status_read_survives_a_transient_windows_replace_race(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """RC4 soak, r7 2026-11-09: reading runtime-status.json while the worker's
+    atomic replace lands raised ``PermissionError`` (Errno 13) about once per
+    5,000 reads, and one failed read made ``/health`` report degraded. The writer
+    already retries its replace; the reader must retry its read too.
+    """
+    from civiccast.alerting import runtime_status
+
+    status_path = tmp_path / "public" / "captions" / "runtime-status.json"
+    status_path.parent.mkdir(parents=True)
+    status_path.write_text(
+        json.dumps(
+            {
+                "state": "within-capacity",
+                "worker_heartbeat_at": _NOW.isoformat(),
+                "last_input_at": (_NOW - timedelta(seconds=3)).isoformat(),
+                "last_processed_at": (_NOW - timedelta(seconds=2)).isoformat(),
+                "audio_signal": "audio-present",
+                "inference_inflight": False,
+                "backlog_segments": 0,
+            }
+        ),
+        encoding="utf-8",
+    )
+    original = Path.read_text
+    failures = {"left": 2}
+
+    def flaky_read_text(self: Path, *args: object, **kwargs: object) -> str:
+        if self == status_path and failures["left"] > 0:
+            failures["left"] -= 1
+            raise PermissionError(13, "Permission denied", str(self))
+        return original(self, *args, **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(Path, "read_text", flaky_read_text)
+
+    status = runtime_status.read_live_caption_processing_status(
+        tmp_path,
+        "public",
+        egress_state="ON_AIR",
+        captions_expected=True,
+        now=_NOW,
+        on_air_since=_NOW - timedelta(hours=1),
+    )
+    assert failures["left"] == 0
+    assert status.processing_state == "caught-up"
