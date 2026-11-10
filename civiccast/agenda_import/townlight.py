@@ -9,7 +9,7 @@ import os
 import subprocess
 from datetime import date, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from civiccast.agenda_import.base import (
     AgendaSourceDependencyMissingError,
@@ -82,7 +82,7 @@ class TownlightSource:
             or not all(isinstance(row, dict) for row in response["meetings"])
         ):
             raise AgendaSourceUpstreamError("Townlight returned an unsupported meeting response.")
-        return response["meetings"]
+        return cast(list[dict[str, Any]], response["meetings"])
 
     @staticmethod
     def _summary(row: dict[str, Any]) -> ExternalMeetingSummary:
