@@ -3701,6 +3701,7 @@ export const AGENDA_EXTERNAL_SOURCES: AgendaExternalSource[] = [
   'primegov',
   'civicclerk',
   'js_portal',
+  'townlight',
 ]
 
 const AGENDA_SOURCES = '/api/staff/agenda-sources'

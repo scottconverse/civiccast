@@ -19,6 +19,7 @@ from civiccast.agenda_import.documents import configured_document_store
 from civiccast.agenda_import.js_portal import JsPortalSource
 from civiccast.agenda_import.legistar import LegistarSource
 from civiccast.agenda_import.primegov import PrimeGovSource
+from civiccast.agenda_import.townlight import TownlightSource
 
 
 def build_source(
@@ -39,6 +40,8 @@ def build_source(
         )
     if name == "civicclerk":
         return CivicClerkSource(timeout_seconds=timeout_seconds)
+    if name == "townlight":
+        return TownlightSource()
     if name == "js_portal":
         if not portal_url:
             # Defensive: the router's model_validator already requires
@@ -58,7 +61,7 @@ def build_source(
         )
     raise AgendaSourceNotAvailableError(
         f"Agenda source {name!r} is not implemented in this CivicCast release; "
-        "'legistar', 'primegov', 'civicclerk', and 'js_portal' are available."
+        "'legistar', 'primegov', 'civicclerk', 'js_portal', and 'townlight' are available."
     )
 
 

@@ -30,8 +30,14 @@ from pydantic import BaseModel, ConfigDict, Field
 #: ``civiccast/agenda_import/js_portal.py``'s module docstring for the
 #: PrimeGov-endpoint evaluation that scoped this adapter to the
 #: no-plain-HTTP-path case rather than every vendor).
-AgendaSourceName = Literal["legistar", "primegov", "civicclerk", "js_portal"]
-AGENDA_SOURCE_NAMES: tuple[str, ...] = ("legistar", "primegov", "civicclerk", "js_portal")
+AgendaSourceName = Literal["legistar", "primegov", "civicclerk", "js_portal", "townlight"]
+AGENDA_SOURCE_NAMES: tuple[str, ...] = (
+    "legistar",
+    "primegov",
+    "civicclerk",
+    "js_portal",
+    "townlight",
+)
 
 
 class ExternalAgendaItem(BaseModel):

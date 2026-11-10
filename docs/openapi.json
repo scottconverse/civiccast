@@ -26151,7 +26151,8 @@
                 "legistar",
                 "primegov",
                 "civicclerk",
-                "js_portal"
+                "js_portal",
+                "townlight"
               ],
               "type": "string",
               "title": "Source"
@@ -34599,7 +34600,8 @@
               "legistar",
               "primegov",
               "civicclerk",
-              "js_portal"
+              "js_portal",
+              "townlight"
             ],
             "title": "Source"
           },
@@ -34815,7 +34817,8 @@
               "legistar",
               "primegov",
               "civicclerk",
-              "js_portal"
+              "js_portal",
+              "townlight"
             ],
             "title": "Source"
           },
@@ -35365,7 +35368,8 @@
               "legistar",
               "primegov",
               "civicclerk",
-              "js_portal"
+              "js_portal",
+              "townlight"
             ],
             "title": "Source",
             "default": "off"
@@ -35424,7 +35428,8 @@
               "legistar",
               "primegov",
               "civicclerk",
-              "js_portal"
+              "js_portal",
+              "townlight"
             ],
             "title": "Source",
             "default": "off"

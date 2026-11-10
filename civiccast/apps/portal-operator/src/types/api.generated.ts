@@ -118,7 +118,7 @@ export interface AgendaChapterSyncSkip {
 }
 
 export interface AgendaImportExternalRequest {
-  source: 'legistar' | 'primegov' | 'civicclerk' | 'js_portal'
+  source: 'legistar' | 'primegov' | 'civicclerk' | 'js_portal' | 'townlight'
   client_code: string
   event_id: string
   portal_url?: string | null
@@ -146,7 +146,7 @@ export interface AgendaImportPreview {
 }
 
 export interface AgendaImportPreviewRequest {
-  source: 'legistar' | 'primegov' | 'civicclerk' | 'js_portal'
+  source: 'legistar' | 'primegov' | 'civicclerk' | 'js_portal' | 'townlight'
   client_code: string
   event_id: string
   portal_url?: string | null
@@ -222,7 +222,7 @@ export interface AgendaMinutesEditRequest {
 }
 
 export interface AgendaSourceSettings {
-  source?: 'off' | 'legistar' | 'primegov' | 'civicclerk' | 'js_portal'
+  source?: 'off' | 'legistar' | 'primegov' | 'civicclerk' | 'js_portal' | 'townlight'
   client_code?: string | null
   portal_url?: string | null
   portal_vendor_hint?: 'civicplus' | 'granicus' | 'legistar_js' | 'primegov_js' | 'generic'
@@ -230,7 +230,7 @@ export interface AgendaSourceSettings {
 }
 
 export interface AgendaSourceSettingsUpdate {
-  source?: 'off' | 'legistar' | 'primegov' | 'civicclerk' | 'js_portal'
+  source?: 'off' | 'legistar' | 'primegov' | 'civicclerk' | 'js_portal' | 'townlight'
   client_code?: string | null
   portal_url?: string | null
   portal_vendor_hint?: 'civicplus' | 'granicus' | 'legistar_js' | 'primegov_js' | 'generic'

@@ -11,6 +11,7 @@ import {
 const labels: Record<AgendaSourceSettings['source'], string> = {
   off: 'Disabled', legistar: 'Legistar', primegov: 'PrimeGov', civicclerk: 'CivicClerk',
   js_portal: 'JS-rendered portal (CivicPlus, Granicus, other)',
+  townlight: 'Townlight shared importer',
 }
 const fieldStyle: CSSProperties = {
   background: 'var(--cc-surface)', border: '1px solid var(--cc-line)', color: 'var(--cc-ink)',
@@ -61,6 +62,7 @@ function SettingsForm({ settings }: { settings: AgendaSourceSettings }) {
       required={draft.source !== 'off'} pattern="[A-Za-z0-9_-]{1,64}"
       onChange={(event) => update({ client_code: event.target.value })} />
     <p>For Longmont, choose PrimeGov and enter longmont. Public PrimeGov agendas need no credentials.</p>
+    {draft.source === 'townlight' && <p>Set the importer, connector, format and URL in the station environment. Use the tenant field to label this source.</p>}
     {draft.source === 'js_portal' && <>
       <label htmlFor={`${id}-portal`}>Public portal URL</label>
       <input className="rounded-md px-2 py-1.5" style={fieldStyle} id={`${id}-portal`} type="url" required value={draft.portal_url ?? ''}
