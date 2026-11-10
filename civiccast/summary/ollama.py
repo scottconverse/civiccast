@@ -26,9 +26,41 @@ _SUMMARY_MODEL_TAG = "gemma4:e4b"
 _BROADCAST_HEADROOM_GB = 8
 _GIB = 1024**3
 
+# Context sizing. Without an explicit num_ctx Ollama uses 4,096 tokens and drops
+# the start of a longer prompt -- which is where the instructions were, so every
+# meeting over ~10 minutes reached the model as its last few minutes with no
+# instructions (field run 2026-11-09). Gemma 4 measured 2.05-2.68 characters per
+# token on caption transcripts, so 2 characters per token never under-sizes it.
+_CHARS_PER_TOKEN_ESTIMATE = 2
+_ANSWER_TOKENS = 4096
+_MIN_CONTEXT_TOKENS = 4096
+# One pass covers a meeting of roughly 80 minutes. Longer meetings are refused
+# with a clear reason instead of being summarised from a silently cut transcript.
+_MAX_CONTEXT_TOKENS = 49152
+_CONTEXT_STEP_TOKENS = 1024
+
 
 class SummaryResourceDeferredError(OllamaRuntimeUnavailableError):
     """Raised before inference when the selected tier would consume broadcast RAM."""
+
+
+class SummaryTranscriptTooLongError(SummaryResourceDeferredError):
+    """Raised before inference when the transcript cannot fit one summary pass."""
+
+
+def _summary_context_tokens(prompt: str) -> int:
+    """Context window that holds the whole prompt plus the answer, or refuse."""
+
+    needed = len(prompt) // _CHARS_PER_TOKEN_ESTIMATE + _ANSWER_TOKENS
+    if needed > _MAX_CONTEXT_TOKENS:
+        raise SummaryTranscriptTooLongError(
+            "This meeting's transcript is too long for one summary pass "
+            f"(about {needed:,} tokens; the limit is {_MAX_CONTEXT_TOKENS:,}, "
+            "roughly 80 minutes of meeting). Summaries of longer meetings are not "
+            "supported yet; write this summary by hand."
+        )
+    steps = -(-needed // _CONTEXT_STEP_TOKENS)
+    return max(_MIN_CONTEXT_TOKENS, steps * _CONTEXT_STEP_TOKENS)
 
 
 def _require_summary_headroom(model_tag: str) -> None:
@@ -119,7 +151,17 @@ class OllamaSummaryModel:
             prompt_version=prompt_version,
             evidence_line=self.provenance.evidence_line,
         )
-        response = generate_with_ollama(model=self.model_tag, prompt=prompt, base_url=self.base_url)
+        num_ctx = _summary_context_tokens(prompt)
+        response = generate_with_ollama(
+            model=self.model_tag,
+            prompt=prompt,
+            base_url=self.base_url,
+            # Gemma 4 otherwise reasons first and, on a real meeting, can use the
+            # whole budget doing so and return an empty answer (12b: 28,444
+            # tokens of reasoning, nothing returned; with think off, 24 s).
+            think=False,
+            options={"num_ctx": num_ctx},
+        )
         return _parse_model_json(response)
 
 
@@ -176,18 +218,33 @@ def _summary_prompt(
         for cue in cues
     )
     return (
-        "You are CivicCast's local summary model. Return only JSON with keys "
-        "`narrative` and `sourced_claims`. Every sourced_claim must include "
-        "`claim_id`, `text`, `claim_type`, and `transcript_ranges`. The only "
-        "allowed claim_type values are `narrative` and `quantitative`; every "
-        "transcript range must cite one cue_id from the transcript with its "
-        "start_seconds and end_seconds. Refuse by returning an empty narrative "
-        "and empty sourced_claims if the transcript does not support a claim.\n\n"
+        "You are CivicCast's local summary model. You will read a meeting "
+        "transcript and summarise it. The rules follow the transcript.\n\n"
         f"meeting_id: {meeting_id}\n"
         f"prompt_version: {prompt_version}\n"
         f"runtime_evidence: {evidence_line}\n"
-        f"transcript:\n{transcript}\n"
+        f"transcript:\n{transcript}\n\n"
+        # The rules come after the transcript so that, if anything is ever cut,
+        # the instructions survive (Ollama keeps the end of a prompt).
+        f"{_SUMMARY_RULES}\n"
     )
+
+
+_SUMMARY_RULES = (
+    "Rules. Return only JSON with keys `narrative` and `sourced_claims`. "
+    "`narrative` is a short plain-English summary of what the meeting discussed "
+    "and decided. Every sourced_claim must include `claim_id` (a string such as "
+    '"claim-1"), `text`, `claim_type`, and `transcript_ranges`. The only allowed '
+    "claim_type values are `narrative` and `quantitative`. Use `quantitative` for "
+    "every claim about a motion, a second, a vote or its result, or a dollar "
+    "amount, and include at least one such claim when the transcript has any. "
+    "Every transcript range must cite one cue_id from the transcript and copy "
+    "that line's exact start_seconds and end_seconds as shown in its brackets, "
+    "written as an object, for example "
+    '{"cue_id": "cue-000012", "start_seconds": 61.2, "end_seconds": 66.4}. '
+    "Refuse by returning an empty narrative and empty sourced_claims if the "
+    "transcript does not support a claim."
+)
 
 
 def _parse_model_json(text: str) -> dict[str, Any]:
