@@ -3,7 +3,7 @@
 import { staffApiRequest } from './client'
 
 export interface AgendaSourceSettings {
-  source: 'off' | 'legistar' | 'primegov' | 'civicclerk' | 'js_portal'
+  source: 'off' | 'legistar' | 'primegov' | 'civicclerk' | 'js_portal' | 'townlight'
   client_code: string | null
   portal_url: string | null
   portal_vendor_hint: 'generic' | 'civicplus' | 'granicus' | 'legistar_js' | 'primegov_js'

@@ -284,3 +284,20 @@ replacement retries transient reader sharing/access errors for at most 310 ms, t
 reports a persistent storage failure while preserving the old record. Retention does
 not automatically delete historical originals; include this directory in existing
 storage capacity/backup management. No station installer is produced by these PRs.
+## Townlight shared source
+
+To use Townlight's import readers, configure the station to launch the Python
+that contains `townlight_runtime.meeting_imports`. Set `TOWNLIGHT_IMPORT_PYTHON`
+to that executable, `TOWNLIGHT_IMPORT_CONNECTOR` and `TOWNLIGHT_IMPORT_FORMAT`
+to a source and format from Townlight's Meetings import picker, and
+`TOWNLIGHT_IMPORT_URL` to the original public source URL. Set
+`TOWNLIGHT_IMPORT_CAPTURE` to an authorized saved response file when the
+source needs a browser session or supplies a file export. Otherwise the
+importer reads the public URL at discovery and when retrieving the agenda.
+
+In Agenda source setup, select **Townlight shared importer** and enter a
+distinct tenant label for that source. You can then discover meetings and
+import their structured agenda items into an existing CivicCast agenda.
+Sources that provide only PDFs, recording links, or notice metadata may be
+listed without structured items. Use CivicCast's document workflow for a
+published agenda PDF. Existing CivicCast source adapters remain selectable.

@@ -860,7 +860,7 @@ Save Agenda Source Settings.
 List upcoming/recent meetings from an external agenda system.
 
 - Access: staff bearer token required; keep loopback or reverse-proxy network protection enabled; requires one of these CivicCast roles: records_clerk or meeting_operator
-- Parameters: `source` (path, required): `'legistar' | 'primegov' | 'civicclerk' | 'js_portal'`; `client_code` (path, required): `string`; `since` (query, optional): `string | null` -- Only meetings on/after this date (default: today); `portal_url` (query, optional): `string | null` -- js_portal only: the JS-hydrated portal's own URL. Required when source=js_portal, rejected otherwise.; `portal_vendor_hint` (query, optional): `string | null` -- js_portal only: optional vendor tuning hint (civicplus/granicus/legistar_js/primegov_js/generic).
+- Parameters: `source` (path, required): `'legistar' | 'primegov' | 'civicclerk' | 'js_portal' | 'townlight'`; `client_code` (path, required): `string`; `since` (query, optional): `string | null` -- Only meetings on/after this date (default: today); `portal_url` (query, optional): `string | null` -- js_portal only: the JS-hydrated portal's own URL. Required when source=js_portal, rejected otherwise.; `portal_vendor_hint` (query, optional): `string | null` -- js_portal only: optional vendor tuning hint (civicplus/granicus/legistar_js/primegov_js/generic).
 - Request body: none
 - Responses: 200 `Array<ExternalMeetingSummary>`; 401 Missing, invalid, revoked, or misconfigured CivicCast staff bearer token.; 404 Agenda import disabled; 422 Source not yet available, or (js_portal) portal_url missing/invalid; 429 The observed peer exceeded the failed staff authentication budget. Wait for Retry-After before another invalid attempt; valid staff tokens remain accepted.; 502 Upstream fetch failed (includes token-gated tenants); 503 js_portal only: crawl4ai/Playwright not installed
 
@@ -5075,7 +5075,7 @@ Read CivicCast local federation metadata.
 - `event_id` (required): `string`
 - `portal_url` (optional): `string | null`
 - `portal_vendor_hint` (optional): `string | null`
-- `source` (required): `'legistar' | 'primegov' | 'civicclerk' | 'js_portal'`
+- `source` (required): `'legistar' | 'primegov' | 'civicclerk' | 'js_portal' | 'townlight'`
 
 ### `AgendaImportPreview`
 
@@ -5104,7 +5104,7 @@ Read CivicCast local federation metadata.
 - `event_id` (required): `string`
 - `portal_url` (optional): `string | null`
 - `portal_vendor_hint` (optional): `string | null`
-- `source` (required): `'legistar' | 'primegov' | 'civicclerk' | 'js_portal'`
+- `source` (required): `'legistar' | 'primegov' | 'civicclerk' | 'js_portal' | 'townlight'`
 
 ### `AgendaItem`
 
@@ -5177,7 +5177,7 @@ Read CivicCast local federation metadata.
 - `client_code` (optional): `string | null`
 - `portal_url` (optional): `string | null`
 - `portal_vendor_hint` (optional): `'civicplus' | 'granicus' | 'legistar_js' | 'primegov_js' | 'generic'`
-- `source` (optional): `'off' | 'legistar' | 'primegov' | 'civicclerk' | 'js_portal'`
+- `source` (optional): `'off' | 'legistar' | 'primegov' | 'civicclerk' | 'js_portal' | 'townlight'`
 - `timeout_seconds` (optional): `number`
 
 ### `AgendaSourceSettingsUpdate`
@@ -5185,7 +5185,7 @@ Read CivicCast local federation metadata.
 - `client_code` (optional): `string | null`
 - `portal_url` (optional): `string | null`
 - `portal_vendor_hint` (optional): `'civicplus' | 'granicus' | 'legistar_js' | 'primegov_js' | 'generic'`
-- `source` (optional): `'off' | 'legistar' | 'primegov' | 'civicclerk' | 'js_portal'`
+- `source` (optional): `'off' | 'legistar' | 'primegov' | 'civicclerk' | 'js_portal' | 'townlight'`
 - `timeout_seconds` (optional): `number`
 
 ### `AiDefaultSelection`

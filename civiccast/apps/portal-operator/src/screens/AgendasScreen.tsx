@@ -84,6 +84,7 @@ const EXTERNAL_SOURCE_LABELS: Record<AgendaExternalSource, string> = {
   primegov: 'PrimeGov',
   civicclerk: 'CivicClerk',
   js_portal: 'JS-rendered portal (CivicPlus, Granicus, other)',
+  townlight: 'Townlight shared importer',
 }
 
 const JS_PORTAL_VENDOR_HINTS = [

@@ -24,7 +24,7 @@ from civiccast.agenda_import.config import (
 class AgendaSourceSettings(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    source: Literal["off", "legistar", "primegov", "civicclerk", "js_portal"] = "off"
+    source: Literal["off", "legistar", "primegov", "civicclerk", "js_portal", "townlight"] = "off"
     client_code: str | None = None
     portal_url: str | None = None
     portal_vendor_hint: JsPortalVendorHint = "generic"
