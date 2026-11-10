@@ -142,6 +142,8 @@ def _read_range(item: Any) -> tuple[str | None, float | None, float | None]:
     "[4.00-9.00]") instead of the object form.
     """
 
+    start: float | None
+    end: float | None
     if isinstance(item, dict):
         cue_id = item.get("cue_id")
         try:
