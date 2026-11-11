@@ -1,5 +1,18 @@
 # CivicCast
 
+
+## Published Townlight shared importer
+
+[Townlight Windows 1.8.1.1](https://github.com/townlight/townlight/releases/tag/townlight-windows-v1.8.1.1)
+ships the shared reader inside Townlight Runtime. The [full import guide](https://townlight.github.io/manuals/meeting-imports.html)
+lists all 31 supported source families, 34 source/format pairs, required saved-response formats,
+module handoffs, the CLI/Python/native HTTP contracts, and source-specific limits.
+Configure the existing opt-in adapter with a Python executable containing that runtime;
+selecting a source alone does not provision a separate server or standalone library.
+
+CivicCast can consume the selected shared connector and retain structured items in its existing AgendaStore. Responses containing only metadata, PDF links or player links do not become a structured agenda automatically. See [source setup](docs/ops/agenda-import-runbook.md#townlight-shared-source).
+
+
 CivicCast brings station scheduling, channel playout, meeting recording, caption
 review, sourced summaries, and resident publication into one native Windows
 system. Staff use one operator console; residents watch through a separate
