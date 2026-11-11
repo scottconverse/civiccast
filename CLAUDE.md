@@ -129,6 +129,43 @@ Don't pick silently.
 - **License header on every source file:** `# SPDX-License-Identifier: Apache-2.0` on the first or second line. Use `# Copyright (c) The CivicCast Authors` rather than per-contributor copyright lines (matches the DCO no-CLA contribution model in spec §14.6).
 - **Commit message convention: Conventional Commits** (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`). Sign off every commit with `Signed-off-by: Name <email>` per the DCO.
 
+## Language boundaries
+
+Each language has one job and one home. Do not add a language or a second
+home without the human director's OK. Reason: one toolchain per language
+keeps builds, CI and reviews simple.
+
+| Path | Language | Owns |
+|---|---|---|
+| `civiccast/` (not `civiccast/apps/`), `tests/`, `alembic/` | Python | The product: services, CLI, database, streaming, captions, AI runtime |
+| `civiccast/apps/*` | TypeScript | The web portals and the installer UI |
+| `civiccast/apps/installer/src-tauri/` | Rust | The Tauri shell of the installer. Keep it thin. |
+| `tools/ndi-ffmpeg-sender/` | Rust | The NDI sender tool |
+| `civiccast/apps/ott-native/` | Kotlin, Swift, BrightScript | The TV and device apps. Each platform requires its language. |
+
+Tool versions and commands: see "Tooling" above, and each app's `package.json`.
+
+### How the parts talk
+- TypeScript apps reach Python only through the documented HTTP APIs. No cross-language imports.
+- Python reaches a Rust tool only as a separate program. Rust is not a linked library in Python.
+
+### Existing exception
+`civiccast/control_room/tsr_service/` is a Node sidecar in the Python tree (ADR 0019). The Python control plane is its only caller, on 127.0.0.1. Leave it there. Do not add another one.
+
+### Not covered
+Scripts and config files (PowerShell, shell, SQL, YAML, JSON, TOML, NSIS) can live where they are used.
+
+### Before you write a new source file
+1. Find the row whose "Owns" column fits the task. Use that path and that language.
+2. Do not copy the language of a nearby file if the job belongs to a different row.
+3. If no row fits, or two rows fit, stop and ask. Do not write code first.
+
+### Ask first
+- A new Rust crate (there are two: `src-tauri` and `ndi-ffmpeg-sender`).
+- A new Node package outside `civiccast/apps/`.
+- A second Python project (there is one `pyproject.toml`, at the repo root).
+- A language that is not in the table.
+
 ## Non-negotiables (pointer)
 
 The spec's §4 contains the project's non-negotiables. They are the floor, not aspirations. Re-read §4 before any work that touches:
