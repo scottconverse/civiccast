@@ -58,7 +58,7 @@ jobs:
           $destination = Join-Path $env:RUNNER_TEMP 'native-app-reviewed-inputs'
           New-Item -ItemType Directory -Force -Path $destination | Out-Null
           $inputs = @(
-            @{ Name = 'python-3.12.16-expat-2.10.0-civiccast-embed-amd64.zip'; Bytes = 11202072; SHA256 = 'cb9dda240374cedfcfad227831683779d0cd29b49a46f2e865affd5ea21aa9b6' },
+            @{ Name = 'python-3.12.16-expat-2.10.0-civiccast-embed-amd64.zip'; Bytes = 11201358; SHA256 = '00bd6e3fae3e0dd122f363f430aae20e472c6ae4ed68ef7f7435a44d5f693e79' },
             @{ Name = 'av-18.0.0-cp311-abi3-win_amd64.whl'; Bytes = 4348926; SHA256 = '5ab3fae3f85d4121919f70643e026452eb2a678b4a3f557b9ca487724c1399f0' }
           )
           foreach ($inputFile in $inputs) {

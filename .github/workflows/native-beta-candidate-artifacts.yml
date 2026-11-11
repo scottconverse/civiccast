@@ -446,9 +446,9 @@ jobs:
           }
           Copy-Item -LiteralPath $mirror -Destination $pythonEmbedZip
           $size = (Get-Item -LiteralPath $pythonEmbedZip).Length
-          if ($size -ne 11202072) { throw "CPython archive size mismatch: $size" }
+          if ($size -ne 11201358) { throw "CPython archive size mismatch: $size" }
           $actual = (Get-FileHash -Algorithm SHA256 -LiteralPath $pythonEmbedZip).Hash.ToLowerInvariant()
-          $expected = "cb9dda240374cedfcfad227831683779d0cd29b49a46f2e865affd5ea21aa9b6"
+          $expected = "00bd6e3fae3e0dd122f363f430aae20e472c6ae4ed68ef7f7435a44d5f693e79"
           if ($actual -ne $expected) { throw "CPython archive SHA-256 mismatch: $actual" }
 
       - name: Recover the exact reviewed VC++ redistributable

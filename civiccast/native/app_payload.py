@@ -436,8 +436,8 @@ INTERPRETER_DISTRIBUTION: Final[str] = "cpython-embeddable-source-build"
 INTERPRETER_VERSION: Final[str] = "3.12.16"
 INTERPRETER_SOURCE_URL: Final[str] = "https://www.python.org/ftp/python/3.12.16/Python-3.12.16.tgz"
 #: Reviewed locally built archive; the URL above identifies its official source.
-INTERPRETER_SHA256: Final[str] = "cb9dda240374cedfcfad227831683779d0cd29b49a46f2e865affd5ea21aa9b6"
-INTERPRETER_ZIP_BYTES: Final[int] = 11202072
+INTERPRETER_SHA256: Final[str] = "00bd6e3fae3e0dd122f363f430aae20e472c6ae4ed68ef7f7435a44d5f693e79"
+INTERPRETER_ZIP_BYTES: Final[int] = 11201358
 #: PSF License Agreement (the `LICENSE.txt` inside the embeddable zip). Bundled
 #: in the payload's BOM.
 INTERPRETER_LICENSE: Final[str] = "PSF-2.0"
