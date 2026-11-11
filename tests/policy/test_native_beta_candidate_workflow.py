@@ -42,9 +42,9 @@ def _assert_cpython_handoff(job: dict[str, object]) -> None:
     assert "$pythonEmbedZip = Join-Path $env:RUNNER_TEMP $filename" in producer
     assert "Copy-Item -LiteralPath $mirror -Destination $pythonEmbedZip" in producer
     assert any("runtime-artifact-mirror" in line for line in producer)
-    assert any("11202072" in line for line in producer)
+    assert any("11201358" in line for line in producer)
     assert any(
-        "cb9dda240374cedfcfad227831683779d0cd29b49a46f2e865affd5ea21aa9b6" in line
+        "00bd6e3fae3e0dd122f363f430aae20e472c6ae4ed68ef7f7435a44d5f693e79" in line
         for line in producer
     )
     assert "Invoke-WebRequest" not in "\n".join(producer)
