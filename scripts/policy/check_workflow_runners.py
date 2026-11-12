@@ -38,14 +38,6 @@ SELF_HOSTED_ALLOWLIST = {
         "hosted runners cannot reach this box's disk, so the upload must "
         "run on the same self-hosted sandbox-lab box the kit is staged on"
     ),
-    "gate-b-reboot-soak.yml": (
-        "2026-08-25: needs Hyper-V on the local sandbox-lab runner. Gate B is the 3.0 MASTER "
-        "spec §12 24h unattended soak WITH REBOOT, and a hosted runner can offer neither half "
-        "of that: its ceiling is 6 hours, and it cannot be rebooted and resumed at all. The "
-        "reboot is the whole point of this gate -- Windows Sandbox (Gate A's environment) is "
-        "destroyed rather than restarted, which is why §12's reboot requirement has no home in "
-        "Gate A and needs a persistent VM here."
-    ),
 }
 HOSTED_EXPRESSION_ALLOWLIST = {
     # Source-free transfer of four locally reviewed runtime archives only.

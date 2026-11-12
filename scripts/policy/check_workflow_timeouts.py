@@ -82,17 +82,6 @@ LONG_BY_DESIGN: dict[tuple[str, str], str] = {
     ("six-hour-soak.yml", "six-hour-soak"): (
         "the six-hour soak IS the test; a shorter ceiling would defeat its entire purpose"
     ),
-    ("gate-b-reboot-soak.yml", "reboot-soak"): (
-        "2026-08-25: the 24-hour soak IS the test. 3.0 MASTER spec §12 requires a '24h "
-        "unattended soak w/ kill+restart+reboot' for release readiness, and §5 rung 2 "
-        "('Machine-proven') requires the same; a ceiling under 1440 minutes could not run it "
-        "at all. 1560 minutes = 26 hours covers the 24h soak plus the install and station "
-        "bring-up that happen BEFORE the soak clock starts, the reboot itself, and the final "
-        "evidence pull and judging. It must stay above Run-GateB.ps1's -HostDeadlineMinutes, "
-        "which must stay above -SoakMinutes; tests/gate_b/test_gate_b_harness_contract.py "
-        "asserts that ordering across all three files so a fix in one place cannot look "
-        "correct while changing nothing."
-    ),
     ("publish-staged-kit.yml", "publish"): (
         "2026-08-26: uploads an already-staged ~25 GB kit (packs\\, station\\, the setup.exe) "
         "from C:\\CivicCastTester\\kit-staging\\<sha> as a workflow artifact. Healthy egress on "
