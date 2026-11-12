@@ -576,6 +576,88 @@ def msvc_install_command(
     return command
 
 
+def _vs_installer_directory() -> Path:
+    program_files = os.environ.get("PROGRAMFILES(X86)") or r"C:\Program Files (x86)"
+    return Path(program_files) / "Microsoft Visual Studio" / "Installer"
+
+
+def msvc_unregister_command(setup: Path, install_root: Path) -> list[str]:
+    """Return the Visual Studio Installer command that removes ONE instance."""
+
+    return [
+        str(setup),
+        "uninstall",
+        "--installPath",
+        str(install_root),
+        "--quiet",
+        "--norestart",
+    ]
+
+
+def unregister_stale_msvc_instance(install_root: Path) -> bool:
+    r"""Remove a Visual Studio instance that is still REGISTERED at ``install_root``
+    although no usable install is there. Returns True when one was removed.
+
+    The Visual Studio Installer keeps its own record of every instance under
+    ``%ProgramData%\Microsoft\VisualStudio\Packages\_Instances``, apart from the
+    install directory. A self-hosted runner empties ``_work\_temp`` at the start
+    of each job, so the directory of the previous job's install disappears while
+    its record stays. The next install at the same path then loads that record
+    ("Loaded existing instance") and exits 8004 without installing anything:
+    measured on the HALO-gate-a runner, candidate run 43259269511 attempt 2,
+    2026-11-12. ``setup.exe uninstall --installPath`` removes the record
+    (verified there: ``vswhere`` no longer listed the path, and the two other
+    instances on the box were untouched).
+
+    A hosted runner never has such a record, so nothing is run there: the
+    uninstall is attempted only when ``vswhere`` lists exactly this path.
+    Best-effort: any failure here is left for the install's own exit code and
+    for ``verify_msvc_installation`` to report.
+    """
+
+    installer = _vs_installer_directory()
+    vswhere = installer / "vswhere.exe"
+    setup = installer / "setup.exe"
+    if not vswhere.is_file() or not setup.is_file():
+        return False
+    try:
+        listed = subprocess.run(
+            [
+                str(vswhere),
+                "-all",
+                "-products",
+                "*",
+                "-format",
+                "value",
+                "-property",
+                "installationPath",
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return False
+    wanted = os.path.normcase(os.path.normpath(str(install_root)))
+    registered = {
+        os.path.normcase(os.path.normpath(line.strip()))
+        for line in (listed.stdout or "").splitlines()
+        if line.strip()
+    }
+    if wanted not in registered:
+        return False
+    try:
+        removed = subprocess.run(
+            msvc_unregister_command(setup, install_root),
+            check=False,
+            timeout=30 * 60,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return removed.returncode in (0, 3010)
+
+
 def assert_msvc_version_output(
     compiler_output: str,
     linker_output: str,
@@ -779,6 +861,9 @@ def install_msvc(
         cache,
         offline=offline,
     )
+    # Nothing usable is at ``target`` now. A record the Visual Studio Installer
+    # still holds for this path would make the install below exit 8004.
+    unregister_stale_msvc_instance(target)
     # The Visual Studio installer returns 3010 (ERROR_SUCCESS_REBOOT_REQUIRED)
     # on a machine with a pending reboot. That is a SUCCESS code -- the tools
     # are installed and usable -- but `check=True` tolerates only 0, so the

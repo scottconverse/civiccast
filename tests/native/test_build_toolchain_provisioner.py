@@ -378,6 +378,90 @@ def test_install_msvc_replaces_an_invalid_existing_install(
     assert len(verify_calls) == 2
 
 
+def _fake_vs_installer(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    installer = tmp_path / "pf86" / "Microsoft Visual Studio" / "Installer"
+    installer.mkdir(parents=True)
+    (installer / "vswhere.exe").write_bytes(b"")
+    (installer / "setup.exe").write_bytes(b"")
+    monkeypatch.setenv("PROGRAMFILES(X86)", str(tmp_path / "pf86"))
+    return installer
+
+
+def test_install_msvc_removes_a_stale_installer_record_before_installing(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    r"""HALO-gate-a, candidate run 43259269511 attempt 2: the runner emptied
+    ``_work\_temp``, the Visual Studio Installer still listed the instance at
+    that path, and the install exited 8004. The record must be removed first."""
+    monkeypatch.setattr(provisioner, "_MSVC_PATH_LIMIT", 4096)
+    lock = provisioner.load_lock()
+    install_root = tmp_path / "civiccast-msvc-build-tools"  # gone: the runner cleaned it
+    installer = _fake_vs_installer(tmp_path, monkeypatch)
+    monkeypatch.setattr(provisioner, "verify_msvc_installation", lambda *a, **kw: None)
+    monkeypatch.setattr(
+        provisioner, "fetch_locked_artifact", lambda *a, **kw: tmp_path / "bootstrapper.exe"
+    )
+    commands: list[list[str]] = []
+
+    def fake_run(command: list[str], **_kw: object) -> subprocess.CompletedProcess[str]:
+        commands.append([str(part) for part in command])
+        if Path(command[0]).name == "vswhere.exe":
+            # Windows paths compare case-insensitively, and vswhere may print a
+            # different case than the workflow passes; elsewhere case is exact.
+            shown = str(install_root).upper() if sys.platform == "win32" else str(install_root)
+            listed = f"C:\\Other\\BuildTools\n{shown}\n"
+            return subprocess.CompletedProcess(command, 0, stdout=listed)
+        return subprocess.CompletedProcess(command, 0)
+
+    monkeypatch.setattr(provisioner.subprocess, "run", fake_run)
+
+    assert provisioner.install_msvc(lock, tmp_path / "cache", install_root) == install_root
+
+    assert [Path(command[0]).name for command in commands] == [
+        "vswhere.exe",
+        "setup.exe",
+        "bootstrapper.exe",
+    ]
+    assert commands[1] == [
+        str(installer / "setup.exe"),
+        "uninstall",
+        "--installPath",
+        str(install_root),
+        "--quiet",
+        "--norestart",
+    ]
+
+
+def test_install_msvc_runs_no_uninstall_when_the_path_is_not_registered(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A hosted runner, or any box whose installer lists other instances only,
+    must see the install exactly as before: no uninstall of anything."""
+    monkeypatch.setattr(provisioner, "_MSVC_PATH_LIMIT", 4096)
+    lock = provisioner.load_lock()
+    install_root = tmp_path / "civiccast-msvc-build-tools"
+    _fake_vs_installer(tmp_path, monkeypatch)
+    monkeypatch.setattr(provisioner, "verify_msvc_installation", lambda *a, **kw: None)
+    monkeypatch.setattr(
+        provisioner, "fetch_locked_artifact", lambda *a, **kw: tmp_path / "bootstrapper.exe"
+    )
+    commands: list[list[str]] = []
+
+    def fake_run(command: list[str], **_kw: object) -> subprocess.CompletedProcess[str]:
+        commands.append([str(part) for part in command])
+        if Path(command[0]).name == "vswhere.exe":
+            return subprocess.CompletedProcess(command, 0, stdout="C:\\VS\\2022\\BuildTools\n")
+        return subprocess.CompletedProcess(command, 0)
+
+    monkeypatch.setattr(provisioner.subprocess, "run", fake_run)
+
+    provisioner.install_msvc(lock, tmp_path / "cache", install_root)
+
+    assert [Path(command[0]).name for command in commands] == ["vswhere.exe", "bootstrapper.exe"]
+
+
 def test_install_msvc_relocates_when_the_invalid_install_cannot_be_removed(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
