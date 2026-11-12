@@ -407,7 +407,10 @@ def test_install_msvc_removes_a_stale_installer_record_before_installing(
     def fake_run(command: list[str], **_kw: object) -> subprocess.CompletedProcess[str]:
         commands.append([str(part) for part in command])
         if Path(command[0]).name == "vswhere.exe":
-            listed = f"C:\\Other\\BuildTools\n{str(install_root).upper()}\n"
+            # Windows paths compare case-insensitively, and vswhere may print a
+            # different case than the workflow passes; elsewhere case is exact.
+            shown = str(install_root).upper() if sys.platform == "win32" else str(install_root)
+            listed = f"C:\\Other\\BuildTools\n{shown}\n"
             return subprocess.CompletedProcess(command, 0, stdout=listed)
         return subprocess.CompletedProcess(command, 0)
 
