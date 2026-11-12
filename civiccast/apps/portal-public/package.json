@@ -1,7 +1,7 @@
 {
   "name": "portal-public",
   "private": true,
-  "version": "1.0.0-rc.5",
+  "version": "1.0.0-rc.6",
   "packageManager": "npm@11.12.1",
   "engines": {
     "node": "24.16.0",

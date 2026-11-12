@@ -2,4 +2,4 @@
 # Copyright (c) The CivicCast Authors
 """Single source of truth for the CivicCast version string."""
 
-__version__ = "1.0.0-rc.5"
+__version__ = "1.0.0-rc.6"
