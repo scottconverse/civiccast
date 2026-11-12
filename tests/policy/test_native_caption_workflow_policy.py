@@ -1232,7 +1232,9 @@ def test_native_marker_collections_match_the_workflow_floors() -> None:
     # collection): 2209 / 2458.
     # Whistle own-mirror download order adds five portable cases: 2214 / 2463.
     # GStreamer registry cache per FFmpeg DLL set (issue #324) adds two: 2216 / 2465.
-    assert (collect("not windows_only"), collect()) == (2216, 2465)
+    # Stale Visual Studio instance record removed before the MSVC install
+    # (HALO-gate-a candidate build) adds two portable cases: 2218 / 2467.
+    assert (collect("not windows_only"), collect()) == (2218, 2467)
 
 
 def test_linux_unit_job_runs_native_tests_once_in_the_dedicated_pure_lane() -> None:

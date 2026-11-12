@@ -520,11 +520,13 @@ jobs:
         # tests; floor 2164 keeps the standard 50-test margin.
         # GStreamer registry cache per FFmpeg DLL set (issue #324): two portable
         # cases, 2216 pure tests; floor 2166 keeps the standard 50-test margin.
+        # Stale Visual Studio instance record removed before the MSVC install:
+        # two portable cases, 2218 pure tests; floor 2168 keeps the margin.
         if: always()
         run: |
           python scripts/verify_native_junit_floor.py \
             --junit junit-native-pure.xml \
-            --floor 2166 \
+            --floor 2168 \
             --label "tests/native pure suite"
 
       - name: Upload junit (ws3 claims-evidence D3/D7)
@@ -927,12 +929,14 @@ jobs:
         # non-integration tests; floor 2409 keeps the standard 50-test margin.
         # GStreamer registry cache per FFmpeg DLL set (issue #324): two portable
         # cases, 2461 Windows non-integration tests; floor 2411 keeps the margin.
+        # Stale Visual Studio instance record removed before the MSVC install:
+        # two portable cases, 2463 Windows non-integration tests; floor 2413.
         if: always()
         shell: bash
         run: |
           python scripts/verify_native_junit_floor.py \
             --junit junit-native-win.xml \
-            --floor 2411 \
+            --floor 2413 \
             --label "tests/native Windows suite"
 
       - name: Upload Windows native junit

@@ -1975,6 +1975,22 @@ _OBSERVED_PACKAGE_MANIFEST_COMPONENTS = frozenset(
         "microsoftcorporationii.windowssubsystemforlinux_3.0.3.0_x64__8wekyb3d8bbwe",
     }
 )
+#: Root ``AppxManifest.xml`` of Microsoft Store packages that update themselves,
+#: so the version is not pinned: Windows Photos and the Windows App Runtime 1.7
+#: it depends on. Observed as sampled open handles of the probe child on the
+#: HALO-gate-a runner (candidate run 43259269511, 2026-11-12), where the six
+#: other checks passed. Same rule as the exact identities above: the manifest
+#: at the package root only, never a DLL or any other file of the package.
+_OBSERVED_PACKAGE_MANIFEST_PATTERNS = (
+    re.compile(
+        r"^microsoft\.windows\.photos_\d+(?:\.\d+){3}_x64__8wekyb3d8bbwe$",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"^microsoft\.windowsappruntime\.1\.7_\d+(?:\.\d+){3}_(?:x64|x86)__8wekyb3d8bbwe$",
+        re.IGNORECASE,
+    ),
+)
 _OBSERVED_PACKAGE_METADATA_RESOURCE_COMPONENTS = frozenset(
     {
         "microsoft.windowsfeedbackhub_1.2512.16303.0_x64__8wekyb3d8bbwe",
@@ -2048,7 +2064,13 @@ def _is_reported_package_data_resource(path: Path, resolved: Path) -> bool:
         normalized_package = package_name.casefold()
         normalized_filename = filename.casefold()
         return (
-            normalized_package in _OBSERVED_PACKAGE_MANIFEST_COMPONENTS
+            (
+                normalized_package in _OBSERVED_PACKAGE_MANIFEST_COMPONENTS
+                or any(
+                    pattern.fullmatch(package_name) is not None
+                    for pattern in _OBSERVED_PACKAGE_MANIFEST_PATTERNS
+                )
+            )
             and normalized_filename == "appxmanifest.xml"
         ) or (
             (
@@ -2205,7 +2227,8 @@ def _dynamic_trace_result(payload: _ChildPayload, tree: Path) -> CheckResult:
             "were observed outside the payload. This narrow reported-data exception "
             "covers only observed DesktopAppInstaller package resource indexes (PRI), "
             "the observed WindowsFeedbackHub microsoft.system.package.metadata PRI "
-            "index, observed SecHealthUI/WindowsFeedbackHub/WSL root AppxManifest.xml "
+            "index, observed SecHealthUI/WindowsFeedbackHub/WSL/Windows Photos/"
+            "Windows App Runtime 1.7 root AppxManifest.xml "
             "manifests, and the observed WSL resources.pri and Windows Terminal "
             "resources.pri at their package roots. It "
             "does not apply to executable or unknown-protection mappings, DLLs, or "
