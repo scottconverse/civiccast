@@ -1234,7 +1234,9 @@ def test_native_marker_collections_match_the_workflow_floors() -> None:
     # GStreamer registry cache per FFmpeg DLL set (issue #324) adds two: 2216 / 2465.
     # Stale Visual Studio instance record removed before the MSVC install
     # (HALO-gate-a candidate build) adds two portable cases: 2218 / 2467.
-    assert (collect("not windows_only"), collect()) == (2218, 2467)
+    # Microsoft-published Store package manifest rule (one case) and the
+    # integrated-graphics ollama child environment (two cases): 2221 / 2470.
+    assert (collect("not windows_only"), collect()) == (2221, 2470)
 
 
 def test_linux_unit_job_runs_native_tests_once_in_the_dedicated_pure_lane() -> None:

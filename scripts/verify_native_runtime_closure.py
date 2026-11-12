@@ -1975,21 +1975,28 @@ _OBSERVED_PACKAGE_MANIFEST_COMPONENTS = frozenset(
         "microsoftcorporationii.windowssubsystemforlinux_3.0.3.0_x64__8wekyb3d8bbwe",
     }
 )
-#: Root ``AppxManifest.xml`` of Microsoft Store packages that update themselves,
-#: so the version is not pinned: Windows Photos and the Windows App Runtime 1.7
-#: it depends on. Observed as sampled open handles of the probe child on the
-#: HALO-gate-a runner (candidate run 43259269511, 2026-11-12), where the six
-#: other checks passed. Same rule as the exact identities above: the manifest
-#: at the package root only, never a DLL or any other file of the package.
-_OBSERVED_PACKAGE_MANIFEST_PATTERNS = (
-    re.compile(
-        r"^microsoft\.windows\.photos_\d+(?:\.\d+){3}_x64__8wekyb3d8bbwe$",
-        re.IGNORECASE,
-    ),
-    re.compile(
-        r"^microsoft\.windowsappruntime\.1\.7_\d+(?:\.\d+){3}_(?:x64|x86)__8wekyb3d8bbwe$",
-        re.IGNORECASE,
-    ),
+#: Root ``AppxManifest.xml`` of ANY Store package published by Microsoft
+#: Corporation (publisher id ``8wekyb3d8bbwe``), at any version.
+#:
+#: Windows itself reads package manifests while it resolves packaged COM and
+#: Media Foundation registrations for a process; the probe child does not ask
+#: for them, and WHICH manifest a handle sample catches differs from run to
+#: run and from box to box. On the HALO-gate-a runner three candidate builds on
+#: 2026-11-12 caught Windows Photos and Windows App Runtime 1.7 (run
+#: 43259269511), then, with those two listed, Desktop App Installer (run
+#: 43274770373) -- every other check passing each time. Listing identities one
+#: by one cannot converge on a box with dozens of Store packages that update
+#: themselves, so the rule names the file instead of the package:
+#:
+#:   * exactly ``AppxManifest.xml`` directly under the package root (enforced
+#:     by the caller: two path parts, canonical, no traversal);
+#:   * a well-formed package directory name with Microsoft's publisher id --
+#:     a third-party Store package stays a failure;
+#:   * data only: a DLL, an executable mapping or any other file of the same
+#:     package is still a failure, exactly as before.
+_MICROSOFT_PACKAGE_MANIFEST_COMPONENT = re.compile(
+    r"^[a-z0-9][a-z0-9.\-]*_\d+(?:\.\d+){3}_(?:x64|x86|arm64|arm|neutral)_[a-z0-9~]*_8wekyb3d8bbwe$",
+    re.IGNORECASE,
 )
 _OBSERVED_PACKAGE_METADATA_RESOURCE_COMPONENTS = frozenset(
     {
@@ -2066,10 +2073,7 @@ def _is_reported_package_data_resource(path: Path, resolved: Path) -> bool:
         return (
             (
                 normalized_package in _OBSERVED_PACKAGE_MANIFEST_COMPONENTS
-                or any(
-                    pattern.fullmatch(package_name) is not None
-                    for pattern in _OBSERVED_PACKAGE_MANIFEST_PATTERNS
-                )
+                or _MICROSOFT_PACKAGE_MANIFEST_COMPONENT.fullmatch(package_name) is not None
             )
             and normalized_filename == "appxmanifest.xml"
         ) or (
@@ -2227,9 +2231,8 @@ def _dynamic_trace_result(payload: _ChildPayload, tree: Path) -> CheckResult:
             "were observed outside the payload. This narrow reported-data exception "
             "covers only observed DesktopAppInstaller package resource indexes (PRI), "
             "the observed WindowsFeedbackHub microsoft.system.package.metadata PRI "
-            "index, observed SecHealthUI/WindowsFeedbackHub/WSL/Windows Photos/"
-            "Windows App Runtime 1.7 root AppxManifest.xml "
-            "manifests, and the observed WSL resources.pri and Windows Terminal "
+            "index, the root AppxManifest.xml of a Microsoft-published Store package "
+            "(publisher id 8wekyb3d8bbwe), and the observed WSL resources.pri and Windows Terminal "
             "resources.pri at their package roots. It "
             "does not apply to executable or unknown-protection mappings, DLLs, or "
             "any other WindowsApps path:\n    " + shown
