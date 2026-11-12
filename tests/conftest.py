@@ -5,11 +5,14 @@
 from __future__ import annotations
 
 import asyncio
+import gc
 import os
 from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
+from sqlalchemy import event
+from sqlalchemy.pool import Pool
 
 from tests.support.hermetic_state import (
     INSTALLED_PATHS_MARKER,
@@ -24,6 +27,41 @@ from tests.support.hermetic_state import (
 #: hermetic fixture below rewrites LOCALAPPDATA per test, so resolving lazily
 #: would guard the temp copy instead of the real one.
 _REAL_STATE_ROOTS: tuple[Path, ...] = real_state_roots(os.environ)
+
+
+#: Set when the running test opened a PostgreSQL connection through SQLAlchemy.
+_POSTGRES_CONNECTION_OPENED = {"in_this_test": False}
+
+
+@event.listens_for(Pool, "connect")
+def _note_postgres_connection(dbapi_connection: object, _record: object) -> None:
+    if type(dbapi_connection).__module__.startswith("psycopg"):
+        _POSTGRES_CONNECTION_OPENED["in_this_test"] = True
+
+
+@pytest.fixture(autouse=True)
+def _fail_the_test_that_leaks_a_postgres_connection() -> Iterator[None]:
+    """Make a leaked PostgreSQL connection fail the test that leaked it (#311).
+
+    psycopg reports a connection that is garbage-collected while still open as
+    a ``ResourceWarning`` from ``__del__``, and ``filterwarnings = ["error"]``
+    escalates it. Without this fixture the collector finalizes the connection
+    at some later, arbitrary moment, so the failure lands on an unrelated test
+    and moves with the test order -- the randomized lane failed on a different
+    innocent test each time.
+
+    Forcing one collection here, after this test's own fixtures have finished,
+    reports the leak in the teardown of the test that caused it, in every
+    order. A connection that a wider-scoped fixture still holds is reachable,
+    so it is not collected and not reported. The collection runs only for
+    tests that opened a PostgreSQL connection, so the rest of the suite pays
+    nothing.
+    """
+
+    _POSTGRES_CONNECTION_OPENED["in_this_test"] = False
+    yield
+    if _POSTGRES_CONNECTION_OPENED["in_this_test"]:
+        gc.collect()
 
 
 def pytest_configure() -> None:
