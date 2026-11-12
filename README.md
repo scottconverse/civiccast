@@ -19,6 +19,15 @@ system. Staff use one operator console; residents watch through a separate
 portal. Optional cloud services may charge their own usage fees, while CivicCast
 has no per-minute software fee.
 
+## Unpublished source candidate
+
+`v1.0.0-rc.6` is an unpublished candidate and is not available as a public release.
+It puts AC-3 sound and a constant bit rate on a cable output while the web output stays
+AAC, and it repairs a station that saved a cable preset on an earlier release. The
+[RC6 release notes](docs/releases/v1.0.0-rc.6-release-notes.md) list what is verified
+and what is still pending. Source changes do not update an installed station or
+replace the published RC5 downloads below.
+
 ## Current published package
 
 [`v1.0.0-rc.5`](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-rc.5)
