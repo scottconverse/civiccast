@@ -1639,6 +1639,16 @@ class EgressDaemon:
         {"ON_AIR", "STARTING", "TRANSITIONING"}
     )
 
+    def repair_unairable_saved_codecs(self) -> list[str]:
+        """Move a saved channel-level AC-3 / MPEG-2 codec to the shape this engine
+        airs (issue #327). Called once at automation startup, BEFORE the stale-state
+        reconciliation queues any start, so an upgraded station comes back on air
+        without an operator re-applying its cable preset."""
+
+        from civiccast.egress.codec_repair import repair_unairable_channel_codecs
+
+        return repair_unairable_channel_codecs(self._store.list_configs, self._store.upsert_config)
+
     def reconcile_stale_state(self) -> list[str]:
         """STARTUP sweep: clear persisted on-air claims with a DEAD encoder.
 

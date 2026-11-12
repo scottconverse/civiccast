@@ -1185,6 +1185,19 @@ class ChannelAutomationService:
         shutdown = getattr(self._daemon, "shutdown_preparation", None)
         if enable is not None:
             enable()
+        # Issue #327: a station upgraded from rc.5 or earlier can hold a channel
+        # codec this engine never airs (a cable preset used to save AC-3 on the
+        # channel). Repair it once, before any start is queued. Best-effort.
+        repair = getattr(self._daemon, "repair_unairable_saved_codecs", None)
+        if repair is not None:
+            try:
+                for line in repair():
+                    _LOG.warning("Saved channel codec repaired for this engine: %s", line)
+            except Exception:
+                _LOG.exception(
+                    "Saved channel codec repair failed; automation continues "
+                    "(apply the cable preset again to repair a dark channel)."
+                )
         # ONE startup reconciliation pass: a supervisor restart can leave
         # persisted ON_AIR rows whose encoder PIDs died with the old control
         # plane. Clearing those stale claims and re-queuing an ordinary start is
