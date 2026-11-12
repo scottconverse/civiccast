@@ -213,6 +213,17 @@ _FFMPEG_TO_GST_AUDIO_ENCODER = {
     "voaac": "voaacenc",
 }
 
+#: Canonical ``audio_codec`` values this engine can put on air. Anything else
+#: (``ac3`` above all) has no encoder here, and the bundled runtime has no AC-3
+#: decoder either: a slate conformed to AC-3 never prerolls (issue #324).
+SUPPORTED_AUDIO_CODECS = frozenset(_FFMPEG_TO_GST_AUDIO_ENCODER)
+
+#: Canonical ``video_codec`` values proven NOT to air on this engine: sources are
+#: conformed to MPEG-2 video, which the bundled runtime does not decode, so no video
+#: buffer reaches the mux (issue #324, measured on R9 2026-11-12). A denylist, not an
+#: allowlist: other ffmpeg encoder names that produce H.264 keep working.
+UNAIRABLE_VIDEO_CODECS = frozenset({"mpeg2video", "mpeg2"})
+
 
 def gst_audio_encoder_name(ffmpeg_codec: str) -> str:
     """Map an ffmpeg audio codec to a GStreamer AAC encoder (avenc_aac default).

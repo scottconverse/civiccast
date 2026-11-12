@@ -678,7 +678,8 @@ def test_apply_headend_profile_creates_a_fresh_config(client: TestClient) -> Non
     assert r.status_code == 200, r.text
     body = r.json()["config"]
     assert r.json()["on_air_effect"] == "next_start"
-    assert body["canonical_profile"]["video_codec"] == "mpeg2video"
+    # Issue #324: the default GStreamer engine cannot air MPEG-2 video; the apply keeps H.264.
+    assert body["canonical_profile"]["video_codec"] == "h264"
     sink = body["sinks"][0]
     assert sink["kind"] == "udp-ts"
     muxrate_idx = sink["extra_output_args"].index("-muxrate")
@@ -1951,3 +1952,87 @@ def test_state_exposes_live_preparation_without_persisting_it(client, store, mon
         assert result.json()["preparation_elapsed_seconds"] == 12.5
         assert result.json()["current_source_label"] == "Current program"
         assert store.read_state("gov").preparation_status is None
+
+
+# --- Issue #324: a cable preset must never take the channel off air -----------------
+
+
+def test_cable_preset_keeps_aac_on_the_default_gstreamer_engine(client: TestClient) -> None:
+    """Every cable preset asks for AC-3. The GStreamer engine (the default) cannot
+    make or decode AC-3, and a channel saved with it never reached PLAYING: no web
+    segment, no cable packet. The apply keeps AAC and says so to the operator."""
+    r = client.post(
+        "/api/staff/egress/channels/gov/config/headend-profile",
+        json={"profile_id": "generic-udp-spts", "destination_uri": "udp://239.255.0.1:5000"},
+    )
+
+    assert r.status_code == 200, r.text
+    assert r.json()["config"]["canonical_profile"]["audio_codec"] == "aac"
+    assert r.json()["config"]["canonical_profile"]["audio_bitrate_kbps"] == 192
+    assert "cannot make AC3 sound yet" in r.json()["on_air_detail"]
+    assert "uses AAC sound instead and stays on air" in r.json()["on_air_detail"]
+    persisted = client.get("/api/staff/egress/channels/gov/config").json()
+    assert persisted["canonical_profile"]["audio_codec"] == "aac"
+
+
+def test_cable_preset_keeps_ac3_on_the_ffmpeg_concat_engine(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Engine-aware: the ffmpeg-concat engine can make AC-3, so it is not narrowed."""
+    monkeypatch.setenv("CIVICCAST_EGRESS_ENGINE", "ffmpeg-concat")
+    r = client.post(
+        "/api/staff/egress/channels/gov/config/headend-profile",
+        json={"profile_id": "generic-udp-spts", "destination_uri": "udp://239.255.0.1:5000"},
+    )
+
+    assert r.status_code == 200, r.text
+    assert r.json()["config"]["canonical_profile"]["audio_codec"] == "ac3"
+    assert "cannot make" not in r.json()["on_air_detail"]
+
+
+def test_staff_egress_config_rejects_ac3_on_the_default_gstreamer_engine(
+    client: TestClient,
+) -> None:
+    payload = _config_payload() | {"canonical_profile": {"audio_codec": "ac3"}}
+    r = client.put("/api/staff/egress/channels/gov/config", json=payload)
+
+    assert r.status_code == 422, r.text
+    assert "ac3" in r.json()["detail"]
+    assert "never goes on air" in r.json()["detail"]
+    assert client.get("/api/staff/egress/channels/gov/config").status_code == 404
+
+
+def test_staff_egress_config_allows_ac3_on_the_ffmpeg_concat_engine(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("CIVICCAST_EGRESS_ENGINE", "ffmpeg-concat")
+    payload = _config_payload() | {"canonical_profile": {"audio_codec": "ac3"}}
+    r = client.put("/api/staff/egress/channels/gov/config", json=payload)
+
+    assert r.status_code == 200, r.text
+    assert r.json()["canonical_profile"]["audio_codec"] == "ac3"
+
+
+def test_comcast_sd_preset_keeps_h264_on_the_default_gstreamer_engine(client: TestClient) -> None:
+    """The Comcast SD preset also asks for MPEG-2 video. On the GStreamer engine a
+    channel saved with it sent no video buffer and no new segment (R9, 2026-11-12)."""
+    r = client.post(
+        "/api/staff/egress/channels/gov/config/headend-profile",
+        json={"profile_id": "comcast-mtd-sd", "destination_uri": "udp://239.255.0.1:5000"},
+    )
+
+    assert r.status_code == 200, r.text
+    profile = r.json()["config"]["canonical_profile"]
+    assert (profile["video_codec"], profile["audio_codec"]) == ("h264", "aac")
+    assert "AC3 sound or MPEG2VIDEO video" in r.json()["on_air_detail"]
+    assert "AAC sound and H.264 video" in r.json()["on_air_detail"]
+
+
+def test_staff_egress_config_rejects_mpeg2video_on_the_default_gstreamer_engine(
+    client: TestClient,
+) -> None:
+    payload = _config_payload() | {"canonical_profile": {"video_codec": "mpeg2video"}}
+    r = client.put("/api/staff/egress/channels/gov/config", json=payload)
+
+    assert r.status_code == 422, r.text
+    assert "video codec 'mpeg2video'" in r.json()["detail"]

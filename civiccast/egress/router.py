@@ -28,7 +28,9 @@ from civiccast.egress.compliance import (
 )
 from civiccast.egress.dispatcher import RUNNING_STATES
 from civiccast.egress.engine_select import gstreamer_engine_selected
+from civiccast.egress.gst.bridge import SUPPORTED_AUDIO_CODECS as GST_SUPPORTED_AUDIO_CODECS
 from civiccast.egress.gst.bridge import SUPPORTED_SINK_KINDS as GST_SUPPORTED_SINK_KINDS
+from civiccast.egress.gst.bridge import UNAIRABLE_VIDEO_CODECS as GST_UNAIRABLE_VIDEO_CODECS
 from civiccast.egress.headend import (
     HeadendProfile,
     apply_headend_profile,
@@ -269,6 +271,81 @@ def _reject_unsupported_sink_kinds(config: EgressConfig) -> None:
     )
 
 
+_GST_FALLBACK_AUDIO_CODEC = "aac"
+_GST_FALLBACK_VIDEO_CODEC = "h264"
+_CODEC_KEPT_DETAIL = (
+    " This station's playout engine cannot make {asked} yet (the preset asks for it), so "
+    "the channel uses {kept} instead and stays on air. Ask your cable operator whether "
+    "the headend accepts {kept} before you rely on this feed."
+)
+
+
+def _gst_unairable_codecs(config: EgressConfig) -> tuple[str | None, str | None]:
+    """``(audio, video)`` codec the selected engine cannot put on air, else ``None``.
+
+    Issue #324, both measured on a clean rc.5 station (R9, 2026-11-12): a channel
+    saved with ``ac3`` audio never reached PLAYING, and one saved with
+    ``mpeg2video`` video reached PLAYING with no video buffer and no new segment.
+    The ffmpeg-concat engine makes both, so it is never narrowed.
+    """
+    if not gstreamer_engine_selected():
+        return None, None
+    profile = config.canonical_profile
+    audio = profile.audio_codec.strip().lower()
+    video = profile.video_codec.strip().lower()
+    return (
+        profile.audio_codec if audio not in GST_SUPPORTED_AUDIO_CODECS else None,
+        profile.video_codec if video in GST_UNAIRABLE_VIDEO_CODECS else None,
+    )
+
+
+def _reject_unairable_codecs(config: EgressConfig) -> None:
+    """Refuse, at config time, a channel codec the selected engine cannot put on
+    air. Accepted, the channel went dark -- no web segment, no cable packet --
+    while ``/health`` stayed healthy. Same accept-then-crash shape as
+    ``_reject_unsupported_sink_kinds``.
+    """
+    audio, video = _gst_unairable_codecs(config)
+    if audio is None and video is None:
+        return
+    named = " and ".join(
+        f"{kind} codec {codec!r}"
+        for kind, codec in (("audio", audio), ("video", video))
+        if codec is not None
+    )
+    raise HTTPException(
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+        detail=(
+            f"The active GStreamer egress engine cannot put {named} on air. Supported audio "
+            f"codecs: {sorted(GST_SUPPORTED_AUDIO_CODECS)}; use 'h264' video. A channel "
+            "saved with it never goes on air."
+        ),
+    )
+
+
+def _keep_airable_codecs(config: EgressConfig) -> tuple[EgressConfig, str | None]:
+    """A preset must never take a channel off air (issue #324). Where the selected
+    engine cannot air the preset's audio or video codec, keep AAC / H.264 and
+    return the sentence that tells the operator so, in plain words."""
+    audio, video = _gst_unairable_codecs(config)
+    if audio is None and video is None:
+        return config, None
+    update: dict[str, str] = {}
+    asked: list[str] = []
+    kept: list[str] = []
+    if audio is not None:
+        update["audio_codec"] = _GST_FALLBACK_AUDIO_CODEC
+        asked.append(f"{audio.upper()} sound")
+        kept.append("AAC sound")
+    if video is not None:
+        update["video_codec"] = _GST_FALLBACK_VIDEO_CODEC
+        asked.append(f"{video.upper()} video")
+        kept.append("H.264 video")
+    profile = config.canonical_profile.model_copy(update=update)
+    detail = _CODEC_KEPT_DETAIL.format(asked=" or ".join(asked), kept=" and ".join(kept))
+    return config.model_copy(update={"canonical_profile": profile}), detail
+
+
 def _require_store(store: EgressStore | None, *, surface: str) -> EgressStore:
     if store is None:
         raise HTTPException(
@@ -436,6 +513,7 @@ def upsert_config(
             ),
         )
     _reject_unsupported_sink_kinds(payload)
+    _reject_unairable_codecs(payload)
     _reject_uncontained_hls_sinks(payload)
     store.upsert_config(payload)
     result = store.get_config(channel_id)
@@ -829,6 +907,7 @@ def apply_headend_profile_to_channel(
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
         ) from exc
+    updated, codec_kept_detail = _keep_airable_codecs(updated)
     _reject_unsupported_sink_kinds(updated)
     _reject_uncontained_hls_sinks(updated)
     config_changed = fresh or updated != base
@@ -846,6 +925,8 @@ def apply_headend_profile_to_channel(
         config_changed=config_changed,
         issued_by=_staff_operator_id(request),
     )
+    if codec_kept_detail is not None:
+        detail += codec_kept_detail
     return HeadendProfileApplyResponse(config=result, on_air_effect=effect, on_air_detail=detail)
 
 
