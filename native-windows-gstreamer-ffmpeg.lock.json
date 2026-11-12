@@ -1,8 +1,8 @@
 {
   "archive": {
-    "bytes": 1968427,
-    "name": "ffmpeg-7.1.5-security1-gstreamer-windows-x64.zip",
-    "sha256": "40cf143eda356ea14573323c8dcfbd4c4e33c83a2510e50bbaae95912b143246"
+    "bytes": 2028371,
+    "name": "ffmpeg-7.1.5-security1-ac3-gstreamer-windows-x64.zip",
+    "sha256": "dafbcb31731ef1b4c044c3abd3d10d27a3adbc14e1a7f7f64c779280e398968a"
   },
   "files": {
     "COPYING.LGPLv2.1": {
@@ -10,32 +10,32 @@
       "sha256": "246041b6ecf9bc32d718a62c57877c78b5eb397b6467e74ed7ae2626ab189c30"
     },
     "avcodec-61.dll": {
-      "bytes": 2211840,
-      "sha256": "4c6bf6d6bfc93534c9697030140c3d602a737bdc24544f6a546aecd4ede038a6"
+      "bytes": 2321920,
+      "sha256": "8a527789cdaa2372db53f8de1beb351533a3c762685d9af707cc78819062d0c7"
     },
     "avfilter-10.dll": {
       "bytes": 322560,
-      "sha256": "0335667d21812d629b4550e4024dd742082fc4762f49c78c3b1582f50fc951ef"
+      "sha256": "2a9879ce5c2c3674cde65079b24f8e5c43993d643cb8e0807a59e5010a579b12"
     },
     "avformat-61.dll": {
       "bytes": 338432,
-      "sha256": "7fcb7f80d620e80b8214fdc1f70254380fe41f05f8d3c1299f68909d235989cf"
+      "sha256": "34df2bd7007f65fd571316443a707e14bb289f3ed215d899d0a47adb57270fa9"
     },
     "avutil-59.dll": {
       "bytes": 1140224,
-      "sha256": "aa19b89eeaa2c8b3f86fcbf3c05c7baa4f85fdbc68763970efeaa2fe613c7d12"
+      "sha256": "273fc2599899118cb37a5c2504b548b032962dd1d3eee1c83df6cf4e07c4f16e"
     },
     "provenance.json": {
-      "bytes": 2282,
-      "sha256": "5e8daed90e773f7963ef514d663f88eaf14a20133b59d9987585456273851f2e"
+      "bytes": 2299,
+      "sha256": "0bdbac40b04050feb127dd23d773ca87a81f206d98cf60cf90af7ec332d64b9c"
     },
     "swresample-5.dll": {
       "bytes": 232448,
-      "sha256": "94e72e76529e0b2c34f455bc31473d5d23d5a433dd4269912eff04c28ce904d4"
+      "sha256": "eab3aae98dd2810cad00b413976a6f002d2205ae09cb7c28fcf6c34b520cd0d5"
     },
     "swscale-8.dll": {
-      "bytes": 747008,
-      "sha256": "55f71e4facbb77786c441f144b38e3f23a88eac72703627b70204c3150a60eb9"
+      "bytes": 747520,
+      "sha256": "ecb1bd018dc585445a069fd7482deab3a61f2c80cdcc6eb799938a1e5ab26543"
     }
   },
   "provenance": {
@@ -60,9 +60,9 @@
       "--enable-avutil",
       "--enable-swresample",
       "--enable-swscale",
-      "--enable-decoder=h264,aac",
-      "--enable-encoder=aac",
-      "--enable-parser=h264,aac,aac_latm",
+      "--enable-decoder=h264,aac,ac3,eac3",
+      "--enable-encoder=aac,ac3",
+      "--enable-parser=h264,aac,aac_latm,ac3",
       "--enable-filter=null,psnr,scale,ssim,yadif,nullsrc,nullsink,abuffer,buffer,abuffersink,buffersink",
       "--extra-cflags=/Brepro @civiccast-cl.rsp",
       "--extra-ldflags=/Brepro"

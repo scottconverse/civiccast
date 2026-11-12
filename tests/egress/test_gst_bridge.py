@@ -673,3 +673,83 @@ def test_graph_from_config_wires_audio() -> None:
     for tail in (program.audio_tail, slate.audio):
         caps = next(spec.props["caps"] for spec in tail if spec.factory == "capsfilter")
         assert "layout=interleaved" in caps
+
+
+# --- Issue #324: AC-3 on the cable output, AAC on the web output ---------------------
+
+
+def _web_and_cable_config(cable_args: list[str]) -> EgressConfig:
+    return EgressConfig(
+        channel_id="gov",
+        enabled=True,
+        slate_message="Standby",
+        sinks=[
+            EgressSinkSpec(kind="local-ts", label="Web", uri="udp://127.0.0.1:19000"),
+            EgressSinkSpec(
+                kind="udp-ts",
+                label="Cable headend",
+                uri="udp://239.255.0.1:5000",
+                extra_output_args=cable_args,
+            ),
+        ],
+    )
+
+
+def _plan_for(config: EgressConfig) -> EgressSourcePlan:
+    return EgressSourcePlan(
+        channel_id=config.channel_id,
+        segments=[EgressSourceSegment(label="clip1", path="/m/clip1.ts", duration_seconds=10)],
+    )
+
+
+def test_cable_output_is_ac3_while_the_web_output_of_the_same_channel_is_aac() -> None:
+    config = _web_and_cable_config(["-muxrate", "8000k", "-c:a", "ac3"])
+
+    graph = graph_from_config(config, _plan_for(config))
+
+    assert graph.sinks == ()
+    assert graph.audio_encoder == ()
+    web, cable = graph.output_branches
+    web_audio = [spec.factory for spec in web.audio_chain]
+    cable_audio = [spec.factory for spec in cable.audio_chain]
+    assert web_audio[-2:] == ["avenc_aac", "aacparse"]
+    assert cable_audio[-2:] == ["avenc_ac3", "ac3parse"]
+    assert "avenc_ac3" not in web_audio
+    # Issue #325: the cable mux pads to the constant rate; the web mux does not.
+    assert cable.mux.props == {"bitrate": 8_000_000}
+    assert web.mux.props == {}
+    cable_encoder = cable.audio_chain[-2]
+    assert cable_encoder.props == {"bitrate": 192_000}
+    assert graph_from_json(graph_to_json(graph)).output_branches == graph.output_branches
+
+
+def test_no_per_output_codec_keeps_the_single_shared_aac_encoder() -> None:
+    """No ``-c:a`` and no ``-muxrate``: the graph is the one that shipped (shared mux,
+    shared AAC encode)."""
+    config = _web_and_cable_config([])
+
+    graph = graph_from_config(config, _plan_for(config))
+
+    assert graph.output_branches == ()
+    assert [spec.factory for spec in graph.audio_encoder][-2:] == ["avenc_aac", "aacparse"]
+
+
+def test_sink_audio_codec_flag_accepts_only_known_codecs() -> None:
+    assert _web_and_cable_config(["-c:a", "ac3"]).sinks[1].audio_codec_override == "ac3"
+    assert _web_and_cable_config([]).sinks[1].audio_codec_override is None
+    for bad in (["-c:a"], ["-c:a", "mp3"], ["-c:a", "ac3", "-c:a", "aac"]):
+        with pytest.raises(ValueError, match="-c:a"):
+            _web_and_cable_config(bad)
+
+
+def test_cable_muxrate_alone_gives_the_cable_output_its_own_constant_rate_mux() -> None:
+    """Issue #325: ``-muxrate`` was an FFmpeg argument this engine never read, so the
+    cable feed was variable (274 kb/s measured against 8 Mb/s on a station)."""
+    config = _web_and_cable_config(["-muxrate", "3750k"])
+
+    graph = graph_from_config(config, _plan_for(config))
+
+    web, cable = graph.output_branches
+    assert cable.mux.factory == "mpegtsmux" and cable.mux.props == {"bitrate": 3_750_000}
+    assert web.mux.props == {}
+    assert [spec.factory for spec in cable.audio_chain][-2:] == ["avenc_aac", "aacparse"]

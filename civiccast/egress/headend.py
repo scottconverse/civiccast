@@ -363,8 +363,13 @@ def apply_headend_profile(
     muxrate_kbps_override: int | None = None,
     keep_existing_sinks: bool = False,
     label: str | None = None,
+    sink_audio_codec: str | None = None,
 ) -> EgressConfig:
     """Return a new config carrying the profile's encode + delivery sink.
+
+    ``sink_audio_codec`` puts ``-c:a <codec>`` on the delivery sink: that one output
+    is encoded to it while the channel profile (and so the web output) is untouched.
+    The route passes it on the GStreamer engine, where the channel codec stays AAC.
 
     Validates the destination against the profile's transport before
     anything is persisted, so a typo'd address fails loudly instead of
@@ -387,12 +392,13 @@ def apply_headend_profile(
     label = label or _HEADEND_SINK_LABEL
     _validate_destination(profile, destination_uri)
     muxrate_kbps = muxrate_kbps_override or profile.muxrate_kbps
+    sink_codec_args = ["-c:a", sink_audio_codec] if sink_audio_codec else []
     if profile.transport == "file-drop":
         sink = EgressSinkSpec(
             kind="file",
             label=label,
             uri=destination_uri,
-            extra_output_args=list(profile.mpegts_extra_args),
+            extra_output_args=[*profile.mpegts_extra_args, *sink_codec_args],
             loudness_regime=profile.recommended_loudness_regime,
         )
     else:
@@ -404,6 +410,7 @@ def apply_headend_profile(
                 "-muxrate",
                 f"{muxrate_kbps}k",
                 *profile.mpegts_extra_args,
+                *sink_codec_args,
             ],
             loudness_regime=profile.recommended_loudness_regime,
         )

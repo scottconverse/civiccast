@@ -1957,10 +1957,11 @@ def test_state_exposes_live_preparation_without_persisting_it(client, store, mon
 # --- Issue #324: a cable preset must never take the channel off air -----------------
 
 
-def test_cable_preset_keeps_aac_on_the_default_gstreamer_engine(client: TestClient) -> None:
-    """Every cable preset asks for AC-3. The GStreamer engine (the default) cannot
-    make or decode AC-3, and a channel saved with it never reached PLAYING: no web
-    segment, no cable packet. The apply keeps AAC and says so to the operator."""
+def test_cable_preset_puts_ac3_on_the_cable_output_only(client: TestClient) -> None:
+    """Every cable preset asks for AC-3 (SCTE 54 5.3: cable needs an AC-3 main audio
+    service). Saved as the CHANNEL codec it took the channel off air on the default
+    GStreamer engine and would have sent AC-3 to browsers. The apply puts AC-3 on the
+    cable output alone (``-c:a ac3``) and keeps the channel, and so the web, on AAC."""
     r = client.post(
         "/api/staff/egress/channels/gov/config/headend-profile",
         json={"profile_id": "generic-udp-spts", "destination_uri": "udp://239.255.0.1:5000"},
@@ -1969,10 +1970,39 @@ def test_cable_preset_keeps_aac_on_the_default_gstreamer_engine(client: TestClie
     assert r.status_code == 200, r.text
     assert r.json()["config"]["canonical_profile"]["audio_codec"] == "aac"
     assert r.json()["config"]["canonical_profile"]["audio_bitrate_kbps"] == 192
-    assert "cannot make AC3 sound yet" in r.json()["on_air_detail"]
-    assert "uses AAC sound instead and stays on air" in r.json()["on_air_detail"]
+    args = r.json()["config"]["sinks"][0]["extra_output_args"]
+    assert args[args.index("-c:a") + 1] == "ac3"
+    assert "The cable output carries AC-3 (Dolby Digital) sound" in r.json()["on_air_detail"]
+    assert "cannot make" not in r.json()["on_air_detail"]
     persisted = client.get("/api/staff/egress/channels/gov/config").json()
     assert persisted["canonical_profile"]["audio_codec"] == "aac"
+    assert "-c:a" in persisted["sinks"][0]["extra_output_args"]
+
+
+def test_cable_preset_after_web_preview_leaves_the_web_output_on_aac(
+    client: TestClient, hls_root: Path
+) -> None:
+    """The station case: web preview first, then a cable preset beside it."""
+    web = client.post(
+        "/api/staff/egress/channels/gov/config/headend-profile",
+        json={"profile_id": "local-rehearsal-hls", "destination_uri": ""},
+    )
+    assert web.status_code == 200, web.text
+    r = client.post(
+        "/api/staff/egress/channels/gov/config/headend-profile",
+        json={
+            "profile_id": "comcast-mtd-hd",
+            "destination_uri": "udp://239.255.0.1:5000",
+            "keep_existing_sinks": True,
+        },
+    )
+
+    assert r.status_code == 200, r.text
+    config = r.json()["config"]
+    assert config["canonical_profile"]["audio_codec"] == "aac"
+    by_kind = {sink["kind"]: sink["extra_output_args"] for sink in config["sinks"]}
+    assert "-c:a" not in by_kind["hls"]
+    assert by_kind["udp-ts"][by_kind["udp-ts"].index("-c:a") + 1] == "ac3"
 
 
 def test_cable_preset_keeps_ac3_on_the_ffmpeg_concat_engine(
@@ -1987,6 +2017,8 @@ def test_cable_preset_keeps_ac3_on_the_ffmpeg_concat_engine(
 
     assert r.status_code == 200, r.text
     assert r.json()["config"]["canonical_profile"]["audio_codec"] == "ac3"
+    assert "-c:a" not in r.json()["config"]["sinks"][0]["extra_output_args"]
+    assert "cable output carries" not in r.json()["on_air_detail"]
     assert "cannot make" not in r.json()["on_air_detail"]
 
 
@@ -2024,8 +2056,9 @@ def test_comcast_sd_preset_keeps_h264_on_the_default_gstreamer_engine(client: Te
     assert r.status_code == 200, r.text
     profile = r.json()["config"]["canonical_profile"]
     assert (profile["video_codec"], profile["audio_codec"]) == ("h264", "aac")
-    assert "AC3 sound or MPEG2VIDEO video" in r.json()["on_air_detail"]
-    assert "AAC sound and H.264 video" in r.json()["on_air_detail"]
+    assert "The cable output carries AC-3 (Dolby Digital) sound" in r.json()["on_air_detail"]
+    assert "cannot make MPEG2VIDEO video yet" in r.json()["on_air_detail"]
+    assert "uses H.264 video instead" in r.json()["on_air_detail"]
 
 
 def test_staff_egress_config_rejects_mpeg2video_on_the_default_gstreamer_engine(

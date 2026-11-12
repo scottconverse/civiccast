@@ -29,6 +29,9 @@ from civiccast.egress.compliance import (
 from civiccast.egress.dispatcher import RUNNING_STATES
 from civiccast.egress.engine_select import gstreamer_engine_selected
 from civiccast.egress.gst.bridge import SUPPORTED_AUDIO_CODECS as GST_SUPPORTED_AUDIO_CODECS
+from civiccast.egress.gst.bridge import (
+    SUPPORTED_SINK_AUDIO_CODECS as GST_SUPPORTED_SINK_AUDIO_CODECS,
+)
 from civiccast.egress.gst.bridge import SUPPORTED_SINK_KINDS as GST_SUPPORTED_SINK_KINDS
 from civiccast.egress.gst.bridge import UNAIRABLE_VIDEO_CODECS as GST_UNAIRABLE_VIDEO_CODECS
 from civiccast.egress.headend import (
@@ -273,6 +276,10 @@ def _reject_unsupported_sink_kinds(config: EgressConfig) -> None:
 
 _GST_FALLBACK_AUDIO_CODEC = "aac"
 _GST_FALLBACK_VIDEO_CODEC = "h264"
+_SINK_CODEC_DETAIL = (
+    " The cable output carries {codec} sound. The channel and its web output stay AAC, "
+    "which browsers, phones and TV apps play."
+)
 _CODEC_KEPT_DETAIL = (
     " This station's playout engine cannot make {asked} yet (the preset asks for it), so "
     "the channel uses {kept} instead and stays on air. Ask your cable operator whether "
@@ -316,34 +323,73 @@ def _reject_unairable_codecs(config: EgressConfig) -> None:
     raise HTTPException(
         status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
         detail=(
-            f"The active GStreamer egress engine cannot put {named} on air. Supported audio "
-            f"codecs: {sorted(GST_SUPPORTED_AUDIO_CODECS)}; use 'h264' video. A channel "
-            "saved with it never goes on air."
+            f"The active GStreamer egress engine cannot put {named} on air as the channel "
+            f"codec. Channel audio codecs: {sorted(GST_SUPPORTED_AUDIO_CODECS)}; use 'h264' "
+            "video. A channel saved with it never goes on air. For AC-3 on a cable output, "
+            "apply a cable preset: it sets AC-3 on that one output ('-c:a', 'ac3') and keeps "
+            "the channel and the web output on AAC."
         ),
     )
 
 
-def _keep_airable_codecs(config: EgressConfig) -> tuple[EgressConfig, str | None]:
-    """A preset must never take a channel off air (issue #324). Where the selected
-    engine cannot air the preset's audio or video codec, keep AAC / H.264 and
-    return the sentence that tells the operator so, in plain words."""
+def _preset_sink_audio_codec(profile: HeadendProfile) -> str | None:
+    """The audio codec a cable preset's OWN output gets on the GStreamer engine.
+
+    Cable needs AC-3 (SCTE 54 5.3); browsers, phones and TV apps need AAC. The
+    engine encodes audio once per output, so the cable output is encoded to the
+    preset's codec while the channel codec -- what sources are conformed to and
+    what the web output carries -- stays AAC. ``None``: nothing to override (the
+    ffmpeg-concat engine, the web-preview preset, or a preset that already asks
+    for a channel-level codec the engine airs).
+    """
+    codec = profile.canonical_profile.audio_codec.strip().lower()
+    if (
+        not gstreamer_engine_selected()
+        or profile.transport == "local-hls"
+        or codec in GST_SUPPORTED_AUDIO_CODECS
+        or codec not in GST_SUPPORTED_SINK_AUDIO_CODECS
+    ):
+        return None
+    return codec
+
+
+def _keep_airable_codecs(
+    config: EgressConfig, *, sink_audio_codec: str | None
+) -> tuple[EgressConfig, str | None]:
+    """A preset must never take a channel off air (issue #324).
+
+    Audio: the channel codec goes back to AAC. When the cable output carries the
+    preset's codec itself (``sink_audio_codec``), that is the whole story and the
+    operator is told both outputs' codecs; when it cannot, the operator is told
+    the feed is AAC. Video: MPEG-2 is not built on this engine, so H.264 is kept
+    and the operator is told to check with the cable operator.
+    """
     audio, video = _gst_unairable_codecs(config)
     if audio is None and video is None:
         return config, None
     update: dict[str, str] = {}
     asked: list[str] = []
     kept: list[str] = []
+    detail = ""
     if audio is not None:
         update["audio_codec"] = _GST_FALLBACK_AUDIO_CODEC
-        asked.append(f"{audio.upper()} sound")
-        kept.append("AAC sound")
+        if sink_audio_codec is not None:
+            detail += _SINK_CODEC_DETAIL.format(codec=_codec_label(sink_audio_codec))
+        else:
+            asked.append(f"{audio.upper()} sound")
+            kept.append("AAC sound")
     if video is not None:
         update["video_codec"] = _GST_FALLBACK_VIDEO_CODEC
         asked.append(f"{video.upper()} video")
         kept.append("H.264 video")
     profile = config.canonical_profile.model_copy(update=update)
-    detail = _CODEC_KEPT_DETAIL.format(asked=" or ".join(asked), kept=" and ".join(kept))
+    if asked:
+        detail += _CODEC_KEPT_DETAIL.format(asked=" or ".join(asked), kept=" and ".join(kept))
     return config.model_copy(update={"canonical_profile": profile}), detail
+
+
+def _codec_label(codec: str) -> str:
+    return {"ac3": "AC-3 (Dolby Digital)"}.get(codec, codec.upper())
 
 
 def _require_store(store: EgressStore | None, *, surface: str) -> EgressStore:
@@ -895,6 +941,7 @@ def apply_headend_profile_to_channel(
                 )
             ],
         )
+    sink_audio_codec = _preset_sink_audio_codec(profile)
     try:
         updated = apply_headend_profile(
             base,
@@ -902,12 +949,13 @@ def apply_headend_profile_to_channel(
             destination_uri=payload.destination_uri,
             muxrate_kbps_override=payload.muxrate_kbps,
             keep_existing_sinks=payload.keep_existing_sinks and not fresh,
+            sink_audio_codec=sink_audio_codec,
         )
     except (ValidationError, ValueError) as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
         ) from exc
-    updated, codec_kept_detail = _keep_airable_codecs(updated)
+    updated, codec_kept_detail = _keep_airable_codecs(updated, sink_audio_codec=sink_audio_codec)
     _reject_unsupported_sink_kinds(updated)
     _reject_uncontained_hls_sinks(updated)
     config_changed = fresh or updated != base

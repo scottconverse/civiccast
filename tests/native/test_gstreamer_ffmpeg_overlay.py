@@ -41,9 +41,11 @@ def test_profile_retains_every_named_libav_factory_without_demuxers() -> None:
         | ABSENCE_TOLERANT_FACTORIES
     )
     libav = {factory for factory in factories if FACTORY_PLUGIN.get(factory) == "gstlibav.dll"}
-    assert libav == {"avdec_h264", "avdec_aac", "avenc_aac"}
-    assert "--enable-decoder=h264,aac" in builder.CONFIGURE_OPTIONS
-    assert "--enable-encoder=aac" in builder.CONFIGURE_OPTIONS
+    assert libav == {"avdec_h264", "avdec_aac", "avenc_aac", "avdec_ac3", "avenc_ac3"}
+    # eac3 rides with ac3: MSVC does not drop the AC-3 decoder's E-AC-3 code paths, so
+    # avcodec does not link without the E-AC-3 tables (LNK2019 ff_eac3_*).
+    assert "--enable-decoder=h264,aac,ac3,eac3" in builder.CONFIGURE_OPTIONS
+    assert "--enable-encoder=aac,ac3" in builder.CONFIGURE_OPTIONS
     assert "--disable-everything" in builder.CONFIGURE_OPTIONS
     assert "--disable-network" in builder.CONFIGURE_OPTIONS
     assert not any(

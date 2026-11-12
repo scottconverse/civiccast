@@ -475,6 +475,11 @@ def encode_chain_specs(
     return tuple(specs)
 
 
+#: The parser that frames each audio encoder's output for the muxer. AC-3
+#: (``avenc_ac3``, the cable output's codec) needs ``ac3parse``; AAC is the default.
+_AUDIO_PARSER_BY_ENCODER = {"avenc_ac3": "ac3parse"}
+
+
 def audio_encode_specs(
     *, codec: str = "avenc_aac", bitrate_kbps: int = 128, sample_rate: int = 48000
 ) -> tuple[ElementSpec, ...]:
@@ -489,7 +494,7 @@ def audio_encode_specs(
         ElementSpec("audioresample"),
         ElementSpec("capsfilter", props={"caps": f"audio/x-raw,rate={sample_rate}"}),
         ElementSpec(codec, props={"bitrate": bitrate_kbps * 1000}),
-        ElementSpec("aacparse"),
+        ElementSpec(_AUDIO_PARSER_BY_ENCODER.get(codec, "aacparse")),
     )
 
 

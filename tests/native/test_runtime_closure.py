@@ -98,7 +98,9 @@ def test_required_factory_count_includes_live_audio_processing_factories() -> No
     # decodebin must retain PNG support after minimizing the FFmpeg codec set.
     assert "pngdec" in REQUIRED_FACTORIES
     assert FACTORY_PLUGIN["pngdec"] == "gstpng.dll"
-    assert len(REQUIRED_FACTORIES) == 56
+    # AC-3 for the cable output: avenc_ac3 + ac3parse, and avdec_ac3 for AC-3 sources (#324).
+    assert {"avenc_ac3", "avdec_ac3", "ac3parse"} <= REQUIRED_FACTORIES
+    assert len(REQUIRED_FACTORIES) == 59
 
 
 # --------------------------------------------------------------------------

@@ -225,6 +225,7 @@ FACTORY_PLUGIN: Mapping[str, str] = {
     "videotestsrc": "gstvideotestsrc.dll",
     # -- parsers / containers ----------------------------------------------
     "aacparse": "gstaudioparsers.dll",
+    "ac3parse": "gstaudioparsers.dll",
     "h264parse": "gstvideoparsersbad.dll",
     "h265parse": "gstvideoparsersbad.dll",
     "matroskademux": "gstmatroska.dll",
@@ -240,6 +241,9 @@ FACTORY_PLUGIN: Mapping[str, str] = {
     # PNG rasters are decoded implicitly by decodebin for graphics/boards/EAS.
     "pngdec": "gstpng.dll",
     "avdec_aac": "gstlibav.dll",
+    # AC-3 for the cable output (SCTE 54 5.3), and decode of AC-3 sources.
+    "avdec_ac3": "gstlibav.dll",
+    "avenc_ac3": "gstlibav.dll",
     "avdec_h264": "gstlibav.dll",
     "avenc_aac": "gstlibav.dll",
     "openh264dec": "gstopenh264.dll",
@@ -299,6 +303,7 @@ FACTORY_PLUGIN: Mapping[str, str] = {
 REQUIRED_FACTORIES = frozenset(
     {
         "aacparse",
+        "ac3parse",
         "appsink",
         "appsrc",
         "audioconvert",
@@ -308,8 +313,10 @@ REQUIRED_FACTORIES = frozenset(
         "audioresample",
         "audiotestsrc",
         "avdec_aac",
+        "avdec_ac3",
         "avdec_h264",
         "avenc_aac",
+        "avenc_ac3",
         "pngdec",
         "capsfilter",
         "cccombiner",

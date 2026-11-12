@@ -109,6 +109,37 @@ def test_runtime_environment_names_the_pygi_dll_directory(tmp_path: Path) -> Non
     assert env["PYGI_DLL_DIRS"] == str(root / "dependencies/gstreamer/bin")
 
 
+def test_registry_cache_follows_the_ffmpeg_dlls_so_an_upgrade_rescans(tmp_path: Path) -> None:
+    """Issue #324, measured on a station: new FFmpeg DLLs behind an unchanged
+    gstlibav.dll kept the old element cache, and avenc_ac3 stayed invisible."""
+    from civiccast.native.gstreamer_runtime import installed_gstreamer_environment
+
+    root = _root(tmp_path)
+    avcodec = root / "dependencies/gstreamer/bin/avcodec-61.dll"
+    avcodec.write_bytes(b"rc5 codec set")
+    base = {"LOCALAPPDATA": str(tmp_path / "local")}
+
+    first = installed_gstreamer_environment(root, base_environment=base)["GST_REGISTRY"]
+    again = installed_gstreamer_environment(root, base_environment=base)["GST_REGISTRY"]
+    avcodec.write_bytes(b"rc6 codec set with ac3")
+    upgraded = installed_gstreamer_environment(root, base_environment=base)["GST_REGISTRY"]
+
+    assert first == again
+    assert upgraded != first
+    assert Path(first).parent == tmp_path / "local" / "civiccast-gstreamer"
+    assert Path(first).name.startswith("registry-") and first.endswith(".bin")
+    assert not Path(first).parent.exists()  # the function writes nothing
+
+
+def test_registry_cache_keeps_an_explicit_caller_choice(tmp_path: Path) -> None:
+    from civiccast.native.gstreamer_runtime import installed_gstreamer_environment
+
+    env = installed_gstreamer_environment(
+        _root(tmp_path), base_environment={"GST_REGISTRY": "C:/chosen/registry.bin"}
+    )
+    assert env["GST_REGISTRY"] == "C:/chosen/registry.bin"
+
+
 def _bootstrap_precedes_gi_import(source: str) -> bool:
     tree = ast.parse(source)
     bootstrap_line = next(
