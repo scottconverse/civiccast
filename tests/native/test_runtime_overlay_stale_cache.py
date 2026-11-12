@@ -62,7 +62,7 @@ def _cache_dir(module, cache: Path) -> Path:
         return cache / f"security-libraries-{security.policy()['archive']['sha256'][:16]}"
     if module is glib_soup:
         return cache / "glib-2.88.4-libsoup-3.8.1-nghttp2-1.70.0-runtime"
-    return cache / "ffmpeg-7.1.5-security1-gstreamer-runtime"
+    return cache / "ffmpeg-7.1.5-security1-ac3-gstreamer-runtime"
 
 
 MODULES = pytest.mark.parametrize(

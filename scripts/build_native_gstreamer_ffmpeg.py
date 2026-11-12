@@ -53,7 +53,7 @@ DLL_NAMES = (
     "swresample-5.dll",
     "swscale-8.dll",
 )
-ARCHIVE_NAME = "ffmpeg-7.1.5-security1-gstreamer-windows-x64.zip"
+ARCHIVE_NAME = "ffmpeg-7.1.5-security1-ac3-gstreamer-windows-x64.zip"
 CONFIGURE_OPTIONS = (
     "--toolchain=msvc",
     "--arch=x86_64",
@@ -73,9 +73,9 @@ CONFIGURE_OPTIONS = (
     "--enable-avutil",
     "--enable-swresample",
     "--enable-swscale",
-    "--enable-decoder=h264,aac",
-    "--enable-encoder=aac",
-    "--enable-parser=h264,aac,aac_latm",
+    "--enable-decoder=h264,aac,ac3,eac3",
+    "--enable-encoder=aac,ac3",
+    "--enable-parser=h264,aac,aac_latm,ac3",
     # Retain the original filter set and gst-libav's deinterlacing support.
     "--enable-filter=null,psnr,scale,ssim,yadif,nullsrc,nullsink,abuffer,buffer,abuffersink,buffersink",
     "--extra-cflags=/Brepro @civiccast-cl.rsp",

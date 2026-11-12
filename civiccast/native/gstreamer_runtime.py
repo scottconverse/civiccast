@@ -4,9 +4,11 @@
 
 from __future__ import annotations
 
+import hashlib
 import os
 import stat
 import sys
+import tempfile
 from collections.abc import Mapping
 from pathlib import Path
 
@@ -125,7 +127,42 @@ def installed_gstreamer_environment(
             "CIVICCAST_GSTREAMER_RUNTIME_ROOT": str(root),
         }
     )
+    if not env.get("GST_REGISTRY", "").strip():
+        env["GST_REGISTRY"] = str(_registry_cache_path(dirs[Path("bin")], env))
     return env
+
+
+#: FFmpeg DLLs that ``gstlibav.dll`` loads. Which ``avenc_*``/``avdec_*`` elements
+#: exist is decided by THESE files, not by the plugin DLL.
+_LIBAV_DLL_PATTERNS = ("avcodec-*.dll", "avformat-*.dll", "avutil-*.dll", "swresample-*.dll")
+_FINGERPRINTS: dict[tuple[str, int, int], str] = {}
+
+
+def _registry_cache_path(bin_dir: Path, env: Mapping[str, str]) -> Path:
+    """A GStreamer registry cache file that is unique to this FFmpeg DLL set.
+
+    GStreamer rebuilds its element cache only when a PLUGIN file changes. An
+    upgrade that replaces the FFmpeg DLLs behind an unchanged ``gstlibav.dll``
+    keeps the old cache, so new codecs stay invisible: measured on a station
+    2026-11-12, AC-3-capable DLLs with the rc.5 cache still reported no
+    ``avenc_ac3`` until the cache was removed (issue #324). Naming the cache
+    after the DLL contents gives every DLL set a fresh scan and needs no cleanup
+    step in the installer. An explicit ``GST_REGISTRY`` from the caller wins.
+    """
+    digest = hashlib.sha256()
+    for pattern in _LIBAV_DLL_PATTERNS:
+        for dll in sorted(bin_dir.glob(pattern)):
+            info = dll.stat()
+            key = (str(dll), info.st_size, info.st_mtime_ns)
+            if key not in _FINGERPRINTS:
+                _FINGERPRINTS[key] = hashlib.sha256(dll.read_bytes()).hexdigest()
+            digest.update(f"{dll.name}:{_FINGERPRINTS[key]};".encode())
+    base = (
+        env.get("XDG_CACHE_HOME", "").strip()
+        or env.get("LOCALAPPDATA", "").strip()
+        or tempfile.gettempdir()
+    )
+    return Path(base) / "civiccast-gstreamer" / f"registry-{digest.hexdigest()[:16]}.bin"
 
 
 def bootstrap_installed_gstreamer_runtime() -> bool:

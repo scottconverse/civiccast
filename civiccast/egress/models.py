@@ -103,7 +103,12 @@ _ALLOWED_EXTRA_OUTPUT_FLAGS = {
     "-pkt_size",
     "-flush_packets",
     "-max_delay",
+    "-c:a",
 }
+#: ``-c:a <codec>`` on a sink is that ONE output's audio codec (issue #324): the
+#: cable output is AC-3 while the web output stays AAC. Only these values are accepted.
+SINK_AUDIO_CODEC_FLAG = "-c:a"
+SINK_AUDIO_CODECS = frozenset({"aac", "ac3"})
 _SHELL_META = {";", "&", "|", "`", "$", "<", ">"}
 _SECRET_QUERY_KEYS = {
     "passphrase",
@@ -184,7 +189,24 @@ class EgressSinkSpec(BaseModel):
                 raise ValueError("extra_output_args cannot add FFmpeg inputs")
             if item.startswith("-") and item not in _ALLOWED_EXTRA_OUTPUT_FLAGS:
                 raise ValueError(f"unsupported FFmpeg output flag: {item}")
+        if value.count(SINK_AUDIO_CODEC_FLAG) > 1:
+            raise ValueError("extra_output_args can set -c:a only once")
+        if SINK_AUDIO_CODEC_FLAG in value:
+            index = value.index(SINK_AUDIO_CODEC_FLAG) + 1
+            codec = value[index] if index < len(value) else ""
+            if codec not in SINK_AUDIO_CODECS:
+                raise ValueError(
+                    f"-c:a must be followed by one of {sorted(SINK_AUDIO_CODECS)}, got {codec!r}"
+                )
         return value
+
+    @property
+    def audio_codec_override(self) -> str | None:
+        """This output's own audio codec (``-c:a``), or ``None`` for the channel's."""
+        args = self.extra_output_args
+        if SINK_AUDIO_CODEC_FLAG not in args:
+            return None
+        return args[args.index(SINK_AUDIO_CODEC_FLAG) + 1]
 
     @model_validator(mode="after")
     def _kind_matches_uri(self) -> EgressSinkSpec:

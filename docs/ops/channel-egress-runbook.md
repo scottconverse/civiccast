@@ -488,6 +488,8 @@ start that finds no live relay, so a restarted channel is not advertised on
 the strength of a stale playlist; a daemon that died uncleanly leaves its last
 playlist in place until the channel's next start.
 
+> **Default (GStreamer) engine:** the table shows what each preset asks for. Sound: the preset puts AC-3 on the cable output only (`-c:a ac3` on that sink); the channel and its web output stay AAC, which browsers, phones and TV apps play. Bit rate: the cable output is padded to the constant mux rate in the table. Video: MPEG-2 is not built on this engine, so `comcast-mtd-sd` keeps H.264 and the apply reply says so; ask your cable operator whether the headend accepts H.264 for that channel. The ffmpeg-concat engine (`CIVICCAST_EGRESS_ENGINE=ffmpeg-concat`) makes MPEG-2 video.
+
 | Preset | Encode | Mux rate | Transport | Built from |
 | --- | --- | --- | --- | --- |
 | `generic-udp-spts` | H.264 720p30 5 Mbps, AC-3 192k | 8 Mbps default | UDP unicast | TelVue feed-setup KB; CableLabs encoding tech notes |

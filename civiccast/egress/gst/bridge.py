@@ -98,9 +98,10 @@ def _tone_notch_specs() -> tuple[ElementSpec, ...]:
 
 
 def _per_output_audio_chain(
-    resolution: SinkLoudnessResolution, profile: CanonicalProfile
+    resolution: SinkLoudnessResolution, profile: CanonicalProfile, audio_codec: str
 ) -> tuple[ElementSpec, ...]:
-    """Build genuine per-sink loudness/tone DSP followed by the profile AAC path."""
+    """Build genuine per-sink loudness/tone DSP followed by this sink's audio encode
+    (``audio_codec``: the sink's own ``-c:a`` codec, else the channel profile's)."""
     chain: list[ElementSpec] = []
     if resolution.requires_reencode:
         # The pinned Rust audioloudnorm element only accepts 192 kHz F64LE. It
@@ -154,7 +155,7 @@ def _per_output_audio_chain(
         )
     chain.extend(
         audio_encode_specs(
-            codec=gst_audio_encoder_name(profile.audio_codec),
+            codec=gst_sink_audio_encoder_name(audio_codec),
             bitrate_kbps=profile.audio_bitrate_kbps,
             sample_rate=profile.audio_sample_rate,
         )
@@ -212,6 +213,53 @@ _FFMPEG_TO_GST_AUDIO_ENCODER = {
     "libfdk_aac": "avenc_aac",
     "voaac": "voaacenc",
 }
+
+#: CHANNEL-level (canonical) ``audio_codec`` values this engine puts on air. The
+#: channel codec is what every source and the slate are conformed to and what the
+#: web output carries, so it stays in the AAC family: browsers, phones and TV apps
+#: play AAC, not AC-3. A channel saved with canonical ``ac3`` never went on air on
+#: the rc.5 runtime (issue #324).
+SUPPORTED_AUDIO_CODECS = frozenset(_FFMPEG_TO_GST_AUDIO_ENCODER)
+
+#: PER-OUTPUT audio encoders (a sink's ``-c:a``). The engine encodes audio once per
+#: output branch, so the cable output can be AC-3 (SCTE 54 5.3 requires an AC-3
+#: main audio service on cable) while the web output of the same channel is AAC.
+_SINK_AUDIO_ENCODER = {**_FFMPEG_TO_GST_AUDIO_ENCODER, "ac3": "avenc_ac3"}
+SUPPORTED_SINK_AUDIO_CODECS = frozenset(_SINK_AUDIO_ENCODER)
+
+
+def gst_sink_audio_encoder_name(ffmpeg_codec: str) -> str:
+    """Map one output's audio codec to its GStreamer encoder (``avenc_aac`` default)."""
+    return _SINK_AUDIO_ENCODER.get(ffmpeg_codec.strip().lower(), "avenc_aac")
+
+
+def sink_audio_codec(spec: EgressSinkSpec, profile: CanonicalProfile) -> str:
+    """The audio codec ONE output carries: its own ``-c:a`` override, else the channel's."""
+    return (spec.audio_codec_override or profile.audio_codec).strip().lower()
+
+
+def sink_muxrate_bps(spec: EgressSinkSpec) -> int:
+    """The constant multiplex rate a cable output asks for (``-muxrate 8000k``), in
+    bits/s; 0 when it asks for none. Only ``udp-ts`` (the headend SPTS sink) is CBR."""
+    args = spec.extra_output_args
+    if spec.kind != "udp-ts" or "-muxrate" not in args:
+        return 0
+    index = args.index("-muxrate") + 1
+    digits = args[index].lower().removesuffix("k") if index < len(args) else ""
+    return int(digits) * 1000 if digits.isdigit() else 0
+
+
+def _sink_reencodes_audio_codec(spec: EgressSinkSpec, profile: CanonicalProfile) -> bool:
+    return gst_sink_audio_encoder_name(sink_audio_codec(spec, profile)) != gst_audio_encoder_name(
+        profile.audio_codec
+    )
+
+
+#: Canonical ``video_codec`` values proven NOT to air on this engine: sources are
+#: conformed to MPEG-2 video, which the bundled runtime does not decode, so no video
+#: buffer reaches the mux (issue #324, measured on R9 2026-11-12). A denylist, not an
+#: allowlist: other ffmpeg encoder names that produce H.264 keep working.
+UNAIRABLE_VIDEO_CODECS = frozenset({"mpeg2video", "mpeg2"})
 
 
 def gst_audio_encoder_name(ffmpeg_codec: str) -> str:
@@ -496,7 +544,7 @@ def output_branches_from_config(
         if spec.kind == "sdi":
             continue
         resolution = resolutions[spec.label]
-        audio_chain = _per_output_audio_chain(resolution, profile)
+        audio_chain = _per_output_audio_chain(resolution, profile, sink_audio_codec(spec, profile))
         # The pinned audioloudnorm element buffers a 3 s BS.1770 window. This
         # is processing latency, not the mux queues' 8 s capacity below; the
         # graph carries it so the transition drain can wait for emitted tails.
@@ -550,7 +598,13 @@ def output_branches_from_config(
             OutputBranch(
                 label=spec.label,
                 mux=ElementSpec(
-                    "mpegtsmux", name=f"mux_{_safe_element_name(spec.label)}_{len(branches)}"
+                    "mpegtsmux",
+                    name=f"mux_{_safe_element_name(spec.label)}_{len(branches)}",
+                    # Issue #325: a cable plant needs a constant multiplex rate.
+                    # ``-muxrate`` is an FFmpeg argument this engine never read, so the
+                    # feed was variable (measured 274 kb/s against 8 Mb/s). mpegtsmux
+                    # pads with null packets up to ``bitrate``.
+                    props=({"bitrate": sink_muxrate_bps(spec)} if sink_muxrate_bps(spec) else {}),
                 ),
                 sinks=(ElementSpec("queue"), sink_element_spec(spec, resolve_secret)),
                 audio_chain=(ElementSpec("queue", props=queue_props), *audio_chain),
@@ -943,6 +997,8 @@ def graph_from_config(
         sink.kind == "rtmp"
         or resolution.requires_reencode
         or (resolution.eas_tone_strip_enabled and resolution.kind in _OTT_SINK_KINDS)
+        or _sink_reencodes_audio_codec(sink, profile)
+        or sink_muxrate_bps(sink) > 0
         for sink, resolution in zip(config.sinks, loudness_plan.sinks, strict=True)
     )
     output_branches = (

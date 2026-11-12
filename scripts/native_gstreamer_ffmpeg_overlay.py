@@ -13,7 +13,7 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 LOCK_PATH = ROOT / "native-windows-gstreamer-ffmpeg.lock.json"
-ARCHIVE_NAME = "ffmpeg-7.1.5-security1-gstreamer-windows-x64.zip"
+ARCHIVE_NAME = "ffmpeg-7.1.5-security1-ac3-gstreamer-windows-x64.zip"
 VERSION = "7.1.5-security1"
 DLL_NAMES = frozenset(
     {
@@ -49,8 +49,8 @@ def verify_runtime(root: Path) -> None:
 
 
 def acquire_runtime(cache: Path) -> Path:
-    out = cache / "ffmpeg-7.1.5-security1-gstreamer-runtime"
-    partial = cache / "ffmpeg-7.1.5-security1-gstreamer-runtime.partial"
+    out = cache / "ffmpeg-7.1.5-security1-ac3-gstreamer-runtime"
+    partial = cache / "ffmpeg-7.1.5-security1-ac3-gstreamer-runtime.partial"
     if out.is_dir():
         try:
             verify_runtime(out)
