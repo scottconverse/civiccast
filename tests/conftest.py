@@ -7,6 +7,8 @@ from __future__ import annotations
 import asyncio
 import gc
 import os
+import warnings
+import weakref
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -29,39 +31,71 @@ from tests.support.hermetic_state import (
 _REAL_STATE_ROOTS: tuple[Path, ...] = real_state_roots(os.environ)
 
 
-#: Set when the running test opened a PostgreSQL connection through SQLAlchemy.
-_POSTGRES_CONNECTION_OPENED = {"in_this_test": False}
+#: Every PostgreSQL connection SQLAlchemy opened that may still be open, with
+#: the test that opened it.
+_POSTGRES_CONNECTIONS: list[tuple[weakref.ReferenceType[object], str]] = []
+_RUNNING_TEST = {"nodeid": "<no test>"}
 
 
 @event.listens_for(Pool, "connect")
-def _note_postgres_connection(dbapi_connection: object, _record: object) -> None:
+def _track_postgres_connection(dbapi_connection: object, _record: object) -> None:
     if type(dbapi_connection).__module__.startswith("psycopg"):
-        _POSTGRES_CONNECTION_OPENED["in_this_test"] = True
+        _POSTGRES_CONNECTIONS.append((weakref.ref(dbapi_connection), _RUNNING_TEST["nodeid"]))
+
+
+def _open_postgres_connections() -> list[tuple[weakref.ReferenceType[object], str]]:
+    return [
+        (ref, opener)
+        for ref, opener in _POSTGRES_CONNECTIONS
+        if (connection := ref()) is not None and not getattr(connection, "closed", True)
+    ]
 
 
 @pytest.fixture(autouse=True)
-def _fail_the_test_that_leaks_a_postgres_connection() -> Iterator[None]:
-    """Make a leaked PostgreSQL connection fail the test that leaked it (#311).
+def _fail_the_test_that_leaks_a_postgres_connection(
+    request: pytest.FixtureRequest,
+) -> Iterator[None]:
+    """Report a leaked PostgreSQL connection where it happens, and name its opener (#311).
 
     psycopg reports a connection that is garbage-collected while still open as
     a ``ResourceWarning`` from ``__del__``, and ``filterwarnings = ["error"]``
     escalates it. Without this fixture the collector finalizes the connection
     at some later, arbitrary moment, so the failure lands on an unrelated test
     and moves with the test order -- the randomized lane failed on a different
-    innocent test each time.
+    innocent test each time, and the message never said which test opened the
+    connection.
 
-    Forcing one collection here, after this test's own fixtures have finished,
-    reports the leak in the teardown of the test that caused it, in every
-    order. A connection that a wider-scoped fixture still holds is reachable,
-    so it is not collected and not reported. The collection runs only for
-    tests that opened a PostgreSQL connection, so the rest of the suite pays
-    nothing.
+    While any tracked connection is open, this fixture forces one collection
+    after each test. A connection that is still reachable (a wider-scoped
+    fixture or a pool holds it) survives and is not reported. A connection that
+    the collection had to finalize while it was open is a leak: the test fails
+    here, and the message names the test that opened it. Tests that run while
+    no PostgreSQL connection is open pay nothing.
     """
 
-    _POSTGRES_CONNECTION_OPENED["in_this_test"] = False
+    _RUNNING_TEST["nodeid"] = request.node.nodeid
     yield
-    if _POSTGRES_CONNECTION_OPENED["in_this_test"]:
+    _RUNNING_TEST["nodeid"] = f"<after {request.node.nodeid}>"
+    before = _open_postgres_connections()
+    if not before:
+        _POSTGRES_CONNECTIONS.clear()
+        return
+    with warnings.catch_warnings():
+        # This fixture reports the leak itself, with the opener's name. Without
+        # this filter psycopg's own warning would also fail the NEXT test.
+        warnings.filterwarnings(
+            "ignore", message=".*was deleted while still open", category=ResourceWarning
+        )
         gc.collect()
+    leaked = sorted({opener for ref, opener in before if ref() is None})
+    _POSTGRES_CONNECTIONS[:] = _open_postgres_connections()
+    if leaked:
+        pytest.fail(
+            "A PostgreSQL connection was garbage-collected while still open. "
+            "It was opened by: " + "; ".join(leaked) + ". Close the connection "
+            "or dispose the engine in that test or its fixture.",
+            pytrace=False,
+        )
 
 
 def pytest_configure() -> None:
