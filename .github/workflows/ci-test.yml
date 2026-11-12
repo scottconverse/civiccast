@@ -522,11 +522,13 @@ jobs:
         # cases, 2216 pure tests; floor 2166 keeps the standard 50-test margin.
         # Stale Visual Studio instance record removed before the MSVC install:
         # two portable cases, 2218 pure tests; floor 2168 keeps the margin.
+        # Microsoft Store manifest rule + integrated-graphics ollama child:
+        # three portable cases, 2221 pure tests; floor 2171 keeps the margin.
         if: always()
         run: |
           python scripts/verify_native_junit_floor.py \
             --junit junit-native-pure.xml \
-            --floor 2168 \
+            --floor 2171 \
             --label "tests/native pure suite"
 
       - name: Upload junit (ws3 claims-evidence D3/D7)
@@ -931,12 +933,14 @@ jobs:
         # cases, 2461 Windows non-integration tests; floor 2411 keeps the margin.
         # Stale Visual Studio instance record removed before the MSVC install:
         # two portable cases, 2463 Windows non-integration tests; floor 2413.
+        # Microsoft Store manifest rule + integrated-graphics ollama child:
+        # three portable cases, 2466 Windows non-integration tests; floor 2416.
         if: always()
         shell: bash
         run: |
           python scripts/verify_native_junit_floor.py \
             --junit junit-native-win.xml \
-            --floor 2413 \
+            --floor 2416 \
             --label "tests/native Windows suite"
 
       - name: Upload Windows native junit

@@ -264,6 +264,29 @@ def test_ollama_child_spec_mirrors_the_installer_self_test_shape() -> None:
     assert spec.readiness_budget_seconds == DEFAULT_OLLAMA_READY_BUDGET_SECONDS == 60.0
 
 
+def test_ollama_child_uses_an_integrated_graphics_chip_with_a_pinned_context() -> None:
+    """Beelink / R9 measurement 2026-11-12: ollama drops a Radeon 780M unless
+    OLLAMA_IGPU_ENABLE=1; with it on, the default context must stay 4,096
+    (ollama would pick 262,144 from shared memory counted as VRAM)."""
+
+    spec = ollama_child_spec(
+        ollama_exe_path=r"C:\i\dependencies\ollama\ollama.exe",
+        models_dir=r"C:\i\models\ollama",
+    )
+    assert spec.env["OLLAMA_IGPU_ENABLE"] == "1"
+    assert spec.env["OLLAMA_CONTEXT_LENGTH"] == "4096"
+
+
+def test_ollama_child_integrated_graphics_can_be_turned_off_by_extra_env() -> None:
+    spec = ollama_child_spec(
+        ollama_exe_path=r"C:\i\dependencies\ollama\ollama.exe",
+        models_dir=r"C:\i\models\ollama",
+        extra_env={"OLLAMA_IGPU_ENABLE": "0", "OLLAMA_CONTEXT_LENGTH": "8192"},
+    )
+    assert spec.env["OLLAMA_IGPU_ENABLE"] == "0"
+    assert spec.env["OLLAMA_CONTEXT_LENGTH"] == "8192"
+
+
 def test_ollama_default_host_port_match_the_app_client_base_url() -> None:
     """The child serves EXACTLY where summary/translate dial by default --
     ai_runtime.ollama_client.DEFAULT_OLLAMA_BASE_URL -- so the control plane

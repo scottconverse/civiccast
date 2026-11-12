@@ -635,6 +635,27 @@ def ollama_child_spec(
     env["OLLAMA_MODELS"] = models_dir
     env["OLLAMA_NO_CLOUD"] = "1"
     env["NO_PROXY"] = "127.0.0.1,localhost"
+    # Integrated graphics chip. Ollama drops an integrated GPU unless this is
+    # set ("dropping integrated GPU; to enable, set OLLAMA_IGPU_ENABLE=1"), so
+    # a station with only a Radeon 780M ran every summary and translation on
+    # the processor. Measured 2026-11-12 with the staged ollama 0.40.13, same
+    # request on both, three live channels on the Beelink (64 GB, 16 GB given
+    # to the chip): gemma4:12b 4.5 -> 7.5 tokens/s, gemma4:e4b 10.0 -> 19.6,
+    # translategemma:4b 11.1 -> 23.6; on the processor /health went
+    # "degraded" for two minutes (live caption inference up to 9.5 s), on the
+    # chip it stayed "healthy". R9 (Ryzen 9 7940HS, 780M, 4 GB given to the
+    # chip) gave the same shape. A box with a discrete GPU and no integrated
+    # chip in use is not changed by this variable.
+    #
+    # With the chip enabled Ollama counts shared system memory as VRAM (47.8
+    # GiB on the Beelink) and its "vram-based default context" jumps from 4,096
+    # to 262,144 tokens for any request that sends no ``num_ctx``. Pin the
+    # default back to the 4,096 every station had until now; requests that set
+    # ``num_ctx`` themselves (summaries) are not affected.
+    #
+    # ``setdefault``: ``extra_env`` may turn either one off or change it.
+    env.setdefault("OLLAMA_IGPU_ENABLE", "1")
+    env.setdefault("OLLAMA_CONTEXT_LENGTH", "4096")
     return ChildSpec(
         name="ollama",
         argv=[ollama_exe_path, "serve"],

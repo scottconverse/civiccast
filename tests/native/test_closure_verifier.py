@@ -1320,7 +1320,7 @@ def test_observed_package_manifest_listed_as_strict_mapping_still_fails(
             ("AppxManifest.xml",),
         ),
         (
-            "Microsoft.OtherPackage_1.0.0.0_x64__8wekyb3d8bbwe",
+            "Microsoft.OtherPackage_x64__8wekyb3d8bbwe",
             ("AppxManifest.xml",),
         ),
         (
@@ -1332,7 +1332,7 @@ def test_observed_package_manifest_listed_as_strict_mapping_still_fails(
             ("AppxManifest.xml.other",),
         ),
     ),
-    ids=("foreign-publisher", "other-package", "nested", "wrong-filename"),
+    ids=("foreign-publisher", "malformed-package-name", "nested", "wrong-filename"),
 )
 @pytest.mark.parametrize("trace_field", ("accessed_paths", "mapped_data"))
 def test_observed_package_manifest_exception_rejects_near_misses(
@@ -1357,6 +1357,41 @@ def test_observed_package_manifest_exception_rejects_near_misses(
 
     assert trace.status == "FAIL"
     assert "NOT declared external dependencies" in trace.detail
+
+
+def test_any_microsoft_published_package_manifest_is_accepted_as_data(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """HALO-gate-a, candidate runs 43259269511 and 43274770373: Windows read the
+    root manifest of a DIFFERENT Microsoft Store package on each run (Photos,
+    Windows App Runtime, Desktop App Installer). The rule names the file, not
+    the package: a package never seen before passes, its other files do not."""
+    from scripts import verify_native_runtime_closure as verifier
+
+    package_root = tmp_path / "W"
+    monkeypatch.setattr(verifier, "_STORE_PACKAGE_ROOT", package_root)
+    tree = tmp_path / "tree"
+    package = "Microsoft.NeverSeenBefore_9.8.7.6_x64__8wekyb3d8bbwe"
+    manifest = _observed_package_manifest_path(package_root, package=package)
+    payload = _with_traced_file(_clean_child_payload(), tree)
+    payload["accessed_paths"] = [*payload["accessed_paths"], str(manifest)]
+    results = _interpret_child_output(
+        _fake_child(json.dumps(payload)), present_gpl_files=(), tree=tree
+    )
+    trace = next(result for result in results if result.name == "dynamic_trace")
+    assert trace.status == "PASS", trace.detail
+
+    other = _observed_package_manifest_path(
+        package_root, package=package, relative=("resources.pri",)
+    )
+    payload = _with_traced_file(_clean_child_payload(), tree)
+    payload["accessed_paths"] = [*payload["accessed_paths"], str(other)]
+    results = _interpret_child_output(
+        _fake_child(json.dumps(payload)), present_gpl_files=(), tree=tree
+    )
+    trace = next(result for result in results if result.name == "dynamic_trace")
+    assert trace.status == "FAIL"
 
 
 def test_loaded_module_generator_is_classified_once(tmp_path: Path) -> None:
