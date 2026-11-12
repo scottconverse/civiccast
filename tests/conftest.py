@@ -5,11 +5,16 @@
 from __future__ import annotations
 
 import asyncio
+import gc
 import os
+import warnings
+import weakref
 from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
+from sqlalchemy import event
+from sqlalchemy.pool import Pool
 
 from tests.support.hermetic_state import (
     INSTALLED_PATHS_MARKER,
@@ -24,6 +29,73 @@ from tests.support.hermetic_state import (
 #: hermetic fixture below rewrites LOCALAPPDATA per test, so resolving lazily
 #: would guard the temp copy instead of the real one.
 _REAL_STATE_ROOTS: tuple[Path, ...] = real_state_roots(os.environ)
+
+
+#: Every PostgreSQL connection SQLAlchemy opened that may still be open, with
+#: the test that opened it.
+_POSTGRES_CONNECTIONS: list[tuple[weakref.ReferenceType[object], str]] = []
+_RUNNING_TEST = {"nodeid": "<no test>"}
+
+
+@event.listens_for(Pool, "connect")
+def _track_postgres_connection(dbapi_connection: object, _record: object) -> None:
+    if type(dbapi_connection).__module__.startswith("psycopg"):
+        _POSTGRES_CONNECTIONS.append((weakref.ref(dbapi_connection), _RUNNING_TEST["nodeid"]))
+
+
+def _open_postgres_connections() -> list[tuple[weakref.ReferenceType[object], str]]:
+    return [
+        (ref, opener)
+        for ref, opener in _POSTGRES_CONNECTIONS
+        if (connection := ref()) is not None and not getattr(connection, "closed", True)
+    ]
+
+
+@pytest.fixture(autouse=True)
+def _fail_the_test_that_leaks_a_postgres_connection(
+    request: pytest.FixtureRequest,
+) -> Iterator[None]:
+    """Report a leaked PostgreSQL connection where it happens, and name its opener (#311).
+
+    psycopg reports a connection that is garbage-collected while still open as
+    a ``ResourceWarning`` from ``__del__``, and ``filterwarnings = ["error"]``
+    escalates it. Without this fixture the collector finalizes the connection
+    at some later, arbitrary moment, so the failure lands on an unrelated test
+    and moves with the test order -- the randomized lane failed on a different
+    innocent test each time, and the message never said which test opened the
+    connection.
+
+    While any tracked connection is open, this fixture forces one collection
+    after each test. A connection that is still reachable (a wider-scoped
+    fixture or a pool holds it) survives and is not reported. A connection that
+    the collection had to finalize while it was open is a leak: the test fails
+    here, and the message names the test that opened it. Tests that run while
+    no PostgreSQL connection is open pay nothing.
+    """
+
+    _RUNNING_TEST["nodeid"] = request.node.nodeid
+    yield
+    _RUNNING_TEST["nodeid"] = f"<after {request.node.nodeid}>"
+    before = _open_postgres_connections()
+    if not before:
+        _POSTGRES_CONNECTIONS.clear()
+        return
+    with warnings.catch_warnings():
+        # This fixture reports the leak itself, with the opener's name. Without
+        # this filter psycopg's own warning would also fail the NEXT test.
+        warnings.filterwarnings(
+            "ignore", message=".*was deleted while still open", category=ResourceWarning
+        )
+        gc.collect()
+    leaked = sorted({opener for ref, opener in before if ref() is None})
+    _POSTGRES_CONNECTIONS[:] = _open_postgres_connections()
+    if leaked:
+        pytest.fail(
+            "A PostgreSQL connection was garbage-collected while still open. "
+            "It was opened by: " + "; ".join(leaked) + ". Close the connection "
+            "or dispose the engine in that test or its fixture.",
+            pytrace=False,
+        )
 
 
 def pytest_configure() -> None:
