@@ -515,7 +515,11 @@ def test_a_one_second_stall_is_reported_before_it_ends_and_only_once(
     monkeypatch.setenv(_THRESHOLD_ENV, "0.3")
     monkeypatch.setenv(_REPEAT_ENV, "5.0")
     store = InMemoryEgressStore()  # empty: the loop ticks with no pass live
-    daemon = _StallingDaemon(hold_seconds=1.0)
+    # The pass blocks until the test releases it, not for a fixed 1.0s. With a
+    # fixed hold the test asserted a 0.9s wall-clock window on a shared CI
+    # runner, and a loaded runner missed it (ci-test runs 43353555995 and
+    # 43498709783, Nov 13 2026) although the watchdog was correct.
+    daemon = _StallingDaemon(hold_seconds=None)
     service = _service(store, daemon)
     stop_event = threading.Event()
     runner = _runner(service, stop_event)
@@ -528,13 +532,17 @@ def test_a_one_second_stall_is_reported_before_it_ends_and_only_once(
             time.sleep(0.5)
             store.upsert_config(_config("public"))
             assert daemon.entered.wait(1.0), "the loop never started a pass"
-            assert _wait_for(lambda: bool(_records(caplog, "still running")), 0.9), (
+            # The fixed watcher reports ~0.6s after the pass starts (threshold
+            # plus one tick); the old one could not report before ~4.8s. A 3.0s
+            # wait still tells them apart, with room for a slow runner.
+            assert _wait_for(lambda: bool(_records(caplog, "still running")), 3.0), (
                 "the first dump did not land within a tick of the threshold"
             )
             assert not daemon.left.is_set(), (
                 "the dump arrived only after the pass had already ended"
             )
         finally:
+            daemon.release.set()
             stop_event.set()
             runner.join(2.0)
 

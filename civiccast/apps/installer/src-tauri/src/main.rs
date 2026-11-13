@@ -790,6 +790,28 @@ mod tests {
     }
 
     #[test]
+    fn ai_self_test_runs_12b_only_where_12b_is_the_station_default() {
+        let models = |ram, nvidia| {
+            native_ai_self_test_cases(ram, nvidia)
+                .into_iter()
+                .map(|(model, _, _)| model)
+                .collect::<Vec<_>>()
+        };
+        let small = vec!["gemma4:e4b", "translategemma:4b"];
+        let full = vec!["gemma4:12b", "gemma4:e4b", "translategemma:4b"];
+        // 5060 Ti station: 31.3 GB + NVIDIA.
+        assert_eq!(models(Some(31.3), true), full);
+        // Exactly 16 GB with NVIDIA is still the 12b default.
+        assert_eq!(models(Some(16.0), true), full);
+        // MSI: 15.7 GB + NVIDIA truncates to 15, below the 12b floor.
+        assert_eq!(models(Some(15.7), true), small);
+        // Lots of RAM but no NVIDIA GPU (Beelink, R9 iGPU): e4b default.
+        assert_eq!(models(Some(64.0), false), small);
+        // RAM unknown: never risk 12b.
+        assert_eq!(models(None, true), small);
+    }
+
+    #[test]
     fn native_ollama_cli_version_accepts_captured_no_daemon_output() {
         // Actual fresh LocalSystem RC1 installation output, before a daemon exists.
         let captured = "Warning: could not connect to a running Ollama instance\nWarning: client version is 0.40.13\n";
@@ -5160,6 +5182,50 @@ fn run_native_caption_inference_self_test(staging: &Path) -> Result<(), String> 
     validate_native_caption_output(exit_code, &output)
 }
 
+/// The AI models the activation self-test runs, in order. gemma4:12b is
+/// tested only on a station whose summary default is 12b -- the same rule as
+/// `civiccast.ai_models.models.detect_summary_model_default` (an NVIDIA GPU
+/// and at least 16 GB of RAM, truncated). On a smaller station the station
+/// never runs 12b by default, and loading it here can exhaust commit memory:
+/// on Nov 13 2026 a 15.7 GB MSI with a 1 GB page file aborted llama-server
+/// (c0000409, "Virtual Memory Minimum Too Low") and failed the install.
+#[cfg(any(target_os = "windows", test))]
+fn native_ai_self_test_cases(
+    ram_gb: Option<f64>,
+    has_nvidia_gpu: bool,
+) -> Vec<(&'static str, &'static str, &'static str)> {
+    let mut cases = Vec::with_capacity(3);
+    if has_nvidia_gpu && ram_gb.is_some_and(|ram| ram.trunc() >= 16.0) {
+        cases.push((
+            "gemma4:12b",
+            "Reply with exactly CIVICCAST_OK and nothing else.",
+            "CIVICCAST_OK",
+        ));
+    }
+    cases.push((
+        "gemma4:e4b",
+        "Reply with exactly CIVICCAST_FALLBACK_OK and nothing else.",
+        "CIVICCAST_FALLBACK_OK",
+    ));
+    cases.push((
+        "translategemma:4b",
+        "Translate into Spanish. Return only the translation: The council meeting is open.",
+        "La reunión del consejo está abierta.",
+    ));
+    cases
+}
+
+#[cfg(target_os = "windows")]
+fn native_ai_self_test_cases_for_this_station(
+) -> Vec<(&'static str, &'static str, &'static str)> {
+    use crate::hardware_inventory::windows_collectors::{collect_gpus, collect_ram_gb};
+    let has_nvidia_gpu = collect_gpus()
+        .unwrap_or_default()
+        .iter()
+        .any(|gpu| gpu.vendor == "NVIDIA");
+    native_ai_self_test_cases(collect_ram_gb(), has_nvidia_gpu)
+}
+
 #[cfg(target_os = "windows")]
 fn run_native_ai_inference_self_tests(staging: &Path) -> Result<(), String> {
     let server = NativeOllamaSelfTestServer::start(staging)?;
@@ -5170,23 +5236,7 @@ fn run_native_ai_inference_self_tests(staging: &Path) -> Result<(), String> {
         .build()
         .map_err(|error| format!("Could not create native AI inference client: {error}"))?;
     let endpoint = format!("http://{}/api/generate", server.host);
-    for (model, prompt, expected) in [
-        (
-            "gemma4:12b",
-            "Reply with exactly CIVICCAST_OK and nothing else.",
-            "CIVICCAST_OK",
-        ),
-        (
-            "gemma4:e4b",
-            "Reply with exactly CIVICCAST_FALLBACK_OK and nothing else.",
-            "CIVICCAST_FALLBACK_OK",
-        ),
-        (
-            "translategemma:4b",
-            "Translate into Spanish. Return only the translation: The council meeting is open.",
-            "La reunión del consejo está abierta.",
-        ),
-    ] {
+    for (model, prompt, expected) in native_ai_self_test_cases_for_this_station() {
         let request = serde_json::json!({
             "model": model,
             "prompt": prompt,
@@ -5296,8 +5346,11 @@ fn native_activation_self_test_receipt_value(
         "distribution_index_sha256": distribution.index.sha256,
         "caption_inference": caption_inference,
         "ai_inference": {
-            "runtime": "Ollama 0.30.6",
-            "models": ["gemma4:12b", "gemma4:e4b", "translategemma:4b"],
+            "runtime": "Ollama 0.40.13",
+            "models": native_ai_self_test_cases_for_this_station()
+                .iter()
+                .map(|(model, _, _)| *model)
+                .collect::<Vec<_>>(),
             "offline_only": true,
             "result": "passed"
         }
