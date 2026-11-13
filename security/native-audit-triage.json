@@ -62,70 +62,70 @@
     },
     {
       "package": "ffmpeg",
-      "version": "N-128142-g28fda48e0b",
+      "version": "N-128227-g4811625b5f",
       "id": "CVE-2026-107696",
       "reviewed": "2026-10-29",
       "review_by": "2026-11-29",
       "reason": "The pinned upstream snapshot bounds RTSP redirects at eight. The scanner conservatively matches release9.0.2; the actual shipped snapshot includes the later fix.",
       "evidence": [
         "https://github.com/FFmpeg/FFmpeg/commit/f5d4fd186c68913240c4f6e9cda98443e1518b34",
-        "https://github.com/FFmpeg/FFmpeg/blob/28fda48e0bf6d9b47d450250f769a58998f0491f/libavformat/rtsp.c",
+        "https://github.com/FFmpeg/FFmpeg/blob/4811625b5f4e5aed528aed9225d0ca868a8e6e96/libavformat/rtsp.c",
         "native-windows-runtime-dependencies.lock.json",
         "scripts/build_native_ffmpeg_pack.py"
       ]
     },
     {
       "package": "ffmpeg",
-      "version": "N-128142-g28fda48e0b",
+      "version": "N-128227-g4811625b5f",
       "id": "CVE-2026-107675",
       "reviewed": "2026-10-29",
       "review_by": "2026-11-29",
       "reason": "The pinned snapshot verifies the SSH server host key with ssh_session_is_known_server; release9.0.2 is a conservative scanner baseline, not the shipped source revision.",
       "evidence": [
         "https://github.com/FFmpeg/FFmpeg/commit/2b822b7fb6ed195546bc9fd9bdb794e98222bdce",
-        "https://github.com/FFmpeg/FFmpeg/blob/28fda48e0bf6d9b47d450250f769a58998f0491f/libavformat/libssh.c",
+        "https://github.com/FFmpeg/FFmpeg/blob/4811625b5f4e5aed528aed9225d0ca868a8e6e96/libavformat/libssh.c",
         "native-windows-runtime-dependencies.lock.json",
         "scripts/build_native_ffmpeg_pack.py"
       ]
     },
     {
       "package": "ffmpeg",
-      "version": "N-128142-g28fda48e0b",
+      "version": "N-128227-g4811625b5f",
       "id": "CVE-2026-107677",
       "reviewed": "2026-10-29",
       "review_by": "2026-11-29",
       "reason": "The pinned snapshot returns av_strdup(str) for an empty replacement needle, preventing the DASH empty-template loop; verified in av_strireplace.",
       "evidence": [
         "https://github.com/FFmpeg/FFmpeg/commit/ed27bfcbbbc0872c0195eaf4dd2c0c93b9f1778e",
-        "https://github.com/FFmpeg/FFmpeg/blob/28fda48e0bf6d9b47d450250f769a58998f0491f/libavutil/avstring.c",
+        "https://github.com/FFmpeg/FFmpeg/blob/4811625b5f4e5aed528aed9225d0ca868a8e6e96/libavutil/avstring.c",
         "native-windows-runtime-dependencies.lock.json",
         "scripts/build_native_ffmpeg_pack.py"
       ]
     },
     {
       "package": "ffmpeg",
-      "version": "N-128142-g28fda48e0b",
+      "version": "N-128227-g4811625b5f",
       "id": "CVE-2026-107676",
       "reviewed": "2026-10-29",
       "review_by": "2026-11-29",
       "reason": "The pinned snapshot adds tone-mapping bits only when the flag is set, matching the serialized payload and preventing the uninitialized tail disclosed by this CVE.",
       "evidence": [
         "https://github.com/FFmpeg/FFmpeg/commit/2c2f6e96e31795ae95a8f8323a493ffbc493111f",
-        "https://github.com/FFmpeg/FFmpeg/blob/28fda48e0bf6d9b47d450250f769a58998f0491f/libavutil/hdr_dynamic_metadata.c",
+        "https://github.com/FFmpeg/FFmpeg/blob/4811625b5f4e5aed528aed9225d0ca868a8e6e96/libavutil/hdr_dynamic_metadata.c",
         "native-windows-runtime-dependencies.lock.json",
         "scripts/build_native_ffmpeg_pack.py"
       ]
     },
     {
       "package": "ffmpeg",
-      "version": "N-128142-g28fda48e0b",
+      "version": "N-128227-g4811625b5f",
       "id": "CVE-2026-107678",
       "reviewed": "2026-10-29",
       "review_by": "2026-11-29",
       "reason": "The pinned snapshot frees the init-info list iteratively and includes d1434518fbd03789e3e5dc0657a7a9f1123ce074 plus the MOV append-side-data call site, avoiding recursive free and quadratic reparsing.",
       "evidence": [
         "https://github.com/FFmpeg/FFmpeg/commit/969c7eb091989a664cb7bf66a1f02051cc46cb52",
-        "https://github.com/FFmpeg/FFmpeg/blob/28fda48e0bf6d9b47d450250f769a58998f0491f/libavutil/encryption_info.c",
+        "https://github.com/FFmpeg/FFmpeg/blob/4811625b5f4e5aed528aed9225d0ca868a8e6e96/libavutil/encryption_info.c",
         "native-windows-runtime-dependencies.lock.json",
         "scripts/build_native_ffmpeg_pack.py"
       ]
@@ -2221,14 +2221,14 @@
     },
     {
       "package": "ffmpeg",
-      "version": "N-128142-g28fda48e0b",
+      "version": "N-128227-g4811625b5f",
       "id": "CVE-2026-120210",
       "reviewed": "2026-11-06",
       "review_by": "2026-11-20",
       "reason": "The IMF demuxer IS compiled into this BtbN build and the upstream fix (FFmpeg pull 25341) is not merged as of 2026-11-06, so this rests on CivicCast never handing it an IMF package. The demuxer only reads a composition playlist that libxml2 parses as an XML document. civiccast.schedule.ingest.run_ffprobe, the single intake probe for staff uploads, file replacements, the watch folder and contributor submissions, refuses any file that begins as an XML document (every libxml2-autodetected encoding) before ffprobe runs; the refusal (UnsafeMediaError) is not an FfprobeError, so the contributor broken-media override cannot ingest past it. Residual, stated plainly: an operator-configured SRT/HLS/MPEG-TS network live source whose remote sender serves an IMF playlist would still be auto-detected; those endpoints are staff-configured (SRT passphrase-protected). Short review date: re-pin FFmpeg to a build with the upstream fix.",
       "evidence": [
         "https://code.ffmpeg.org/FFmpeg/FFmpeg/pulls/25341",
-        "https://github.com/FFmpeg/FFmpeg/blob/28fda48e0bf6d9b47d450250f769a58998f0491f/libavformat/imfdec.c",
+        "https://github.com/FFmpeg/FFmpeg/blob/4811625b5f4e5aed528aed9225d0ca868a8e6e96/libavformat/imfdec.c",
         "civiccast/schedule/ingest.py:_looks_like_xml_document",
         "tests/schedule/test_ingest.py::TestXmlDocumentRefusal",
         "tests/contribute/test_router.py::test_accept_operator_override_cannot_ingest_an_xml_document"
@@ -2236,71 +2236,71 @@
     },
     {
       "package": "ffmpeg",
-      "version": "N-128142-g28fda48e0b",
+      "version": "N-128227-g4811625b5f",
       "id": "CVE-2026-120243",
       "reviewed": "2026-11-06",
       "review_by": "2026-12-06",
-      "reason": "Fixed in the shipped source. The pinned snapshot 28fda48e0bf6d9b47d450250f769a58998f0491f (2026-10-28) contains the G2M Kempf palette-index fix edad2d0dafcf44fa315eab716fd0183ce808053b (2026-10-10); GitHub compare of the fix against the snapshot reports the snapshot ahead by 844 commits and behind by 0. The scanner matches the release9.0.2 baseline, not the shipped revision.",
+      "reason": "Fixed in the shipped source. The pinned snapshot 4811625b5f4e5aed528aed9225d0ca868a8e6e96 (2026-10-31) contains the G2M Kempf palette-index fix edad2d0dafcf44fa315eab716fd0183ce808053b (2026-10-10); GitHub compare of the fix against the snapshot reports the snapshot ahead by 844 commits and behind by 0. The scanner matches the release9.0.2 baseline, not the shipped revision.",
       "evidence": [
         "https://github.com/FFmpeg/FFmpeg/commit/edad2d0dafcf44fa315eab716fd0183ce808053b",
-        "https://github.com/FFmpeg/FFmpeg/compare/edad2d0dafcf44fa315eab716fd0183ce808053b...28fda48e0bf6d9b47d450250f769a58998f0491f",
+        "https://github.com/FFmpeg/FFmpeg/compare/edad2d0dafcf44fa315eab716fd0183ce808053b...4811625b5f4e5aed528aed9225d0ca868a8e6e96",
         "native-windows-runtime-dependencies.lock.json",
         "scripts/build_native_ffmpeg_pack.py"
       ]
     },
     {
       "package": "ffmpeg",
-      "version": "N-128142-g28fda48e0b",
+      "version": "N-128227-g4811625b5f",
       "id": "CVE-2026-120244",
       "reviewed": "2026-11-06",
       "review_by": "2026-12-06",
-      "reason": "Fixed in the shipped source. The pinned snapshot 28fda48e0bf6d9b47d450250f769a58998f0491f (2026-10-28) contains the PCX truncated-scanline fix ecd5dfc308a164757e7f25b1afefd8db21b43cf9 (2026-10-11); GitHub compare reports the snapshot ahead by 819 commits and behind by 0. The scanner matches the release9.0.2 baseline, not the shipped revision.",
+      "reason": "Fixed in the shipped source. The pinned snapshot 4811625b5f4e5aed528aed9225d0ca868a8e6e96 (2026-10-31) contains the PCX truncated-scanline fix ecd5dfc308a164757e7f25b1afefd8db21b43cf9 (2026-10-11); GitHub compare reports the snapshot ahead by 819 commits and behind by 0. The scanner matches the release9.0.2 baseline, not the shipped revision.",
       "evidence": [
         "https://github.com/FFmpeg/FFmpeg/commit/ecd5dfc308a164757e7f25b1afefd8db21b43cf9",
-        "https://github.com/FFmpeg/FFmpeg/compare/ecd5dfc308a164757e7f25b1afefd8db21b43cf9...28fda48e0bf6d9b47d450250f769a58998f0491f",
+        "https://github.com/FFmpeg/FFmpeg/compare/ecd5dfc308a164757e7f25b1afefd8db21b43cf9...4811625b5f4e5aed528aed9225d0ca868a8e6e96",
         "native-windows-runtime-dependencies.lock.json",
         "scripts/build_native_ffmpeg_pack.py"
       ]
     },
     {
       "package": "ffmpeg",
-      "version": "N-128142-g28fda48e0b",
+      "version": "N-128227-g4811625b5f",
       "id": "CVE-2026-120245",
       "reviewed": "2026-11-06",
       "review_by": "2026-12-06",
-      "reason": "Fixed in the shipped source. The pinned snapshot 28fda48e0bf6d9b47d450250f769a58998f0491f (2026-10-28) contains both Sun Raster fixes, 356a391bf57df2fb80fd61f2821c8c83d15ce180 (2026-10-10, ahead 837 / behind 0) and 66b6ca270b33fd74367d7d371f6de16ec664446e (2026-10-12, ahead 697 / behind 0) per GitHub compare. The scanner matches the release9.0.2 baseline, not the shipped revision.",
+      "reason": "Fixed in the shipped source. The pinned snapshot 4811625b5f4e5aed528aed9225d0ca868a8e6e96 (2026-10-31) contains both Sun Raster fixes, 356a391bf57df2fb80fd61f2821c8c83d15ce180 (2026-10-10, ahead 837 / behind 0) and 66b6ca270b33fd74367d7d371f6de16ec664446e (2026-10-12, ahead 697 / behind 0) per GitHub compare. The scanner matches the release9.0.2 baseline, not the shipped revision.",
       "evidence": [
         "https://github.com/FFmpeg/FFmpeg/commit/356a391bf57df2fb80fd61f2821c8c83d15ce180",
         "https://github.com/FFmpeg/FFmpeg/commit/66b6ca270b33fd74367d7d371f6de16ec664446e",
-        "https://github.com/FFmpeg/FFmpeg/compare/66b6ca270b33fd74367d7d371f6de16ec664446e...28fda48e0bf6d9b47d450250f769a58998f0491f",
+        "https://github.com/FFmpeg/FFmpeg/compare/66b6ca270b33fd74367d7d371f6de16ec664446e...4811625b5f4e5aed528aed9225d0ca868a8e6e96",
         "native-windows-runtime-dependencies.lock.json",
         "scripts/build_native_ffmpeg_pack.py"
       ]
     },
     {
       "package": "ffmpeg",
-      "version": "N-128142-g28fda48e0b",
+      "version": "N-128227-g4811625b5f",
       "id": "CVE-2026-120246",
       "reviewed": "2026-11-06",
       "review_by": "2026-12-06",
-      "reason": "Fixed in the shipped source. The pinned snapshot 28fda48e0bf6d9b47d450250f769a58998f0491f (2026-10-28) contains the CDXL HAM palette-index fix 47313ad3f9f33b892384b976fb7c09b3c85fd74e (2026-10-05); GitHub compare reports the snapshot ahead by 924 commits and behind by 0. The scanner matches the release9.0.2 baseline, not the shipped revision.",
+      "reason": "Fixed in the shipped source. The pinned snapshot 4811625b5f4e5aed528aed9225d0ca868a8e6e96 (2026-10-31) contains the CDXL HAM palette-index fix 47313ad3f9f33b892384b976fb7c09b3c85fd74e (2026-10-05); GitHub compare reports the snapshot ahead by 924 commits and behind by 0. The scanner matches the release9.0.2 baseline, not the shipped revision.",
       "evidence": [
         "https://github.com/FFmpeg/FFmpeg/commit/47313ad3f9f33b892384b976fb7c09b3c85fd74e",
-        "https://github.com/FFmpeg/FFmpeg/compare/47313ad3f9f33b892384b976fb7c09b3c85fd74e...28fda48e0bf6d9b47d450250f769a58998f0491f",
+        "https://github.com/FFmpeg/FFmpeg/compare/47313ad3f9f33b892384b976fb7c09b3c85fd74e...4811625b5f4e5aed528aed9225d0ca868a8e6e96",
         "native-windows-runtime-dependencies.lock.json",
         "scripts/build_native_ffmpeg_pack.py"
       ]
     },
     {
       "package": "ffmpeg",
-      "version": "N-128142-g28fda48e0b",
+      "version": "N-128227-g4811625b5f",
       "id": "CVE-2026-120247",
       "reviewed": "2026-11-06",
       "review_by": "2026-12-06",
-      "reason": "Fixed in the shipped source. The pinned snapshot 28fda48e0bf6d9b47d450250f769a58998f0491f (2026-10-28) contains the Huffyuv truncated-row fix 7c73707355708c846f718cca90096bc1a33c8989 (2026-10-11); GitHub compare reports the snapshot ahead by 813 commits and behind by 0. The scanner matches the release9.0.2 baseline, not the shipped revision.",
+      "reason": "Fixed in the shipped source. The pinned snapshot 4811625b5f4e5aed528aed9225d0ca868a8e6e96 (2026-10-31) contains the Huffyuv truncated-row fix 7c73707355708c846f718cca90096bc1a33c8989 (2026-10-11); GitHub compare reports the snapshot ahead by 813 commits and behind by 0. The scanner matches the release9.0.2 baseline, not the shipped revision.",
       "evidence": [
         "https://github.com/FFmpeg/FFmpeg/commit/7c73707355708c846f718cca90096bc1a33c8989",
-        "https://github.com/FFmpeg/FFmpeg/compare/7c73707355708c846f718cca90096bc1a33c8989...28fda48e0bf6d9b47d450250f769a58998f0491f",
+        "https://github.com/FFmpeg/FFmpeg/compare/7c73707355708c846f718cca90096bc1a33c8989...4811625b5f4e5aed528aed9225d0ca868a8e6e96",
         "native-windows-runtime-dependencies.lock.json",
         "scripts/build_native_ffmpeg_pack.py"
       ]
