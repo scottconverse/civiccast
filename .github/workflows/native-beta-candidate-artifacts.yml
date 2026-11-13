@@ -949,7 +949,20 @@ jobs:
             }
             New-Item -ItemType Directory -Force -Path $dotnetSdkDir | Out-Null
             $installScript = Join-Path $env:RUNNER_TEMP "dotnet-install.ps1"
-            Invoke-WebRequest -Uri "https://dot.net/v1/dotnet-install.ps1" -OutFile $installScript
+            # A stalled connection here held candidate run 43346499660 for two
+            # hours (no data, no error). Bound each try and try again.
+            $fetched = $false
+            foreach ($attempt in 1..4) {
+              try {
+                Invoke-WebRequest -Uri "https://dot.net/v1/dotnet-install.ps1" -OutFile $installScript -TimeoutSec 60
+                $fetched = $true
+                break
+              } catch {
+                Write-Host "dotnet-install.ps1 download try $attempt failed: $($_.Exception.Message)"
+                Start-Sleep -Seconds 10
+              }
+            }
+            if (-not $fetched) { throw "Could not download dotnet-install.ps1 in 4 tries." }
             & $installScript -Version $dotnetSdkVersion -InstallDir $dotnetSdkDir -NoPath
             # dotnet-install.ps1 does not reliably set $LASTEXITCODE on
             # success (observed locally: it stays $null, and `$null -ne 0`
