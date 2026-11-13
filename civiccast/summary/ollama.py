@@ -135,6 +135,31 @@ class OllamaSummaryModel:
             base_url=base_url,
         )
 
+    def smaller_fallback(self) -> OllamaSummaryModel | None:
+        """The next smaller on-box summary tier, or ``None`` when this is the smallest.
+
+        Used when this tier is deferred for memory: the station's adaptive default
+        picks gemma4:12b on a GPU box with 16 GB+ RAM, but on a 32 GB station the
+        12b headroom (16 + 8 GiB available) is rarely free, while e4b's is.
+        """
+
+        tiers = catalog_tiers_for("summary")
+        current = next((tier for tier in tiers if tier.model_id == self.model_tag), None)
+        floor_gb = current.min_ram_gb if current is not None else 8
+        smaller = next(
+            (
+                tier
+                for tier in tiers
+                if tier.provider == "ollama"
+                and not tier.requires_network
+                and tier.min_ram_gb < floor_gb
+            ),
+            None,
+        )
+        if smaller is None:
+            return None
+        return OllamaSummaryModel.for_release(model_tag=smaller.model_id, base_url=self.base_url)
+
     def generate(
         self,
         *,
