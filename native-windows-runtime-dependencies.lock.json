@@ -2,17 +2,17 @@
   "artifacts": {
     "ffmpeg": {
       "archive": "zip",
-      "bytes": 82856725,
+      "bytes": 81567515,
       "expected_executables": [
         "bin/ffmpeg.exe",
         "bin/ffprobe.exe"
       ],
-      "filename": "ffmpeg-N-128142-g28fda48e0b-win64-lgpl-shared.zip",
-      "sha256": "cdc8388862f20bb0393141f944fe18b54e7a6de50fd42a24db58c63fb48c6a8c",
+      "filename": "ffmpeg-N-128227-g4811625b5f-win64-lgpl-shared.zip",
+      "sha256": "df0064c654faad1537cbf31c399cd93d3aaf6147e23de094a62884ecd480a6bf",
       "spdx_license": "LGPL-3.0-or-later",
-      "strip_prefix": "ffmpeg-N-128142-g28fda48e0b-win64-lgpl-shared",
-      "url": "https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-10-28-19-47/ffmpeg-N-128142-g28fda48e0b-win64-lgpl-shared.zip",
-      "version": "N-128142-g28fda48e0b"
+      "strip_prefix": "ffmpeg-N-128227-g4811625b5f-win64-lgpl-shared",
+      "url": "https://github.com/FFmpeg-Builds/FFmpeg-Builds/releases/download/autobuild-2026-10-31-12-59/ffmpeg-N-128227-g4811625b5f-win64-lgpl-shared.zip",
+      "version": "N-128227-g4811625b5f"
     },
     "node": {
       "archive": "zip",
