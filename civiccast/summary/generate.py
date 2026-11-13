@@ -16,7 +16,7 @@ from civiccast.summary.extract import extract_quantitative_facts
 from civiccast.summary.fingerprint import sha256_fingerprint
 from civiccast.summary.minutes import transcript_fingerprint
 from civiccast.summary.models import ModelProvenance, SourcedClaim, SummaryDraft
-from civiccast.summary.ollama import OllamaSummaryModel
+from civiccast.summary.ollama import OllamaSummaryModel, SummaryResourceDeferredError
 from civiccast.summary.validate import SourcedClaimValidator, UnsupportedSummaryClaimError
 
 # v0.7: rules after the transcript, quantitative defined, string claim ids,
@@ -237,8 +237,29 @@ class SummaryGenerationPipeline:
 
     def __init__(self, model: SummaryModel | None = None) -> None:
         self._model = model or OllamaSummaryModel.for_release()
+        self._fallback_note: str | None = None
 
     def generate(self, *, meeting_id: str, cues: list[CaptionCue]) -> SummaryDraft:
+        try:
+            return self._generate(meeting_id=meeting_id, cues=cues)
+        except SummaryResourceDeferredError:
+            # Not enough memory for the selected tier: run the next smaller
+            # on-box tier instead of deferring (rc.6 field evidence: the 12b
+            # default on a 32 GB GPU station was deferred on every request).
+            # The draft records the model that actually ran.
+            smaller_fallback = getattr(self._model, "smaller_fallback", None)
+            smaller = smaller_fallback() if callable(smaller_fallback) else None
+            if smaller is None:
+                raise
+            first_tag = getattr(self._model, "model_tag", "the selected model")
+            self._model = smaller
+            self._fallback_note = (
+                f"Station memory was too low for {first_tag}, so this summary was made "
+                f"with the smaller model {smaller.model_tag}."
+            )
+            return self._generate(meeting_id=meeting_id, cues=cues)
+
+    def _generate(self, *, meeting_id: str, cues: list[CaptionCue]) -> SummaryDraft:
         errors: list[str] = []
         for prompt_version in (PROMPT_VERSION, RETRY_PROMPT_VERSION):
             output = self._model.generate(
@@ -306,6 +327,12 @@ class SummaryGenerationPipeline:
         operator_message: str | None,
         errors: list[str] | None = None,
     ) -> SummaryDraft:
+        if self._fallback_note is not None:
+            operator_message = (
+                f"{self._fallback_note} {operator_message}"
+                if operator_message
+                else self._fallback_note
+            )
         # Record the provenance of the model that actually ran. Real adapters
         # (OllamaSummaryModel, CloudSummaryModel) expose ``model_tag`` and, for
         # the local path, a ``provenance`` with the live manifest digest and
