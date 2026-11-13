@@ -597,6 +597,7 @@ def ollama_child_spec(
     host: str = DEFAULT_OLLAMA_HOST,
     port: int = DEFAULT_OLLAMA_PORT,
     extra_env: Mapping[str, str] | None = None,
+    use_integrated_gpu: bool = True,
     graceful_stop_deadline_seconds: float = DEFAULT_GRACEFUL_STOP_DEADLINE_SECONDS,
     readiness_budget_seconds: float = DEFAULT_OLLAMA_READY_BUDGET_SECONDS,
 ) -> ChildSpec:
@@ -653,8 +654,16 @@ def ollama_child_spec(
     # default back to the 4,096 every station had until now; requests that set
     # ``num_ctx`` themselves (summaries) are not affected.
     #
+    # NOT on a box that also has a discrete GPU (``use_integrated_gpu=False``).
+    # Measured 2026-11-12 on the MSI laptop (RTX 4050 6 GB + Intel UHD), same
+    # ollama: with the chip enabled and gemma4:e4b loaded on the card, ollama
+    # put translategemma:4b on the Intel chip instead of swapping models on
+    # the card -- 12.2 tokens/s against 57.3 with the chip left out. On the
+    # RTX 5060 Ti box (no chip in use) the variable changed nothing.
+    #
     # ``setdefault``: ``extra_env`` may turn either one off or change it.
-    env.setdefault("OLLAMA_IGPU_ENABLE", "1")
+    if use_integrated_gpu:
+        env.setdefault("OLLAMA_IGPU_ENABLE", "1")
     env.setdefault("OLLAMA_CONTEXT_LENGTH", "4096")
     return ChildSpec(
         name="ollama",

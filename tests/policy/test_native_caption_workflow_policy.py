@@ -1236,7 +1236,8 @@ def test_native_marker_collections_match_the_workflow_floors() -> None:
     # (HALO-gate-a candidate build) adds two portable cases: 2218 / 2467.
     # Microsoft-published Store package manifest rule (one case) and the
     # integrated-graphics ollama child environment (two cases): 2221 / 2470.
-    assert (collect("not windows_only"), collect()) == (2221, 2470)
+    # Chip left out when an NVIDIA card is present (three cases): 2224 / 2473.
+    assert (collect("not windows_only"), collect()) == (2224, 2473)
 
 
 def test_linux_unit_job_runs_native_tests_once_in_the_dedicated_pure_lane() -> None:

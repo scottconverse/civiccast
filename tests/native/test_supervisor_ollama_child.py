@@ -287,6 +287,33 @@ def test_ollama_child_integrated_graphics_can_be_turned_off_by_extra_env() -> No
     assert spec.env["OLLAMA_CONTEXT_LENGTH"] == "8192"
 
 
+def test_ollama_child_leaves_the_chip_out_when_a_discrete_card_is_present() -> None:
+    """MSI laptop measurement 2026-11-12 (RTX 4050 + Intel UHD): with the chip
+    enabled, ollama put translategemma:4b on the Intel chip while gemma4:e4b
+    held the card -- 12.2 tokens/s against 57.3. The context pin stays."""
+
+    spec = ollama_child_spec(
+        ollama_exe_path=r"C:\i\dependencies\ollama\ollama.exe",
+        models_dir=r"C:\i\models\ollama",
+        use_integrated_gpu=False,
+    )
+    assert "OLLAMA_IGPU_ENABLE" not in spec.env
+    assert spec.env["OLLAMA_CONTEXT_LENGTH"] == "4096"
+
+
+@pytest.mark.parametrize(("card", "expected"), [(True, None), (False, "1")])
+def test_ollama_provider_enables_the_chip_only_without_a_discrete_card(
+    tmp_path: Path, card: bool, expected: str | None
+) -> None:
+    from civiccast.native.supervisor.service import build_ollama_spec_provider
+
+    layout = _make_layout(tmp_path, binary=True, composed=True, pack=False)
+    decision = build_ollama_spec_provider(layout, discrete_gpu_probe=lambda: card)()
+    assert decision.spec is not None
+    assert decision.spec.env.get("OLLAMA_IGPU_ENABLE") == expected
+    assert ("left out" in decision.detail) is card
+
+
 def test_ollama_default_host_port_match_the_app_client_base_url() -> None:
     """The child serves EXACTLY where summary/translate dial by default --
     ai_runtime.ollama_client.DEFAULT_OLLAMA_BASE_URL -- so the control plane
