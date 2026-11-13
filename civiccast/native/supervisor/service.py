@@ -1654,11 +1654,30 @@ def _default_ollama_version_probe() -> bool:
         return False
 
 
+def _nvidia_gpu_present() -> bool:
+    """Whether NVML reports an NVIDIA card. False when the probe fails.
+
+    Same probe the installer uses for the summary-model default
+    (``installer.service._probed_summary_has_gpu``). False keeps the
+    integrated graphics chip enabled, which is the right choice for a
+    station that has only a chip. A discrete card that is not NVIDIA is not
+    detected here.
+    """
+
+    try:
+        from civiccast.platform import hardware
+
+        return hardware.probe().gpu is not None
+    except Exception:
+        return False
+
+
 def build_ollama_spec_provider(
     layout: InstallLayout,
     *,
     logger: logging.Logger | None = None,
     extra_env: dict[str, str] | None = None,
+    discrete_gpu_probe: Callable[[], bool] | None = None,
 ) -> Callable[[], OllamaChildDecision]:
     """Task #57 D2: decide, at each (re)start attempt, whether the OPTIONAL
     ollama child can launch. Launchable ONLY when the reviewed binary
@@ -1674,6 +1693,7 @@ def build_ollama_spec_provider(
 
     log = logger or logging.getLogger(LOGGER_NAME)
     last_skip: dict[str, str] = {}
+    has_discrete_gpu = discrete_gpu_probe or _nvidia_gpu_present
 
     def _skip(detail: str) -> OllamaChildDecision:
         if last_skip.get("detail") != detail:
@@ -1698,13 +1718,18 @@ def build_ollama_spec_provider(
                 "no staged ollama model store at "
                 + " or ".join(str(c) for c in ollama_model_store_candidates(layout))
             )
+        discrete = has_discrete_gpu()
         return OllamaChildDecision(
             spec=ollama_child_spec(
                 ollama_exe_path=str(exe),
                 models_dir=str(store),
                 extra_env=extra_env,
+                use_integrated_gpu=not discrete,
             ),
-            detail=f"serving staged store {store}",
+            detail=(
+                f"serving staged store {store}; integrated graphics chip "
+                + ("left out (NVIDIA card present)" if discrete else "enabled")
+            ),
         )
 
     return provider
