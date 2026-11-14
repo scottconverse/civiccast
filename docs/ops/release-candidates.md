@@ -12,7 +12,7 @@ without the checks below all passing. `scripts/release/publish_beta_candidate.py
 is fail-closed at every step (see its module docstring) -- it refuses rather
 than proceeds past any failed check.
 
-Current published package: [Beta 20](../releases/v1.0.0-beta.20-verification.md). Its release assets, generated manual/Help, checksums and package results are bound to the signed source named in that record. Prior package receipts remain historical. Documentation-only corrections do not require rebuilding an existing signed installer.
+Current published package: [v1.0.0-rc.5](../releases/v1.0.0-rc.5-verification.md) (published 2026-11-07). Its release assets, checksums and package results are bound to the signed source named in that record. Candidate in test: v1.0.0-rc.6, unpublished; see [its release notes](../releases/v1.0.0-rc.6-release-notes.md). Prior package receipts remain historical. Documentation-only corrections do not require rebuilding an existing signed installer.
 
 ## 1. Build
 
@@ -99,6 +99,8 @@ the owner continues the station and monitor. Clean-machine Gate A remains
 outstanding until that work has ended and the owner schedules it.
 
 ## 2. Gate A: three required lanes (workflow-backed route)
+
+**State on 2026-11-14:** the Gate A harness on the Halo runner does not finish. On 2026-11-13 and 2026-11-14 it failed three times with a harness error (the sandbox's output folder went quiet, so no verdict reached the host). That is a fault in the test tool, not in the candidate. v1.0.0-rc.5 was published by the direct route with a physical-host receipt instead (see section 3), and rc.6 uses the same route.
 
 `.github/workflows/gate-a-station-acceptance.yml` runs automatically after a
 successful build (`workflow_run`), or can be dispatched manually against a
