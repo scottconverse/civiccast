@@ -1,5 +1,7 @@
 # Gate A — Automated Station-Acceptance Release Gate
 
+> **Retired as a release requirement (owner decision, 2026-11-14).** No release needs Gate A. Release station evidence comes from the owner's real test PCs; see [release-candidates.md](release-candidates.md), section 2. The workflow no longer starts after a build and can still be started by hand. This page is history.
+
 ## Why this exists
 
 This project's historical failure mode is builder-authored "it works" claims

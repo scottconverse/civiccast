@@ -39,10 +39,8 @@
 # 2026-09-02: this lane is required for every release from now on. See that
 # job's own header and docs/ops/gate-a.md, "Download-only lane".
 #
-# STATUS: informational only. It reports its verdict on every candidate but
-# does NOT block merges or releases until the owner promotes it to a required
-# check after 3 consecutive green runs (docs/ops/gate-a.md, "Promotion
-# rule"). No agent flips branch protection -- that is an owner-only action
+# STATUS: retired as a release requirement (owner decision 2026-11-14). It
+# runs only when dispatched by hand and blocks no merge or release. No agent flips branch protection -- that is an owner-only action
 # per this repo's CLAUDE.md "Owner gates" section.
 #
 # ARTIFACT DOWNLOAD: the ~21 GB native-beta-kit-<sha> artifact is fetched
@@ -68,10 +66,10 @@
 
 name: gate-a-station-acceptance
 
+# Owner decision 2026-11-14: Gate A is not a release requirement and no
+# longer starts after a build (the workflow_run trigger was removed). It
+# runs only when dispatched by hand.
 on:
-  workflow_run:
-    workflows: [native-beta-candidate-artifacts]
-    types: [completed]
   workflow_dispatch:
     inputs:
       run_id:
