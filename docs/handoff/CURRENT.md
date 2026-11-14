@@ -1,38 +1,32 @@
-# CURRENT — Halo takeover (2026-11-11)
+# CURRENT — Halo coordinator (2026-11-14)
 
-Updated 2026-11-11 (third update, about 18:45 UTC) by Claude (Fable 5.2) on the Halo PC. Owner instruction (Scott, 2026-11-11): Blackwell is down and cannot be restarted remotely; Scott is away for about a week; Claude on Halo takes over as coordinator.
+Updated 2026-11-14 by Claude (Opus 5.5) on the Halo PC. Claude on Halo has been coordinator since 2026-11-11 (owner instruction; Blackwell is down). The 2026-11-11 version of this note is in git history.
 
-Everything before this date is in [CURRENT-HISTORY-to-2026-11-05.md](CURRENT-HISTORY-to-2026-11-05.md). That file is history. It sets no gates.
+Everything before 2026-11-05 is in [CURRENT-HISTORY-to-2026-11-05.md](CURRENT-HISTORY-to-2026-11-05.md). That file is history. It sets no gates.
 
 ## Release state
 
 - Current release: **v1.0.0-rc.5** (published 2026-11-07). Record: `docs/releases/v1.0.0-rc.5-verification.md`.
-- On `main` after rc.5 and not released: #313 (false "degraded" health blips), #314 (Gemma 4 summaries), #315 (shared Townlight reader for agenda import), #316 (docs).
-- No release, tag or station upgrade is authorized by this note. Each one needs Scott's OK.
+- Candidate: **v1.0.0-rc.6**, unpublished. Signed kit from source `d74a8c3110618d62b82f25e7383e93258f9a556b`, build run 43576185174. Details: `docs/releases/v1.0.0-rc.6-release-notes.md`.
+- No release, tag or station upgrade is authorized by this note. Publishing needs Scott's word "publish".
 
-## Machines (checked 2026-11-11, 18:39 UTC)
+## Machines (checked 2026-11-14, 11:08 local time)
 
 | Machine | Role | State |
 |---|---|---|
 | Halo | Coordinator PC and CI runner `HALO-gate-a`. Working clone: `C:\dev\civiccast`. | Online. |
-| Beelink (`beelink64gb`) | Test station, rc.5 | Service running, health healthy, captions healthy. |
-| R7 (`r7`) | Test station, rc.4 | Service running, health healthy, captions healthy. |
-| R9 (`scott@r9-machine`) | Test station, rc.5 | Service running, health healthy, captions healthy. Windows has been up since 2026-11-06 23:26 UTC; the update did not restart it. |
-| Blackwell (`nvideablackwell`) | Former coordinator and the only CI runner | Offline since about 2026-11-10 20:00 UTC. |
+| MSI (`msi-remote`) | Test station, rc.6 `d74a8c31` | Running, healthy, in soak. Walkthrough not done (admin reset failed). |
+| 5060 Ti PC (`civic@blackwell-5060ti`) | Test station, rc.6 `d74a8c31` | Running, healthy, in soak. Walkthrough passed. |
+| Beelink (`beelink64gb`) | Test station, rc.6 `d74a8c31` | Running, healthy, in soak. Walkthrough passed. |
+| R9 (`scott@r9-machine`) | Test station, rc.6 `d74a8c31` | Running, healthy, in soak. Walkthrough passed. The three channels play the slate; no recorded video is scheduled. |
+| R7 (`scott@r7`) | Test station, rc.6 `d74a8c31` (installed over rc.4) | Running, healthy, in soak. Walkthrough passed. |
+| Blackwell (`nvideablackwell`) | Former coordinator | Offline since about 2026-11-10. Not checked since 2026-11-11. |
 
-Windows Update (KB5132061) restarted the Beelink, R7 and Halo on 2026-11-11. That ended the open-ended soaks. The proof is in the rc.5 verification record, version 1.2. Both stations came back on the air with no help.
-
-Automatic Windows updates (policy value `NoAutoUpdate=1`), read back at 18:39 UTC: set on Halo, the Beelink, R7 and R9. Scott set this value; the coordinator does not change Windows settings.
-
-Station logger (`C:\CivicCastTester\soak-logger\`, task `ClaudeCivicCastStationLogger`): on the Beelink and R7 since 2026-11-08, on R9 since 2026-11-11 16:21 UTC. It is the same file on all three (SHA-256 `d1e328c1871a013d…`). R9 has no minute record before that time.
+The soak runs until at least the morning of 2026-11-15. Soak readings: `C:\CivicCastTester\evidence\rc6-d74a\soak\` on Halo. Install receipts: `C:\CivicCastTester\results\install-rc6-d74a.json` on each station.
 
 ## What is only on Blackwell
 
-- The evidence folders under `E:\CivicCastTester\`.
-- The test virtual machines.
-- Any work that was not pushed. Nothing on GitHub shows what that is.
-
-When Blackwell is back: push its unpushed work and copy `E:\CivicCastTester\` off it before anything else.
+- The evidence folders under `E:\CivicCastTester\`, the test virtual machines, and any work that was not pushed.
 
 ## CI runner and its input files
 
@@ -51,16 +45,26 @@ When Blackwell is back: push its unpushed work and copy `E:\CivicCastTester\` of
 
 ## Open work on GitHub
 
-- Open pull requests: #155, #175, #202, #232, #258. All are from September or October. None is assigned by this note.
-- Open issues: #90, #308, #309, #311.
-- Branches with commits that are not on `main`: `fix/summary-gemma-acceptance` (2), `feat/local-audio-description` (3), `fix/rc1-ollama-probe` (4), `fix/rc1-installer-space` (1), `feat/rc1-agenda-offline` (10). Not reviewed.
+- Open pull requests: none (checked 2026-11-14).
+- Open issues: #90 (on-air graphics, not built), #308 (encoder restart on filler), #311 and #330 (tests that fail in some test orders), #327 (health stays healthy while a channel worker restarts; part fixed in rc.6).
+- Other branches that are not on `main`: not checked on 2026-11-14.
+
+## Gate A
+
+The Gate A sandbox harness (`.github/workflows/gate-a-station-acceptance.yml`) did not finish on 2026-11-13 and 2026-11-14. Its sandbox output went quiet, so no verdict came back. rc.5 was published by the direct route with a physical-host receipt, and rc.6 uses the same route. See `docs/ops/release-candidates.md`.
+
+## Owner decisions (2026-11-14)
+
+- No station runs rc.5, so an rc.5 → rc.6 upgrade test is not required.
+- The WSL field-proof runbook was deleted (#339). It is dead work.
 
 ## Next steps (in order)
 
-1. Scott decides: upgrade R7 to rc.5, restart the Beelink soak, and what the next release holds.
-2. Scott decides: a second copy of the six input files, and the fix for the dead zlib address.
-3. Scott decides: install and upgrade tests of a kit built with the new Python runtime archive.
-4. Hyper-V is off on Halo. Only the virtual-machine clean-install tests need it. Enabling it and any restart of Halo are Scott's decisions; C: on Halo is BitLocker-encrypted.
+1. Finish the soak (morning of 2026-11-15) and record the result.
+2. The MSI walkthrough, if Scott OKs another admin reset.
+3. The rc.6 verification record, `docs/releases/v1.0.0-rc.6-verification.md`.
+4. The physical-host receipt for `scripts/release/publish_beta_candidate.py` (the old tool for it was on Blackwell), then the dry runs.
+5. Publish only on Scott's word "publish".
 
 ## Rules that still apply
 
