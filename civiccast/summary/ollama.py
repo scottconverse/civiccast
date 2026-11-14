@@ -11,6 +11,7 @@ from typing import Any, Literal
 import psutil
 
 from civiccast.ai_models.catalog import catalog_tiers_for
+from civiccast.ai_models.models import ModelTier
 from civiccast.ai_runtime.evidence import RuntimeEvidence
 from civiccast.ai_runtime.ollama_client import (
     DEFAULT_OLLAMA_BASE_URL,
@@ -21,9 +22,18 @@ from civiccast.ai_runtime.ollama_client import (
 from civiccast.captions import CaptionCue
 
 _SUMMARY_MODEL_TAG = "gemma4:e4b"
-# Keep this reserve fixed so a selected summary tier cannot consume the station's
-# memory budget for live broadcast work.
-_BROADCAST_HEADROOM_GB = 8
+# A tier's catalog ``min_ram_gb`` is a machine spec: the TOTAL RAM a station needs
+# to run that tier (the same number the operator console shows as "needs N GB" and
+# the adaptive default reads). The run-time check is separate: the tier's floor must
+# also be AVAILABLE right now, plus this reserve. ``available`` already excludes the
+# memory the running broadcast is using, so the reserve only has to cover growth
+# (another channel starting), not the whole broadcast. The old rule demanded the
+# floor plus 8 GiB available, which counted the machine spec as free memory and
+# meant e4b (8 GB) needed 16 GiB free: a 16 GB station could never summarise.
+# Field run 2026-11-13 (rc.6, MSI, 15.7 GB total, RTX 4050 6 GB): 9.9 GiB available
+# while broadcasting 3 channels; with the gate off, e4b summarised in 66 s and the
+# station stayed healthy through the soak.
+_BROADCAST_RESERVE_GB = 1
 _GIB = 1024**3
 
 # Context sizing. Without an explicit num_ctx Ollama uses 4,096 tokens and drops
@@ -63,19 +73,56 @@ def _summary_context_tokens(prompt: str) -> int:
     return max(_MIN_CONTEXT_TOKENS, steps * _CONTEXT_STEP_TOKENS)
 
 
-def _require_summary_headroom(model_tag: str) -> None:
-    """Keep the selected tier's catalog RAM floor available alongside broadcast reserve."""
+def _local_tiers() -> list[ModelTier]:
+    return [
+        tier
+        for tier in catalog_tiers_for("summary")
+        if tier.provider == "ollama" and not tier.requires_network
+    ]
 
-    tiers = catalog_tiers_for("summary")
-    tier = next((candidate for candidate in tiers if candidate.model_id == model_tag), None)
+
+def _smaller_local_tier(floor_gb: int) -> ModelTier | None:
+    """The first on-box summary tier with a lower RAM floor, or ``None``."""
+
+    return next((tier for tier in _local_tiers() if tier.min_ram_gb < floor_gb), None)
+
+
+def _require_summary_headroom(model_tag: str) -> None:
+    """Defer before loading a tier this station cannot run without hurting broadcast.
+
+    Two checks, in order:
+
+    1. Machine spec: total physical RAM (whole GiB, truncated -- the same rule as
+       ``detect_summary_model_default`` and the installer self-test) must meet the
+       tier's catalog ``min_ram_gb``.
+    2. Right now: available RAM must cover that floor plus ``_BROADCAST_RESERVE_GB``.
+    """
+
+    tier = next(
+        (
+            candidate
+            for candidate in catalog_tiers_for("summary")
+            if candidate.model_id == model_tag
+        ),
+        None,
+    )
     model_floor_gb = tier.min_ram_gb if tier is not None else 8
-    required_available_gb = model_floor_gb + _BROADCAST_HEADROOM_GB
-    available_bytes = psutil.virtual_memory().available
-    if available_bytes < required_available_gb * _GIB:
-        available_gb = available_bytes / _GIB
-        smaller_tier = next(
-            (candidate for candidate in tiers if candidate.min_ram_gb < model_floor_gb), None
+    smaller_tier = _smaller_local_tier(model_floor_gb)
+    memory = psutil.virtual_memory()
+
+    total_gb = int(memory.total / _GIB)
+    if total_gb < model_floor_gb:
+        recovery_action = "Select a tier this computer can run, or a cloud tier."
+        if smaller_tier is not None:
+            recovery_action = f"Select the smaller model ({smaller_tier.model_id})."
+        raise SummaryResourceDeferredError(
+            f"Summary generation was deferred before loading {model_tag}: "
+            f"this computer has {memory.total / _GIB:.1f} GiB of RAM, while this tier "
+            f"needs a {model_floor_gb} GB station. " + recovery_action
         )
+
+    required_available_gb = model_floor_gb + _BROADCAST_RESERVE_GB
+    if memory.available < required_available_gb * _GIB:
         recovery_action = "Wait for station memory to recover before retrying."
         if smaller_tier is not None:
             recovery_action = (
@@ -84,8 +131,8 @@ def _require_summary_headroom(model_tag: str) -> None:
             )
         raise SummaryResourceDeferredError(
             f"Summary generation was deferred before loading {model_tag}: "
-            f"{available_gb:.1f} GiB is available, while this tier needs "
-            f"{model_floor_gb} GiB plus {_BROADCAST_HEADROOM_GB} GiB reserved for broadcast. "
+            f"{memory.available / _GIB:.1f} GiB is available, while this tier needs "
+            f"{model_floor_gb} GiB free plus {_BROADCAST_RESERVE_GB} GiB kept for broadcast. "
             + recovery_action
         )
 
@@ -138,24 +185,15 @@ class OllamaSummaryModel:
     def smaller_fallback(self) -> OllamaSummaryModel | None:
         """The next smaller on-box summary tier, or ``None`` when this is the smallest.
 
-        Used when this tier is deferred for memory: the station's adaptive default
-        picks gemma4:12b on a GPU box with 16 GB+ RAM, but on a 32 GB station the
-        12b headroom (16 + 8 GiB available) is rarely free, while e4b's is.
+        Used when this tier is deferred for memory: the adaptive default picks
+        gemma4:12b on a GPU box with 16 GB+ RAM, but when less than its 16 GiB floor
+        (plus the broadcast reserve) is free, e4b's 8 GiB often still is.
         """
 
         tiers = catalog_tiers_for("summary")
         current = next((tier for tier in tiers if tier.model_id == self.model_tag), None)
         floor_gb = current.min_ram_gb if current is not None else 8
-        smaller = next(
-            (
-                tier
-                for tier in tiers
-                if tier.provider == "ollama"
-                and not tier.requires_network
-                and tier.min_ram_gb < floor_gb
-            ),
-            None,
-        )
+        smaller = _smaller_local_tier(floor_gb)
         if smaller is None:
             return None
         return OllamaSummaryModel.for_release(model_tag=smaller.model_id, base_url=self.base_url)

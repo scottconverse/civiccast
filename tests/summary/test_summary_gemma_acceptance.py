@@ -229,7 +229,9 @@ def summary_module(monkeypatch: MonkeyPatch) -> Any:
     monkeypatch.setattr(
         module,
         "psutil",
-        SimpleNamespace(virtual_memory=lambda: SimpleNamespace(available=64 * 1024**3)),
+        SimpleNamespace(
+            virtual_memory=lambda: SimpleNamespace(total=64 * 1024**3, available=64 * 1024**3)
+        ),
         raising=False,
     )
     return module

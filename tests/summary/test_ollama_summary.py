@@ -81,7 +81,9 @@ def test_summary_defers_before_generate_when_broadcast_headroom_is_short(
     monkeypatch.setattr(
         summary_module,
         "psutil",
-        SimpleNamespace(virtual_memory=lambda: SimpleNamespace(available=17 * 1024**3)),
+        SimpleNamespace(
+            virtual_memory=lambda: SimpleNamespace(total=32 * 1024**3, available=16 * 1024**3)
+        ),
         raising=False,
     )
     monkeypatch.setattr(summary_module, "generate_with_ollama", unexpected_generate)
@@ -101,7 +103,9 @@ def test_summary_runs_when_model_and_broadcast_headroom_are_available(
     monkeypatch.setattr(
         summary_module,
         "psutil",
-        SimpleNamespace(virtual_memory=lambda: SimpleNamespace(available=24 * 1024**3)),
+        SimpleNamespace(
+            virtual_memory=lambda: SimpleNamespace(total=32 * 1024**3, available=17 * 1024**3)
+        ),
         raising=False,
     )
     monkeypatch.setattr(
