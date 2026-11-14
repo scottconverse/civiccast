@@ -87,8 +87,9 @@ pack hashes with the preparation artifacts, assemble the kit, and run Gate A.
 If those identities differ, the preparation run does not establish the full
 kit's identity.
 
-Gate A automatically receives a `workflow_run` event when this preparation
-workflow completes. After the preflight change is on the default branch, its
+Gate A no longer starts after a build (owner decision 2026-11-14; see
+section 2). The rest of this paragraph is history: Gate A used to receive a
+`workflow_run` event when this preparation workflow completed. After the preflight change is on the default branch, its
 hosted preflight sees `native-station-prepare-<sha>` on that exact run and
 skips all Windows Sandbox lanes. A pre-merge run still uses the default-
 branch Gate A definition, so that guard is not active yet; keep the local
@@ -98,13 +99,14 @@ today. Do not bring the desktop runner online or start Windows Sandbox while
 the owner continues the station and monitor. Clean-machine Gate A remains
 outstanding until that work has ended and the owner schedules it.
 
-## 2. Gate A: three required lanes (workflow-backed route)
+## 2. Station evidence (Gate A is retired)
 
-**State on 2026-11-14:** the Gate A harness on the Halo runner does not finish. On 2026-11-13 and 2026-11-14 it failed three times with a harness error (the sandbox's output folder went quiet, so no verdict reached the host). That is a fault in the test tool, not in the candidate. v1.0.0-rc.5 was published by the direct route with a physical-host receipt instead (see section 3), and rc.6 uses the same route.
+**Owner decision, 2026-11-14: Gate A is not required for any release.** The station evidence for a release comes from the owner's real test PCs (reached over Tailscale): the signed kit installed on each test PC, a walkthrough, and a soak, written in the release's verification record, plus the physical-host receipt for the publisher (`--consumer-evidence-receipt`, `consumer_mode: "physical-host"`, see "Direct Sandbox consumer evidence route" below). The Gate A workflow no longer starts after a build. It can still be started by hand. The Gate A text below is history.
 
-`.github/workflows/gate-a-station-acceptance.yml` runs automatically after a
-successful build (`workflow_run`), or can be dispatched manually against a
-specific build run id. It produces three jobs, each with its own
+History: the Gate A harness on the Halo runner did not finish on 2026-11-13 and 2026-11-14 (the sandbox's output folder went quiet, so no verdict reached the host). v1.0.0-rc.5 was published by the physical-host route.
+
+`.github/workflows/gate-a-station-acceptance.yml` runs only when it is
+dispatched by hand against a specific build run id. It produces three jobs, each with its own
 `gate-a-verdict.json`:
 
 | job | lane name in the verdict JSON | artifact name |
@@ -113,16 +115,16 @@ specific build run id. It produces three jobs, each with its own
 | `station-acceptance-dirty` | `dirty` | `gate-a-dirty-verdict-<run_id>` |
 | `station-acceptance-download-only` | `download-only` | `gate-a-download-only-verdict-<run_id>` |
 
-All three are **required** when using the workflow-backed route (owner decision
-2026-09-02 made the download-only lane required alongside clean and dirty).
+From 2026-09-02 to 2026-11-14 all three were required for the workflow-backed
+route. That route is retired; no release needs it.
 Each verdict JSON must report `"verdict": "PASS"` and the same producer
 `source_sha` as the candidate artifacts. Note the Gate A run id
 (`--gate-a-run-id` below) -- this is the
 `gate-a-station-acceptance` workflow run id that produced all three jobs,
 not any one job's own id.
 
-If any lane is missing, not `PASS`, or reports a different `source_sha`, do
-not publish. Re-run Gate A (or the specific failing lane via
+If `--gate-a-run-id` is used and any lane is missing, not `PASS`, or reports a
+different `source_sha`, the publisher refuses. Re-run Gate A (or the specific failing lane via
 `workflow_dispatch` with `lane: cross-version-only` /
 `lane: download-only-only`) and fix the underlying defect first.
 

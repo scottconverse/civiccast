@@ -46,17 +46,19 @@ The soak runs until at least the morning of 2026-11-15. Soak readings: `C:\Civic
 ## Open work on GitHub
 
 - Open pull requests: none (checked 2026-11-14).
-- Open issues: #90 (on-air graphics, not built), #308 (encoder restart on filler), #311 and #330 (tests that fail in some test orders), #327 (health stays healthy while a channel worker restarts; part fixed in rc.6).
+- Open issues: #90 (on-air graphics: lower-third banner proven on R9 2026-11-12; station logo, bulletin board and clock not tested on a station), #327 (part 2 fixed by #328; part 1, health during a restart loop, partly fixed). #308, #311 and #330 were closed by the owner on 2026-11-14.
 - Other branches that are not on `main`: not checked on 2026-11-14.
 
 ## Gate A
 
-The Gate A sandbox harness (`.github/workflows/gate-a-station-acceptance.yml`) did not finish on 2026-11-13 and 2026-11-14. Its sandbox output went quiet, so no verdict came back. rc.5 was published by the direct route with a physical-host receipt, and rc.6 uses the same route. See `docs/ops/release-candidates.md`.
+Retired as a release requirement (owner decision 2026-11-14). The real test PCs are the station evidence. The workflow no longer starts after a build. See `docs/ops/release-candidates.md`, section 2.
 
 ## Owner decisions (2026-11-14)
 
 - No station runs rc.5, so an rc.5 → rc.6 upgrade test is not required.
 - The WSL field-proof runbook was deleted (#339). It is dead work.
+- Gate A is not required for any release. The real test PCs over Tailscale are the station testing.
+- Issues #308, #311 and #330 are closed.
 
 ## Next steps (in order)
 
