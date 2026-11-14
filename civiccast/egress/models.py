@@ -590,7 +590,7 @@ def slate_restart_guard_state(command: EgressCommand) -> EgressState | None:
 # reason as ``SLATE_RESTART_COMMAND_PREFIX`` above: the egress tables are
 # created by ``Base.metadata.create_all`` with no migration path for a column
 # added to an installed station. The id stays well inside the 120-char cap --
-# the prefix plus a state name plus ``uuid4().hex`` is at most 32 chars.
+# the prefix plus a state name plus ``uuid4().hex`` is at most 64 chars.
 RESTART_RECOVERY_COMMAND_PREFIX = "restart-recovery-"
 
 
@@ -599,7 +599,7 @@ def restart_recovery_previous_state(command: EgressCommand) -> str | None:
 
     ``None`` means "not a recovery start: dispatch it with no previous state".
     The value is the persisted state the sweep read before it wrote STOPPED
-    (``ON_AIR`` / ``STARTING`` / ``TRANSITIONING`` -- see
+    (``ON_AIR`` / ``STARTING`` / ``TRANSITIONING`` / ``FALLBACK_SLATE`` -- see
     ``EgressDaemon._STALE_RECONCILE_STATES``), returned as the raw token so the
     daemon's own gate stays the single place that decides what a state implies.
 
@@ -620,7 +620,9 @@ def restart_recovery_previous_state(command: EgressCommand) -> str | None:
 #: ``EgressDaemon._STALE_RECONCILE_STATES`` -- the states the sweeps are allowed
 #: to clear. A recovery command naming anything else is not one this daemon
 #: wrote, so ``restart_recovery_previous_state`` declines to vouch for it.
-_STALE_CLAIM_STATES: frozenset[str] = frozenset({"ON_AIR", "STARTING", "TRANSITIONING"})
+_STALE_CLAIM_STATES: frozenset[str] = frozenset(
+    {"ON_AIR", "STARTING", "TRANSITIONING", "FALLBACK_SLATE"}
+)
 
 
 class EgressStateRow(BaseModel):

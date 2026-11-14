@@ -432,11 +432,12 @@ _SLATE_FIRST_HANDOFF_REASON = (
 #: its worker exists, so a predecessor that died mid-start leaves that row
 #: behind, and the restart-recovery sweep -- whose own reconcile set
 #: (``_STALE_RECONCILE_STATES``, mirrored by ``_STALE_CLAIM_STATES`` in
-#: models.py) is ``{"ON_AIR", "STARTING", "TRANSITIONING"}`` -- reads it to
-#: DECIDE to recover and carries it onto the queued command. With STARTING out
-#: of this set that recovery start passed ``slate_first=True`` and then failed
-#: this gate, so it conformed its program with nothing on air: the same dead
-#: air the ON_AIR shape had, reached through the other recovered state.
+#: models.py) is ``{"ON_AIR", "STARTING", "TRANSITIONING", "FALLBACK_SLATE"}``
+#: -- reads it to DECIDE to recover and carries it onto the queued command.
+#: With STARTING out of this set that recovery start passed
+#: ``slate_first=True`` and then failed this gate, so it conformed its program
+#: with nothing on air: the same dead air the ON_AIR shape had, reached
+#: through the other recovered state.
 _SLATE_FIRST_ACTIVE_STATES = frozenset({"ON_AIR", "STARTING", "FALLBACK_SLATE", "TRANSITIONING"})
 
 # BETA.10 U16 item B: the OUTPUT A/V sync guard.
@@ -1627,16 +1628,26 @@ class EgressDaemon:
         process = self._processes.get(channel_id)
         return process is not None and _process_poll(process) is None
 
-    #: Persisted states that claim a live encoder may be sitting on air. Only
     #: Persisted states that claim a live encoder AND legitimately mean "this
     #: channel should be on air", so a dead PID is a recoverable fault.
     #: DRAINING is deliberately EXCLUDED: ``_drain`` sets it for explicit
     #: operator/supervisor OFF-AIR intent (see ``_drain``/``_poll_process``),
     #: so a restart that finds a dead pid mid-drain must stay off air -- never
-    #: auto-start a channel the operator meant to stop. STOPPED/FALLBACK_SLATE
-    #: are likewise terminal/deliberate and never reconciled.
+    #: auto-start a channel the operator meant to stop. STOPPED is likewise
+    #: terminal/deliberate and never reconciled.
+    #:
+    #: FALLBACK_SLATE IS reconciled (R9, rc.6, 2026-11-13). It is not operator
+    #: intent: the daemon writes it itself (the B1 crash-loop streak, an
+    #: unavailable encoder, a source that will not prepare), and it is an
+    #: ON-AIR state -- the slate replaces dead air. Treating it as terminal
+    #: meant a non-auto_start channel persisted on the slate came back from a
+    #: service restart with no worker at all (no encoder, no HLS, dark air
+    #: while /health read healthy) and stayed dark until an operator noticed.
+    #: Its recovery start carries FALLBACK_SLATE as the previous state, which
+    #: is in ``_SLATE_FIRST_ACTIVE_STATES``: the slate airs first and the
+    #: program follows through the normal hand-off / slate-replan path.
     _STALE_RECONCILE_STATES: ClassVar[frozenset[str]] = frozenset(
-        {"ON_AIR", "STARTING", "TRANSITIONING"}
+        {"ON_AIR", "STARTING", "TRANSITIONING", "FALLBACK_SLATE"}
     )
 
     def repair_unairable_saved_codecs(self) -> list[str]:
@@ -1685,7 +1696,8 @@ class EgressDaemon:
           cannot be read -- fail closed, leave the row;
         * a channel this daemon tracks is never touched, even if its worker has
           already exited (``_poll_process`` owns that transition);
-        * STOPPED / FALLBACK_SLATE / DRAINING rows are never touched;
+        * STOPPED / DRAINING rows are never touched (FALLBACK_SLATE is
+          reconciled like ON_AIR -- see ``_STALE_RECONCILE_STATES``);
         * the recovery command id is UNIQUE per attempt (and <=120 chars), so a
           LATER restart queues a fresh start (a constant id would be skipped
           forever by the SQL store's duplicate-id guard);
