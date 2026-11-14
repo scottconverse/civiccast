@@ -2135,7 +2135,7 @@ export function ChannelOpsScreen() {
             onVerify={() => complianceProbeMutation.mutate()}
           />
           <EgressConfigPanel
-            key={channelId ?? 'no-channel'}
+            key={`egress-config-${channelId ?? 'no-channel'}`}
             channelId={channelId}
             config={egressConfigQuery.data}
             loadError={egressConfigQuery.error}
@@ -2154,7 +2154,7 @@ export function ChannelOpsScreen() {
             saveError={graphicsOverlayMutation.error}
             onSave={(next) => graphicsOverlayMutation.mutate(next)}
           />
-          {selectedChannel && <EmbedCopyPanel key={selectedChannel.channel_id} kind="channel" identity={selectedChannel.channel_id} />}
+          {selectedChannel && <EmbedCopyPanel key={`embed-${selectedChannel.channel_id}`} kind="channel" identity={selectedChannel.channel_id} />}
           <OutputsPanel outputs={selectedChannel?.outputs ?? []} />
           <CtvPanel feed={ctvQuery.data} />
         </div>
