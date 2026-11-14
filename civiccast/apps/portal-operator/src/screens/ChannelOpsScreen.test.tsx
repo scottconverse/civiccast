@@ -1133,3 +1133,32 @@ describe('R9 operator controls', () => {
     })))
   })
 })
+
+// rc.6 walkthrough on the 5060 Ti: switching channels stacked stale
+// "Channel startup and repeat" panels, because the automation panel and the
+// embed panel were siblings keyed by the same bare channel id. An operator
+// could then save the wrong channel's settings.
+describe('channel switch keeps one automation panel', () => {
+  it('shows exactly one Channel startup and repeat panel after switching channels', async () => {
+    stubScreenQueries()
+    const EDUCATION = { ...CHANNEL, channel_id: 'education', slug: 'education', kind: 'education',
+      branding: { display_name: 'Education Channel' } as ChannelProfile['branding'] } as ChannelProfile
+    vi.mocked(listChannelProfiles).mockResolvedValue([CHANNEL, EDUCATION])
+    vi.mocked(getStaffIdentity).mockResolvedValue(identity(['setup_admin']))
+    vi.mocked(getEgressState).mockResolvedValue(null)
+    vi.mocked(getEgressConfig).mockImplementation(async (id) => ({ channel_id: id, enabled: true,
+      auto_start: false, repeat_schedule: false, slate_message: '', sinks: [] }) as unknown as EgressConfig)
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {})
+    renderScreen()
+    await screen.findByText(/Applies only to selected channel public\./)
+    fireEvent.click(await screen.findByRole('button', { name: /Education Channel/ }))
+    await screen.findByText(/Applies only to selected channel education\./)
+    fireEvent.click(screen.getByRole('button', { name: /Public Channel/ }))
+    await screen.findByText(/Applies only to selected channel public\./)
+    expect(screen.getAllByRole('region', { name: 'Channel automation settings' })).toHaveLength(1)
+    expect(screen.queryByText(/Applies only to selected channel education\./)).toBeNull()
+    const dupKey = errors.mock.calls.filter((c) => String(c[0]).includes('same key'))
+    errors.mockRestore()
+    expect(dupKey).toHaveLength(0)
+  })
+})
