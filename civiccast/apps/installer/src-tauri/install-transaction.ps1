@@ -62,13 +62,35 @@ function Write-Transaction($state) {
     $state | Export-Clixml -LiteralPath $partial -Depth 20
     $stream = [IO.File]::Open($partial, 'Open', 'ReadWrite', 'None')
     try { $stream.Flush($true) } finally { $stream.Dispose() }
-    if (Test-Path -LiteralPath $path) { [IO.File]::Replace($partial, $path, "$path.previous") }
-    else { [IO.File]::Move($partial, $path) }
+    # Another process (the Watch recovery task) may briefly hold the journal
+    # open. Retry sharing violations for a bounded time before failing; a
+    # failure here would roll back an otherwise good install (R9, 2026-11-13).
+    $attempt = 0
+    while ($true) {
+        $attempt++
+        try {
+            if (Test-Path -LiteralPath $path) { [IO.File]::Replace($partial, $path, "$path.previous") }
+            else { [IO.File]::Move($partial, $path) }
+            break
+        } catch [IO.IOException] {
+            if ($attempt -ge 20) { throw }
+            Start-Sleep -Milliseconds 250
+        }
+    }
 }
 
 function Read-Transaction {
     $path = Join-Path $StateRoot 'transaction.clixml'
-    if (Test-Path -LiteralPath $path) { Import-Clixml -LiteralPath $path }
+    if (-not (Test-Path -LiteralPath $path)) { return }
+    # Open with FileShare.Delete so a concurrent File.Replace/Move of the
+    # journal is never blocked by this reader (Import-Clixml does not share
+    # delete access).
+    $stream = [IO.File]::Open($path, 'Open', 'Read', 'ReadWrite, Delete')
+    try {
+        $reader = [IO.StreamReader]::new($stream, [Text.Encoding]::UTF8)
+        $xml = $reader.ReadToEnd()
+    } finally { $stream.Dispose() }
+    [Management.Automation.PSSerializer]::Deserialize($xml)
 }
 
 function Assert-ChildPath([string]$path, [string]$parent) {
@@ -698,7 +720,10 @@ if ($MyInvocation.InvocationName -ne '.' -and $Action) {
         }
         if ($Action -eq 'Watch') {
             do {
-                $state = Read-Transaction
+                # The journal can be mid-replace; skip this tick on an IO error.
+                try { $state = Read-Transaction }
+                catch [IO.IOException] { Start-Sleep -Seconds 1; continue }
+                catch [UnauthorizedAccessException] { Start-Sleep -Seconds 1; continue }
                 if (-not $state -or $state.Id -ne $TransactionId -or $state.Phase -in @('Committed', 'Restored')) { exit 0 }
                 if (-not (Test-InstallerAlive $state)) { break }
                 Start-Sleep -Seconds 1

@@ -743,6 +743,8 @@ jobs:
           tests/installer/test_install_transaction.py::test_interrupted_restore_keeps_recovery_point_and_retries_idempotently
           tests/installer/test_install_transaction.py::test_dead_installer_recovery_restores_but_live_installer_is_untouched
           tests/installer/test_install_transaction.py::test_commit_keeps_candidate_and_recovery_cannot_roll_it_back
+          tests/installer/test_install_transaction.py::test_commit_survives_reader_holding_the_journal_open
+          tests/installer/test_install_transaction.py::test_read_transaction_does_not_block_replace
           tests/installer/test_install_transaction.py::test_restores_existing_shortcut_and_removes_only_new_installer_shortcut
           tests/installer/test_install_transaction.py::test_insufficient_snapshot_space_refuses_before_replacement
           tests/installer/test_install_transaction.py::test_snapshot_and_restore_keep_hardlinks_without_sharing_live_bytes
