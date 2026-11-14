@@ -95,6 +95,9 @@ def run_upgrade(
     """
 
     existing = journal_io.load_journal(context.state_root)
+    if existing is not None:
+        # The persisted URL has its password redacted; use the caller's live one.
+        existing = journal_io.with_live_database_url(existing, context.database_url)
     if existing is not None and not existing.phase.is_terminal:
         return _resume(existing, seams)
     # A terminal journal for this state root: a fresh upgrade would overwrite a

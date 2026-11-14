@@ -255,3 +255,30 @@ def test_resume_is_deterministic_across_double_run(tmp_path) -> None:
     assert h.db_schema == "new-rev", "the committed schema must be unchanged by the re-run"
     assert h.interlock_held is False, "the re-run must leave the interlock released"
     assert second.journal.post_schema_revision == "new-rev"
+
+
+def test_resume_works_when_persisted_journal_has_redacted_password(tmp_path) -> None:
+    """The on-disk journal never holds the DB password; resume gets the real URL from
+    the caller's context (the live config), and the password stays off disk."""
+
+    fake_password = "s3cret-test"
+    url = f"postgresql://civic:{fake_password}@localhost:5432/db"
+    h = _make(tmp_path)
+    h.interlock_held = True
+    context = _context(h).model_copy(update={"database_url": url})
+    write_journal(
+        UpgradeJournal(
+            plan=UpgradePlan(old_version="1.0", new_version="1.1"),
+            context=context,
+            phase=UpgradePhase.INTERLOCK_ACQUIRED,
+            pre_schema_revision="old-rev",
+        )
+    )
+    journal_file = Path(h.state_root) / "upgrade-journal.json"
+    assert fake_password not in journal_file.read_text(encoding="utf-8")
+
+    outcome = run_upgrade(UpgradePlan(old_version="1.0", new_version="1.1"), context, h.seams())
+
+    assert outcome.phase is UpgradePhase.COMPLETE
+    assert outcome.journal.context.database_url == url  # live value, in memory only
+    assert fake_password not in journal_file.read_text(encoding="utf-8")

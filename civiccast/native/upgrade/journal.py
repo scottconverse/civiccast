@@ -40,26 +40,19 @@ in that sibling module -- see its module docstring for the fuller narrative):
    inheritance (the SDDL's ``OICI`` flags) rather than needing its own
    hardening call.
 
-2. **``context.database_url`` is NOT redacted here**, unlike
-   :mod:`civiccast.native.provision.journal`'s ``database_password``. That
-   sibling fix redacts because tracing every consumer of a LOADED
-   provisioning journal found nothing reads the persisted password back. The
-   same trace here finds a real, live consumer:
+2. **``context.database_url``'s password is redacted before it is written**
+   (:func:`redact_database_url`; ``postgresql://user:***@host:5432/db``).
+   An earlier revision of this module left it in plaintext on the theory that
    :func:`civiccast.native.upgrade.orchestrator._write_recovery_document`
-   embeds ``journal.context.database_url`` verbatim into the
-   operator-facing ``UPGRADE-RECOVERY.md`` on the ``HALTED_RESTORE_FAILED``
-   path -- and on a RESUMED run (``run_upgrade`` -> ``_resume(existing,
-   seams)``), ``journal`` there IS the journal ``load_journal`` read back
-   from disk, so ``journal.context.database_url`` at that point is exactly
-   the on-disk value. Redacting it the way the sibling fix redacts the
-   password would silently replace the real Postgres connection string with
-   a fixed marker in the one document a human reads to perform a manual
-   restore during the engine's own worst-case failure path -- a functional
-   regression, not just a docs fix, and NOT something this change makes
-   unilaterally (flagged for the owner instead; see the task report). The
-   DACL hardening in point 1 is therefore this fix's entire mitigation for
-   this secret: it remains plaintext on disk, but the directory holding it
-   is no longer world-readable.
+   reads it back on a resumed run. Nothing actually needs the PERSISTED
+   copy: the caller of :func:`~civiccast.native.upgrade.orchestrator.run_upgrade`
+   always supplies the real ``UpgradeContext`` (the CLI's ``--database-url``),
+   and ``run_upgrade`` re-attaches that live URL to a journal it loaded
+   (:func:`with_live_database_url`), so resume and the recovery document
+   still see the real value in memory. The password therefore never reaches
+   disk, including the copy the installer's failure-diagnostics step makes
+   (``install-transaction.ps1``). Any free-text field (history detail,
+   error) that embeds the literal URL or password is scrubbed too.
 """
 
 from __future__ import annotations
@@ -68,12 +61,16 @@ import json
 import os
 from datetime import UTC, datetime
 from pathlib import Path
+from urllib.parse import quote, unquote, urlsplit, urlunsplit
 
 from pydantic import ValidationError
 
 from civiccast.native.upgrade.models import UpgradeJournal, UpgradePhase
 
 JOURNAL_FILENAME = "upgrade-journal.json"
+
+#: Replaces the password in a persisted connection URL.
+REDACTED_PASSWORD = "***"  # noqa: S105 -- a redaction marker, not a password
 
 #: SYSTEM + Administrators full control, PLUS the CURRENT process's own user
 #: SID -- identical shape and rationale to
@@ -126,9 +123,7 @@ def _harden_state_root_acl(state_root: Path) -> None:
     hardening failure here means the journal -- which still carries the
     plan/context/history and, on the halt path, the recovery document -- is
     about to be written into a directory this call could not actually
-    secure. Silently continuing would leave that state (including the
-    plaintext ``database_url``; see the module docstring's security note on
-    why it is not redacted) readable by any other local user on a shared
+    secure. Silently continuing would leave that state readable by any other local user on a shared
     station without telling anyone.
     """
 
@@ -152,6 +147,94 @@ def _harden_state_root_acl(state_root: Path) -> None:
         raise JournalError(
             f"could not harden ACLs on upgrade state root {state_root}: {exc}"
         ) from exc
+
+
+def redact_database_url(url: str) -> str:
+    """Return ``url`` with any password replaced by ``***``.
+
+    ``postgresql://user:s3cret@host:5432/db`` -> ``postgresql://user:***@host:5432/db``.
+    A ``password=`` query parameter is masked too. A URL with no password (or
+    one that is not a URL) is returned unchanged.
+    """
+
+    try:
+        parts = urlsplit(url)
+        netloc = parts.netloc
+        query = parts.query
+        if "@" in netloc:
+            userinfo, _, hostport = netloc.rpartition("@")
+            if ":" in userinfo:
+                user = userinfo.split(":", 1)[0]
+                netloc = f"{user}:{REDACTED_PASSWORD}@{hostport}"
+        if query:
+            pairs = []
+            for item in query.split("&"):
+                key, sep, _value = item.partition("=")
+                if sep and key.lower() in {"password", "passwd", "pwd"}:
+                    item = f"{key}={REDACTED_PASSWORD}"
+                pairs.append(item)
+            query = "&".join(pairs)
+        return urlunsplit((parts.scheme, netloc, parts.path, query, parts.fragment))
+    except ValueError:
+        return url
+
+
+def _database_password(url: str) -> str | None:
+    try:
+        password = urlsplit(url).password
+    except ValueError:
+        return None
+    return unquote(password) if password else None
+
+
+def _scrub_text(text: str, url: str, password: str | None) -> str:
+    """Remove the literal URL / password from a free-text journal field."""
+
+    if url:
+        text = text.replace(url, redact_database_url(url))
+    if password:
+        for variant in {password, quote(password, safe="")}:
+            text = text.replace(variant, REDACTED_PASSWORD)
+    return text
+
+
+def _scrub(value: object, url: str, password: str | None) -> object:
+    if isinstance(value, str):
+        return _scrub_text(value, url, password)
+    if isinstance(value, list):
+        return [_scrub(item, url, password) for item in value]
+    if isinstance(value, dict):
+        return {key: _scrub(item, url, password) for key, item in value.items()}
+    return value
+
+
+def redacted_payload(journal: UpgradeJournal) -> dict[str, object]:
+    """The JSON-able journal dict with the database password removed."""
+
+    url = journal.context.database_url
+    password = _database_password(url)
+    data = journal.model_dump(mode="json")
+    scrubbed = _scrub(data, url, password)
+    assert isinstance(scrubbed, dict)
+    context = scrubbed["context"]
+    assert isinstance(context, dict)
+    context["database_url"] = redact_database_url(url)
+    return scrubbed
+
+
+def with_live_database_url(journal: UpgradeJournal, live_database_url: str) -> UpgradeJournal:
+    """Re-attach the caller's real database URL to a journal loaded from disk.
+
+    The persisted URL has its password redacted, so anything that runs on a
+    loaded journal (resume, the operator recovery document) must take the
+    URL from the live config the caller passed, never from the file.
+    """
+
+    if journal.context.database_url == live_database_url:
+        return journal
+    return journal.model_copy(
+        update={"context": journal.context.model_copy(update={"database_url": live_database_url})}
+    )
 
 
 class JournalError(RuntimeError):
@@ -199,7 +282,7 @@ def write_journal(journal: UpgradeJournal) -> Path:
     state_root.mkdir(parents=True, exist_ok=True)
     _harden_state_root_acl(state_root)
     path = journal_path(state_root)
-    payload = json.dumps(journal.model_dump(mode="json"), indent=2, sort_keys=True)
+    payload = json.dumps(redacted_payload(journal), indent=2, sort_keys=True)
 
     # Unique temp name so two racing writers cannot corrupt each other's temp.
     tmp = path.with_name(f"{path.name}.{os.getpid()}.tmp")

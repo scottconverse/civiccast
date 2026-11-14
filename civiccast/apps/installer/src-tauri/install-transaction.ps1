@@ -593,6 +593,15 @@ function Snapshot-Transaction($state) {
     Write-Output "Recovery snapshot complete: $required bytes"
 }
 
+function Hide-UrlPasswords([string]$Path) {
+    try {
+        $text = [IO.File]::ReadAllText($Path)
+        $clean = [regex]::Replace($text, '(?i)([a-z][a-z0-9+.\-]*://[^:/@\s"'']+:)[^@/\s"'']+(@)', '$1***$2')
+        $clean = [regex]::Replace($clean, '(?i)([?&](?:password|passwd|pwd)=)[^&\s"'']+', '$1***')
+        if ($clean -ne $text) { [IO.File]::WriteAllText($Path, $clean, (New-Object Text.UTF8Encoding($false))) }
+    } catch { Remove-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue }
+}
+
 function Restore-Transaction($state, [switch]$Abandoned) {
     if (-not $state -or $state.Phase -in @('Committed', 'Restored')) { return }
     if (-not $Abandoned -and $InstallerPid -and $state.InstallerPid -ne $InstallerPid) { throw 'Recovery transaction belongs to another installer.' }
@@ -604,7 +613,11 @@ function Restore-Transaction($state, [switch]$Abandoned) {
     foreach ($relative in @('upgrade\upgrade-engine.log', 'upgrade\upgrade-journal.json', 'provision\PROVISION-RECOVERY.md', 'provision\OWNERSHIP-RECOVERY.md')) {
         $source = Join-Path $state.DataRoot $relative
         if (Test-Path -LiteralPath $source -PathType Leaf) {
-            Copy-Item -LiteralPath $source -Destination (Join-Path $diagnostics ([IO.Path]::GetFileName($source))) -Force
+            $copy = Join-Path $diagnostics ([IO.Path]::GetFileName($source))
+            Copy-Item -LiteralPath $source -Destination $copy -Force
+            # Defense in depth: never leave a connection-URL password in the
+            # diagnostics copy (user:password@host -> user:***@host).
+            Hide-UrlPasswords $copy
         }
     }
     $state.Phase = 'Restoring'
