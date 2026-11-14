@@ -267,3 +267,67 @@ def test_caption_worker_failure_degrades_readiness_without_leaking_channel_detai
     assert body["status"] == "degraded"
     assert body["live_captions"] == "degraded"
     assert "government" not in json.dumps(body)
+
+
+def test_slate_channel_with_web_hls_down_degrades_readiness_without_leaking_details(
+    health_env: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """R9 field bug (rc.5, 2026-11-12): a slate channel's frozen web HLS left
+    ``/health`` "healthy" for a day because the probe never read egress."""
+    import json
+
+    monkeypatch.setenv("CIVICCAST_ALLOW_EPHEMERAL_STORES", "1")
+    monkeypatch.setattr(
+        "civiccast.installer.station_state.resolve_live_captions_enabled_or_default",
+        lambda: False,
+    )
+
+    from civiccast.app import create_app
+    from civiccast.egress.models import (
+        EgressConfig,
+        EgressHealthSample,
+        EgressSinkSpec,
+        EgressStateRow,
+    )
+    from civiccast.egress.router import get_egress_store
+    from civiccast.egress.store import InMemoryEgressStore
+    from civiccast.schema_check import SchemaStatus
+
+    store = InMemoryEgressStore()
+    store.upsert_config(
+        EgressConfig(
+            channel_id="government",
+            enabled=True,
+            slate_message="CivicCast is preparing the channel.",
+            sinks=[EgressSinkSpec(kind="hls", label="Web", uri="C:/CivicCast/live/government")],
+        )
+    )
+    store.write_state(
+        EgressStateRow(
+            channel_id="government", state="FALLBACK_SLATE", updated_at=datetime.now(UTC)
+        )
+    )
+
+    def _sample(web_ok: bool) -> EgressHealthSample:
+        return EgressHealthSample(
+            channel_id="government",
+            sampled_at=datetime.now(UTC),
+            state="FALLBACK_SLATE",
+            sink_connected={"Web": web_ok},
+        )
+
+    app = create_app()
+    app.dependency_overrides[get_egress_store] = lambda: store
+
+    with TestClient(app) as client:
+        app.state.schema_status = SchemaStatus(state="current")
+        store.append_health(_sample(True))
+        fresh = _health(client)
+        store.append_health(_sample(False))
+        frozen = _health(client)
+
+    assert fresh["status"] == "healthy"
+    assert fresh["slate_web_hls"] == "healthy"
+    assert frozen["status"] == "degraded"
+    assert frozen["slate_web_hls"] == "degraded"
+    assert "government" not in json.dumps(frozen)
