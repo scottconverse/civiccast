@@ -2608,8 +2608,9 @@ def create_app() -> FastAPI:
         * **``status`` is readiness.** ``healthy`` only when the schema matches
           the running code, live-caption readiness is neither ``degraded``
           nor ``unknown``, and no fallback-slate channel reports its web
-          ``hls`` sink down (``slate_web_hls``); otherwise ``degraded``. Uptime monitors should alert
-          on this field, not on the status code -- a station with no database
+          ``hls`` sink down (``slate_web_hls``); otherwise ``degraded``.
+          Uptime monitors should alert on this field, not on the status
+          code -- a station with no database
           cannot serve a recording, and reporting "healthy" for it told an
           operator the opposite of the truth.
         """
