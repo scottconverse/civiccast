@@ -2606,9 +2606,11 @@ def create_app() -> FastAPI:
           every schema state. Restart-on-failure supervisors and the installer's
           own probe key on this; a station mid-setup is alive by design.
         * **``status`` is readiness.** ``healthy`` only when the schema matches
-          the running code and live-caption readiness is neither ``degraded``
-          nor ``unknown``; otherwise ``degraded``. Uptime monitors should alert
-          on this field, not on the status code -- a station with no database
+          the running code, live-caption readiness is neither ``degraded``
+          nor ``unknown``, and no fallback-slate channel reports its web
+          ``hls`` sink down (``slate_web_hls``); otherwise ``degraded``.
+          Uptime monitors should alert on this field, not on the status
+          code -- a station with no database
           cannot serve a recording, and reporting "healthy" for it told an
           operator the opposite of the truth.
         """
@@ -2643,6 +2645,14 @@ def create_app() -> FastAPI:
         )
         if live_captions in {"degraded", "unknown"}:
             readiness = "degraded"
+        # R9 field bug (rc.5, 2026-11-12): a slate channel's frozen web HLS
+        # left this probe "healthy" for a day. Only a confirmed-down hls sink
+        # degrades readiness; "unknown"/"idle" do not.
+        from civiccast.alerting.runtime_status import slate_web_hls_readiness
+
+        slate_web_hls = slate_web_hls_readiness(egress_store)
+        if slate_web_hls == "degraded":
+            readiness = "degraded"
         # Annotated to match the declared return type. Inferred from this
         # literal alone it is dict[str, str], which then rejects the bool and
         # int fields the maintenance branch adds below -- and dict is
@@ -2653,6 +2663,7 @@ def create_app() -> FastAPI:
             "version": _reported_version(),
             "schema": schema_status.state,
             "live_captions": live_captions,
+            "slate_web_hls": slate_web_hls,
         }
         bootstrap_instance_id = os.environ.get("CIVICCAST_BOOTSTRAP_INSTANCE_ID")
         if bootstrap_instance_id:

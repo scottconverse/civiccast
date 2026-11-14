@@ -205,15 +205,10 @@ def test_write_journal_invokes_state_root_acl_hardening(
     assert calls == [Path(j.context.state_root)]
 
 
-def test_database_url_is_persisted_in_plaintext_not_redacted(tmp_path) -> None:
-    """Documents the deliberate asymmetry with the provisioning journal fix:
-    ``context.database_url`` DOES appear in the serialized bytes on disk,
-    because ``orchestrator._write_recovery_document`` genuinely reads it back
-    from a resumed/loaded journal on the halt path (see the module
-    docstring). This is a characterization test, not an endorsement -- it
-    exists so a future attempt to "helpfully" redact this field (copying the
-    sibling fix verbatim) fails loudly here instead of silently corrupting
-    the operator recovery document."""
+def test_database_url_password_is_not_persisted(tmp_path) -> None:
+    """Replaces the old plaintext characterization test. The password is
+    redacted at write; resume/recovery take the real URL from the caller's
+    live context (see ``with_live_database_url``), not from this file."""
 
     distinctive_url = "postgresql://svc:TEST-ONLY-DISTINCTIVE-9f3c7a1e@localhost/civiccast"
     j = _journal(tmp_path)
@@ -224,4 +219,59 @@ def test_database_url_is_persisted_in_plaintext_not_redacted(tmp_path) -> None:
     path = write_journal(j)
 
     raw_bytes = path.read_bytes()
-    assert distinctive_url.encode("utf-8") in raw_bytes
+    assert b"TEST-ONLY-DISTINCTIVE-9f3c7a1e" not in raw_bytes
+    assert b"postgresql://svc:***@localhost/civiccast" in raw_bytes
+
+
+# --- database password never reaches disk ------------------------------------
+
+_FAKE_PASSWORD = "s3cret-test"
+_URL_WITH_PASSWORD = f"postgresql://civic:{_FAKE_PASSWORD}@127.0.0.1:5432/civiccast"
+
+
+def _journal_with_password(tmp_path) -> UpgradeJournal:
+    base = _journal(tmp_path)
+    context = base.context.model_copy(update={"database_url": _URL_WITH_PASSWORD})
+    return advance(
+        base.model_copy(update={"context": context}),
+        UpgradePhase.INTERLOCK_ACQUIRED,
+        f"connect failed for {_URL_WITH_PASSWORD} (password {_FAKE_PASSWORD})",
+        error=f"could not reach {_URL_WITH_PASSWORD}",
+    )
+
+
+def test_written_journal_contains_no_database_password(tmp_path) -> None:
+    journal = _journal_with_password(tmp_path)
+    path = write_journal(journal)
+    text = path.read_text(encoding="utf-8")
+    assert _FAKE_PASSWORD not in text
+    assert "postgresql://civic:***@127.0.0.1:5432/civiccast" in text
+    assert load_journal(journal.context.state_root).context.database_url == (  # type: ignore[union-attr]
+        "postgresql://civic:***@127.0.0.1:5432/civiccast"
+    )
+    # The in-memory journal the engine is driving keeps the real URL.
+    assert journal.context.database_url == _URL_WITH_PASSWORD
+
+
+def test_redact_database_url_shapes() -> None:
+    from civiccast.native.upgrade.journal import redact_database_url
+
+    assert redact_database_url("postgresql://u@localhost/db") == "postgresql://u@localhost/db"
+    assert redact_database_url("postgresql://u:pw1234@h:5433/db") == "postgresql://u:***@h:5433/db"
+    assert (
+        redact_database_url("postgresql://h/db?user=u&password=pw1234")
+        == "postgresql://h/db?user=u&password=***"
+    )
+    assert redact_database_url("not a url") == "not a url"
+
+
+def test_with_live_database_url_restores_real_url(tmp_path) -> None:
+    from civiccast.native.upgrade.journal import with_live_database_url
+
+    journal = _journal_with_password(tmp_path)
+    write_journal(journal)
+    loaded = load_journal(journal.context.state_root)
+    assert loaded is not None
+    assert _FAKE_PASSWORD not in loaded.context.database_url
+    live = with_live_database_url(loaded, _URL_WITH_PASSWORD)
+    assert live.context.database_url == _URL_WITH_PASSWORD

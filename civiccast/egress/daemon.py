@@ -432,11 +432,12 @@ _SLATE_FIRST_HANDOFF_REASON = (
 #: its worker exists, so a predecessor that died mid-start leaves that row
 #: behind, and the restart-recovery sweep -- whose own reconcile set
 #: (``_STALE_RECONCILE_STATES``, mirrored by ``_STALE_CLAIM_STATES`` in
-#: models.py) is ``{"ON_AIR", "STARTING", "TRANSITIONING"}`` -- reads it to
-#: DECIDE to recover and carries it onto the queued command. With STARTING out
-#: of this set that recovery start passed ``slate_first=True`` and then failed
-#: this gate, so it conformed its program with nothing on air: the same dead
-#: air the ON_AIR shape had, reached through the other recovered state.
+#: models.py) is ``{"ON_AIR", "STARTING", "TRANSITIONING", "FALLBACK_SLATE"}``
+#: -- reads it to DECIDE to recover and carries it onto the queued command.
+#: With STARTING out of this set that recovery start passed
+#: ``slate_first=True`` and then failed this gate, so it conformed its program
+#: with nothing on air: the same dead air the ON_AIR shape had, reached
+#: through the other recovered state.
 _SLATE_FIRST_ACTIVE_STATES = frozenset({"ON_AIR", "STARTING", "FALLBACK_SLATE", "TRANSITIONING"})
 
 # BETA.10 U16 item B: the OUTPUT A/V sync guard.
@@ -1627,16 +1628,26 @@ class EgressDaemon:
         process = self._processes.get(channel_id)
         return process is not None and _process_poll(process) is None
 
-    #: Persisted states that claim a live encoder may be sitting on air. Only
     #: Persisted states that claim a live encoder AND legitimately mean "this
     #: channel should be on air", so a dead PID is a recoverable fault.
     #: DRAINING is deliberately EXCLUDED: ``_drain`` sets it for explicit
     #: operator/supervisor OFF-AIR intent (see ``_drain``/``_poll_process``),
     #: so a restart that finds a dead pid mid-drain must stay off air -- never
-    #: auto-start a channel the operator meant to stop. STOPPED/FALLBACK_SLATE
-    #: are likewise terminal/deliberate and never reconciled.
+    #: auto-start a channel the operator meant to stop. STOPPED is likewise
+    #: terminal/deliberate and never reconciled.
+    #:
+    #: FALLBACK_SLATE IS reconciled (R9, rc.6, 2026-11-13). It is not operator
+    #: intent: the daemon writes it itself (the B1 crash-loop streak, an
+    #: unavailable encoder, a source that will not prepare), and it is an
+    #: ON-AIR state -- the slate replaces dead air. Treating it as terminal
+    #: meant a non-auto_start channel persisted on the slate came back from a
+    #: service restart with no worker at all (no encoder, no HLS, dark air
+    #: while /health read healthy) and stayed dark until an operator noticed.
+    #: Its recovery start carries FALLBACK_SLATE as the previous state, which
+    #: is in ``_SLATE_FIRST_ACTIVE_STATES``: the slate airs first and the
+    #: program follows through the normal hand-off / slate-replan path.
     _STALE_RECONCILE_STATES: ClassVar[frozenset[str]] = frozenset(
-        {"ON_AIR", "STARTING", "TRANSITIONING"}
+        {"ON_AIR", "STARTING", "TRANSITIONING", "FALLBACK_SLATE"}
     )
 
     def repair_unairable_saved_codecs(self) -> list[str]:
@@ -1685,7 +1696,8 @@ class EgressDaemon:
           cannot be read -- fail closed, leave the row;
         * a channel this daemon tracks is never touched, even if its worker has
           already exited (``_poll_process`` owns that transition);
-        * STOPPED / FALLBACK_SLATE / DRAINING rows are never touched;
+        * STOPPED / DRAINING rows are never touched (FALLBACK_SLATE is
+          reconciled like ON_AIR -- see ``_STALE_RECONCILE_STATES``);
         * the recovery command id is UNIQUE per attempt (and <=120 chars), so a
           LATER restart queues a fresh start (a constant id would be skipped
           forever by the SQL store's duplicate-id guard);
@@ -3723,6 +3735,37 @@ class EgressDaemon:
         except Exception:
             _LOG.exception("channel %s: HLS relay stderr log trim failed.", channel_id)
 
+    def _slate_worker_live(self, channel_id: str) -> bool:
+        """R9 field bug: is this channel airing its fallback slate right now?
+
+        True only for a FALLBACK_SLATE state row with a tracked, still-running
+        worker that is not being drained. STOPPED, DRAINING, TRANSITIONING and
+        a slate channel whose worker has exited (backoff) are all False, so
+        none of them gains a new relay verdict or a relay restart.
+        """
+        if channel_id in self._draining_channels:
+            return False
+        process = self._processes.get(channel_id)
+        if process is None or _process_poll(process) is not None:
+            return False
+        row = self._store.read_state(channel_id)
+        return row is not None and row.state == "FALLBACK_SLATE"
+
+    def _relay_producing(self, channel_id: str) -> bool:
+        """Whether the relay checks may treat this channel as producing.
+
+        The on-air evidence latch (``_on_air_confirmed_at``), or a live slate
+        worker (``_slate_worker_live``). The relay supervisor still applies
+        its own per-child startup grace and one-shot heal latch on top, and a
+        slate start is a new worker session that respawns the relay, so a
+        just-started slate cannot be restarted from here.
+        """
+        return channel_id in self._on_air_confirmed_at or self._slate_worker_live(channel_id)
+
+    def _has_hls_sink(self, channel_id: str) -> bool:
+        config = self._built_configs.get(channel_id) or self._store.get_config(channel_id)
+        return config is not None and any(sink.kind == "hls" for sink in config.sinks)
+
     def _poll_hls_relay(self, channel_id: str) -> None:
         """MAJOR M1: poll this channel's supervised HLS relay child liveness.
 
@@ -3746,10 +3789,29 @@ class EgressDaemon:
         if not callable(is_alive):
             return
         alive = is_alive(channel_id)
+        # R9 field bug (rc.5, 2026-11-12): who counts as "producing" for the
+        # relay checks below. The on-air evidence latch alone is cleared on
+        # every relaunch, so a channel that crash-looped onto its fallback
+        # slate was never "producing" and its frozen relay was never healed.
+        # A slate with a live worker IS output residents are watching.
+        producing = self._relay_producing(channel_id)
         if alive is None:
             # No relay currently tracked for this channel (no hls sink
-            # configured, or none started yet) -- not a health signal.
-            self._hls_relay_dead.pop(channel_id, None)
+            # configured, or none started yet) -- not a health signal, EXCEPT
+            # for a slate channel with a live worker and a configured hls
+            # sink: its web window has no writer at all, which must not read
+            # healthy (the slate's default sink health is True by design).
+            if self._slate_worker_live(channel_id) and self._has_hls_sink(channel_id):
+                if not self._hls_relay_dead.get(channel_id, False):
+                    _LOG.error(
+                        "Channel %s is on its fallback slate with a live worker but no "
+                        "HLS relay is running for its hls sink; residents are getting no "
+                        "web stream.",
+                        channel_id,
+                    )
+                self._hls_relay_dead[channel_id] = True
+            else:
+                self._hls_relay_dead.pop(channel_id, None)
             return
         was_already_flagged_dead = self._hls_relay_dead.get(channel_id, False)
         self._hls_relay_dead[channel_id] = not alive
@@ -3776,7 +3838,7 @@ class EgressDaemon:
             self._restore_relay_streams(
                 channel_id,
                 now=now,
-                producing=channel_id in self._on_air_confirmed_at,
+                producing=producing,
                 startup_grace_s=_HLS_RELAY_STARTUP_GRACE_S,
             )
             return
@@ -3789,7 +3851,7 @@ class EgressDaemon:
         self._restore_relay_streams(
             channel_id,
             now=now,
-            producing=channel_id in self._on_air_confirmed_at,
+            producing=producing,
             startup_grace_s=_HLS_RELAY_STARTUP_GRACE_S,
         )
         # BETA.10 live finding (2026-09-23): a STILL-RUNNING relay child can
@@ -3818,7 +3880,7 @@ class EgressDaemon:
             never_emitted = getattr(self._hls_relay, "never_emitted", None)
             if not (
                 callable(never_emitted)
-                and channel_id in self._on_air_confirmed_at
+                and producing
                 and never_emitted(channel_id, now=now, startup_grace_s=_HLS_RELAY_STARTUP_GRACE_S)
             ):
                 return
@@ -3842,7 +3904,9 @@ class EgressDaemon:
                     channel_id,
                 )
         # Bounded self-heal: ONLY when the channel is genuinely producing (the
-        # daemon's own on-air evidence latch, never mere process liveness), and
+        # daemon's own on-air evidence latch, or a live worker airing the
+        # fallback slate -- see ``_relay_producing``; never mere process
+        # liveness of an ON_AIR worker that has not shown output yet), and
         # ONLY after the relay child has had its startup grace. A STARTING /
         # no-source channel can legitimately have a static or absent window and
         # must never be restarted from here. ``maybe_self_heal_stalled`` is
@@ -3850,7 +3914,6 @@ class EgressDaemon:
         maybe_heal = getattr(self._hls_relay, "maybe_self_heal_stalled", None)
         if not callable(maybe_heal):
             return
-        producing = channel_id in self._on_air_confirmed_at
         try:
             maybe_heal(
                 channel_id,

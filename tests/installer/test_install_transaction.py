@@ -180,6 +180,43 @@ Assert (-not $script:events.Contains('restart-checked')) 'prior station restarte
     )
 
 
+def test_commit_survives_reader_holding_the_journal_open(tmp_path: Path) -> None:
+    """R9 2026-11-13: a Watch reader held transaction.clixml during Replace (exit 136)."""
+    run_recovery(
+        tmp_path,
+        r"""
+$journal = Join-Path $StateRoot 'transaction.clixml'
+# A hostile reader with no delete sharing blocks File.Replace until released.
+$blocker = [IO.File]::Open($journal, 'Open', 'Read', 'Read')
+$release = [powershell]::Create().AddScript({ param($h) Start-Sleep -Milliseconds 1500; $h.Dispose() }).AddArgument($blocker)
+$null = $release.BeginInvoke()
+try {
+    $state.Phase = 'Active'
+    Write-Transaction $state
+} finally { $blocker.Dispose(); $release.Dispose() }
+Assert ((Read-Transaction).Phase -eq 'Active') 'write lost after reader released'
+""",
+    )
+
+
+def test_read_transaction_does_not_block_replace(tmp_path: Path) -> None:
+    run_recovery(
+        tmp_path,
+        r"""
+$journal = Join-Path $StateRoot 'transaction.clixml'
+# A reader that shares like Read-Transaction must not block File.Replace.
+$shared = [IO.File]::Open($journal, 'Open', 'Read', 'ReadWrite, Delete')
+try {
+    $state.Phase = 'Active'
+    $sw = [Diagnostics.Stopwatch]::StartNew()
+    Write-Transaction $state
+    Assert ($sw.ElapsedMilliseconds -lt 1000) 'Write-Transaction waited on a shared reader'
+} finally { $shared.Dispose() }
+Assert ((Read-Transaction).Phase -eq 'Active') 'write lost'
+""",
+    )
+
+
 def test_restores_existing_shortcut_and_removes_only_new_installer_shortcut(tmp_path: Path) -> None:
     run_recovery(
         tmp_path,

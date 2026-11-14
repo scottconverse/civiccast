@@ -62,13 +62,35 @@ function Write-Transaction($state) {
     $state | Export-Clixml -LiteralPath $partial -Depth 20
     $stream = [IO.File]::Open($partial, 'Open', 'ReadWrite', 'None')
     try { $stream.Flush($true) } finally { $stream.Dispose() }
-    if (Test-Path -LiteralPath $path) { [IO.File]::Replace($partial, $path, "$path.previous") }
-    else { [IO.File]::Move($partial, $path) }
+    # Another process (the Watch recovery task) may briefly hold the journal
+    # open. Retry sharing violations for a bounded time before failing; a
+    # failure here would roll back an otherwise good install (R9, 2026-11-13).
+    $attempt = 0
+    while ($true) {
+        $attempt++
+        try {
+            if (Test-Path -LiteralPath $path) { [IO.File]::Replace($partial, $path, "$path.previous") }
+            else { [IO.File]::Move($partial, $path) }
+            break
+        } catch [IO.IOException] {
+            if ($attempt -ge 20) { throw }
+            Start-Sleep -Milliseconds 250
+        }
+    }
 }
 
 function Read-Transaction {
     $path = Join-Path $StateRoot 'transaction.clixml'
-    if (Test-Path -LiteralPath $path) { Import-Clixml -LiteralPath $path }
+    if (-not (Test-Path -LiteralPath $path)) { return }
+    # Open with FileShare.Delete so a concurrent File.Replace/Move of the
+    # journal is never blocked by this reader (Import-Clixml does not share
+    # delete access).
+    $stream = [IO.File]::Open($path, 'Open', 'Read', 'ReadWrite, Delete')
+    try {
+        $reader = [IO.StreamReader]::new($stream, [Text.Encoding]::UTF8)
+        $xml = $reader.ReadToEnd()
+    } finally { $stream.Dispose() }
+    [Management.Automation.PSSerializer]::Deserialize($xml)
 }
 
 function Assert-ChildPath([string]$path, [string]$parent) {
@@ -571,6 +593,15 @@ function Snapshot-Transaction($state) {
     Write-Output "Recovery snapshot complete: $required bytes"
 }
 
+function Hide-UrlPasswords([string]$Path) {
+    try {
+        $text = [IO.File]::ReadAllText($Path)
+        $clean = [regex]::Replace($text, '(?i)([a-z][a-z0-9+.\-]*://[^:/@\s"'']+:)[^@/\s"'']+(@)', '$1***$2')
+        $clean = [regex]::Replace($clean, '(?i)([?&](?:password|passwd|pwd)=)[^&\s"'']+', '$1***')
+        if ($clean -ne $text) { [IO.File]::WriteAllText($Path, $clean, (New-Object Text.UTF8Encoding($false))) }
+    } catch { Remove-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue }
+}
+
 function Restore-Transaction($state, [switch]$Abandoned) {
     if (-not $state -or $state.Phase -in @('Committed', 'Restored')) { return }
     if (-not $Abandoned -and $InstallerPid -and $state.InstallerPid -ne $InstallerPid) { throw 'Recovery transaction belongs to another installer.' }
@@ -582,7 +613,11 @@ function Restore-Transaction($state, [switch]$Abandoned) {
     foreach ($relative in @('upgrade\upgrade-engine.log', 'upgrade\upgrade-journal.json', 'provision\PROVISION-RECOVERY.md', 'provision\OWNERSHIP-RECOVERY.md')) {
         $source = Join-Path $state.DataRoot $relative
         if (Test-Path -LiteralPath $source -PathType Leaf) {
-            Copy-Item -LiteralPath $source -Destination (Join-Path $diagnostics ([IO.Path]::GetFileName($source))) -Force
+            $copy = Join-Path $diagnostics ([IO.Path]::GetFileName($source))
+            Copy-Item -LiteralPath $source -Destination $copy -Force
+            # Defense in depth: never leave a connection-URL password in the
+            # diagnostics copy (user:password@host -> user:***@host).
+            Hide-UrlPasswords $copy
         }
     }
     $state.Phase = 'Restoring'
@@ -698,7 +733,10 @@ if ($MyInvocation.InvocationName -ne '.' -and $Action) {
         }
         if ($Action -eq 'Watch') {
             do {
-                $state = Read-Transaction
+                # The journal can be mid-replace; skip this tick on an IO error.
+                try { $state = Read-Transaction }
+                catch [IO.IOException] { Start-Sleep -Seconds 1; continue }
+                catch [UnauthorizedAccessException] { Start-Sleep -Seconds 1; continue }
                 if (-not $state -or $state.Id -ne $TransactionId -or $state.Phase -in @('Committed', 'Restored')) { exit 0 }
                 if (-not (Test-InstallerAlive $state)) { break }
                 Start-Sleep -Seconds 1

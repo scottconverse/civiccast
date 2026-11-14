@@ -2448,6 +2448,37 @@
         "scripts/build_native_pyav_wheel.py:FFMPEG_CONFIGURE_OPTIONS",
         "https://github.com/FFmpeg/FFmpeg/blob/611cec792aa54e2e53dbc1be95dcf5955d9a99ba/configure"
       ]
+    },
+    {
+      "package": "cpython-libexpat",
+      "version": "2.10.0",
+      "id": "CVE-2026-124317",
+      "reviewed": "2026-11-14",
+      "review_by": "2026-12-14",
+      "reason": "The overread is only in the unknown-encoding path for multi-byte lead bytes (map value -2..-4) that calls the application convert callback. Pinned CPython 3.12.16 PyUnknownEncodingHandler decodes exactly 256 single bytes, rejects multi-byte encodings with ValueError, sets every map entry to a code point or -1, and sets convert=NULL, so no multi-byte lead entry exists and the vulnerable branch is unreachable. No upstream fixed release exists yet (latest R_2_10_0); this is API non-reachability, not a claim that Expat 2.10.0 fixes the issue.",
+      "evidence": [
+        "https://github.com/python/cpython/blob/v3.12.16/Modules/pyexpat.c",
+        "https://github.com/libexpat/libexpat/pull/1492",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-124317",
+        "docs/ops/evidence/rc1-native-security/expat-applicability.json"
+      ]
+    },
+    {
+      "package": "gstreamer-libexpat",
+      "version": "2.10.0",
+      "id": "CVE-2026-124317",
+      "reviewed": "2026-11-14",
+      "review_by": "2026-12-14",
+      "reason": "The overread needs an application-registered unknown encoding handler. The shipped libexpat.dll is consumed only by fontconfig-1.dll, whose resolved PE imports do not include XML_SetUnknownEncodingHandler, and Fontconfig 2.16.1 fcxml.c creates a UTF-8 XML_ParserCreate parser without one. The vulnerable decoder path is unreachable. No upstream fixed release exists yet (latest R_2_10_0); no underlying version fix is claimed.",
+      "evidence": [
+        "https://raw.githubusercontent.com/fontconfig/fontconfig/2.16.1/src/fcxml.c",
+        "scripts/build_native_runtime_closure.py",
+        "scripts/verify_native_runtime_closure.py",
+        "scripts/build_native_security_libraries.py",
+        "https://github.com/libexpat/libexpat/pull/1492",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-124317",
+        "docs/ops/evidence/rc1-native-security/expat-applicability.json"
+      ]
     }
   ]
 }

@@ -786,3 +786,76 @@ def test_status_read_survives_a_transient_windows_replace_race(
     )
     assert failures["left"] == 0
     assert status.processing_state == "caught-up"
+
+
+# ---------------------------------------------------------------------------
+# R9 field bug (rc.5, 2026-11-12): slate web-HLS station aggregate
+# ---------------------------------------------------------------------------
+
+
+def _hls_config(channel_id: str = "government") -> EgressConfig:
+    return EgressConfig(
+        channel_id=channel_id,
+        enabled=True,
+        auto_start=True,
+        slate_message="CivicCast is preparing the channel.",
+        sinks=[
+            EgressSinkSpec(kind="udp-ts", label="Cable headend", uri="udp://239.255.0.1:5000"),
+            EgressSinkSpec(kind="hls", label="Web", uri="C:/CivicCast/live/government"),
+        ],
+    )
+
+
+def test_slate_web_hls_down_degrades_the_station_aggregate_and_channel() -> None:
+    from civiccast.alerting.runtime_status import slate_web_hls_readiness
+
+    sample = _sample("government", "FALLBACK_SLATE", sinks={"Cable headend": True, "Web": False})
+    store = _FakeStore(
+        [_hls_config()],
+        {"government": _state("government", "FALLBACK_SLATE")},
+        {"government": sample},
+    )
+
+    assert slate_web_hls_readiness(store) == "degraded"  # type: ignore[arg-type]
+    channel = compute_channel_runtime_status(
+        _hls_config(), _state("government", "FALLBACK_SLATE"), sample, now=_NOW
+    )
+    assert channel.color == "yellow"
+    assert channel.on_healthy_slate is False
+
+
+def test_slate_web_hls_fresh_is_healthy() -> None:
+    from civiccast.alerting.runtime_status import slate_web_hls_readiness
+
+    sample = _sample("government", "FALLBACK_SLATE", sinks={"Cable headend": True, "Web": True})
+    store = _FakeStore(
+        [_hls_config()],
+        {"government": _state("government", "FALLBACK_SLATE")},
+        {"government": sample},
+    )
+
+    assert slate_web_hls_readiness(store) == "healthy"  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize("state", ["STOPPED", "DRAINING", "ON_AIR"])
+def test_slate_web_hls_ignores_channels_not_on_the_slate(state: str) -> None:
+    from civiccast.alerting.runtime_status import slate_web_hls_readiness
+
+    sample = _sample("government", state, sinks={"Cable headend": True, "Web": False})
+    store = _FakeStore(
+        [_hls_config()], {"government": _state("government", state)}, {"government": sample}
+    )
+
+    assert slate_web_hls_readiness(store) == "idle"  # type: ignore[arg-type]
+
+
+def test_slate_web_hls_ignores_a_slate_channel_without_an_hls_sink() -> None:
+    from civiccast.alerting.runtime_status import slate_web_hls_readiness
+
+    sample = _sample("public", "FALLBACK_SLATE", sinks={"Cable headend": False})
+    store = _FakeStore(
+        [_config()], {"public": _state("public", "FALLBACK_SLATE")}, {"public": sample}
+    )
+
+    assert slate_web_hls_readiness(store) == "idle"  # type: ignore[arg-type]
+    assert slate_web_hls_readiness(None) == "unknown"

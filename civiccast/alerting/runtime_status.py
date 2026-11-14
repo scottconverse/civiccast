@@ -301,6 +301,48 @@ def live_caption_readiness(
     return "healthy"
 
 
+def slate_web_hls_readiness(store: EgressStore | None) -> str:
+    """Detail-free web-HLS verdict for channels on their fallback slate.
+
+    R9 field bug (rc.5, 2026-11-12): a channel that crash-looped onto its
+    fallback slate served a frozen web HLS window for over a day while the
+    unauthenticated ``/health`` probe said ``healthy`` -- that probe read only
+    the schema and live captions, never egress. This reads the ``hls`` sinks
+    on each enabled FALLBACK_SLATE channel's latest health sample (the daemon
+    marks them down when the channel's relay is missing, dead or stalled).
+
+    ``degraded`` when any such sink is down, ``healthy`` when every one is up,
+    ``idle`` when no slate channel carries an ``hls`` sink (or none has a
+    sample yet), ``unknown`` when the store cannot be read. Other states are
+    not judged here.
+    """
+
+    if store is None:
+        return "unknown"
+    try:
+        verdicts: list[bool] = []
+        for config in store.list_configs():
+            if not config.enabled:
+                continue
+            hls_labels = {sink.label for sink in config.sinks if sink.kind == "hls"}
+            if not hls_labels:
+                continue
+            state_row = store.read_state(config.channel_id)
+            if state_row is None or state_row.state != "FALLBACK_SLATE":
+                continue
+            recent = store.recent_health(config.channel_id, 1)
+            if not recent:
+                continue
+            sinks = recent[0].sink_connected
+            verdicts.extend(bool(sinks.get(label, False)) for label in hls_labels)
+    except Exception:
+        _LOG.debug("Could not aggregate slate web-HLS readiness", exc_info=True)
+        return "unknown"
+    if not verdicts:
+        return "idle"
+    return "healthy" if all(verdicts) else "degraded"
+
+
 def _worst(colors: list[SafeToAirColor]) -> SafeToAirColor:
     worst: SafeToAirColor = "green"
     for c in colors:

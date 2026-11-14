@@ -540,18 +540,29 @@ def test_u16_guard_slate_restart_rebinds_the_hls_relay_to_the_new_worker_session
         relay_procs.append(proc)
         return proc
 
-    fixture = _guard_fixture(
-        tmp_path, hls_relay_supervisor=HlsRelaySupervisor(starter=relay_starter)
-    )
+    supervisor = HlsRelaySupervisor(starter=relay_starter)
+    fixture = _guard_fixture(tmp_path, hls_relay_supervisor=supervisor)
+    # One clock for daemon AND relay supervisor. Left on the real monotonic
+    # clock, the relay's startup grace was judged as ``fake now - real start``,
+    # which passed or not depending on the machine's uptime (CI Linux: passed,
+    # so the slate stall heal fired; a long-up Windows box: never).
+    supervisor._clock = fixture.clock
     probe = _RecordingProbe([(0.0, 2.5)] * 3)
     fixture.daemon._output_av_probe = probe
 
     assert fixture.daemon.process_once("gov") == 1
     assert len(relay_calls) == 1, "the first worker session did not start a relay"
-    _write_playlist(fixture.hls_dir, segments=("seg000000001.ts", "seg000000002.ts"))
     fixture.daemon._write_state("gov", "FALLBACK_SLATE")
 
-    for _ in range(_OUTPUT_AV_GUARD_CONSECUTIVE_PROBES):
+    # A slate desync is a LIVE relay window with a wrong A/V offset: the window
+    # keeps advancing. A frozen window is the stall-heal case instead (see
+    # tests/egress/test_slate_hls_health.py), and that heal clears the window
+    # the guard measures, so the two must not be mixed in this test.
+    for tick in range(_OUTPUT_AV_GUARD_CONSECUTIVE_PROBES):
+        _write_playlist(
+            fixture.hls_dir,
+            segments=(f"seg{tick + 1:09d}.ts", f"seg{tick + 2:09d}.ts"),
+        )
         fixture.clock.value += _OUTPUT_AV_GUARD_PROBE_INTERVAL_S
         fixture.daemon.process_once("gov")
 

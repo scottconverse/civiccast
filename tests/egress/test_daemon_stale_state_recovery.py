@@ -35,6 +35,7 @@ from civiccast.egress.models import (
     EgressSinkSpec,
     EgressState,
     EgressStateRow,
+    restart_recovery_previous_state,
 )
 from civiccast.egress.store import InMemoryEgressStore
 
@@ -127,6 +128,7 @@ class _RecordingDaemon(EgressDaemon):
         )
         self._live_pids = live_pids or set()
         self.starts: list[str] = []
+        self.start_kwargs: list[dict[str, object]] = []
 
     def has_live_process(self, channel_id: str) -> bool:
         # Fresh daemon: nothing is tracked in memory. A "live" channel in these
@@ -136,6 +138,7 @@ class _RecordingDaemon(EgressDaemon):
 
     def _start(self, channel_id: str, **kwargs: object) -> None:
         self.starts.append(channel_id)
+        self.start_kwargs.append(kwargs)
 
 
 def test_persisted_on_air_with_dead_pid_is_reconciled_on_fresh_start(tmp_path: Path) -> None:
@@ -1104,3 +1107,147 @@ def test_later_tick_leaves_a_pidless_claim_alone(tmp_path: Path) -> None:
         "the per-pass sweep must not clear a pid-less claim -- the crash-relaunch "
         "back-off owns that row"
     )
+
+
+# --- R9 (rc.6, 2026-11-13): a channel persisted on FALLBACK_SLATE ------------
+#
+# Channel "government" had a dead live source, so the daemon forced
+# FALLBACK_SLATE after its crash-loop streak. The station was then upgraded
+# (service restart) and NO worker started for the channel at all: no encoder,
+# no HLS segments, dark air while /health read healthy. FALLBACK_SLATE was
+# treated as terminal/deliberate, but the daemon writes it itself -- it is the
+# state that REPLACES dead air, not an operator's off-air intent -- and the
+# channel was not auto_start, so nothing else ever started it again.
+
+
+def test_startup_recovers_a_fallback_slate_row_whose_encoder_pid_is_dead(
+    tmp_path: Path,
+) -> None:
+    """R9: persisted FALLBACK_SLATE + dead pid on a non-auto_start channel."""
+    store = InMemoryEgressStore()
+    store.upsert_config(_config(auto_start=False))
+    store.write_state(_row("FALLBACK_SLATE", pid=4321, age_seconds=3600))
+    pid_is_dead, orphan_probe = _table_seams({})  # the slate encoder is gone
+    daemon = _RecordingDaemon(
+        store, work_dir=tmp_path, pid_is_dead=pid_is_dead, orphan_probe=orphan_probe
+    )
+
+    assert daemon.reconcile_stale_state() == ["gov"], (
+        "a FALLBACK_SLATE row whose encoder is gone must be recovered on startup; "
+        "otherwise a non-auto_start channel stays dark forever after an upgrade"
+    )
+    row = store.read_state("gov")
+    assert row is not None and row.state == "STOPPED"
+    pending = store.peek_pending_commands("gov")
+    assert [c.action for c in pending] == ["start"]
+    assert pending[0].issued_by == "restart-recovery"
+    assert restart_recovery_previous_state(pending[0]) == "FALLBACK_SLATE"
+
+    # The recovery start dispatches as slate-first from FALLBACK_SLATE: the
+    # slate airs at once and the program follows through the hand-off.
+    daemon.process_once("gov")
+    assert daemon.starts == ["gov"]
+    assert daemon.start_kwargs == [{"previous_state": "FALLBACK_SLATE", "slate_first": True}]
+
+    # Exactly once: the row is STOPPED now, so a re-run queues nothing.
+    assert daemon.reconcile_stale_state() == []
+    assert store.peek_pending_commands("gov") == []
+
+
+def test_startup_recovers_a_pidless_fallback_slate_row(tmp_path: Path) -> None:
+    """R9: the same with no pid at all (e.g. a slate that could not launch).
+
+    A just-started daemon provably owns no encoder, so the claim belongs to a
+    predecessor and the channel must get a recovery start."""
+    store = InMemoryEgressStore()
+    store.upsert_config(_config(auto_start=False))
+    store.write_state(_row("FALLBACK_SLATE", pid=None))
+    daemon = _RecordingDaemon(store, work_dir=tmp_path)
+
+    assert daemon.reconcile_stale_state() == ["gov"]
+    pending = store.peek_pending_commands("gov")
+    assert [c.action for c in pending] == ["start"]
+    assert restart_recovery_previous_state(pending[0]) == "FALLBACK_SLATE"
+
+
+@pytest.mark.parametrize("state", ["STOPPED", "DRAINING"])
+@pytest.mark.parametrize("pid", [4321, None])
+def test_operator_off_air_states_are_still_never_recovered(
+    tmp_path: Path, state: EgressState, pid: int | None
+) -> None:
+    """The R9 fix's boundary: STOPPED and DRAINING are operator intent and stay
+    untouched by BOTH sweeps, with a dead pid or with none."""
+    store = InMemoryEgressStore()
+    store.upsert_config(_config(auto_start=False))
+    store.write_state(_row(state, pid=pid))
+    pid_is_dead, orphan_probe = _table_seams({})
+    daemon = _RecordingDaemon(
+        store, work_dir=tmp_path, pid_is_dead=pid_is_dead, orphan_probe=orphan_probe
+    )
+
+    assert daemon.reconcile_stale_state() == []
+    assert daemon.reconcile_dead_encoders() == []
+    assert store.peek_pending_commands("gov") == []
+    row = store.read_state("gov")
+    assert row is not None and row.state == state
+
+
+def test_live_fallback_slate_encoder_is_left_alone(tmp_path: Path) -> None:
+    """A FALLBACK_SLATE row whose encoder is still OURS (created before the
+    row's last write) is never touched by either sweep."""
+    store = InMemoryEgressStore()
+    store.upsert_config(_config(auto_start=False))
+    store.write_state(_row("FALLBACK_SLATE", pid=4321, age_seconds=300))
+    pid_is_dead, orphan_probe = _table_seams(
+        {4321: OrphanInfo(name="python.exe", created_at=time.time() - 3600.0)}
+    )
+    daemon = _RecordingDaemon(
+        store, work_dir=tmp_path, pid_is_dead=pid_is_dead, orphan_probe=orphan_probe
+    )
+
+    assert daemon.reconcile_stale_state() == []
+    assert daemon.reconcile_dead_encoders() == []
+    assert store.peek_pending_commands("gov") == []
+    row = store.read_state("gov")
+    assert row is not None and row.state == "FALLBACK_SLATE"
+
+
+def test_fallback_slate_encoder_that_dies_later_is_recovered_by_a_pass(
+    tmp_path: Path,
+) -> None:
+    """The per-pass sweep covers FALLBACK_SLATE too: a slate encoder alive at
+    startup that dies afterwards on a non-auto_start channel is recovered."""
+    store = InMemoryEgressStore()
+    store.upsert_config(_config(auto_start=False))
+    store.write_state(_row("FALLBACK_SLATE", pid=4321, age_seconds=60))
+    table = {4321: OrphanInfo(name="python.exe", created_at=time.time() - 3600.0)}
+    pid_is_dead, orphan_probe = _table_seams(table)
+    daemon = _RecordingDaemon(
+        store, work_dir=tmp_path, pid_is_dead=pid_is_dead, orphan_probe=orphan_probe
+    )
+    service = _automation(store, daemon)
+    now = datetime.now(UTC)
+
+    assert daemon.reconcile_stale_state() == []
+    service.run_once(now=now)
+    assert daemon.starts == []
+
+    table.clear()
+    service.run_once(now=now)
+    assert daemon.starts == ["gov"]
+    assert daemon.start_kwargs == [{"previous_state": "FALLBACK_SLATE", "slate_first": True}]
+
+
+def test_later_tick_leaves_a_pidless_fallback_slate_claim_alone(tmp_path: Path) -> None:
+    """On a running daemon a pid-less FALLBACK_SLATE row can be its own work
+    (a channel with no slate configured writes FALLBACK_SLATE with no pid), so
+    the per-pass sweep must not restart it -- only the startup sweep may."""
+    store = InMemoryEgressStore()
+    store.upsert_config(_config(auto_start=False))
+    store.write_state(_row("FALLBACK_SLATE", pid=None, age_seconds=5))
+    daemon = _RecordingDaemon(store, work_dir=tmp_path)
+
+    assert daemon.reconcile_dead_encoders() == []
+    assert store.peek_pending_commands("gov") == []
+    row = store.read_state("gov")
+    assert row is not None and row.state == "FALLBACK_SLATE"
