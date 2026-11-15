@@ -5,8 +5,7 @@ caption review, and resident publication into one native Windows system.
 
 ## Current release state (November 14, 2026)
 
-- Published: [v1.0.0-rc.5](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-rc.5) (November 7, 2026). Its [verification record](releases/v1.0.0-rc.5-verification.md) documents the package. Release candidates rc.1 to rc.4 came out between October 30 and November 5, 2026.
-- In test: v1.0.0-rc.6, unpublished. Its signed kit soaked on five test PCs for about 28 hours (2026-11-14 to 2026-11-15); two PCs keep running it. See the [rc.6 release notes](releases/v1.0.0-rc.6-release-notes.md) and the [soak report](evidence/rc6-soak-2026-11-15/SOAK-REPORT.md).
+- Published: [v1.0.0-rc.6](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-rc.6) (November 15, 2026). Its [verification record](releases/v1.0.0-rc.6-verification.md) documents the package. Its signed kit soaked on five test PCs for about 28 hours (2026-11-14 to 2026-11-15); two PCs keep running it. See the [soak report](evidence/rc6-soak-2026-11-15/SOAK-REPORT.md). Release candidates rc.1 to rc.5 came out between October 30 and November 7, 2026.
 - The Beta releases below are history.
 
 ## Sprint 6 source work shipped in Beta 20
@@ -74,8 +73,8 @@ is not a Beta 15 field result or Beta 16 package qualification.
 
 ## Roadmap ownership and evidence
 
-The owner sets implementation and release scope. The [v1.0.0-rc.5 verification
-record](releases/v1.0.0-rc.5-verification.md) documents the current package. The [Beta 20 verification
+The owner sets implementation and release scope. The [v1.0.0-rc.6 verification
+record](releases/v1.0.0-rc.6-verification.md) documents the current package. The [Beta 20 verification
 record](releases/v1.0.0-beta.20-verification.md) documents the last Beta package. The [Beta 15 verification record](releases/v1.0.0-beta.15-verification.md) documents that older package's exact
 identity and installation observations. The [Beta 17 deferred
 backlog](ops/beta17-deferred.md) cites the separate Beta 15 R9 field report and
