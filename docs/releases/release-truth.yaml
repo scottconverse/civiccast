@@ -21,7 +21,7 @@ schema_version: 1
 repository: scottconverse/civiccast-native
 
 # The tag that public surfaces may present as the current install target.
-current: v1.0.0-rc.5
+current: v1.0.0-rc.6
 # Live tags matching these regexes predate this manifest and are exempt from
 # per-entry listing (they remain visible on GitHub as history). Anything else
 # unlisted is drift.
@@ -37,8 +37,13 @@ historical_unlisted_patterns:
   - '^v4\.0\.0-rc\.'
 
 entries:
-  - tag: v1.0.0-rc.5
+  - tag: v1.0.0-rc.6
     status: current
+    notes: >-
+      Published by publish_beta_candidate.py, artifact source d74a8c3110618d62b82f25e7383e93258f9a556b, tag target 830b53dfca167031c335a10b7ccd47aedd7b50f2, build run 43576185174. Owner decision (Scott, 2026-11-15): published without the physical-host consumer receipt; installer hash, version, signature and manual checks passed; station evidence is the rc.6 soak report. See docs/releases/v1.0.0-rc.6-verification.md. Gate A not run.
+  - tag: v1.0.0-rc.5
+    status: superseded
+    superseded_by: v1.0.0-rc.6
     notes: >-
       Published by publish_beta_candidate.py, artifact source b7ee4b76a91f3e1dd49180e2e1c8b2483ca3d773, tag target e85242fed403f02f6172521851c1387f3a6f1c64, build run 42266094111, direct physical-host consumer receipt C:\CivicCastTester\rc4-claude-phase4\consumer-evidence-b7ee4b76\direct-consumer-evidence.json; This receipt covers the host installation and output only; consult the release verification record for separate Sandbox checks. Gate A not run.
   - tag: v1.0.0-rc.4
