@@ -57,6 +57,7 @@ Channels:
 - Playout was not affected: the service never stopped, no worker exited, and segments stayed 0 to 1 s old.
 - Cause: not found. One real but small part: the `egress_health_samples` table has no index and is never trimmed automatically (the only trim is the manual `civiccast egress trim-health` command). On the MSI it held about 621,000 rows since October 8, and reading it cost about 46 ms per slate channel per `/health` call.
 - At 23:33 on November 14 free memory on the MSI fell to 1.3 GB. CivicCast's processes (FFmpeg, Python, PostgreSQL, Ollama) used about 4.7 GB of the 15.7 GB at that time; the rest was other programs on the laptop.
+- **Sizing advice (owner, November 15):** a 16 GB laptop like the MSI runs a one- or two-channel station fine. Do not plan three channels on it. This soak tested three channels only; it did not run one or two channels on the MSI.
 - The other four PCs, with more memory, did not show this.
 
 ### 2. R7: a lost reload held `public` on the slate for about 16 minutes (open, [#344](https://github.com/scottconverse/civiccast/issues/344))
