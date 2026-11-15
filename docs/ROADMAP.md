@@ -6,7 +6,7 @@ caption review, and resident publication into one native Windows system.
 ## Current release state (November 14, 2026)
 
 - Published: [v1.0.0-rc.5](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-rc.5) (November 7, 2026). Its [verification record](releases/v1.0.0-rc.5-verification.md) documents the package. Release candidates rc.1 to rc.4 came out between October 30 and November 5, 2026.
-- In test: v1.0.0-rc.6, unpublished. Five test PCs run its signed kit in a soak. See the [rc.6 release notes](releases/v1.0.0-rc.6-release-notes.md).
+- In test: v1.0.0-rc.6, unpublished. Its signed kit soaked on five test PCs for about 28 hours (2026-11-14 to 2026-11-15); two PCs keep running it. See the [rc.6 release notes](releases/v1.0.0-rc.6-release-notes.md) and the [soak report](evidence/rc6-soak-2026-11-15/SOAK-REPORT.md).
 - The Beta releases below are history.
 
 ## Sprint 6 source work shipped in Beta 20
