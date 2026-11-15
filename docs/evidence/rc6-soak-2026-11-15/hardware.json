@@ -1,0 +1,148 @@
+{
+ "msi": {
+  "host": "MSI",
+  "cpu": "13th Gen Intel(R) Core(TM) i7-13620H",
+  "cores": 10,
+  "threads": 16,
+  "ram_gb": 15.7,
+  "gpus": [
+   "Intel(R) UHD Graphics",
+   "NVIDIA GeForce RTX 4050 Laptop GPU"
+  ],
+  "os": "Microsoft Windows 11 Home build 26200",
+  "last_boot": "2026-11-13T17:53:28",
+  "c_free_gb": 43.7,
+  "services": [
+   "CivicCastSupervisor state=Running pid=4932 started=2026-11-14T04:07:56"
+  ],
+  "health": {
+   "status": "healthy",
+   "version": "1.0.0-rc.6",
+   "schema": "current",
+   "live_captions": "disabled",
+   "slate_web_hls": "healthy",
+   "schema_db_revision": "0098_channel_repeat_schedule",
+   "schema_expected_head": "0098_channel_repeat_schedule",
+   "mode": "normal"
+  },
+  "version": {
+   "version": "1.0.0-rc.6"
+  }
+ },
+ "5060ti": {
+  "host": "DESKTOP-IRKVR3T",
+  "cpu": "AMD Ryzen 7 7700X 8-Core Processor",
+  "cores": 8,
+  "threads": 16,
+  "ram_gb": 31.3,
+  "gpus": [
+   "NVIDIA GeForce RTX 5060 Ti"
+  ],
+  "os": "Microsoft Windows 11 Home build 26300",
+  "last_boot": "2026-11-12T09:58:18",
+  "c_free_gb": 590.9,
+  "services": [
+   "CivicCastSupervisor state=Running pid=6916 started=2026-11-14T02:20:39"
+  ],
+  "health": {
+   "status": "healthy",
+   "version": "1.0.0-rc.6",
+   "schema": "current",
+   "live_captions": "healthy",
+   "slate_web_hls": "healthy",
+   "schema_db_revision": "0098_channel_repeat_schedule",
+   "schema_expected_head": "0098_channel_repeat_schedule",
+   "mode": "normal"
+  },
+  "version": {
+   "version": "1.0.0-rc.6"
+  }
+ },
+ "r9": {
+  "host": "MICROMONSTERPC",
+  "cpu": "AMD Ryzen 9 7940HS w/ Radeon 780M Graphics",
+  "cores": 8,
+  "threads": 16,
+  "ram_gb": 25.8,
+  "gpus": [
+   "AMD Radeon 780M Graphics"
+  ],
+  "os": "Microsoft Windows 11 Pro build 26300",
+  "last_boot": "2026-11-06T16:26:41",
+  "c_free_gb": 94,
+  "services": [
+   "CivicCastSupervisor state=Running pid=28812 started=2026-11-14T03:12:38"
+  ],
+  "health": {
+   "status": "healthy",
+   "version": "1.0.0-rc.6",
+   "schema": "current",
+   "live_captions": "disabled",
+   "slate_web_hls": "healthy",
+   "schema_db_revision": "0098_channel_repeat_schedule",
+   "schema_expected_head": "0098_channel_repeat_schedule",
+   "mode": "normal"
+  },
+  "version": {
+   "version": "1.0.0-rc.6"
+  }
+ },
+ "r7": {
+  "host": "DESKTOP-VBMA6O5",
+  "cpu": "AMD Ryzen 7 8745HS w/ Radeon 780M Graphics",
+  "cores": 8,
+  "threads": 16,
+  "ram_gb": 27.8,
+  "gpus": [
+   "AMD Radeon 780M Graphics"
+  ],
+  "os": "Microsoft Windows 11 Pro build 26300",
+  "last_boot": "2026-11-11T02:32:28",
+  "c_free_gb": 125.1,
+  "services": [
+   "CivicCastSupervisor state=Running pid=4076 started=2026-11-14T03:41:51"
+  ],
+  "health": {
+   "status": "healthy",
+   "version": "1.0.0-rc.6",
+   "schema": "current",
+   "live_captions": "healthy",
+   "slate_web_hls": "idle",
+   "schema_db_revision": "0098_channel_repeat_schedule",
+   "schema_expected_head": "0098_channel_repeat_schedule",
+   "mode": "normal"
+  },
+  "version": {
+   "version": "1.0.0-rc.6"
+  }
+ },
+ "beelink": {
+  "host": "BEELINK64GB",
+  "cpu": "AMD Ryzen 7 255 w/ Radeon 780M Graphics",
+  "cores": 8,
+  "threads": 16,
+  "ram_gb": 47.8,
+  "gpus": [
+   "AMD Radeon 780M Graphics"
+  ],
+  "os": "Microsoft Windows 11 Pro build 26300",
+  "last_boot": "2026-11-11T00:32:22",
+  "c_free_gb": 209.4,
+  "services": [
+   "CivicCastSupervisor state=Running pid=16792 started=2026-11-14T03:06:49"
+  ],
+  "health": {
+   "status": "healthy",
+   "version": "1.0.0-rc.6",
+   "schema": "current",
+   "live_captions": "healthy",
+   "slate_web_hls": "idle",
+   "schema_db_revision": "0098_channel_repeat_schedule",
+   "schema_expected_head": "0098_channel_repeat_schedule",
+   "mode": "normal"
+  },
+  "version": {
+   "version": "1.0.0-rc.6"
+  }
+ }
+}

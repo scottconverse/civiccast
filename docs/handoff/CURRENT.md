@@ -1,6 +1,6 @@
-# CURRENT — Halo coordinator (2026-11-14)
+# CURRENT — Halo coordinator (2026-11-15)
 
-Updated 2026-11-14 by Claude (Opus 5.5) on the Halo PC. Claude on Halo has been coordinator since 2026-11-11 (owner instruction; Blackwell is down). The 2026-11-11 version of this note is in git history.
+Updated 2026-11-15 by Claude (Opus 5.5) on the Halo PC. Claude on Halo has been coordinator since 2026-11-11 (owner instruction; Blackwell is down). Earlier versions of this note are in git history.
 
 Everything before 2026-11-05 is in [CURRENT-HISTORY-to-2026-11-05.md](CURRENT-HISTORY-to-2026-11-05.md). That file is history. It sets no gates.
 
@@ -10,19 +10,20 @@ Everything before 2026-11-05 is in [CURRENT-HISTORY-to-2026-11-05.md](CURRENT-HI
 - Candidate: **v1.0.0-rc.6**, unpublished. Signed kit from source `d74a8c3110618d62b82f25e7383e93258f9a556b`, build run 43576185174. Details: `docs/releases/v1.0.0-rc.6-release-notes.md`.
 - No release, tag or station upgrade is authorized by this note. Publishing needs Scott's word "publish".
 
-## Machines (checked 2026-11-14, 11:08 local time)
+## Machines (checked 2026-11-15, 07:50 local time)
 
 | Machine | Role | State |
 |---|---|---|
 | Halo | Coordinator PC and CI runner `HALO-gate-a`. Working clone: `C:\dev\civiccast`. | Online. |
-| MSI (`msi-remote`) | Test station, rc.6 `d74a8c31` | Running, healthy, in soak. Walkthrough not done (admin reset failed). |
-| 5060 Ti PC (`civic@blackwell-5060ti`) | Test station, rc.6 `d74a8c31` | Running, healthy, in soak. Walkthrough passed. |
-| Beelink (`beelink64gb`) | Test station, rc.6 `d74a8c31` | Running, healthy, in soak. Walkthrough passed. |
-| R9 (`scott@r9-machine`) | Test station, rc.6 `d74a8c31` | Running, healthy, in soak. Walkthrough passed. The three channels play the slate; no recorded video is scheduled. |
-| R7 (`scott@r7`) | Test station, rc.6 `d74a8c31` (installed over rc.4) | Running, healthy, in soak. Walkthrough passed. |
+| MSI (`msi-remote`) | Test station, rc.6 `d74a8c31` | Soak done (27.6 h). Shut down 2026-11-15 for travel (owner). Walkthrough not done. |
+| 5060 Ti PC (`civic@blackwell-5060ti`) | Test station, rc.6 `d74a8c31` | Soak done (28.4 h). Shut down 2026-11-15 for travel (owner). Walkthrough passed. |
+| Beelink (`beelink64gb`) | Test station, rc.6 `d74a8c31` | Running, healthy. Soak continues at the home lab (owner). Walkthrough passed. |
+| R9 (`scott@r9-machine`) | Test station, rc.6 `d74a8c31` | Soak done (28.5 h). Shut down 2026-11-15 for travel (owner). Walkthrough passed. |
+| R7 (`scott@r7`) | Test station, rc.6 `d74a8c31` (installed over rc.4) | Running, healthy. Soak continues at the home lab (owner). Walkthrough passed. |
 | Blackwell (`nvideablackwell`) | Former coordinator | Offline since about 2026-11-10. Not checked since 2026-11-11. |
+| 5070 Ti PC (`blackwell-5070ti`) | Not a test station in this round | Tailscale: offline, last seen about 2026-11-11. Cause not checked. |
 
-The soak runs until at least the morning of 2026-11-15. Soak readings: `C:\CivicCastTester\evidence\rc6-d74a\soak\` on Halo. Install receipts: `C:\CivicCastTester\results\install-rc6-d74a.json` on each station.
+Soak result (2026-11-14 to 2026-11-15, about 28 h per PC): [docs/evidence/rc6-soak-2026-11-15/SOAK-REPORT.md](../evidence/rc6-soak-2026-11-15/SOAK-REPORT.md). Full logger data and app logs: `C:\CivicCastTester\soak-evidence-rc6-2026-11-15\` on Halo. Soak readings: `C:\CivicCastTester\evidence\rc6-d74a\soak\` on Halo. Install receipts: `C:\CivicCastTester\results\install-rc6-d74a.json` on each station.
 
 ## What is only on Blackwell
 
@@ -45,8 +46,8 @@ The soak runs until at least the morning of 2026-11-15. Soak readings: `C:\Civic
 
 ## Open work on GitHub
 
-- Open pull requests: none (checked 2026-11-14).
-- Open issues: #90 (on-air graphics: lower-third banner proven on R9 2026-11-12; station logo, bulletin board and clock not tested on a station), #327 (part 2 fixed by #328; part 1, health during a restart loop, partly fixed). #308, #311 and #330 were closed by the owner on 2026-11-14.
+- Open pull requests: this soak-record pull request (2026-11-15).
+- Open issues (2026-11-15): #343, #344 (from the soak), #342 (cable captions), #90 (on-air graphics: lower-third banner proven on R9 2026-11-12; station logo, bulletin board and clock not tested on a station), #327 (part 2 fixed by #328; part 1, health during a restart loop, partly fixed). #308, #311 and #330 were closed by the owner on 2026-11-14.
 - Other branches that are not on `main`: not checked on 2026-11-14.
 
 ## Gate A
@@ -62,8 +63,8 @@ Retired as a release requirement (owner decision 2026-11-14). The real test PCs 
 
 ## Next steps (in order)
 
-1. Finish the soak (morning of 2026-11-15) and record the result.
-2. The MSI walkthrough, if Scott OKs another admin reset.
+1. Soak done and recorded (2026-11-15). Beelink and R7 keep soaking; Halo reads them every 20 minutes while this session runs.
+2. Soak problems are open issues: #343 (MSI slow health answers), #344 (R7 lost reload held the slate), #342 (two small cable caption faults). Fixing them before publish is Scott's decision.
 3. The rc.6 verification record, `docs/releases/v1.0.0-rc.6-verification.md`.
 4. The physical-host receipt for `scripts/release/publish_beta_candidate.py` (the old tool for it was on Blackwell), then the dry runs.
 5. Publish only on Scott's word "publish".
