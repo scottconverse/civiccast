@@ -43,6 +43,8 @@ from civiccast.egress.headend import (
 )
 from civiccast.egress.loudness_plan import ChannelLoudnessPlan, build_loudness_plan
 from civiccast.egress.models import (
+    APPLY_CAPTIONS_COMMAND_PREFIX,
+    APPLY_CAPTIONS_STATES,
     SLATE_RESTART_COMMAND_PREFIX,
     CaptionStatus,
     EgressCaptionProofSample,
@@ -1402,6 +1404,59 @@ def queue_command(
         issued_at=datetime.now(UTC),
         issued_by=_staff_operator_id(request),
         command_id=f"egress-{uuid.uuid4()}",
+    )
+    store.enqueue_command(command)
+    return EgressCommandResponse(command=command, queued=True)
+
+
+@staff_router.post(
+    "/channels/{channel_id}/apply-captions",
+    response_model=EgressCommandResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Apply the live-caption switch to this channel now (restarts its playout)",
+    description=(
+        "The station live-caption switch takes effect at each channel's next start. "
+        "This queues a reload that restarts only this channel's playout worker, so "
+        "the switch applies now. The service is not restarted. The channel is off "
+        "the air for a few seconds while its worker restarts."
+    ),
+    dependencies=[Depends(require_any_role("meeting_operator", "setup_admin"))],
+    responses={
+        409: {
+            "description": "The channel is not configured and enabled, or it is not on "
+            "air or on its fallback slate; the switch applies at its next start"
+        },
+        503: {"description": _DB_NOT_READY_DESCRIPTION},
+    },
+)
+def apply_captions_now(
+    channel_id: str,
+    request: Request,
+    egress_store: EgressStore | None = Depends(get_egress_store),
+) -> EgressCommandResponse:
+    store = _require_store(egress_store, surface="egress commands")
+    config = store.get_config(channel_id)
+    if config is None or not config.enabled:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Channel {channel_id} is not configured and enabled, so there is "
+            "nothing to apply captions to.",
+        )
+    row = store.read_state(channel_id)
+    current = row.state if row is not None else "STOPPED"
+    if current not in APPLY_CAPTIONS_STATES:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Channel {channel_id} is {current}. Apply captions now works only "
+            "while the channel is on air or on its fallback slate. The caption switch "
+            "applies when the channel next starts.",
+        )
+    command = EgressCommand(
+        channel_id=channel_id,
+        action="reload",
+        issued_at=datetime.now(UTC),
+        issued_by=_staff_operator_id(request),
+        command_id=f"{APPLY_CAPTIONS_COMMAND_PREFIX}{uuid.uuid4()}",
     )
     store.enqueue_command(command)
     return EgressCommandResponse(command=command, queued=True)

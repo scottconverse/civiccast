@@ -74,6 +74,8 @@ from civiccast.egress.hls_relay import (
     _segment_first_packet_pts,
 )
 from civiccast.egress.models import (
+    APPLY_CAPTIONS_COMMAND_PREFIX,
+    APPLY_CAPTIONS_STATES,
     MAX_PLAYLIST_SUBCHAINS,
     RESTART_RECOVERY_COMMAND_PREFIX,
     SCHEDULED_SLATE_START_COMMAND_PREFIX,
@@ -2293,6 +2295,11 @@ class EgressDaemon:
         if command.action == "drain":
             self._drain(command.channel_id)
             return
+        if command.action == "reload" and command.command_id.startswith(
+            APPLY_CAPTIONS_COMMAND_PREFIX
+        ):
+            self._apply_captions_now(command.channel_id)
+            return
         if command.action == "reload":
             config = self._store.get_config(command.channel_id)
             if config is not None and not config.enabled:
@@ -2309,6 +2316,49 @@ class EgressDaemon:
             self._request_reload(command.channel_id, command_id=command.command_id)
             return
         raise ConfigInvalidError(f"unsupported egress command action: {command.action}")
+
+    def _apply_captions_now(self, channel_id: str) -> None:
+        """rc.6.1 item 3: apply the live-caption switch to ONE channel now.
+
+        The caption legs (embed + audio tap) are built only when the playout
+        worker starts, so a changed switch waits for the channel's next start.
+        This restarts that one channel's worker through the ordinary
+        terminate+restart reload path: the relays keep their sessions, and the
+        restart re-reads the switch and carries the current plan. It never
+        restarts the service. A channel that is not running, or not in a
+        steady on-air state, is left alone: the switch lands at its next start.
+        """
+        config = self._store.get_config(channel_id)
+        if config is not None and not config.enabled:
+            _LOG.info(
+                "channel %s: ignoring apply-captions because the channel is disabled",
+                channel_id,
+            )
+            return
+        state = self._store.read_state(channel_id)
+        process = self._processes.get(channel_id)
+        if process is None or _process_poll(process) is not None or state is None:
+            _LOG.info(
+                "channel %s: apply-captions found no running worker; the caption "
+                "switch applies at the channel's next start",
+                channel_id,
+            )
+            return
+        if state.state not in APPLY_CAPTIONS_STATES:
+            _LOG.warning(
+                "channel %s: skipped apply-captions: the channel is %s; the caption "
+                "switch applies at the channel's next start",
+                channel_id,
+                state.state,
+            )
+            return
+        _LOG.info("channel %s: restarting the playout worker to apply captions now", channel_id)
+        self._cancel_preparation(channel_id)
+        self._fall_back_to_restart_reload(
+            channel_id,
+            immediate_reason="apply captions now: the operator asked to apply the "
+            "live-caption switch to this channel; the restart carries the current plan",
+        )
 
     def _discard_stale_hls_playlists(
         self, channel_id: str, *, config: EgressConfig | None = None
@@ -6994,6 +7044,7 @@ class EgressDaemon:
         failure_reason: str | None = None,
         prepared_reload: _ReusePreparedPlan | None = None,
         plan_end_at: datetime | None = None,
+        immediate_reason: str | None = None,
     ) -> None:
         """The terminate+restart reload path a declined/aborted/lost content-
         reload always falls through to -- factored out of ``_request_reload``
@@ -7017,7 +7068,11 @@ class EgressDaemon:
         reload was dispatched against, when the caller still has it. Recorded on
         the ``_pending_reloads`` pin so the reload-stall watchdog's bound can be
         derived from the plan that is actually left rather than only from its
-        flat floor -- see ``_arm_pending_reload``."""
+        flat floor -- see ``_arm_pending_reload``.
+
+        ``immediate_reason`` (rc.6.1, default ``None``): terminate the worker
+        now in every state, with this reason in the deliberate-kill note. Used
+        only by "Apply captions now"; every other caller passes nothing."""
         self._discard_pending_reload_settlement(channel_id, reason="falling back to restart")
         if prepared_reload is not None:
             self._stash_prepared_restart_plan(channel_id, prepared_reload)
@@ -7053,6 +7108,10 @@ class EgressDaemon:
             pid=_process_pid(process),
         )
         expired_boundary = plan_end_at is not None and plan_end_at <= datetime.now(UTC)
+        if immediate_reason is not None and process is not None:
+            self._note_deliberate_kill(channel_id, immediate_reason)
+            _process_terminate(process)
+            return
         if (
             state is not None
             and (state.state == "FALLBACK_SLATE" or expired_boundary)

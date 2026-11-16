@@ -24,6 +24,7 @@ import {
   listChannelProfiles,
   listHeadendProfiles,
   queueEgressCommand,
+  applyCaptionsNow,
   updateAppPlatformChannelBranding,
   updateAppPlatformConfig,
   updateEgressConfig,
@@ -668,10 +669,21 @@ export function EgressControlPanel({
   onRetryConfigCheck,
   startNotApplied = null,
   loading = false,
+  onApplyCaptions,
+  applyingCaptions = false,
+  applyCaptionsError = null,
+  applyCaptionsQueued = false,
 }: {
   channelId: string | undefined
   state: EgressStateRow | null | undefined
   loading?: boolean
+  // rc.6.1 item 3: "Apply captions now" restarts only this channel's playout
+  // so a changed station live-caption switch takes effect now. Omitted -> no
+  // button.
+  onApplyCaptions?: () => void
+  applyingCaptions?: boolean
+  applyCaptionsError?: unknown
+  applyCaptionsQueued?: boolean
   health: EgressHealthSample[]
   config?: EgressConfig
   pendingCommand: { channelId: string; action: EgressCommandAction } | null
@@ -710,6 +722,8 @@ export function EgressControlPanel({
               : startWithoutConfigReason(channelId)
   const rawEgressState = state?.state ?? 'STOPPED'
   const visibleState = state ? stateLabel(state.state) : loading ? 'Checking status…' : 'Status unavailable'
+  const applyCaptionsSteady = APPLY_CAPTIONS_STATES.has(rawEgressState)
+  const applyCaptionsDisabled = !channelId || !canControl || applyingCaptions || !applyCaptionsSteady
   // Tone comes from the shared toneForEgressState so this pill cannot disagree
   // with the same feed's pill on System Health. A not-on-air feed is amber
   // (attention), not the blue "info" this panel used to fall back to.
@@ -858,6 +872,42 @@ export function EgressControlPanel({
           {apiMessage(error, 'Channel command failed.')}
         </div>
       )}
+      {onApplyCaptions && (
+        <div className="mt-4 grid gap-2 border-t pt-3" style={{ borderColor: 'var(--cc-line)' }}>
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              disabled={applyCaptionsDisabled}
+              aria-describedby="egress-apply-captions-help"
+              onClick={onApplyCaptions}
+              className="rounded-md px-3 py-2 text-sm font-semibold"
+              style={{
+                background: applyCaptionsDisabled ? 'var(--cc-surface-3)' : 'var(--cc-surface)',
+                color: applyCaptionsDisabled ? 'var(--cc-ink-3)' : 'var(--cc-ink)',
+                border: '1px solid var(--cc-line)',
+              }}
+            >
+              {applyingCaptions ? 'Queuing...' : 'Apply captions now'}
+            </button>
+          </div>
+          <p id="egress-apply-captions-help" className="m-0 text-xs" style={{ color: 'var(--cc-ink-3)' }}>
+            The station live-caption switch changes a channel at its next start. Apply captions now
+            restarts only this channel's playout, so the switch applies now. Residents lose this
+            channel for a few seconds. The CivicCast service does not restart.
+            {!applyCaptionsSteady && ' This works only while the channel is on air or on its fallback slate.'}
+          </p>
+          {applyCaptionsQueued && !applyCaptionsError && (
+            <div role="status" className="text-sm" style={{ color: 'var(--cc-ok)' }}>
+              Queued. This channel's playout restarts with the current caption setting.
+            </div>
+          )}
+          {Boolean(applyCaptionsError) && (
+            <div role="alert" className="text-sm" style={{ color: 'var(--cc-err)' }}>
+              {apiMessage(applyCaptionsError, 'Could not apply captions to this channel.')}
+            </div>
+          )}
+        </div>
+      )}
       {!canControl && (
         <div role="alert" className="mt-3 text-sm" style={{ color: 'var(--cc-ink-3)' }}>
           Outgoing feed controls require the meeting operator role.
@@ -866,6 +916,9 @@ export function EgressControlPanel({
     </section>
   )
 }
+
+// rc.6.1 item 3: mirrors civiccast/egress/models.py APPLY_CAPTIONS_STATES.
+const APPLY_CAPTIONS_STATES: ReadonlySet<string> = new Set(['ON_AIR', 'FALLBACK_SLATE'])
 
 function EgressConfigPanel({
   channelId,
@@ -1932,6 +1985,14 @@ export function ChannelOpsScreen() {
       void queryClient.invalidateQueries({ queryKey: ['egress-health', variables.channelId] })
     },
   })
+  const applyCaptionsMutation = useMutation({
+    mutationFn: (targetChannelId: string) => applyCaptionsNow(targetChannelId),
+    onSuccess: (_, targetChannelId) => {
+      void queryClient.invalidateQueries({ queryKey: ['egress-state', targetChannelId] })
+      void queryClient.invalidateQueries({ queryKey: ['egress-health', targetChannelId] })
+    },
+  })
+  const applyCaptionsForThisChannel = applyCaptionsMutation.variables === channelId
   // The watch is derived, not cleared in the effect: once the daemon reports
   // a start-ish state or the row moves, the watch is simply inert.
   const startApplied = startWatchApplied(startWatch, egressStateData)
@@ -2098,6 +2159,23 @@ export function ChannelOpsScreen() {
               setPendingConfirm({
                 ...feedCommandConfirmCopy(action, channelName),
                 run: () => egressCommandMutation.mutate({ channelId, action }),
+              })
+            }}
+            applyingCaptions={applyCaptionsMutation.isPending && applyCaptionsForThisChannel}
+            applyCaptionsQueued={applyCaptionsMutation.isSuccess && applyCaptionsForThisChannel}
+            applyCaptionsError={applyCaptionsForThisChannel ? applyCaptionsMutation.error : null}
+            onApplyCaptions={() => {
+              if (!channelId) return
+              const channelName = selectedChannel?.branding.display_name ?? channelId
+              setPendingConfirm({
+                title: `Apply captions now on ${channelName}?`,
+                body:
+                  `Only ${channelName}'s playout restarts, so the station live-caption setting ` +
+                  'applies now. Residents lose this channel for a few seconds. Other channels ' +
+                  'and the CivicCast service do not restart.',
+                confirmLabel: 'Apply captions now',
+                tone: 'danger',
+                run: () => applyCaptionsMutation.mutate(channelId),
               })
             }}
           />

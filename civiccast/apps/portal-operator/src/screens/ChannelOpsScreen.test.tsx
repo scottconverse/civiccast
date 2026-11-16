@@ -17,6 +17,7 @@ vi.mock('../api/client', () => ({
     }
   },
   applyHeadendProfile: vi.fn(),
+  applyCaptionsNow: vi.fn(),
   runComplianceProbe: vi.fn(),
   getAppPlatformConfig: vi.fn(),
   getChannelNowNext: vi.fn(),
@@ -1160,5 +1161,90 @@ describe('channel switch keeps one automation panel', () => {
     const dupKey = errors.mock.calls.filter((c) => String(c[0]).includes('same key'))
     errors.mockRestore()
     expect(dupKey).toHaveLength(0)
+  })
+})
+
+describe('EgressControlPanel Apply captions now (rc.6.1 item 3)', () => {
+  function renderApply(
+    state: EgressStateRow['state'] | null,
+    overrides: Partial<{
+      canControl: boolean
+      applyingCaptions: boolean
+      applyCaptionsQueued: boolean
+      applyCaptionsError: unknown
+      onApplyCaptions: (() => void) | undefined
+    }> = {},
+  ) {
+    const onApplyCaptions = vi.fn()
+    const utils = render(
+      <EgressControlPanel
+        channelId="public"
+        state={state ? egressState(state) : null}
+        health={[]}
+        pendingCommand={null}
+        canControl={overrides.canControl ?? true}
+        error={null}
+        onCommand={() => {}}
+        onApplyCaptions={'onApplyCaptions' in overrides ? overrides.onApplyCaptions : onApplyCaptions}
+        applyingCaptions={overrides.applyingCaptions}
+        applyCaptionsQueued={overrides.applyCaptionsQueued}
+        applyCaptionsError={overrides.applyCaptionsError}
+      />,
+    )
+    return { ...utils, onApplyCaptions }
+  }
+
+  function applyButton(): HTMLButtonElement {
+    return screen.getByRole('button', { name: /apply captions now/i }) as HTMLButtonElement
+  }
+
+  it.each(['ON_AIR', 'FALLBACK_SLATE'] as const)('is enabled on a %s channel and calls the handler', (state) => {
+    const { onApplyCaptions } = renderApply(state)
+    expect(applyButton().disabled).toBe(false)
+    fireEvent.click(applyButton())
+    expect(onApplyCaptions).toHaveBeenCalledTimes(1)
+  })
+
+  it.each(['STOPPED', 'STARTING', 'TRANSITIONING', 'DRAINING'] as const)(
+    'is disabled on a %s channel and says the switch applies at the next start',
+    (state) => {
+      const { container } = renderApply(state)
+      expect(applyButton().disabled).toBe(true)
+      expect(container.textContent).toContain('changes a channel at its next start')
+      expect(container.textContent).toContain('only while the channel is on air or on its fallback slate')
+    },
+  )
+
+  it('is disabled with no state row', () => {
+    renderApply(null)
+    expect(applyButton().disabled).toBe(true)
+  })
+
+  it('is disabled for a role that cannot control the feed', () => {
+    renderApply('ON_AIR', { canControl: false })
+    expect(applyButton().disabled).toBe(true)
+  })
+
+  it('says it restarts only this channel and never the service', () => {
+    const { container } = renderApply('ON_AIR')
+    expect(container.textContent).toContain("restarts only this channel's playout")
+    expect(container.textContent).toContain('The CivicCast service does not restart.')
+  })
+
+  it('shows queuing, queued and error states', () => {
+    renderApply('ON_AIR', { applyingCaptions: true })
+    const queuing = screen.getByRole('button', { name: 'Queuing...' }) as HTMLButtonElement
+    expect(queuing.disabled).toBe(true)
+    cleanup()
+    const queued = renderApply('ON_AIR', { applyCaptionsQueued: true })
+    expect(queued.container.textContent).toContain('Queued.')
+    cleanup()
+    const failed = renderApply('ON_AIR', { applyCaptionsError: new Error('Channel public is STOPPED.') })
+    expect(failed.container.textContent).toContain('Channel public is STOPPED.')
+  })
+
+  it('shows no button when the screen passes no handler', () => {
+    renderApply('ON_AIR', { onApplyCaptions: undefined })
+    expect(screen.queryByRole('button', { name: /apply captions now/i })).toBeNull()
   })
 })

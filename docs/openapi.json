@@ -15033,7 +15033,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/StationProfile"
+                  "$ref": "#/components/schemas/StationProfileUpdateResponse"
                 }
               }
             }
@@ -33200,6 +33200,75 @@
           },
           "409": {
             "description": "Start refused: the channel has no outgoing-feed configuration (or it is disabled)"
+          },
+          "503": {
+            "description": "Durable storage not ready -- run Setup storage or set DATABASE_URL"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, revoked, or misconfigured CivicCast staff bearer token."
+          },
+          "429": {
+            "description": "The observed peer exceeded the failed staff authentication budget. Wait for Retry-After before another invalid attempt; valid staff tokens remain accepted.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the failure window reopens.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "CivicCastStaffBearer": []
+          }
+        ]
+      }
+    },
+    "/api/staff/egress/channels/{channel_id}/apply-captions": {
+      "post": {
+        "tags": [
+          "staff",
+          "egress"
+        ],
+        "summary": "Apply the live-caption switch to this channel now (restarts its playout)",
+        "description": "The station live-caption switch takes effect at each channel's next start. This queues a reload that restarts only this channel's playout worker, so the switch applies now. The service is not restarted. The channel is off the air for a few seconds while its worker restarts.",
+        "operationId": "apply_captions_now_api_staff_egress_channels__channel_id__apply_captions_post",
+        "parameters": [
+          {
+            "name": "channel_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Channel Id"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EgressCommandResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The channel is not configured and enabled, or it is not on air or on its fallback slate; the switch applies at its next start"
           },
           "503": {
             "description": "Durable storage not ready -- run Setup storage or set DATABASE_URL"
@@ -65482,6 +65551,164 @@
         "type": "object",
         "title": "StationProfileUpdateRequest",
         "description": "Mutable subset of ``StationProfile`` an operator can edit post-setup.\n\nIdentity (``admin_username``), recovery-kit, and role fields are not\neditable through this surface -- they have their own dedicated flows\n(recovery, role management). Every field is optional so a PUT can\nchange just one of them."
+      },
+      "StationProfileUpdateResponse": {
+        "properties": {
+          "station_name": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Station Name"
+          },
+          "admin_display_name": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Admin Display Name"
+          },
+          "admin_username": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Admin Username"
+          },
+          "default_channel_id": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Default Channel Id",
+            "default": "government"
+          },
+          "public_base_url": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 240,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Public Base Url"
+          },
+          "station_timezone": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Station Timezone",
+            "default": "local"
+          },
+          "storage_locations": {
+            "$ref": "#/components/schemas/StationStorageLocations"
+          },
+          "runtime_paths": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StationRuntimePaths"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "channel_count": {
+            "type": "integer",
+            "maximum": 12.0,
+            "minimum": 1.0,
+            "title": "Channel Count",
+            "default": 3
+          },
+          "channel_profiles": {
+            "items": {
+              "$ref": "#/components/schemas/StationChannelProfile"
+            },
+            "type": "array",
+            "title": "Channel Profiles"
+          },
+          "sample_content_enabled": {
+            "type": "boolean",
+            "title": "Sample Content Enabled",
+            "default": true
+          },
+          "initial_schedule_enabled": {
+            "type": "boolean",
+            "title": "Initial Schedule Enabled",
+            "default": true
+          },
+          "live_captions_enabled": {
+            "type": "boolean",
+            "title": "Live Captions Enabled",
+            "description": "Operator switch for LIVE captions: the real-time ASR tap on the broadcast audio of every ON_AIR channel AND the CEA-708 caption embed leg on the video path. OFF by default in beta.5 (temporary): with the embed leg built, the 2026-09-09 sandbox soak measured a recurring 25-30 s video hold followed by a burst of frames every 1-2 minutes on every channel, and twice the 10 s stall watchdog restarted a channel. Turn it ON from the operator console (Setup > Station Profile > Show live captions on air) on a station that can keep up. Turning it off does NOT affect captions on published recordings (the offline caption job), which is the legal requirement; this is the live one.",
+            "default": false
+          },
+          "default_roles": {
+            "items": {
+              "type": "string",
+              "maxLength": 80,
+              "minLength": 1
+            },
+            "type": "array",
+            "title": "Default Roles"
+          },
+          "operation_mode": {
+            "type": "string",
+            "enum": [
+              "test",
+              "on_air"
+            ],
+            "title": "Operation Mode",
+            "default": "test"
+          },
+          "dashboard_ready_state": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "not_ready"
+            ],
+            "title": "Dashboard Ready State",
+            "default": "not_ready"
+          },
+          "recovery_kit_id": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Recovery Kit Id"
+          },
+          "recovery_kit_generated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Recovery Kit Generated At"
+          },
+          "live_captions_restart_required": {
+            "type": "boolean",
+            "title": "Live Captions Restart Required",
+            "default": false
+          },
+          "live_captions_notice": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Live Captions Notice"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "station_name",
+          "admin_display_name",
+          "admin_username",
+          "storage_locations",
+          "recovery_kit_id",
+          "recovery_kit_generated_at"
+        ],
+        "title": "StationProfileUpdateResponse",
+        "description": "The saved profile, plus what the operator must know about the save.\n\nrc.6.1 item 3: the live-caption switch takes effect at each channel's next\nstart (the caption legs are built only when a channel's playout starts).\n``live_captions_restart_required`` is true when this save changed the\nswitch; ``live_captions_notice`` then says how to apply it now."
       },
       "StationRecoveryRequest": {
         "properties": {

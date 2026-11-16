@@ -31,6 +31,7 @@ is genuinely public (no role gate at all).
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -43,6 +44,7 @@ from civiccast.installer.station_state import (
     StationProfileUpdateRequest,
     StationSetupNotCompleteError,
     resolve_live_captions_enabled,
+    resolve_live_captions_enabled_or_default,
     resolve_station_display_name,
     resolve_station_storage_locations,
     resolve_station_timezone,
@@ -65,6 +67,35 @@ class StationTimeZone(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     station_timezone: str
+
+
+class StationProfileUpdateResponse(StationProfile):
+    """The saved profile, plus what the operator must know about the save.
+
+    rc.6.1 item 3: the live-caption switch takes effect at each channel's next
+    start (the caption legs are built only when a channel's playout starts).
+    ``live_captions_restart_required`` is true when this save changed the
+    switch; ``live_captions_notice`` then says how to apply it now.
+    """
+
+    live_captions_restart_required: bool = False
+    live_captions_notice: str | None = None
+
+
+def live_captions_change_notice(*, enabled: bool, env_forced_off: bool) -> str:
+    """Operator text for a changed live-caption switch."""
+
+    if env_forced_off:
+        return (
+            "The live-caption setting is saved, but CIVICCAST_CAPTION_TAP=off in the "
+            "service environment keeps live captions off on every channel."
+        )
+    word = "on" if enabled else "off"
+    return (
+        f"Live captions are now {word} for the station. Each channel changes at its "
+        "next start. To change a channel now, use Apply captions now on that channel "
+        "in Channel Ops. That restarts only that channel's playout, for a few seconds."
+    )
 
 
 box_profile_router = APIRouter(prefix="/api/staff", tags=["staff", "platform"])
@@ -155,7 +186,7 @@ def get_station_timezone() -> StationTimeZone:
 
 @staff_router.put(
     "/profile",
-    response_model=StationProfile,
+    response_model=StationProfileUpdateResponse,
     summary=(
         "Edit the mutable station identity profile fields (including the live-caption switch)"
     ),
@@ -164,7 +195,8 @@ def get_station_timezone() -> StationTimeZone:
 def put_station_profile(
     payload: StationProfileUpdateRequest,
     program_log_materializer: Any = Depends(get_program_log_materializer),
-) -> StationProfile:
+) -> StationProfileUpdateResponse:
+    captions_before = resolve_live_captions_enabled_or_default()
     try:
         if payload.station_timezone is not None and program_log_materializer is not None:
             from civiccast.installer.service import operator_console_url
@@ -178,6 +210,17 @@ def put_station_profile(
                 # Pin the current station-local intent before the dynamic TZ
                 # provider starts resolving to the new profile value.
                 program_log_materializer.pin_legacy_anchors()
-        return update_station_profile_fields(payload)
+        profile = update_station_profile_fields(payload)
     except StationSetupNotCompleteError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    response = StationProfileUpdateResponse.model_validate(profile.model_dump())
+    if payload.live_captions_enabled is not None:
+        env_forced_off = os.environ.get("CIVICCAST_CAPTION_TAP", "").strip().lower() == "off"
+        captions_after = resolve_live_captions_enabled_or_default()
+        saved = bool(payload.live_captions_enabled)
+        if captions_after != captions_before or (env_forced_off and saved):
+            response.live_captions_restart_required = not env_forced_off
+            response.live_captions_notice = live_captions_change_notice(
+                enabled=captions_after, env_forced_off=env_forced_off
+            )
+    return response

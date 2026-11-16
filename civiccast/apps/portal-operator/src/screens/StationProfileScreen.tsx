@@ -279,6 +279,11 @@ function StationIdentityPanel({ canWrite }: { canWrite: boolean }) {
         <Banner tone="warn">{apiMessage(saveMut.error, 'Could not save the station profile.')}</Banner>
       )}
       {saveMut.isSuccess && !dirty && <Banner tone="ok">Station profile saved.</Banner>}
+      {saveMut.isSuccess && !dirty && saveMut.data?.live_captions_notice && (
+        // rc.6.1 item 3: the live-caption switch applies at each channel's next
+        // start; the server says so, and how to apply it now.
+        <Banner tone="info">{saveMut.data.live_captions_notice}</Banner>
+      )}
 
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="grid gap-1 text-xs">
