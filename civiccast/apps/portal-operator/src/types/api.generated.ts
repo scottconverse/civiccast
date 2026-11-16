@@ -1256,6 +1256,8 @@ export interface ChannelRuntimeStatus {
   captions_expected?: boolean
   captions_verified?: boolean
   live_captions?: ChannelCaptionProcessingStatus | null
+  recent_restarts?: number
+  restart_loop?: boolean
   color: 'green' | 'yellow' | 'red'
 }
 
