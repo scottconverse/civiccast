@@ -378,7 +378,7 @@ caption tier or caption fewer channels at once. Optional NVIDIA acceleration
 applies to Whisper, not to the Whistle CPU primary. Whisper thread settings do
 not tune Whistle.
 
-Live captions are off by default. When enabled, Whistle is the CPU primary;
+Live captions are on by default. When enabled, Whistle is the CPU primary;
 Whisper can serve as a sticky fallback for the affected channel, or can be
 selected directly with `CIVICCAST_LIVE_CAPTION_ENGINE=whisper`. The native tap
 publishes live VTT and does not automatically create review records or retain

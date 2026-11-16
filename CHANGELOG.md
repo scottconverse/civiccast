@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 - The on-air CG board clock shows the station's time (issue #347). Before: it showed UTC, so on R9 (Mountain time) it read 04:04 at 21:04. Now: a named station time zone wins; the `local` default, or an unknown zone name, uses the station PC's own time zone. It never falls back to UTC.
+- Live captions are ON by default. Before: a new station had live captions off until an operator turned them on. Now: a new station has them on. A station that saved "off" under an older build (which shipped them off by default) is turned on once at upgrade. An operator who turns them off after the upgrade keeps them off. `CIVICCAST_CAPTION_TAP=off` still turns them off.
 
 ## [1.0.0-rc.6] - 2026-11-15
 

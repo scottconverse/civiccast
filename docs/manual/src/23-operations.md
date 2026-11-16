@@ -57,7 +57,7 @@ The supervisor itself starts only three kinds of child, in this order: **Postgre
 | Playout workers | The processes that put your channel on the air | Control plane | The playout engine is GStreamer by default. The older ffmpeg concatenation engine is used only when `CIVICCAST_EGRESS_ENGINE` selects it. |
 | TS relay | Sends a transport stream (for a headend encoder) | Control plane | Uses TSDuck (`tsp.exe`). Automatic mode runs only when `tsp` is present. |
 | HLS relay | Sends a web stream | Control plane | Supervised `ffmpeg` process. |
-| Caption tap | Listens to the channel audio for live captions | Control plane | Runs inside the control plane. Live captions are off by default; `CIVICCAST_CAPTION_TAP=off` forces them off. |
+| Caption tap | Listens to the channel audio for live captions | Control plane | Runs inside the control plane. Live captions are on by default; `CIVICCAST_CAPTION_TAP=off` forces them off. |
 
 If CivicCast finds another CivicCast runtime active on the same computer (the older WSL-based product), the supervisor refuses to start the station and reports `blocked_wsl_active`. See [If it did not work](#ch-operations-did-not-work).
 
