@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable
-from datetime import datetime
+from datetime import datetime, tzinfo
 from hashlib import sha256
 from pathlib import Path
 
@@ -359,7 +359,8 @@ def _zone_text(
         return [(text, 0, True)] if text else []
     if zone.kind == "schedule":
         if zone.content == {"mode": "clock"}:
-            return [(f"{station_short_name}  {now.strftime('%H:%M')}", 0, False)]
+            local_now = now.astimezone(station_clock_tz())
+            return [(f"{station_short_name}  {local_now.strftime('%H:%M')}", 0, False)]
         items = zone.content.get("items", [])
         if not isinstance(items, list):
             return []
@@ -470,6 +471,30 @@ def _drawtext_filter(
             f"fontsize={font_size}:fontcolor=white:box=1:boxcolor=black@0.45[{output_lbl}]"
         )
     return ";".join(filters)
+
+
+def station_clock_tz() -> tzinfo | None:
+    """The zone the on-air CG clock shows (#347).
+
+    The clock printed ``now`` as-is, and ``now`` is UTC, so a station in
+    Mountain time showed 04:04 at 21:04. A named IANA zone wins. The
+    ``"local"`` sentinel (the commissioning default) means the station
+    machine's own zone, so ``None`` is returned and ``astimezone`` uses the
+    OS zone. An unknown zone name also falls back to the OS zone: a viewer
+    sees the machine's wall clock, never UTC.
+    """
+
+    from civiccast.installer.station_state import resolve_station_timezone
+
+    name = resolve_station_timezone()
+    if not name or name == "local":
+        return None
+    from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+    try:
+        return ZoneInfo(name)
+    except (ZoneInfoNotFoundError, ValueError, OSError):
+        return None
 
 
 def _has_clock_zone(board: ResolvedBoard) -> bool:
