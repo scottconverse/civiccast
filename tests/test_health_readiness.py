@@ -62,6 +62,11 @@ def health_env(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     from civiccast.db import reset_engine
 
     monkeypatch.setenv("CIVICCAST_AUTH_ACK", "1")
+    # rc.6.1: live captions are now ON by default. These tests check the
+    # schema verdict, and a bare test app has no egress store, so the caption
+    # probe would read "unknown" and degrade readiness. Pin captions off here;
+    # the caption tests below patch the resolver themselves.
+    monkeypatch.setenv("CIVICCAST_CAPTION_TAP", "off")
     monkeypatch.delenv("DATABASE_URL", raising=False)
     expected_migration_head.cache_clear()
     try:
