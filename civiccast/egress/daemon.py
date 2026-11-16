@@ -1277,6 +1277,13 @@ class EgressDaemon:
         # channel that gets stopped, so it did not even close the gap it was
         # written for. Reverted to a plain reload_id with no expiry.)
         self._discarded_reload_ids: dict[str, str] = {}
+        # #344: channels whose most recent reload declined only because the
+        # schedule has nothing due at wall-clock now (no recorded boundary).
+        # Set inside ``_reload_steps`` and consumed by ``_request_reload``,
+        # which keeps the air it has instead of pinning a restart that the
+        # U41 plan-EOS hold will never deliver. See
+        # ``_keep_air_after_no_plan_reload``.
+        self._no_plan_now_reloads: set[str] = set()
 
         # U36 item 7: bounded retry budget for a boundary reload the worker
         # aborted pre-commit, keyed by channel. The value is
@@ -5539,6 +5546,77 @@ class EgressDaemon:
             channel_id,
         )
 
+    def _keep_air_after_no_plan_reload(
+        self, channel_id: str, state: EgressStateRow, process: object
+    ) -> bool:
+        """#344: a reload that found nothing due NOW keeps the air it has.
+
+        Measured on R7, 2026-11-15 23:42: about 30 schedule commits arrived four
+        minutes before the first program. Each commit queued a reload with no
+        recorded boundary; each resolved "now", found no item, and declined. The
+        decline ran ``_fall_back_to_restart_reload``, which (1) discarded the
+        reload already armed for the 23:46 start and (2) pinned the channel
+        TRANSITIONING until a worker exit. Under the U41 plan-EOS hold that exit
+        never comes, and automation does not replan a TRANSITIONING channel, so
+        the slate stayed on air past the due program until the stall watchdog.
+
+        A restart cannot air a program that is not due yet. So:
+
+        * a reload that is already armed (for example the slate's scheduled
+          start of the next program) stays armed, untouched;
+        * otherwise any pin an earlier decline left on this live worker is
+          dropped and the state it pinned over is restored, so the automation's
+          own slate replan / rollover policy can hand off at the next start.
+
+        Returns ``False`` (the caller then takes the ordinary restart fallback)
+        when a deliberate kill is already in flight for this channel (that exit
+        is the recovery, and the pin must stay to honor it), and when nothing is
+        armed and the slate is on air (that fallback cuts the slate worker at
+        once, issue #157, so it cannot pin).
+        """
+        if channel_id in self._reload_kills or _process_poll(process) is not None:
+            return False
+        if channel_id in self._pending_reload_settle:
+            pending = self._pending_reload_settle[channel_id]
+            _LOG.warning(
+                "Content-reload for %s found nothing due now; keeping the reload already "
+                "armed (reload_id=%s) instead of discarding it for a restart.",
+                channel_id,
+                pending.reload_id,
+            )
+            return True
+        if state.state == "FALLBACK_SLATE":
+            # Filler is interruptible (issue #157): the ordinary fallback cuts
+            # the slate worker at once and restarts it, so nothing pins.
+            return False
+        pin = self._pending_reloads.pop(channel_id, None)
+        restored: EgressState = state.state
+        if pin is not None:
+            self._discard_prepared_restart_plan(
+                channel_id, reason="nothing due now; the pinned restart is moot"
+            )
+            pinned_state, pinned_label = pin
+            if state.state == "TRANSITIONING" and pinned_state in ("ON_AIR", "FALLBACK_SLATE"):
+                restored = "ON_AIR" if pinned_state == "ON_AIR" else "FALLBACK_SLATE"
+                self._write_state(
+                    channel_id,
+                    restored,
+                    current_source_label=pinned_label,
+                    current_proof_event_id=state.current_proof_event_id,
+                    pid=_process_pid(process),
+                )
+        _LOG.warning(
+            "Content-reload for %s found nothing due now; keeping the current output on air "
+            "(state=%s, source=%s, pid=%s) for the next scheduled start instead of pinning a "
+            "restart%s.",
+            channel_id,
+            restored,
+            state.current_source_label or "-",
+            _process_pid(process),
+            " (cleared an earlier restart pin)" if pin is not None else "",
+        )
+        return True
+
     def _fall_back_to_restart_for_reused_plan(
         self, channel_id: str, outcome: _ReusePreparedPlan
     ) -> bool:
@@ -6198,6 +6276,12 @@ class EgressDaemon:
                 force_fallback,
                 "boundary" if boundary_provider is not None and boundary_at is not None else "now",
             )
+            if source_plan is None and rollover_plan_end_at is None and not force_fallback:
+                # #344: nothing is due NOW; a later item may still be. A restart
+                # cannot air a program that is not due yet, so the caller keeps
+                # the current air (and any reload already armed for that later
+                # start) instead of pinning TRANSITIONING.
+                self._no_plan_now_reloads.add(channel_id)
             return False
         if not force_fallback and target_state != "FALLBACK_SLATE":
             # U26 defect 2 applied where U26 deliberately skipped it.
@@ -6723,6 +6807,7 @@ class EgressDaemon:
                         discarded_id,
                     )
                     self._discarded_reload_ids.pop(channel_id, None)
+                    self._recover_pin_after_late_settlement(channel_id, status.get("result"))
             return
         status = self._read_reload_status(channel_id)
         if status is not None and status.get("id") == pending.reload_id:
@@ -6808,6 +6893,36 @@ class EgressDaemon:
                 channel_id, reason=f"no settlement within {settle_deadline:.0f}s"
             )
             self._fall_back_to_restart_reload(channel_id, plan_end_at=pending.rollover_plan_end_at)
+
+    def _recover_pin_after_late_settlement(self, channel_id: str, result: object) -> None:
+        """#344: a late settlement must not leave the channel pinned.
+
+        The discarded attempt's worker is alive and has just answered, so the
+        restart the ``_pending_reloads`` pin waits for (a worker exit at plan
+        EOS) will not come under the U41 hold. Re-issue the reload now instead
+        of waiting for the U67 stall watchdog (~1650 s): it either arms the
+        program that is due, or (nothing due yet) keeps the current air and
+        drops the pin -- see ``_keep_air_after_no_plan_reload``.
+
+        No-op unless the channel is pinned with nothing else in flight: no
+        deliberate kill pending (that exit is the recovery), no armed reload,
+        no preparation, and a live worker."""
+        if channel_id not in self._pending_reloads or channel_id in self._reload_kills:
+            return
+        if self.has_pending_reload_settlement(channel_id):
+            return
+        process = self._processes.get(channel_id)
+        if process is None or _process_poll(process) is not None:
+            return
+        _LOG.warning(
+            "Late settlement (%s) for %s arrived while the channel is pinned TRANSITIONING "
+            "on a live worker (pid=%s); re-issuing the reload now instead of waiting for "
+            "the stall watchdog.",
+            result,
+            channel_id,
+            _process_pid(process),
+        )
+        self._request_reload(channel_id)
 
     def _read_reload_status(self, channel_id: str) -> dict[str, Any] | None:
         """Best-effort read of ``<work>/<channel_id>/reload-status.json``
@@ -7194,6 +7309,7 @@ class EgressDaemon:
                 and self.can_prearm_slate_program(channel_id)
                 else None
             )
+            self._no_plan_now_reloads.discard(channel_id)
             if self._try_content_reload(
                 channel_id,
                 state,
@@ -7236,6 +7352,10 @@ class EgressDaemon:
                 # helper, keyed off the pending preparation's ``slate_first``.
                 self._keep_slate_after_failed_hand_off(channel_id)
                 return
+            if channel_id in self._no_plan_now_reloads:
+                self._no_plan_now_reloads.discard(channel_id)
+                if self._keep_air_after_no_plan_reload(channel_id, state, process):
+                    return
             # U67: the seamless path was available and DECLINED this reload.
             # This used to be completely silent, and that silence is what made
             # the 2026-09-30 education incident (34 hours of black and silent
