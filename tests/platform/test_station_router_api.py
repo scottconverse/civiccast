@@ -326,7 +326,9 @@ class TestLiveCaptionSwitchRehydration:
             read_station_setup_state,
         )
 
-        assert LIVE_CAPTIONS_DEFAULT is True, "live captions ship ON by default (owner decision 2026-11-15)"
+        assert LIVE_CAPTIONS_DEFAULT is True, (
+            "live captions ship ON by default (owner decision 2026-11-15)"
+        )
         self._beta4_shape_state()
 
         # The raw reader reports "never set", which is NOT the same as False...
@@ -392,9 +394,7 @@ class TestLiveCaptionSwitchRehydration:
         assert state.profile is not None
         assert state.profile.live_captions_enabled is False
 
-    def test_env_off_still_wins_over_a_migrated_on(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_env_off_still_wins_over_a_migrated_on(self, monkeypatch: pytest.MonkeyPatch) -> None:
         from civiccast.installer.station_state import _load_raw_state, _save_raw_state
 
         self._beta4_shape_state()
