@@ -7,10 +7,10 @@
 
 ## Current Release State
 
-`v1.0.0-rc.5` is the current signed public release. Download the complete kit from its [release page](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-rc.5),
+`v1.0.0-rc.6` is the current signed public release. Download the complete kit from its [release page](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-rc.6),
 and use that release's `SHA256SUMS.txt`, installer signature and station/pack
-manifests to verify the bytes you receive. The [RC5 release
-notes](../releases/v1.0.0-rc.5-release-notes.md) identify the exact signed
+manifests to verify the bytes you receive. The [RC6 release
+notes](../releases/v1.0.0-rc.6-release-notes.md) identify the exact signed
 package (`setup.exe` SHA-256 `c8ea7e91bb93b644d9829a041080735478332b526b48d214701c43eb1cd68813`,
 Authenticode Valid, signer `CN=Scott Converse`), its verification and its
 known issues. Earlier installation results remain
@@ -38,7 +38,7 @@ upgrade-baseline kit.
 This page explains how an operator should verify a CivicCast Windows setup
 download before running it.
 
-For the published RC5 interface, use the Help installed with RC5 or the manual assets from its release page. Repository manual revisions may contain later editorial corrections; source changes do not update an installed station.
+For the published RC6 interface, use the Help installed with RC6 or the manual assets from its release page. Repository manual revisions may contain later editorial corrections; source changes do not update an installed station.
 
 ## Read The Release Docs First
 
