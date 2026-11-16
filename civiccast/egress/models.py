@@ -368,6 +368,9 @@ class EgressHealthSampleDb(Base):
             "'FALLBACK_SLATE', 'DRAINING', 'STOPPING', 'ERROR')",
             name="egress_health_samples_state_check",
         ),
+        # #343: /health and the worker-loop check read the newest samples per
+        # channel; without this index each read scanned the whole table.
+        Index("ix_egress_health_samples_channel_sampled", "channel_id", "sampled_at"),
     )
 
     sample_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)

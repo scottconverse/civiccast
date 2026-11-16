@@ -231,7 +231,14 @@ DIRECT_CAPTION_RUNTIME_STATES = {
     "paused",
     "disabled",
 }
-DIRECT_LIVE_CAPTION_HEALTH_STATES = {"healthy", "degraded", "unknown", "idle", "disabled"}
+DIRECT_LIVE_CAPTION_HEALTH_STATES = {
+    "healthy",
+    "degraded",
+    "unknown",
+    "idle",
+    "slate-no-program",
+    "disabled",
+}
 DIRECT_PROOF_FIELDS = {
     "fresh_install": {"installer_run", "install_state", "activation_self_test"},
     "failed_install_repair": {
@@ -385,7 +392,7 @@ def _beta12_health_advisory(health: dict[str, Any], *, version: str, label: str)
         raise PublishError(
             f"direct consumer evidence {label} health is missing the exact version, current schema, or live-caption readiness"
         )
-    if status == "healthy" and live_captions in {"healthy", "idle", "disabled"}:
+    if status == "healthy" and live_captions in {"healthy", "idle", "slate-no-program", "disabled"}:
         return None
     if status == "degraded" and live_captions in {"degraded", "unknown"}:
         return f"{label} health reports live_captions={live_captions}"
