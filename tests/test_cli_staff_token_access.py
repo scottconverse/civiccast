@@ -12,7 +12,6 @@ from __future__ import annotations
 import json
 import os
 import stat
-import sys
 from pathlib import Path
 
 import pytest
@@ -250,7 +249,8 @@ def test_admin_only_writer_never_replaces_existing_file(tmp_path: Path) -> None:
 
 
 def _assert_admin_only(path: Path) -> None:
-    if sys.platform != "win32":
+    # os.name, not sys.platform: the fixtures fake sys.platform as win32.
+    if os.name != "nt":
         assert stat.S_IMODE(path.stat().st_mode) == 0o600
         return
     import win32security
