@@ -1239,7 +1239,9 @@ def test_native_marker_collections_match_the_workflow_floors() -> None:
     # Chip left out when an NVIDIA card is present (three cases): 2224 / 2473.
     # rc.6 field fixes (PR #338): upgrade-journal URL redaction adds four
     # portable cases: 2228 / 2477.
-    assert (collect("not windows_only"), collect()) == (2228, 2477)
+    # rc.6.1 item 8: station-state.json keeps its own DACL adds eight
+    # Windows-only cases: 2228 / 2485.
+    assert (collect("not windows_only"), collect()) == (2228, 2485)
 
 
 def test_linux_unit_job_runs_native_tests_once_in_the_dedicated_pure_lane() -> None:

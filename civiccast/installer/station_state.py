@@ -1418,11 +1418,29 @@ def _load_raw_state() -> dict[str, Any]:
 def _save_raw_state(payload: dict[str, Any]) -> None:
     path = station_state_path()
     path.parent.mkdir(parents=True, exist_ok=True)
+    # Keep the rights an operator set on the existing file (rc.6.1 item 8).
+    # Without this, every save rebuilt the DACL around the writing process.
+    preserved = _preserved_state_dacl(path)
     tmp_path = path.with_suffix(path.suffix + ".tmp")
+    tmp_path.unlink(missing_ok=True)
+    tmp_path.write_bytes(b"")
+    # Protect the empty file BEFORE any secret hash is written to it.
+    kept = preserved is not None and _apply_state_dacl(tmp_path, preserved)
+    if not kept:
+        _restrict_state_file(tmp_path)
     tmp_path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
-    _restrict_state_file(tmp_path)
-    tmp_path.replace(path)
-    _restrict_state_file(path)
+    try:
+        tmp_path.replace(path)
+    except PermissionError:
+        if not kept:
+            raise
+        # The kept DACL does not let this writer replace the file: use the
+        # standard strict ACL instead of losing the save.
+        kept = False
+        _restrict_state_file(tmp_path)
+        tmp_path.replace(path)
+    if not kept:
+        _restrict_state_file(path)
 
 
 def _profile_from_state(raw: dict[str, Any]) -> StationProfile | None:
@@ -1886,6 +1904,82 @@ def _issue_operator_token(
         "rotated_at": datetime.now(UTC).isoformat(),
     }
     return operator_token, entry
+
+
+#: Principals whose allow entry makes an existing DACL too broad to keep.
+#: Everyone, Anonymous, Interactive, Authenticated Users, Users, Guests.
+_BROAD_STATE_SIDS = frozenset(
+    {"S-1-1-0", "S-1-5-7", "S-1-5-4", "S-1-5-11", "S-1-5-32-545", "S-1-5-32-546"}
+)
+
+
+def _preserved_state_dacl(path: Path) -> Any | None:
+    """Return the explicit DACL of an existing state file, if it is safe to keep.
+
+    Windows only. The DACL is kept only when it is protected (no inheritance),
+    holds only plain allow/deny entries, and grants nothing to a broad group.
+    Otherwise ``None``: the caller applies the standard strict ACL. The file
+    owner is not kept; setting another owner needs SeRestorePrivilege.
+    """
+
+    if os.name != "nt":
+        return None
+    import pywintypes
+    import win32security
+
+    try:
+        descriptor = win32security.GetFileSecurity(
+            str(path), win32security.DACL_SECURITY_INFORMATION
+        )
+    except pywintypes.error:
+        return None
+    control, _revision = descriptor.GetSecurityDescriptorControl()
+    dacl = descriptor.GetSecurityDescriptorDacl()
+    if dacl is None or not control & win32security.SE_DACL_PROTECTED:
+        return None
+    kept = win32security.ACL()
+    for index in range(dacl.GetAceCount()):
+        (ace_type, ace_flags), mask, sid = dacl.GetAce(index)
+        if ace_flags & win32security.INHERITED_ACE:
+            continue
+        if ace_type == win32security.ACCESS_ALLOWED_ACE_TYPE:
+            if win32security.ConvertSidToStringSid(sid) in _BROAD_STATE_SIDS:
+                return None
+            kept.AddAccessAllowedAceEx(win32security.ACL_REVISION, ace_flags, mask, sid)
+        elif ace_type == win32security.ACCESS_DENIED_ACE_TYPE:
+            kept.AddAccessDeniedAceEx(win32security.ACL_REVISION, ace_flags, mask, sid)
+        else:
+            return None
+    if kept.GetAceCount() == 0:
+        return None
+    return kept
+
+
+def _apply_state_dacl(path: Path, dacl: Any) -> bool:
+    """Put a DACL from :func:`_preserved_state_dacl` on ``path`` as protected.
+
+    Returns ``False`` (and changes nothing the caller relies on) if Windows
+    refuses; the caller then applies the standard strict ACL.
+    """
+
+    import pywintypes
+    import win32security
+
+    try:
+        win32security.SetNamedSecurityInfo(
+            str(path),
+            win32security.SE_FILE_OBJECT,
+            win32security.DACL_SECURITY_INFORMATION
+            | win32security.PROTECTED_DACL_SECURITY_INFORMATION,
+            None,
+            None,
+            dacl,
+            None,
+        )
+    except pywintypes.error:
+        _LOG.warning("Could not keep the station state file ACL; applying the default ACL.")
+        return False
+    return True
 
 
 def _restrict_state_file(path: Path, *, service_can_replace: bool = True) -> None:

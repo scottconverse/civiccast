@@ -1485,6 +1485,22 @@ def _preserve_managed_restore_roots(
             root.replace(rollback)
 
 
+def _keep_station_state_acl(target: Path, temporary: Path) -> None:
+    """Give a restored station-state.json the live file's own DACL (Windows).
+
+    Only that file: it holds secret hashes and the service replaces it in
+    place. Other restored files keep the existing behaviour.
+    """
+
+    if target.name.casefold() != "station-state.json":
+        return
+    from civiccast.installer.station_state import _apply_state_dacl, _preserved_state_dacl
+
+    preserved = _preserved_state_dacl(target)
+    if preserved is not None:
+        _apply_state_dacl(temporary, preserved)
+
+
 def _restore_payload(
     bundle: Path,
     records: Sequence[Mapping[str, Any]],
@@ -1533,6 +1549,7 @@ def _restore_payload(
                 progress("restoring-files", 55 + round(fraction * 40))
 
         try:
+            _keep_station_state_acl(target, temporary)
             _copy_file(source, temporary, report_copy)
             temporary.replace(target)
         finally:

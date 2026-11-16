@@ -941,12 +941,14 @@ jobs:
         # three portable cases, 2466 Windows non-integration tests; floor 2416.
         # Chip left out when an NVIDIA card is present: three portable cases,
         # 2469 Windows non-integration tests; floor 2419.
+        # rc.6.1 item 8 state-file DACL: eight Windows cases, 2481 Windows
+        # non-integration tests; floor 2431.
         if: always()
         shell: bash
         run: |
           python scripts/verify_native_junit_floor.py \
             --junit junit-native-win.xml \
-            --floor 2423 \
+            --floor 2431 \
             --label "tests/native Windows suite"
 
       - name: Upload Windows native junit
