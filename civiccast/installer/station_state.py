@@ -40,6 +40,7 @@ from civiccast.auth.models import (
 from civiccast.auth.roles import ALL_OPERATOR_ROLES
 from civiccast.cable.channel import default_channel_profiles
 from civiccast.installer.models import (
+    LIVE_CAPTIONS_CHOICE_KEY,
     LIVE_CAPTIONS_DEFAULT,
     FirstAdminSetupRequest,
     FirstAdminSetupResponse,
@@ -304,15 +305,33 @@ def read_live_captions_enabled() -> bool | None:
     station = raw.get("station")
     if not isinstance(station, dict):
         return None
+    return _persisted_live_captions(cast(dict[str, Any], station))
+
+
+def _persisted_live_captions(station: dict[str, Any]) -> bool | None:
+    """The stored live-caption switch after the post-rc.6 one-time migration.
+
+    Returns ``None`` when the key is absent (the caller applies
+    ``LIVE_CAPTIONS_DEFAULT``). A stored ``false`` that was NOT saved with
+    ``LIVE_CAPTIONS_CHOICE_KEY`` came from a build that shipped live captions
+    off by default (beta.5 to rc.6), so it also reads as ``None`` -- the new
+    default, on. The file is not rewritten; the owner decision of 2026-11-15
+    is only that every such station comes up with captions on. Every save
+    after rc.6 writes the marker, so an operator who turns captions off
+    after the upgrade keeps them off. A stored ``true`` is honoured as is.
+    """
+
     value = station.get("live_captions_enabled")
     if value is None:
+        return None
+    if not bool(value) and station.get(LIVE_CAPTIONS_CHOICE_KEY) is not True:
         return None
     return bool(value)
 
 
 def resolve_live_captions_enabled() -> bool:
     """Whether the LIVE caption tap may run: env override > persisted >
-    ``LIVE_CAPTIONS_DEFAULT`` (off in beta.5).
+    ``LIVE_CAPTIONS_DEFAULT`` (on after rc.6).
 
     Precedence is deliberately asymmetric, and only in the SAFE direction:
     ``CIVICCAST_CAPTION_TAP=off`` in the environment turns live captioning off
@@ -328,17 +347,13 @@ def resolve_live_captions_enabled() -> bool:
     that need it, and the asymmetric-safe direction chosen here still applies
     when both are in play.
 
-    Defaults to OFF for beta.5 (temporary, owner decision 2026-09-09): with
-    live captions on, the CEA-708 caption embed leg (``cccombiner`` between
-    the encoder and the mux, ``civiccast/egress/gst/engine.py``
-    ``_build_caption_embed``) held video for 25-30 s and then released a
-    burst of ~900 frames every 1-2 minutes on every channel in the
-    2026-09-09 sandbox soak, twice outlasting the 10 s stall watchdog. An
-    absent key -- a fresh
-    install, or a station commissioned before the switch existed -- therefore
-    reads as off; an explicitly persisted ``true`` (an operator who turned
-    them on) is honoured as before. The root-cause fix (beta.5.1) is what
-    flips this default back.
+    Defaults to ON after rc.6 (owner decision 2026-11-15). An absent key
+    -- a fresh install, or a station commissioned before the switch existed
+    -- reads as on, and so does a ``false`` saved by an older build without
+    the operator-choice marker (the one-time migration in
+    :func:`_persisted_live_captions`). beta.5 to rc.6 shipped this OFF
+    because the old CEA-708 embed leg held video for 25-30 s in the
+    2026-09-09 sandbox soak.
     """
 
     if os.environ.get("CIVICCAST_CAPTION_TAP", "").strip().lower() == "off":
@@ -495,6 +510,9 @@ def update_station_profile_fields(update: StationProfileUpdateRequest) -> Statio
         station["storage_locations"] = update.storage_locations.model_dump()
     if update.live_captions_enabled is not None:
         station["live_captions_enabled"] = bool(update.live_captions_enabled)
+        # After rc.6, a saved value is an operator choice and survives
+        # the one-time "older off becomes on" migration.
+        station[LIVE_CAPTIONS_CHOICE_KEY] = True
 
     raw["station"] = station
     _save_raw_state(raw)
@@ -769,10 +787,11 @@ def complete_first_admin_setup(
             "channel_profiles": [channel.model_dump() for channel in profile.channel_profiles],
             "sample_content_enabled": profile.sample_content_enabled,
             "initial_schedule_enabled": profile.initial_schedule_enabled,
-            # Persisted explicitly at commissioning so a fresh install carries
-            # the beta.5 default (off) as a stored value, and a later default
-            # flip cannot silently change a station that already exists.
+            # Persisted explicitly at commissioning, with the operator-choice
+            # marker, so a later default flip cannot silently change a station
+            # commissioned after rc.6.
             "live_captions_enabled": profile.live_captions_enabled,
+            LIVE_CAPTIONS_CHOICE_KEY: True,
             "default_roles": profile.default_roles,
             "operation_mode": profile.operation_mode,
             "dashboard_ready_state": profile.dashboard_ready_state,
@@ -1425,6 +1444,11 @@ def _save_raw_state(payload: dict[str, Any]) -> None:
     _restrict_state_file(path)
 
 
+def _profile_live_captions(station: dict[str, Any]) -> bool:
+    persisted = _persisted_live_captions(station)
+    return LIVE_CAPTIONS_DEFAULT if persisted is None else persisted
+
+
 def _profile_from_state(raw: dict[str, Any]) -> StationProfile | None:
     station = raw.get("station")
     if not isinstance(station, dict):
@@ -1450,11 +1474,10 @@ def _profile_from_state(raw: dict[str, Any]) -> StationProfile | None:
             ),
             sample_content_enabled=bool(station.get("sample_content_enabled", True)),
             initial_schedule_enabled=bool(station.get("initial_schedule_enabled", True)),
-            # An absent key (a station commissioned before this switch
-            # existed, or one that never touched it) reads as the beta.5
-            # default -- OFF -- for the reason on ``LIVE_CAPTIONS_DEFAULT``;
-            # an explicitly persisted value is honoured either way.
-            live_captions_enabled=bool(station.get("live_captions_enabled", LIVE_CAPTIONS_DEFAULT)),
+            # Same rule as the runtime resolver (without the env override):
+            # absent, or an older-build ``false`` without the operator-choice
+            # marker, reads as ``LIVE_CAPTIONS_DEFAULT`` (on after rc.6).
+            live_captions_enabled=_profile_live_captions(station),
             default_roles=[
                 str(role)
                 for role in station.get("default_roles", _DEFAULT_ROLES)

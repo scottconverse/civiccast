@@ -304,12 +304,22 @@ class StationChannelProfile(BaseModel):
 
 #: Fresh-install default for ``StationProfile.live_captions_enabled`` and the
 #: value ``resolve_live_captions_enabled`` (``station_state.py``) reports when
-#: the key is absent. ``False`` for beta.5 (temporary, owner decision
-#: 2026-09-09): the live caption embed leg held video for 25-30 s and then
-#: burst-released it every 1-2 minutes on every channel in the sandbox soak.
+#: the key is absent. ``True`` after rc.6 (owner decision 2026-11-15: live
+#: captions must be on by default -- a station on air without captions is a
+#: legal risk). beta.5 to rc.6 shipped ``False`` because the old caption embed
+#: leg held video for 25-30 s in the 2026-09-09 sandbox soak; the rc.6
+#: home-lab soak stations ran on the GStreamer path with live captions on.
 #: One constant so the model default, the resolver's absent-key default and
 #: the profile rehydration default cannot drift apart.
-LIVE_CAPTIONS_DEFAULT = False
+LIVE_CAPTIONS_DEFAULT = True
+
+#: Key in the ``station-state.json`` ``station`` block, written next to
+#: ``live_captions_enabled`` whenever an operator (or first-admin setup) saves
+#: the switch after rc.6. A persisted ``false`` WITHOUT this key was saved
+#: by an older build that shipped captions off by default, so the post-rc.6
+#: one-time migration reads it as on (owner decision 2026-11-15). A ``false``
+#: saved WITH this key is an operator's choice and is honoured.
+LIVE_CAPTIONS_CHOICE_KEY = "live_captions_choice_saved"
 
 
 class StationProfile(BaseModel):
