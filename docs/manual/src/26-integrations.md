@@ -359,15 +359,14 @@ None is declared stable. We searched the code and the repository's documents for
 
 ### Get a staff token
 
-For scripts, issue an access key with the command line. (The console sign-in keeps its own token inside the browser; the console has no screen for entering a script's key.) You need an Administrator PowerShell on the station computer and the database address.
+For scripts, issue an access key with the command line. (The console sign-in keeps its own token inside the browser; the console has no screen for entering a script's key.) You need an Administrator PowerShell on the station computer.
 
 ```powershell
 cd "<install folder>"
-$env:DATABASE_URL = (Get-ItemProperty 'HKLM:\SOFTWARE\CivicCast\Native').DatabaseUrl
 .\runtime\python.exe -m civiccast.cli token issue --operator-id integrations --display-name "Integrations script" --scopes operator --json
 ```
 
-`<install folder>` is where setup put CivicCast. The command prints the secret **once**; copy it into a password manager at once. The command needs `DATABASE_URL`; without it the message is "DATABASE_URL must point at the CivicCast database before running staff token lifecycle commands." The value is held in the registry where SYSTEM, Administrators and the station service identity can read it. Close the window afterwards so the variable is gone.
+`<install folder>` is where setup put CivicCast. The command prints the secret **once**; copy it into a password manager at once. Add `--out <file>` to write the secret to a new administrator-only file instead. The command reads the database address from the registry value `HKLM\SOFTWARE\CivicCast\Native\DatabaseUrl`, which only SYSTEM, Administrators and the station service identity can read, and never shows it. In a window that is not elevated it stops with "Open PowerShell with Run as administrator". See the [helper token guide](https://github.com/scottconverse/civiccast/blob/main/docs/ops/staff-token-for-helpers.md) to give an AI or IT helper a token and revoke it.
 
 The scopes `operator` and `admin` each grant all five roles (Setup admin, Meeting operator, Records clerk, Publish operator and Support admin); a token with no scopes grants none. To give a script only what it needs, name the roles instead, comma-separated: `setup_admin`, `meeting_operator`, `records_clerk`, `publish_operator`, `support_admin` (the code also accepts the hyphenated and short forms such as `meeting-operator` and `meeting`). See [Security and privacy](#ch-security). Other token commands are `token list`, `token revoke` and `token rotate`.
 

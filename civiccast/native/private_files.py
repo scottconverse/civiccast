@@ -67,6 +67,95 @@ def write_private_bytes_atomic(path: Path, value: bytes) -> None:
             temporary.unlink(missing_ok=True)
 
 
+def write_admin_only_new_file(path: Path, value: bytes) -> None:
+    """Create ``path`` holding ``value``; only administrators may read it.
+
+    For handing one secret (for example a staff bearer token) to a person.
+    The file must not exist yet: an existing file or link is never replaced.
+    On Windows the empty sibling gets a protected DACL (writer, SYSTEM,
+    Administrators -- no service, no Users) before any byte is written, and
+    is then renamed into place; rename refuses an existing target. On other
+    platforms the sibling is owner-only (0600) and is hard-linked into place,
+    which also refuses an existing target.
+    """
+
+    if path.exists() or path.is_symlink():
+        raise FileExistsError(str(path))
+    descriptor, name = tempfile.mkstemp(
+        dir=path.parent,
+        prefix=f".{path.name[:40]}-",
+        suffix=".tmp",
+    )
+    temporary = Path(name)
+    open_descriptor: int | None = descriptor
+    try:
+        if os.name == "nt":
+            try:
+                _set_windows_admin_only_acl(temporary)
+                if not _has_admin_only_permissions(temporary):
+                    raise RuntimeError("The protected DACL grants an unexpected principal.")
+            except Exception as exc:
+                raise PrivateFileProtectionError(
+                    f"Cannot establish an administrator-only ACL for {str(path)!r}."
+                ) from exc
+        else:
+            try:
+                os.fchmod(descriptor, stat.S_IRUSR | stat.S_IWUSR)  # type: ignore[attr-defined, unused-ignore]
+            except OSError as exc:
+                raise PrivateFileProtectionError(
+                    f"Cannot establish owner-only permissions for {str(path)!r}."
+                ) from exc
+        with os.fdopen(descriptor, "wb") as stream:
+            open_descriptor = None
+            stream.write(value)
+            stream.flush()
+            os.fsync(stream.fileno())
+        if os.name == "nt":
+            temporary.rename(path)
+        else:
+            os.link(temporary, path)
+    finally:
+        if open_descriptor is not None:
+            os.close(open_descriptor)
+        temporary.unlink(missing_ok=True)
+
+
+def _admin_only_sids() -> set[str]:
+    from civiccast.certs.authority import _current_process_sid
+
+    return {_current_process_sid(), _SYSTEM_SID, _ADMINISTRATORS_SID}
+
+
+def _set_windows_admin_only_acl(path: Path) -> None:
+    import win32security
+
+    sddl = "D:P" + "".join(f"(A;;FA;;;{sid})" for sid in sorted(_admin_only_sids()))
+    descriptor = win32security.ConvertStringSecurityDescriptorToSecurityDescriptor(sddl, 1)
+    win32security.SetFileSecurity(
+        str(path),
+        win32security.DACL_SECURITY_INFORMATION | win32security.PROTECTED_DACL_SECURITY_INFORMATION,
+        descriptor,
+    )
+
+
+def _has_admin_only_permissions(path: Path) -> bool:
+    import win32security
+
+    descriptor = win32security.GetFileSecurity(str(path), win32security.DACL_SECURITY_INFORMATION)
+    control, _revision = descriptor.GetSecurityDescriptorControl()
+    acl = descriptor.GetSecurityDescriptorDacl()
+    if not control & win32security.SE_DACL_PROTECTED or acl is None:
+        return False
+    allowed = _admin_only_sids()
+    for index in range(acl.GetAceCount()):
+        ace = acl.GetAce(index)
+        if ace[0][0] != 0:  # only ACCESS_ALLOWED_ACE_TYPE entries are written
+            return False
+        if win32security.ConvertSidToStringSid(ace[2]) not in allowed:
+            return False
+    return True
+
+
 def read_private_bytes(path: Path) -> bytes:
     """Read a local secret file and migrate broad ACLs without changing bytes."""
 
