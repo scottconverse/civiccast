@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 - The on-air CG board clock shows the station's time (issue #347). Before: it showed UTC, so on R9 (Mountain time) it read 04:04 at 21:04. Now: a named station time zone wins; the `local` default, or an unknown zone name, uses the station PC's own time zone. It never falls back to UTC.
+- Turning live captions on or off now says when it takes effect and offers to do it now. Before: the station switch only landed when a channel's playout started, and nothing told the operator. Now: saving the switch shows a notice on the Station Profile screen, and each channel has an "Apply captions now" button that restarts only that channel's playout. It never restarts the service.
 
 ## [1.0.0-rc.6] - 2026-11-15
 
