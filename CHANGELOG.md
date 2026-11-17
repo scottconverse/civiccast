@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- The staff token commands work on an installed station. Before: `civiccast token issue`, `list`, `revoke` and `rotate` needed `DATABASE_URL` set by hand in the window, so a station helper had to copy the address out of the service. Now: the commands read the database address from the installed service's own setting and never print it, a window that is not elevated is told to open PowerShell as administrator, and `--out` writes a new token to a new file whose rights allow only the writer, SYSTEM and Administrators. An existing file is refused before any token is issued.
+
 ## [1.0.0-rc.6] - 2026-11-15
 
 Release candidate **v1.0.0-rc.6**. Full notes, verification and known issues:
