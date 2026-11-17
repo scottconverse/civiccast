@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- A content reload that finds nothing due now no longer leaves a channel stuck on its old air. Before: on R7, about 30 schedule commits a few minutes before the first program each threw away the reload already armed for that program, pinned the channel in TRANSITIONING, and the old content stayed on air until the stall watchdog (about 1650 s). Now: the armed reload is kept, an earlier pin is dropped and the state it pinned over is restored, and a late settlement for a discarded reload puts the reload back at once.
+
 ## [1.0.0-rc.6] - 2026-11-15
 
 Release candidate **v1.0.0-rc.6**. Full notes, verification and known issues:
