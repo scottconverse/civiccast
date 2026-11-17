@@ -253,6 +253,58 @@ def read_live_caption_processing_status(
     )
 
 
+def _channel_airing_slate(store: EgressStore, channel_id: str) -> bool:
+    """Whether the channel's most recent proof event says a slate is at output.
+
+    A slate leg is published as an ``ON_AIR`` state row (the source-output
+    observer preserves the row's state and only moves its label), so the state
+    row cannot tell "airing a program" from "airing the slate". The proof chain
+    can: every slate source observed at the selected output is recorded with
+    state ``FALLBACK_SLATE`` before the row is rewritten. Read newest-first and
+    fail closed (``False``) -- an unreadable proof chain must never upgrade a
+    caption status to healthy.
+    """
+
+    try:
+        events = store.recent_proof_events(channel_id, 1)
+    except Exception:
+        _LOG.debug("Could not read the proof chain for %s", channel_id, exc_info=True)
+        return False
+    return bool(events) and events[0].state == "FALLBACK_SLATE"
+
+
+def _idle_on_slate(
+    store: EgressStore,
+    channel_id: str,
+    status: ChannelCaptionProcessingStatus,
+    now: datetime,
+) -> bool:
+    """An alive caption worker with nothing to do because the slate is on air.
+
+    Both conditions are required, and each rules out a different real fault:
+
+    * the worker itself is alive and idle -- current heartbeat, empty backlog,
+      and a derived state of ``waiting``/``unknown`` rather than a capacity
+      failure (``failed``/``stalled``/``overloaded``/``delayed`` stay failures,
+      on slate or not);
+    * the channel is genuinely airing the slate -- see
+      ``_channel_airing_slate``. A program whose audio feed died looks
+      identical in the worker snapshot, and it must keep reading as unknown.
+    """
+
+    if status.processing_state not in {"waiting", "unknown"}:
+        return False
+    if status.backlog_segments > 0:
+        return False
+    heartbeat = _as_utc(status.worker_heartbeat_at)
+    if heartbeat is None:
+        return False
+    current = _as_utc(now) or datetime.now(UTC)
+    if (current - heartbeat).total_seconds() > _CAPTION_HEARTBEAT_STALE_SECONDS:
+        return False
+    return _channel_airing_slate(store, channel_id)
+
+
 def live_caption_readiness(
     store: EgressStore | None,
     *,
@@ -277,8 +329,9 @@ def live_caption_readiness(
                 active.append((config, state_row))
         if not active:
             return "idle"
-        statuses = [
-            read_live_caption_processing_status(
+        statuses = []
+        for config, state_row in active:
+            status = read_live_caption_processing_status(
                 work_dir,
                 config.channel_id,
                 egress_state="ON_AIR",
@@ -286,8 +339,15 @@ def live_caption_readiness(
                 now=now,
                 on_air_since=state_row.updated_at,
             )
-            for config, state_row in active
-        ]
+            if _idle_on_slate(store, config.channel_id, status, now):
+                # rc.6.1 Dell bug 1: a channel airing its slate has no audio for
+                # the caption tap to read, so the tap's last input ages out and
+                # its status settles on ``waiting``/``unknown`` -- which used to
+                # pin the whole station at ``unknown``/degraded while nothing was
+                # wrong. An alive, idle worker on a slate leg is not a caption
+                # failure; report it as the existing no-speech state.
+                status = status.model_copy(update={"processing_state": "silent"})
+            statuses.append(status)
     except Exception:
         _LOG.debug("Could not aggregate live-caption readiness", exc_info=True)
         return "unknown"
