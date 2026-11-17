@@ -16,8 +16,12 @@ import logging
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from civiccast.db.url import normalize_database_url
+
+if TYPE_CHECKING:
+    from sqlalchemy.engine import Engine
 
 _LOG = logging.getLogger(__name__)
 
@@ -156,7 +160,7 @@ def evaluate_schema_currency(
 _READ_DB_REVISION_CEILING_SECONDS = 15.0
 
 
-def read_db_revision(database_url: str) -> str | None:
+def read_db_revision(database_url: str, *, engine: Engine | None = None) -> str | None:
     """Read alembic_version from the configured database (None if absent).
 
     ``database_url`` is normalized (:func:`civiccast.db.url.
@@ -189,6 +193,16 @@ def read_db_revision(database_url: str) -> str | None:
     is unchanged: propagated as-is (an ordinary connect failure) or treated
     as "table absent in this namespace" (the per-prefix loop), matching this
     function's pre-existing behavior exactly.
+
+    rc.6.1 item 13: ``engine`` lets a caller that already owns a POOLED engine
+    (``/health``'s schema-currency refresh, via :func:`civiccast.db.get_engine`)
+    lend it here. Without it this function built a throwaway
+    ``poolclass=None`` engine and opened a brand-new Postgres backend on every
+    call; on a low-memory Windows station the fresh backend stalls inside
+    Postgres ("could not reserve shared memory region ... error code 487"),
+    which measured ``/health`` at 10-14 s against 0.2 s on a warm connection.
+    A borrowed engine is NEVER disposed here -- it belongs to the caller -- and
+    the 15 s ceiling applies either way.
     """
 
     from civiccast.db.guarded_connect import (
@@ -203,15 +217,18 @@ def read_db_revision(database_url: str) -> str | None:
 
         from civiccast.db import connect_options
 
-        normalized_url = normalize_database_url(database_url)
-        engine = create_engine(
-            normalized_url,
-            poolclass=None,
-            **connect_options(normalized_url),
-        )
+        owns_engine = engine is None
+        active_engine = engine
+        if active_engine is None:
+            normalized_url = normalize_database_url(database_url)
+            active_engine = create_engine(
+                normalized_url,
+                poolclass=None,
+                **connect_options(normalized_url),
+            )
         try:
             try:
-                connection_cm = engine.connect()
+                connection_cm = active_engine.connect()
             except DBAPIError as exc:
                 if classify_missing_database(exc):
                     raise DatabaseMissingError(
@@ -236,20 +253,30 @@ def read_db_revision(database_url: str) -> str | None:
                     return row[0] if row else None
             return None
         finally:
-            engine.dispose()
+            # Only a throwaway engine is ours to dispose; a borrowed pooled
+            # engine must keep its connections for the next caller.
+            if owns_engine:
+                active_engine.dispose()
 
     return run_bounded(_read_once, _READ_DB_REVISION_CEILING_SECONDS)
 
 
-def check_schema_currency(database_url: str | None) -> SchemaStatus:
-    """Full startup check; never raises, never blocks startup."""
+def check_schema_currency(
+    database_url: str | None, *, engine: Engine | None = None
+) -> SchemaStatus:
+    """Full startup check; never raises, never blocks startup.
+
+    ``engine`` is the caller's own pooled engine (rc.6.1 item 13); see
+    :func:`read_db_revision`. ``None`` keeps the standalone behaviour the D3
+    upgrade seam and the startup check rely on.
+    """
 
     if not database_url:
         return SchemaStatus(state="not-configured")
     try:
         head = expected_migration_head()
         status = evaluate_schema_currency(
-            read_db_revision(database_url), head, known=known_revisions()
+            read_db_revision(database_url, engine=engine), head, known=known_revisions()
         )
     except Exception:
         _LOG.exception("Schema-currency check failed; reporting 'unknown'.")

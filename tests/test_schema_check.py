@@ -339,3 +339,76 @@ def test_health_reports_schema_not_configured_without_a_database(monkeypatch) ->
     assert response.status_code == 200  # liveness is not gated on readiness
     assert body["schema"] == "not-configured"
     assert body["status"] == "degraded"
+
+
+def test_health_schema_refresh_does_not_create_an_engine_per_call(
+    tmp_path,  # type: ignore[no-untyped-def]
+    monkeypatch,  # type: ignore[no-untyped-def]
+) -> None:
+    """rc.6.1 item 13: the refresh must reuse the app's pooled engine.
+
+    ``/health`` recomputes the schema verdict every ``SCHEMA_STATUS_TTL_SECONDS``.
+    It used to reach ``schema_check.read_db_revision`` with no engine, so that
+    function built a throwaway ``poolclass=None`` engine and opened a NEW
+    Postgres backend per refresh. On a low-memory Windows station (MSI) a fresh
+    backend stalls inside Postgres ("could not reserve shared memory region ...
+    error code 487"): measured ``/health`` 10-14 s against 0.2 s warm.
+
+    Two refreshes through the real refresh path must build ZERO engines; the
+    verdict still has to be the correct one, so the check is not merely skipped.
+    """
+
+    import sqlite3
+
+    import sqlalchemy
+    from fastapi import FastAPI
+
+    import civiccast.app as app_module
+    from civiccast.db import bind_engine, reset_engine
+
+    db_path = tmp_path / "civiccast.db"
+    head = expected_migration_head()
+    with sqlite3.connect(db_path) as conn:
+        conn.execute("CREATE TABLE alembic_version (version_num VARCHAR(255) NOT NULL)")
+        conn.execute("INSERT INTO alembic_version (version_num) VALUES (?)", (head,))
+        conn.commit()
+
+    url = f"sqlite:///{db_path.as_posix()}"
+    monkeypatch.setenv("DATABASE_URL", url)
+    # The pooled engine the app itself binds when durable storage is wired.
+    bind_engine(
+        sqlalchemy.create_engine(
+            url,
+            future=True,
+            pool_pre_ping=True,
+            connect_args={"check_same_thread": False},
+        )
+    )
+
+    created: list[str] = []
+    real_create_engine = sqlalchemy.create_engine
+
+    def _counting_create_engine(*args: object, **kwargs: object) -> object:
+        created.append(str(args[0]) if args else "")
+        return real_create_engine(*args, **kwargs)
+
+    # ``read_db_revision`` imports create_engine lazily, so patching the
+    # sqlalchemy attribute is exactly the seam a per-call engine would use.
+    monkeypatch.setattr(sqlalchemy, "create_engine", _counting_create_engine)
+    # Force the TTL to fall due on every refresh.
+    monkeypatch.setattr(app_module, "SCHEMA_STATUS_TTL_SECONDS", 0.0)
+
+    app = FastAPI()
+    app.state.lifespan_started = True
+    try:
+        app_module._maybe_refresh_schema_status(app)
+        app_module._maybe_refresh_schema_status(app)
+    finally:
+        reset_engine()
+
+    assert created == [], (
+        "the schema refresh created a new engine per call "
+        f"({len(created)} over 2 refreshes); it must borrow the pooled engine"
+    )
+    assert app.state.schema_status.state == "current"
+    assert app.state.schema_status.db_revision == head

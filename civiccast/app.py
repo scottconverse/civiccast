@@ -3771,8 +3771,37 @@ def _refresh_schema_status(app: FastAPI) -> None:
         return
     from civiccast.schema_check import check_schema_currency
 
-    app.state.schema_status = check_schema_currency(os.environ.get("DATABASE_URL"))
+    database_url = os.environ.get("DATABASE_URL")
+    app.state.schema_status = check_schema_currency(
+        database_url, engine=_pooled_engine_for_schema_check(database_url)
+    )
     app.state.schema_status_checked_monotonic = time.monotonic()
+
+
+def _pooled_engine_for_schema_check(database_url: str | None) -> Engine | None:
+    """The app's pooled engine, lent to the schema read (rc.6.1 item 13).
+
+    ``schema_check.read_db_revision`` used to build a throwaway
+    ``poolclass=None`` engine per refresh, so every
+    ``SCHEMA_STATUS_TTL_SECONDS`` tick opened a NEW Postgres backend. On the
+    MSI station that fresh backend stalls inside Postgres ("could not reserve
+    shared memory region ... error code 487") and ``/health`` measured 10-14 s
+    against 0.2 s on a warm connection. The engine bound by
+    ``_install_durable_store_wiring`` already keeps its connections open, so
+    lending it here turns the refresh into a pool checkout.
+
+    ``None`` when no database is configured -- there is nothing to read, and
+    building an engine for an unset URL would only fail.
+    """
+
+    if not database_url:
+        return None
+    from civiccast.db import get_engine
+
+    try:
+        return get_engine()
+    except Exception:  # fall back to the standalone read
+        return None
 
 
 #: <installer-path-audit MA-13> How long ``/health`` may serve a cached schema

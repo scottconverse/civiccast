@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## [1.0.0-rc.6.1] - unreleased
+
+13. /health no longer opens a new database connection for each schema check; slow on low-memory PCs.
+
 ## [1.0.0-rc.6] - 2026-11-15
 
 Release candidate **v1.0.0-rc.6**. Full notes, verification and known issues:
