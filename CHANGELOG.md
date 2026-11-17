@@ -2,9 +2,7 @@
 
 ## [Unreleased]
 
-## [1.0.0-rc.6.1] - unreleased
-
-13. /health no longer opens a new database connection for each schema check; slow on low-memory PCs.
+- The health check answers fast on a low-memory PC. Before: `/health` opened a new database connection for each schema check (every 5 s), so on a PC with little free memory it could take 10-14 s and a soak probe saw no answer. Now: it reuses the app's pooled connection; what `/health` reports is unchanged.
 
 ## [1.0.0-rc.6] - 2026-11-15
 
