@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- A stopped service now stops its child programs instead of waiting for Windows to force-close them. Before: the stop sent CTRL_BREAK to the children, but Windows delivers that only to programs on the sender's console, and the service has no console and each child has its own hidden one, so the signal never arrived; the stop overran 15 s and Windows force-closed control_plane and ollama. Now: the sender joins the child's console for the one call, sends the break, and logs a warning if it still cannot be delivered.
+
 ## [1.0.0-rc.6] - 2026-11-15
 
 Release candidate **v1.0.0-rc.6**. Full notes, verification and known issues:
