@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- `station-state.json` keeps its own file rights when it is written again. Before: every save rebuilt the rights around the program doing the write, so a save from an admin tool cut the service from full control to read, write and delete, and any rights an operator had set were lost on the next save. Now: a protected, narrow rights list is read first and put on the empty temp file before any byte is written; a new file, an inherited one or a broad one still gets the strict default, and if the kept rights would stop the save it falls back to that default instead of failing.
+
 ## [1.0.0-rc.6] - 2026-11-15
 
 Release candidate **v1.0.0-rc.6**. Full notes, verification and known issues:
