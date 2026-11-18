@@ -15,6 +15,7 @@ on:
       - "tests/test_user_manual_render.py"
       - "scripts/generate-openapi-artifacts.py"
       - "civiccast/**"
+      - "!civiccast/**/.claude/**"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
