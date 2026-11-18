@@ -1,0 +1,94 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# Builds and publishes the ready-made CI images used by ci-docs.yml,
+# ci-test.yml and deterministic-detectors.yml:
+#
+#   ghcr.io/scottconverse/civiccast-ci-docs   (pandoc + TeX Live)
+#   ghcr.io/scottconverse/civiccast-ci-media  (ffmpeg + TSDuck)
+#
+# Rebuild triggers:
+#   - any push that touches .github/ci-images/** or this workflow (this is also
+#     how a feature branch gets its images before the PR that uses them runs);
+#   - monthly (cron) so the apt lists and the TSDuck release do not rot;
+#   - manual workflow_dispatch.
+#
+# Consumer pinning: the workflows that use these images reference them by
+# DIGEST (ghcr.io/...@sha256:...), not by tag. Digests are immutable, tags are
+# not. After this workflow runs, take the digest from the build log line
+# "Published digest: sha256:..." below and pin it in the consuming workflow.
+#
+# CI RULE: a docs-only change can never match the paths filter below, so this
+# workflow never starts for documentation.
+
+name: ci-images
+
+on:
+  push:
+    branches: ['**']
+    paths:
+      - '.github/ci-images/**'
+      - '.github/workflows/ci-images.yml'
+  pull_request:
+    paths:
+      - '.github/ci-images/**'
+      - '.github/workflows/ci-images.yml'
+  workflow_dispatch:
+  schedule:
+    - cron: '0 5 1 * *'
+
+concurrency:
+  group: ci-images-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: build ${{ matrix.name }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    if: |
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: docs
+            dockerfile: .github/ci-images/docs.Dockerfile
+            image: civiccast-ci-docs
+          - name: media
+            dockerfile: .github/ci-images/media.Dockerfile
+            image: civiccast-ci-media
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        run: |
+          set -euo pipefail
+          IMAGE="ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}"
+          echo "Building ${IMAGE} from ${{ matrix.dockerfile }}"
+          docker build \
+            --file "${{ matrix.dockerfile }}" \
+            --tag "${IMAGE}:${{ github.sha }}" \
+            --tag "${IMAGE}:latest" \
+            --label "org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}" \
+            --label "org.opencontainers.image.revision=${{ github.sha }}" \
+            .
+          docker push "${IMAGE}:${{ github.sha }}"
+          docker push "${IMAGE}:latest"
+          # Digest of what we just pushed, for pinning in the consuming
+          # workflows. This is the value to copy -- never invent one.
+          echo "Published digest: $(docker inspect --format='{{index .RepoDigests 0}}' "${IMAGE}:${{ github.sha }}")"

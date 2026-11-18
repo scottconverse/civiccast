@@ -25,10 +25,54 @@ permissions:
   contents: read
 
 jobs:
+  image-ready:
+    name: ci image pull (retry)
+    # GitHub's runner does NOT retry a container image pull (one `docker pull`
+    # call in actions/runner DockerCommandManager.cs), so the download is
+    # retried here before the render job is allowed to start.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: Pull the pinned docs image (3 attempts)
+        run: |
+          set -euo pipefail
+          IMAGE="ghcr.io/${{ github.repository_owner }}/civiccast-ci-docs@sha256:PENDING_DIGEST"
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          for attempt in 1 2 3; do
+            if docker pull "$IMAGE"; then
+              echo "Pulled on attempt ${attempt}: ${IMAGE}"
+              exit 0
+            fi
+            echo "::warning::attempt ${attempt} to pull ${IMAGE} failed; retrying"
+            sleep 20
+          done
+          echo "::error::could not pull ${IMAGE} after 3 attempts"
+          exit 1
+
   pandoc-render:
     name: Pandoc PDF/DOCX render
-    runs-on: ubuntu-latest
+    needs: image-ready
+    # The whole pandoc/TeX install used to be an apt-get step with a 10-minute
+    # limit; it hung for 2 hours' worth of slow-archive conditions on
+    # 2026-11-18. The image (.github/ci-images/docs.Dockerfile) is that exact
+    # apt list, installed once at image build time.
+    runs-on: ubuntu-24.04
+    container:
+      image: ghcr.io/${{ github.repository_owner }}/civiccast-ci-docs@sha256:PENDING_DIGEST
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    permissions:
+      contents: read
+      packages: read
     timeout-minutes: 30
+    # Container jobs default to `sh`; every step here is bash.
+    defaults:
+      run:
+        shell: bash
     if: |
       github.event_name != 'pull_request' ||
       github.event.pull_request.head.repo.full_name == github.repository
@@ -49,18 +93,19 @@ jobs:
       - name: Install project (dev)
         run: uv sync --all-extras --group dev
 
-      - name: Install pandoc and TeX (per ADR 0005)
-        # Reuse this job's real Pandoc/TeX environment for render regressions.
-        timeout-minutes: 10
+      - name: Verify pandoc and TeX from the image (per ADR 0005)
+        # Replaces the apt-get install this job used to run. The image
+        # (.github/ci-images/docs.Dockerfile) installs that exact list at
+        # build time; this step proves, in the job log, that the toolchain is
+        # present and is the one the render regressions will use.
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq --no-install-recommends \
-            pandoc \
-            lmodern \
-            texlive-xetex \
-            texlive-fonts-recommended \
-            texlive-latex-recommended \
-            texlive-latex-extra
+          set -euo pipefail
+          pandoc --version | head -n 1
+          xelatex --version | head -n 1
+          for cls in article.cls lmodern.sty xcolor.sty geometry.sty; do
+            kpsewhich "$cls" >/dev/null || { echo "::error::$cls not provided by the image"; exit 1; }
+            echo "$cls -> $(kpsewhich "$cls")"
+          done
 
       - name: Run real manual render regressions (no skips)
         timeout-minutes: 10

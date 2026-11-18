@@ -137,9 +137,85 @@ apt_install_with_mirror_fallback() {
   return 1
 }
 
+# ---------------------------------------------------------------------------
+# Ready-made image path (2026-11-18).
+#
+# The apt calls above are the slow-archive failure mode that hung CI for ~2
+# hours on 2026-11-18. .github/ci-images/media.Dockerfile builds an
+# ubuntu-24.04 image with ffmpeg + TSDuck already installed, plus
+# /opt/ci-media/rootfs.tar: exactly the files those packages own (dpkg -L of
+# the packages the install added). Extracting that tar over the runner's own
+# identical ubuntu-24.04 base installs the media stack with no archive access
+# at all, typically in a few seconds.
+#
+# Why extract instead of `container:`: the jobs that call this script run
+# testcontainers against a real Postgres and need the runner's Docker socket
+# (ci-test.yml -- CIVICCAST_RUN_POSTGRES_TESTS=1, TEST-001). A GitHub container
+# job does not get the runner's Docker daemon, so containerizing them would
+# silently break that proof.
+#
+# Fallback: if the image cannot be pulled (registry outage, branch that has not
+# built the image yet) or the extracted binaries do not run, this returns
+# non-zero and the caller falls through to the original apt path below.
+# ---------------------------------------------------------------------------
+CI_MEDIA_IMAGE="${CIVICAST_CI_MEDIA_IMAGE:-ghcr.io/scottconverse/civiccast-ci-media@sha256:PENDING_DIGEST}"
+
+provision_media_from_image() {
+  command -v docker >/dev/null 2>&1 || { echo "docker not available"; return 1; }
+
+  if [ -n "${GHCR_TOKEN:-}" ]; then
+    echo "$GHCR_TOKEN" | docker login ghcr.io \
+      -u "${GHCR_USER:-github-actions}" --password-stdin >/dev/null 2>&1 \
+      || echo "::warning::ghcr.io login failed; continuing (the image may be public)"
+  fi
+
+  echo "::group::Pulling ${CI_MEDIA_IMAGE} (3 attempts)"
+  local attempt ok=0
+  for attempt in 1 2 3; do
+    if timeout 600 docker pull "$CI_MEDIA_IMAGE"; then
+      ok=1
+      break
+    fi
+    echo "::warning::attempt ${attempt} to pull ${CI_MEDIA_IMAGE} failed"
+    sleep $((attempt * 15))
+  done
+  echo "::endgroup::"
+  [ "$ok" = 1 ] || return 1
+
+  local cid
+  cid=$(docker create "$CI_MEDIA_IMAGE") || return 1
+  if ! docker cp "$cid:/opt/ci-media/rootfs.tar" /tmp/ci-media-rootfs.tar; then
+    docker rm -f "$cid" >/dev/null 2>&1 || true
+    return 1
+  fi
+  docker rm -f "$cid" >/dev/null 2>&1 || true
+
+  echo "::group::Installing media stack from the image"
+  # tar runs over the identical ubuntu-24.04 base; the archive holds only
+  # files owned by the ffmpeg/TSDuck packages.
+  if ! sudo -n tar -xpf /tmp/ci-media-rootfs.tar -C /; then
+    echo "::endgroup::"
+    rm -f /tmp/ci-media-rootfs.tar
+    return 1
+  fi
+  rm -f /tmp/ci-media-rootfs.tar
+  echo "::endgroup::"
+
+  # Prove the extracted binaries run before trusting them.
+  command -v ffmpeg >/dev/null 2>&1 \
+    && command -v ffprobe >/dev/null 2>&1 \
+    && ffmpeg -version >/dev/null 2>&1 \
+    && ffprobe -version >/dev/null 2>&1
+}
+
 if ! command -v ffmpeg >/dev/null 2>&1 || ! command -v ffprobe >/dev/null 2>&1; then
-  timeout "$APT_TIMEOUT_SECS" "${APT[@]}" update
-  apt_install_with_mirror_fallback -y ffmpeg
+  if provision_media_from_image; then
+    echo "::notice::ffmpeg/ffprobe provisioned from ${CI_MEDIA_IMAGE} (no apt used)"
+  else
+    echo "::warning::ready-made media image unavailable; falling back to apt"
+    timeout "$APT_TIMEOUT_SECS" "${APT[@]}" update
+    apt_install_with_mirror_fallback -y ffmpeg
+  fi
 fi
 
 # #151 TS-relay behavioral splice test (skips without tsp).

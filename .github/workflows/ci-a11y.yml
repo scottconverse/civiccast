@@ -19,11 +19,46 @@ concurrency:
 permissions:
   contents: read
 
+# Both jobs run inside the ready-made Playwright image instead of installing
+# browsers with `npx playwright install --with-deps`. On 2026-11-18 the Ubuntu
+# archive was slow for ~2 hours and that install step hung on apt; on a normal
+# day it takes 23-63 s. The image is Microsoft's, pinned by digest, and its tag
+# version MUST equal the @playwright/test version in both portals' lockfiles
+# (1.59.1 at the time of writing) -- a step in each job re-checks that, so a
+# future lockfile bump that forgets the image fails loudly instead of running
+# the wrong browser build.
 jobs:
+  image-ready:
+    name: ci image pull (retry)
+    # GitHub's runner does NOT retry a container image pull: DockerCommandManager
+    # calls `docker pull` once (actions/runner src/Runner.Worker/Container/
+    # DockerCommandManager.cs). So the download is retried here, on a normal
+    # hosted runner, before the container jobs are allowed to start.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Pull the pinned Playwright image (3 attempts)
+        run: |
+          set -euo pipefail
+          IMAGE="mcr.microsoft.com/playwright:v1.59.1-noble@sha256:PENDING_DIGEST"
+          for attempt in 1 2 3; do
+            if docker pull "$IMAGE"; then
+              echo "Pulled on attempt ${attempt}: ${IMAGE}"
+              exit 0
+            fi
+            echo "::warning::attempt ${attempt} to pull ${IMAGE} failed; retrying"
+            sleep 20
+          done
+          echo "::error::could not pull ${IMAGE} after 3 attempts"
+          exit 1
+
   a11y-public:
     name: Accessibility (axe-core) — public portal
+    needs: image-ready
     # Playwright 1.59.1 does not support the ubuntu26.04 image behind latest.
     runs-on: ubuntu-24.04
+    container:
+      image: mcr.microsoft.com/playwright:v1.59.1-noble@sha256:PENDING_DIGEST
     timeout-minutes: 30
     if: |
       github.event_name != 'pull_request' ||
@@ -31,6 +66,8 @@ jobs:
     defaults:
       run:
         working-directory: civiccast/apps/portal-public
+        # Container jobs default to `sh`; every step here is bash.
+        shell: bash
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -58,16 +95,31 @@ jobs:
         if: steps.portal-check.outputs.portal_present == 'true'
         run: npm ci
 
-      - name: Install Playwright browsers
+      - name: Verify preinstalled Playwright browsers (image proof)
         if: steps.portal-check.outputs.portal_present == 'true'
+        # No `npx playwright install` here: the image ships the browsers.
+        # This step is the proof, in the job log, that (a) the image's
+        # Playwright version equals the one in this portal's lockfile and
+        # (b) the chromium AND webkit builds the config needs are present.
         # webkit as well as chromium: portal-public's playwright.config.ts
-        # declares BOTH projects, so every webkit spec was failing in ~3ms
-        # with "Executable doesn't exist" -- the browser was never
-        # downloaded. That is 13 resident-facing a11y tests, on the Safari
-        # engine, which is exactly where a public portal needs them.
-        # The operator job below installs chromium only, correctly: its own
-        # config declares no webkit project.
-        run: npx playwright install --with-deps chromium webkit
+        # declares BOTH projects; a missing webkit is 13 resident-facing a11y
+        # specs failing in ~3ms with "Executable doesn't exist". The operator
+        # job below checks chromium only, correctly: its own config declares
+        # no webkit project.
+        shell: bash
+        run: |
+          set -euo pipefail
+          want=$(node -p "require('./package-lock.json').packages['node_modules/@playwright/test'].version")
+          got=$(npx playwright --version | awk '{print $2}')
+          echo "lockfile @playwright/test: ${want}"
+          echo "image playwright:          ${got}"
+          test "$want" = "$got" || { echo "::error::image Playwright ${got} != lockfile ${want}"; exit 1; }
+          echo "browsers in ${PLAYWRIGHT_BROWSERS_PATH:-/ms-playwright}:"
+          ls -1 "${PLAYWRIGHT_BROWSERS_PATH:-/ms-playwright}"
+          for browser in chromium webkit; do
+            ls -d "${PLAYWRIGHT_BROWSERS_PATH:-/ms-playwright}/${browser}-"* >/dev/null \
+              || { echo "::error::missing ${browser} build in the image"; exit 1; }
+          done
 
       - name: Build portal
         if: steps.portal-check.outputs.portal_present == 'true'
@@ -92,7 +144,10 @@ jobs:
 
   a11y-operator:
     name: Accessibility (axe-core) — operator console
+    needs: image-ready
     runs-on: ubuntu-24.04
+    container:
+      image: mcr.microsoft.com/playwright:v1.59.1-noble@sha256:PENDING_DIGEST
     timeout-minutes: 30
     if: |
       github.event_name != 'pull_request' ||
@@ -100,6 +155,8 @@ jobs:
     defaults:
       run:
         working-directory: civiccast/apps/portal-operator
+        # Container jobs default to `sh`; every step here is bash.
+        shell: bash
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -127,9 +184,22 @@ jobs:
         if: steps.portal-check.outputs.portal_present == 'true'
         run: npm ci
 
-      - name: Install Playwright browsers
+      - name: Verify preinstalled Playwright browser (image proof)
         if: steps.portal-check.outputs.portal_present == 'true'
-        run: npx playwright install --with-deps chromium
+        # Chromium only: this portal's config declares no webkit project.
+        # See the public job's version-matching rationale.
+        shell: bash
+        run: |
+          set -euo pipefail
+          want=$(node -p "require('./package-lock.json').packages['node_modules/@playwright/test'].version")
+          got=$(npx playwright --version | awk '{print $2}')
+          echo "lockfile @playwright/test: ${want}"
+          echo "image playwright:          ${got}"
+          test "$want" = "$got" || { echo "::error::image Playwright ${got} != lockfile ${want}"; exit 1; }
+          echo "browsers in ${PLAYWRIGHT_BROWSERS_PATH:-/ms-playwright}:"
+          ls -1 "${PLAYWRIGHT_BROWSERS_PATH:-/ms-playwright}"
+          ls -d "${PLAYWRIGHT_BROWSERS_PATH:-/ms-playwright}/chromium-"* >/dev/null \
+            || { echo "::error::missing chromium build in the image"; exit 1; }
 
       - name: Build operator portal
         if: steps.portal-check.outputs.portal_present == 'true'
