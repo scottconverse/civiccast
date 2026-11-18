@@ -33,7 +33,7 @@ pwsh -NoProfile -File civiccast/apps/portal-operator/.claude/skills/verify/verif
 ```
 Options: `-Flows publish` (the default) or `-Flows publish,setup`. Add `setup` when you change setup, the first-run
 wizard or migrations, and the disk is not saturated (see below). `-Port <n>` (default 0 = a free loopback port),
-`-SkipBuild` (reuse `dist`), `-Install` (force `npm ci`), `-EvidenceDir <dir>`, `-TestTimeoutSec 900`.
+`-SkipBuild` (reuse `dist`), `-Install` (force `npm ci`), `-EvidenceDir <dir>`, `-TestTimeoutSec 900`, `-PhaseTimeoutSec 900` (limit for each install and build step; a step past it is stopped by its PID and fails).
 
 What it does:
 1. `npm ci` only if `node_modules` is missing (or `-Install`). Then `npm run build` (`tsc -b && vite build`) and,
@@ -68,7 +68,7 @@ no `mark_published` (the publish router calls it since the Portal-visibility cha
 ## Evidence
 
 Everything goes to `.vlite-evidence/<yyyyMMdd-HHmmss-fff>-portal/` at the repo root (git-ignored):
-`report.md`, `summary.json`, `<phase>.log` for each install or build step, `preview.out/err.log`, `processes.log`,
+`report.md`, `summary.json`, `<phase>.log` and `<phase>.err.log` for each install, build and Playwright step, `preview.out/err.log`, `processes.log`,
 `playwright-results.json`, `playwright-report/` (HTML), and `playwright-output/<test>/` with `trace.zip` and screenshots.
 **Nothing in this evidence folder is redacted.** The Playwright traces (`trace.zip`) record network traffic, so they
 contain the throwaway test-server's login tokens and request bodies. Do not commit, upload or share an evidence
