@@ -234,8 +234,12 @@ def test_no_room_keeps_the_current_air_and_returns_without_writing(tmp_path, mon
     warnings = [record for record in caplog.records if record.levelno >= logging.WARNING]
     assert len(warnings) == 1, [record.getMessage() for record in warnings]
     message = warnings[0].getMessage()
-    assert "disk" in message.lower() or "space" in message.lower()
-    assert "36" in message or "cache" in message.lower()
+    # The operator has to be able to act on the line, so it names the asset,
+    # what the conform would need, what the volume has, and the reserve.
+    assert "long-recording.mp4" in message
+    assert "3600s of media" in message
+    assert "disk" in message.lower()
+    assert "reserve" in message.lower()
 
 
 def test_the_no_room_warning_is_logged_once_per_asset(tmp_path, monkeypatch, caplog):
