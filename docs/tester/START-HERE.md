@@ -5,14 +5,14 @@
 > Do not substitute API calls or environment edits for an operator task that
 > the manual says is available in the UI. The Beta20 instructions below are historical.
 
-# Beta 20 tester quickstart
+# Tester quickstart (v1.0.0-rc.6)
 
-Historical Beta20 testing used the complete kit from the [release page](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-beta.20). Check the [package verification record](../releases/v1.0.0-beta.20-verification.md) for the exact signed installer and scoped results.
+Use the complete kit from the [v1.0.0-rc.6 release page](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-rc.6). Check the [RC6 verification record](../releases/v1.0.0-rc.6-verification.md) for the exact signed installer and scoped results. Earlier Beta 20 instructions are kept as history below.
 
 ## Install, open, and check
 
-1. **Confirm package identity.** Use the published Beta 20 release and compare its installer with the verification record before testing.
-2. **Prepare the complete kit.** Keep `setup.exe`, `packs\\`, and `station\\`
+1. **Confirm package identity.** Use the published v1.0.0-rc.6 release and compare its installer with the verification record before testing.
+2. **Prepare the complete kit.** Keep `setup.exe`, `packs\`, and `station\`
    together. Compare its manifest, installer hash, and signature with the active
    handoff using [Windows release trust](../install/windows-release-trust.md).
    Stop and report any mismatch before running setup. If Windows shows
@@ -30,7 +30,7 @@ Historical Beta20 testing used the complete kit from the [release page](https://
    name it, create the first administrator, and save the recovery kit. Open
    **System Health** and confirm the station and configured services report
    their current state.
-5. **Run the assigned feature checks.** Beta 20 adds recovery station-state
+5. **Run the assigned feature checks.** Since Beta 20 the package has recovery station-state
    replacement ACL repair that preserves private-key protection, dependency
    security corrections, bounded relay log retention and efficient draining,
    and CG text wrapping/reduction; long text may render small, so preview at
@@ -45,7 +45,7 @@ Historical Beta20 testing used the complete kit from the [release page](https://
 ## If setup or the station does not work
 
 Preserve the exact error, installer exit code, and
-`C:\\ProgramData\\CivicCast\\install-progress.log`. Check the service and
+`C:\ProgramData\CivicCast\install-progress.log`. Check the service and
 installation logs before retrying. Use the [support guide](../../SUPPORT.md) and
 [bug report template](bug-report-template.md); report package identity and
 station observations separately. Do not infer a cause from a screen or a single

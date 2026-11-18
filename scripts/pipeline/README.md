@@ -112,7 +112,7 @@ These gates are non-negotiable. The runner cannot promote work without them. Eve
 
 Wired in as the `policy` stage. Runs `python scripts/policy/run_all.py --run <run-id>` from the repo root. The script's exit code (0 = pass, non-zero = fail) determines whether the pipeline advances. The combined output is captured into `policy-report.md` so the manager can quote it verbatim.
 
-The four policy checks today live in [`scripts/policy/`](../policy/):
+The checks registered in [`scripts/policy/run_all.py`](../policy/run_all.py) live in [`scripts/policy/`](../policy/):
 
 - `check_allowed_paths.py` — every changed file must be inside the manifest's `allowed_paths` and outside its `forbidden_paths`.
 - `check_ffmpeg_wrapper.py` — only `civiccast/stream/_ffmpeg.py` may invoke ffmpeg via subprocess (ADR 0007).

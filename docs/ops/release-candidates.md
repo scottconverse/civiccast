@@ -101,7 +101,7 @@ outstanding until that work has ended and the owner schedules it.
 
 ## 2. Station evidence (Gate A is retired)
 
-**Owner decision, 2026-11-14: Gate A is not required for any release.** The station evidence for a release comes from the owner's real test PCs (reached over Tailscale): the signed kit installed on each test PC, a walkthrough, and a soak, written in the release's verification record, plus the physical-host receipt for the publisher (`--consumer-evidence-receipt`, `consumer_mode: "physical-host"`, see "Direct Sandbox consumer evidence route" below). The Gate A workflow no longer starts after a build. It can still be started by hand. The Gate A text below is history.
+**Owner decision, 2026-11-14: Gate A is not required for any release.** The station evidence for a release comes from the owner's real test PCs (reached over Tailscale): the signed kit installed on each test PC, a walkthrough, and a soak, written in the release's verification record, plus the physical-host receipt for the publisher (`--consumer-evidence-receipt`, `consumer_mode: "physical-host"`, see "Direct Sandbox consumer evidence route" below). The owner waived that receipt for rc.6, which was published without it (see the rc.6 entry in `docs/releases/release-truth.yaml`); record such a waiver in the release's verification record whenever it happens. The Gate A workflow no longer starts after a build. It can still be started by hand. The Gate A text below is history.
 
 History: the Gate A harness on the Halo runner did not finish on 2026-11-13 and 2026-11-14 (the sandbox's output folder went quiet, so no verdict reached the host). v1.0.0-rc.5 was published by the physical-host route.
 

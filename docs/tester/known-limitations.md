@@ -1,8 +1,8 @@
 # Known Limitations For Early-Adopter Builds
 
 > **Historical Beta 10 limitation record.** This page records evidence and
-> limits for Beta 10 only. Beta 20 is the latest published release. For Beta 20
-> operating guidance, use the
+> limits for Beta 10 only. v1.0.0-rc.6 is the current published release; Beta 20
+> is history. For current operating guidance, use the
 > [current User Manual](../USER-MANUAL.md), [Windows install guide](../../INSTALL-WINDOWS.md),
 > [tester start page](START-HERE.md), and [Beta 20 verification
 > record](../releases/v1.0.0-beta.20-verification.md). The Beta 10 results below
@@ -144,8 +144,9 @@ line.)
 
 ## Roles And Permissions
 
-The console is organized by Setup, Run Meeting, Review Records, Publish,
-Channels, and System Health. Local roles cover common station responsibilities.
+The console's sidebar groups are Help, Setup, Run Meeting (Channels is inside
+this group), Review Records, Publish and System Health. Local roles cover common
+station responsibilities.
 Enterprise SSO remains outside the current early-adopter scope.
 
 ## On-Air Approval (Commit-to-Air)

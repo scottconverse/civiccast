@@ -59,8 +59,8 @@ CivicCast is open-source, self-hostable civic meeting recording and publication
 software. The application wires a production live-source probe into live
 pre-flight, in addition to the recorded-media and Portal workflows. A working
 probe is not proof that a particular station's source, hardware, output,
-archive, CDN or headend works end to end. The Beta 20 verification record
-identifies the installed package's scoped checks and limitations;
+archive, CDN or headend works end to end. The RC6 verification record
+identifies the current package's scoped checks and limitations;
 station-specific external services still require their own checks.
 
 ## AI models: defaults and operator selection
@@ -263,7 +263,7 @@ together. A standalone `setup.exe` download is not the complete install kit.
 Before running the helper, verify its own SHA-256 against the same release's
 `SHA256SUMS.txt`. See the [Windows Release Trust And Verification](install/windows-release-trust.md)
 checklist and the [operator quick start](tester/START-HERE.md). The
-[Beta 20 verification record](releases/v1.0.0-beta.20-verification.md) is the
+[RC6 verification record](releases/v1.0.0-rc.6-verification.md) is the
 source for the current package's identity, installation evidence and limits.
 
 For a direct setup-app hash check when the handoff calls for one, compare it to
@@ -459,7 +459,7 @@ CivicCast ships a hardware probe that reports the operator-relevant facts about 
 
 ```text
 $ civiccast doctor
-CivicCast 0.1.0 - hardware probe
+CivicCast 1.0.0-rc.6 - hardware probe
   hostname: station-1
   os:       windows (Windows 11 26100, x86_64)
 
@@ -471,7 +471,7 @@ RAM
   total:    32.0 GB    available: 24.5 GB
 
 Disk
-  path:     /home/operator
+  path:     C:\ProgramData\CivicCast
   total:    1907 GB    free: 1842 GB
 
 GPU
@@ -527,8 +527,8 @@ difficulties" loop instead of showing a broken-video icon to the public.
 
 - **ffmpeg 4.4 or newer.** The `civiccast doctor` command checks this and
   warns if the installed version is too old. On Windows, the easiest install
-  path is [Scoop](https://scoop.sh/): `scoop install ffmpeg`. On Debian or
-  The installer ships ffmpeg in its media-tools pack; install it from the
+  path is [Scoop](https://scoop.sh/): `scoop install ffmpeg`. The installer
+  ships ffmpeg in its media-tools pack; install it from the
   CivicCast installer rather than separately.
 - A CDN. See "CDN configuration" below — BunnyCDN is the documented default.
 
@@ -623,7 +623,7 @@ documented in the spec as a future option for premium SLA deployments.
 ### What residents see on the public portal
 
 The React + HLS.js portal app ships in `civiccast/apps/portal-public/`.
-For v0.4, the portal presents three resident-facing areas:
+The portal presents three resident-facing areas:
 
 - **Live now** reads `GET /api/public/live/current` and shows the current
   on-air broadcast when a live session is active.
@@ -750,7 +750,7 @@ that allows public metadata and `/media/vod` access.
 
 ## Run captions and caption review
 
-The backend captions contract is now present for the 0.5 rung. CivicCast can
+The backend captions contract is implemented. CivicCast can
 run the optional local faster-whisper caption runtime, represent audio chunks,
 custom vocabulary hints, runtime transcript hypotheses, stabilized caption
 cues, WebVTT output, HLS subtitle-track publication, and caption review queue
@@ -1349,17 +1349,20 @@ This reference is maintained in `docs/technical-ops-reference.md`. The user-faci
 
 ## Published package evidence and historical release identity
 
-This reference follows the published `CivicCast 1.0.0-beta.20`. The
-[Beta 20 verification record](releases/v1.0.0-beta.20-verification.md)
-identifies the signed package and its scoped checks. The [Beta 19 verification record](releases/v1.0.0-beta.19-verification.md)
-remains historical. Earlier results remain tied to their own release records.
+This reference follows the published `CivicCast 1.0.0-rc.6`. The
+[RC6 verification record](releases/v1.0.0-rc.6-verification.md)
+identifies the signed package and its scoped checks. The [Beta 20 verification record](releases/v1.0.0-beta.20-verification.md)
+and the [Beta 19 verification record](releases/v1.0.0-beta.19-verification.md)
+remain historical. Earlier results remain tied to their own release records.
 Consult `docs/releases/release-truth.yaml` for the authored release state; this
 reference does not claim an extended soak or general service-uptime result.
 
-The `v1.0.0-rcNN` line this document used to describe is the retired WSL2/Linux
-deployment, published from the archived repository. Its release and
-verification artifacts are not in this repository and its rc numbering does
-not continue here.
+The `v1.0.0-rc11` through `v1.0.0-rc18` line this document used to describe is
+the retired WSL2/Linux deployment, published from the archived repository. Its
+release and verification artifacts are not in this repository and its rc
+numbering does not continue here. This repository publishes the native
+`v1.0.0-rc.1` through `v1.0.0-rc.6` line; their records are under
+`docs/releases/`.
 
 
 ## RC2 operator corrections

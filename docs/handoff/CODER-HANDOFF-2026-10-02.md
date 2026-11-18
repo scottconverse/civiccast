@@ -65,7 +65,7 @@ CivicCast is an open-source (Apache-2.0 code), self-hostable civic broadcast pla
 record a meeting, generate offline captions, let an operator review/approve it, draft an AI summary linked to the transcript,
 schedule it, publish it on a branded resident portal with captions — and play it out 24/7 on one or more channels. It runs on
 commodity Windows hardware as a **native Windows station-in-a-box**: a signed installer that registers a Windows service
-(`CivicCastSupervisor`) supervising the FastAPI control plane, Postgres, NATS, the GStreamer playout workers, ffmpeg/TSDuck
+(`CivicCastSupervisor`) supervising the FastAPI control plane and Postgres; the control plane runs the in-process event bus (NATS was removed) and owns the GStreamer playout workers, ffmpeg/TSDuck
 relays and a private Ollama. **No WSL, no Docker, no Linux target** (the old WSL2 line is a separate private repo).
 
 Target hardware (Scott's ruling): a 32 GB AMD Ryzen 7-class box with an iGPU only; must also *run* (slowly) on 16 GB.
@@ -137,7 +137,7 @@ The lab machine (NVIDEABLACKWELL, RTX 5070 Ti) is the ideal tier — optimize fo
 | Release (assets, notes) | https://github.com/scottconverse/civiccast-native/releases/tag/v1.0.0-beta.10 |
 | Tag | `v1.0.0-beta.10` → `b652084707367d45913807ed2a525f15a9a1e4a4` |
 | Release line | branch `release/beta10` (same commit as the tag) |
-| Current state of docs | `main` (landing page is `docs/index.html`, served by GitHub Pages from `main` `/docs` → https://scottconverse.github.io/civiccast-native/) |
+| Current state of docs | `main` (landing page is `docs/index.html`, served by GitHub Pages from `main` `/docs` → https://scottconverse.github.io/civiccast/) |
 | **Caption fix work (not in beta.10)** | branch `fix/caption-tap` @ `a37f1a40` (U68–U72; see §6 P1) |
 | Gate A harness fix experiments | branch `gatea/t4-budget-600-beta10` @ `2dbccb40` (throwaway; do **not** merge as is; see §6 P3) |
 | Release truth (single source for "what is current") | `docs/releases/release-truth.yaml`, checked by `scripts/policy/check_release_truth.py` |

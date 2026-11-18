@@ -3,7 +3,7 @@
 This page describes existing developer lab tools. Their historical Beta 5
 verdict criteria are tool behavior, not automatic Beta 12 release requirements.
 Scott chooses the authorized check sequence and release acceptance. For the
-actual Beta 12 results, see [verification](../docs/releases/v1.0.0-beta.12-verification.md).
+Beta 12 results (historical), see [verification](../docs/releases/v1.0.0-beta.12-verification.md).
 
 Gate A — the automated station-acceptance release gate. Full documentation
 (what it proves, verdict criteria, how to run it, runner setup, promotion
@@ -27,7 +27,7 @@ start + sample-content playout inside a disposable Windows Sandbox VM,
 using a kit already verified on disk (no download). It is **not** a
 replacement for Gate A — it's a quick sanity pass you run before pushing
 something out to the tester fleet, reusing Gate A's own proven
-install/health/channel-start code paths (see `scripts/In-Sandbox-Soak.ps1`'s
+install/health/channel-start code paths (see `sandbox-lab/scripts/In-Sandbox-Soak.ps1`'s
 header for exactly which lines came from where) at a much shorter default
 duration.
 
@@ -62,7 +62,7 @@ the read-back value is really `false` -- it never touches the
 `CIVICCAST_CAPTION_TAP` env var (the caption-tap machinery itself stays
 untouched; this only flips the operator-facing switch). A failed PUT or a
 read-back that is not `false` is `HARNESS_ERROR` (see
-`scripts/CaptionsOffCheck.ps1`'s `Get-CaptionsOffVerification`, the same
+`sandbox-lab/scripts/CaptionsOffCheck.ps1`'s `Get-CaptionsOffVerification`, the same
 never-an-unconfirmed-premise principle as `-SeamlessReload`'s own
 verification). Recorded as `captions_off_requested`/`captions_enabled`/
 `captions_off_verified` in `SOAK-START.json` and `VERDICT.json`. `captions_enabled`
@@ -74,7 +74,7 @@ the real read-back (conservatively `true` only when the GET itself
 couldn't be confirmed) — never a hardcoded assumption.
 
 `-WorkerEnv "NAME=VALUE;NAME2=VALUE2"` (or `-WorkerEnv @('A=1','B=2')` —
-both shapes parse identically, see `scripts/WorkerEnv.ps1`'s header)
+both shapes parse identically, see `sandbox-lab/scripts/WorkerEnv.ps1`'s header)
 injects arbitrary environment variables into the CivicCastSupervisor
 service's own per-service `Environment` `REG_MULTI_SZ`, and therefore into
 every GStreamer egress worker, which inherits the daemon's process
@@ -265,7 +265,7 @@ reports `unplanned_relaunch_count`,
 `planned_restart_count`, `max_restart_gap_seconds`, and the full
 `restart_events` list; otherwise **FAIL**, naming the first failing
 cycle/event and why. This classification logic lives in
-`scripts/RestartClassifier.ps1` (dot-sourced by the in-sandbox driver and
+`sandbox-lab/scripts/RestartClassifier.ps1` (dot-sourced by the in-sandbox driver and
 its own unit tests, `Test-RestartClassifier.ps1`) — extracted the same way
 `SoakVerdict.ps1`/`HostLiveness.ps1` already were, after an inline version
 had a parameter accidentally named `$Pid` (PowerShell's read-only `$PID`
@@ -329,7 +329,7 @@ skips the `WORKER_RESULT` print entirely, so a stall whose own teardown
 hangs is invisible to this count. `worker_stall_stderr_count` covers that
 blind spot: it counts the stall watchdog's own `CTRL stall: ...` stderr
 line, written unconditionally before teardown is even attempted — see
-`scripts/WorkerStdoutParser.ps1`'s header and its
+`sandbox-lab/scripts/WorkerStdoutParser.ps1`'s header and its
 `ConvertFrom-WorkerStderrLines`/`Update-WorkerStderrCounters`), plus a
 cycle-wide `processes` array (per-pid `cpu_seconds_delta`/`working_set_mb`/
 `role` for every python.exe/pythonw.exe/pythonservice.exe/ffmpeg.exe
@@ -341,7 +341,7 @@ previously always fell through to `other` even when the channel mapping
 was already in scope), `supervisor` (the `pythonservice.exe` Windows
 service host), `control-plane` (the control-plane child), or `other`,
 labeled from pid facts this lane already holds, never an extra process
-query — see `scripts/CpuSampler.ps1`'s `Get-ProcessRoleLabel`) and `cpu_total_percent`;
+query — see `sandbox-lab/scripts/CpuSampler.ps1`'s `Get-ProcessRoleLabel`) and `cpu_total_percent`;
 `SOAK-START.json` additionally records the guest's `cpu_count` once),
 `restart-events.json`, a rollup every 3 minutes under `rollups/` (each
 carrying a `worker_stdout_cumulative_by_channel` snapshot, plus
@@ -357,7 +357,7 @@ the daemon-level logs at each checkpoint and on every FAIL, and a final
 armed a seamless content-reload for but whose worker stdout
 never logged a commit for the whole soak is reported `FAIL` ("seamless
 reload never committed"), a product finding, not a harness note (see
-`scripts/WorkerStdoutParser.ps1` and `scripts/DaemonLogPatterns.ps1`'s
+`sandbox-lab/scripts/WorkerStdoutParser.ps1` and `sandbox-lab/scripts/DaemonLogPatterns.ps1`'s
 `$DaemonReloadArmedRegex`/`Get-ReloadArmedNeverCommittedChannels`/
 `Invoke-FinalWorkerStdoutDrainAndComputeArmedNeverCommitted`). This check
 (and `VERDICT.json`'s own `worker_stdout_by_channel` snapshot) reads from
@@ -381,13 +381,13 @@ Three read paths (`RestartClassifier.ps1`'s planned-restart walk-back
 exclusion, `SoakVerdict.ps1`'s ON_AIR-check exclusion and 3-consecutive-
 failure escalation) used to each keep their own hand-typed
 `-like 'state read failed*'` copy of the same "a channel row's own state
-read failed" contract. `scripts/DaemonLogPatterns.ps1` now holds the one
+read failed" contract. `sandbox-lab/scripts/DaemonLogPatterns.ps1` now holds the one
 shared predicate, `Test-IsReadFailureMarker` — the consumer side of
 `New-StateReadFailureLastError`'s producer-side formula — and all three
 call sites, plus `Test-SoakVerdict.ps1`'s own fixtures, use it instead of
 re-typing the literal.
 
-`scripts/ServiceStartFailureCheck.ps1`: when `Get-Service` itself throws
+`sandbox-lab/scripts/ServiceStartFailureCheck.ps1`: when `Get-Service` itself throws
 (rather than returning a normal not-running/stopped result), the event-log
 crash check now falls back to the well-known constant service display
 name (`CivicCast Native Supervisor`) instead of skipping the check
@@ -416,17 +416,17 @@ mid-write-sequence could ship the marker without yet shipping the verdict,
 and killing the VM the instant the marker was seen could beat `VERDICT.txt`
 to the share by seconds, leaving the operator with only
 `HOST-QUIET-SHARE.txt` even though the real verdict had already been
-written in the guest. `scripts/BackstopMarkerGrace.ps1`'s
+written in the guest. `sandbox-lab/scripts/BackstopMarkerGrace.ps1`'s
 `Wait-ForVerdictAfterBackstopMarker` now gives `VERDICT.txt` a bounded
 grace window (default 45s = 3 shipper ticks, polled every 5s) before
 falling back to the quiet-share exit; if the verdict arrives during the
 grace window, the run takes the normal verdict path instead.
 
-The verify/verdict logic lives in `scripts/SoakVerdict.ps1` (the per-cycle
-PASS/FAIL/HARNESS_ERROR judgment), `scripts/RestartClassifier.ps1` (planned-
+The verify/verdict logic lives in `sandbox-lab/scripts/SoakVerdict.ps1` (the per-cycle
+PASS/FAIL/HARNESS_ERROR judgment), `sandbox-lab/scripts/RestartClassifier.ps1` (planned-
 vs-unplanned restart classification and ring sampling),
-`scripts/HostLiveness.ps1` (the host's stall/quiet-share classification),
-and `scripts/BackstopMarkerGrace.ps1` (the host's backstop-marker grace-wait
+`sandbox-lab/scripts/HostLiveness.ps1` (the host's stall/quiet-share classification),
+and `sandbox-lab/scripts/BackstopMarkerGrace.ps1` (the host's backstop-marker grace-wait
 decision) — each dot-sourced by both its real caller and its own
 unit-test file, so the same code judges a real run and a synthetic
 unit-test tuple. Run the unit tests with:
@@ -444,7 +444,7 @@ pwsh -File sandbox-lab/scripts/Test-WorkerEnv.ps1
 ```
 
 Or run every `Test-*.ps1` suite in one step with
-`scripts/Invoke-LaneUnitTests.ps1` (discovers every `Test-*.ps1` directly
+`sandbox-lab/scripts/Invoke-LaneUnitTests.ps1` (discovers every `Test-*.ps1` directly
 in `scripts/` dynamically, sorted by name, so a newly-added suite is
 picked up automatically; runs each as a child `powershell.exe` process —
 Windows PowerShell 5.1, the actual guest engine, not `pwsh` — and exits
@@ -460,13 +460,13 @@ under `powershell.exe -NoProfile` and parse-checks every `.ps1` file under
 `sandbox-lab/` (`[System.Management.Automation.PSParser]::Tokenize`, no
 execution) — fails the job on any suite failure or parse error.
 
-`scripts/CaptionsOffCheck.ps1` (item 1's -CaptionsOff PUT/GET verification
-judgment), `scripts/WorkerStdoutParser.ps1` (item 2's per-line matcher for
+`sandbox-lab/scripts/CaptionsOffCheck.ps1` (item 1's -CaptionsOff PUT/GET verification
+judgment), `sandbox-lab/scripts/WorkerStdoutParser.ps1` (item 2's per-line matcher for
 each channel's `gst-worker.stdout.log`/`gst-worker.stderr.log`), and
-`scripts/CpuSampler.ps1` (item 3's per-pid CPU-delta/working-set math)
+`sandbox-lab/scripts/CpuSampler.ps1` (item 3's per-pid CPU-delta/working-set math)
 follow the same dot-sourced-and-unit-tested extraction pattern.
 
-`scripts/WorkerEnv.ps1` (lane follow-up D's `-WorkerEnv` feature: string/
+`sandbox-lab/scripts/WorkerEnv.ps1` (lane follow-up D's `-WorkerEnv` feature: string/
 array parsing into NAME=VALUE entries, dedupe-by-name-later-wins, the
 empty-value unset/removal semantic, merging entries into a service's
 existing `Environment` `REG_MULTI_SZ`, and the `.wsb` LogonCommand quoting
@@ -475,7 +475,7 @@ round trip) follows the same pattern — dot-sourced by both
 `In-Sandbox-Soak.ps1` (guest-side parse/merge/verify), unit-tested in
 `Test-WorkerEnv.ps1`.
 
-`scripts/CpuSampler.ps1`'s `Get-ProcessRoleLabel` checked the generic
+`sandbox-lab/scripts/CpuSampler.ps1`'s `Get-ProcessRoleLabel` checked the generic
 python/pythonw catch-all (`'control-plane'`) BEFORE resolving the pid to a
 channel via `PidToChannelId` — so a python-named process that DID resolve
 to a channel (e.g. an ffmpeg-fallback engine launched via a python-named

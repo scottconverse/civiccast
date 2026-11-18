@@ -134,8 +134,10 @@ Watch three things:
 2. **Resident preview:** what the public portal shows right now.
 3. **Recording status:** whether CivicCast is preserving the meeting.
 
-If the source drops, follow the screen's next step. CivicCast should show a
-fallback slate instead of leaving residents with a blank player.
+If the source drops, follow the screen's next step. If a fallback slate is
+configured and verified, CivicCast shows it instead of leaving residents with a
+blank player; the stock build does not claim source-drop detection or slate
+failover on its own.
 
 ## After The Broadcast
 

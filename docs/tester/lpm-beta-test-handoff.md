@@ -90,8 +90,8 @@ Use only the release-matched installer and manifest for the package you were
 actually handed. For a GitHub release, also use its sidecar and checksum; a
 USB/LAN kit may have only its own hash-pinned delivery manifest and need not contain
 the GitHub sidecar. This handoff was written for the historical Beta 10 GitHub
-pre-release (`v1.0.0-beta.2`, `v1.0.0-beta.8` and `v1.0.0-beta.9` were never
-published and are never handed to a tester).
+pre-release (`v1.0.0-beta.8` and `v1.0.0-beta.9` were never published and are
+never handed to a tester).
 Preserve all logs and report any failure.
 
 ## What This Beta Is Meant To Exercise

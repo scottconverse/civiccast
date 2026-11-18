@@ -13,16 +13,17 @@ status-check requirements are still load-bearing:
   it impossible to bypass at the git layer.
 - **Required CI status checks** - `main` cannot advance until the release-gate
   checks are green: unit tests, lint/type check, public and operator
-  accessibility, docs render, cleanroom full install gate, and operator portal
-  lint/build.
+  accessibility, and operator portal lint/build.
 - **No force pushes; no branch deletion** — protects against catastrophic
   accidental rewrites.
 
 ## When this can be applied
 
 GitHub gates branch protection and repository rulesets behind **either**
-GitHub Pro **or** a public repo. CivicCast remains at
-`scottconverse/civiccast-wsl-legacy`; do not assume an org transfer as the hardening path.
+GitHub Pro **or** a public repo. CivicCast lives at `scottconverse/civiccast`
+(renamed from `scottconverse/civiccast-native` on 2026-11-08); the old
+`scottconverse/civiccast-wsl-legacy` is the retired archived line. Do not assume
+an org transfer as the hardening path.
 Attempting to read or apply protection on the current private repo returns:
 
 ```
@@ -51,7 +52,7 @@ reliably build the nested object). Payload as applied:
   "required_status_checks": {
     "strict": true,
     "contexts": [
-      "Unit tests (3.12)",
+      "Unit tests",
       "Lint and type check",
       "Accessibility (axe-core) — public portal",
       "Accessibility (axe-core) — operator console",

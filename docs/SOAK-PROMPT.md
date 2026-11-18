@@ -1,9 +1,9 @@
 # CivicCast overnight soak prompt (beta.5, kit 148c8d21)
 
 > **Historical prompt:** This is for the Beta 5 kit and its former ports and
-> interface. Do not use it as a current Beta 20 test procedure. Follow the
-> current owner-authorized handoff, [tester start page](tester/START-HERE.md),
-> and [Beta 20 verification record](releases/v1.0.0-beta.20-verification.md).
+> interface. Do not use it as a current test procedure for the published
+> release. Follow the current owner-authorized handoff, [tester start page](tester/START-HERE.md),
+> and [RC6 verification record](releases/v1.0.0-rc.6-verification.md).
 > The old run duration and instructions below are preserved as a dated artifact.
 
 
