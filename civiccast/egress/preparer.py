@@ -313,13 +313,104 @@ def _promote_queued_warm(key: str) -> None:
                 break
 
 
-def _cache_budget_bytes() -> float:
+#: Room left on the cache volume that a conform is never allowed to spend.
+#: ``CIVICCAST_CONFORM_CACHE_GB`` is a policy number an operator picks from a
+#: capacity plan; it says nothing about the disk that policy runs on. R9
+#: (2026-11-17) is the live proof: a 26.5 GB cache sat inside the default 60 GB
+#: budget -- "under the cap", so the eviction pass left it alone -- on a volume
+#: with 6.0 GB free, and the preparer log filled with ``[Errno 28] No space left
+#: on device`` from 19:12 to 19:33. The same volume
+#: hosts the egress database, the HLS output and the per-plan ``prepared``
+#: directories, so "the cache may fill the disk" is not a private decision --
+#: the reserve is what keeps those alive.
+#:
+#: One gigabyte: comfortably more than a bounded conform of a short item (a
+#: 30-minute window at the canonical profile is ~140 MB), and enough for the
+#: database/journal writes that share the volume.
+_DEFAULT_CACHE_DISK_RESERVE_GB = 1.0
+CACHE_DISK_RESERVE_ENV = "CIVICCAST_CONFORM_CACHE_RESERVE_GB"
+#: Headroom on the conform-output estimate -- mpegts container overhead and
+#: encoder overshoot against ``-b:v``.
+_CONFORM_OUTPUT_MARGIN = 1.10
+#: Warning latch for "this cache cannot hold this asset": once per key per
+#: process. The condition is a property of the volume and the asset, not of the
+#: attempt, so repeating it on every airing buries the line that matters.
+_NO_ROOM_WARNED: set[str] = set()
+
+
+def _configured_cache_budget_bytes() -> float:
+    """``CIVICCAST_CONFORM_CACHE_GB`` as bytes (the operator's policy number)."""
+
     raw = os.environ.get("CIVICCAST_CONFORM_CACHE_GB", "").strip()
     try:
         gb = float(raw) if raw else _DEFAULT_CACHE_GB
     except ValueError:
         gb = _DEFAULT_CACHE_GB
     return gb * 1e9
+
+
+def _cache_disk_reserve_bytes() -> float:
+    raw = os.environ.get(CACHE_DISK_RESERVE_ENV, "").strip()
+    try:
+        gb = float(raw) if raw else _DEFAULT_CACHE_DISK_RESERVE_GB
+    except ValueError:
+        gb = _DEFAULT_CACHE_DISK_RESERVE_GB
+    return max(0.0, gb) * 1e9
+
+
+def _free_disk_bytes(path: Path) -> int | None:
+    """Free bytes on the volume holding ``path``; ``None`` when unreadable.
+
+    ``None`` is "no information", never "no space": a probe that cannot answer
+    must leave every caller on its previous behaviour rather than switch the
+    conform cache off.
+    """
+
+    try:
+        return int(shutil.disk_usage(path).free)
+    except OSError:
+        return None
+
+
+def _cache_budget_bytes(volume: Path | None = None) -> float:
+    """The conform cache's byte budget.
+
+    The SMALLER of the configured ``CIVICCAST_CONFORM_CACHE_GB`` and (free space
+    on ``volume`` -- the cache's own volume -- minus the safety reserve). With
+    no ``volume`` this is exactly the configured number, which is what every
+    caller that has not been taught about the disk still gets.
+
+    A configured ``<= 0`` stays ``0`` (caching disabled) whatever the disk says.
+    """
+
+    configured = _configured_cache_budget_bytes()
+    if volume is None or configured <= 0:
+        return configured
+    free = _free_disk_bytes(volume)
+    if free is None:
+        return configured
+    return min(configured, max(0.0, free - _cache_disk_reserve_bytes()))
+
+
+def _conform_output_bytes_estimate(profile: Any, media_seconds: float | None) -> float:
+    """How much disk one conform of ``media_seconds`` of media will take.
+
+    The conform writes the canonical profile at a fixed bitrate
+    (``build_conform_source_args``: ``-b:v <video_bitrate_kbps>k`` and
+    ``-b:a <audio_bitrate_kbps>k``), so the size is arithmetic, not a guess
+    from the source's own container. ``_CONFORM_OUTPUT_MARGIN`` covers the
+    container and encoder overshoot.
+
+    ``None``/non-positive seconds (an unprobeable asset) estimates nothing;
+    callers fall back to the source file's own size.
+    """
+
+    if media_seconds is None or media_seconds <= 0:
+        return 0.0
+    kbps = float(getattr(profile, "video_bitrate_kbps", 0)) + float(
+        getattr(profile, "audio_bitrate_kbps", 0)
+    )
+    return media_seconds * kbps * 1000.0 / 8.0 * _CONFORM_OUTPUT_MARGIN
 
 
 #: BETA.10 U03: the spelling the station's service registry actually sets.
@@ -652,6 +743,75 @@ class SourcePreparer:
 
     def _cache_dir(self) -> Path:
         return self._work_dir / _CACHE_DIR_NAME
+
+    def _ensure_room_for_conform(
+        self,
+        *,
+        estimated_bytes: float,
+        description: str,
+        key: str | None = None,
+    ) -> bool:
+        """Make room for one conform's output, or say plainly that it cannot fit.
+
+        Called BEFORE an encode writes a multi-gigabyte file, because ffmpeg
+        discovers a full disk the only way it can -- with
+        ``[Errno 28] No space left on device`` after minutes of work (R9,
+        2026-11-17 19:12-19:33: conform warms, speech-leveling rides and the
+        HLS publisher all failed the same way while the channel sat on slate).
+
+        Order of work, and why:
+
+        1. Free space on the cache volume is read FIRST. If the output plus the
+           reserve already fits, nothing is evicted: the cache exists to be
+           hit, and eviction here would throw away the entry the next airing
+           wants for no reason.
+        2. Otherwise the existing oldest-first eviction runs for SPACE
+           (``_evict_cache_over_budget(free_bytes_needed=...)``) -- the same
+           least-recently-used order, and the same orphan reap, the budget pass
+           uses.
+        3. Only if the disk still cannot hold it does this give up: ONE warning
+           per asset, and ``False`` -- the caller does not encode. The channel
+           keeps airing what it already has; nothing raises, so no new path
+           leads to the slate.
+
+        ``estimated_bytes`` <= 0 means "no estimate": the check passes and the
+        caller behaves exactly as it did before this fix.
+        """
+
+        if estimated_bytes <= 0:
+            return True
+        cache_dir = self._cache_dir()
+        free = _free_disk_bytes(cache_dir)
+        if free is None:
+            # No information about the volume: never turn a probe failure into
+            # a refusal to prepare. Same fail-open rule as the budget.
+            return True
+        reserve = _cache_disk_reserve_bytes()
+        needed = float(estimated_bytes) + reserve
+        if free >= needed:
+            return True
+        self._evict_cache_over_budget(free_bytes_needed=needed)
+        free = _free_disk_bytes(cache_dir)
+        if free is None or free >= needed:
+            return True
+        if key is not None and key not in _NO_ROOM_WARNED:
+            _NO_ROOM_WARNED.add(key)
+            _LOG.warning(
+                "Not enough disk for %s: the conform would need about %.1f GB and "
+                "the volume holding the conform cache has %.1f GB free with %.1f GB "
+                "held in reserve (configured cache budget %.1f GB; evicting every "
+                "cached entry did not free enough). The conform is skipped rather "
+                "than failed: the channel keeps airing what it has, and this asset "
+                "stays uncached until the disk has room or "
+                "CIVICCAST_CONFORM_CACHE_GB is lowered to something this volume can "
+                "hold.",
+                description,
+                needed / 1e9,
+                free / 1e9,
+                reserve / 1e9,
+                _configured_cache_budget_bytes() / 1e9,
+            )
+        return False
 
     def _cache_key(self, source_path: Path, config: EgressConfig) -> str | None:
         """Fingerprint (source file, canonical profile, loudness config) or None.
@@ -1215,6 +1375,30 @@ class SourcePreparer:
             cache_dir = self._cache_dir()
             cache_dir.mkdir(parents=True, exist_ok=True)
             tmp = cache_dir / f"{key}.ts.tmp"
+            # Disk check BEFORE the encode (see ``_ensure_room_for_conform``).
+            # ``None`` is the documented "this call did not populate the cache"
+            # signal: every caller already falls back to the bounded
+            # per-segment conform for it, exactly as it does for a held lock.
+            estimated_bytes = _conform_output_bytes_estimate(
+                config.canonical_profile, media_duration_seconds
+            )
+            if estimated_bytes <= 0.0:
+                with contextlib.suppress(OSError):
+                    estimated_bytes = float(source_path.stat().st_size)
+            if not self._ensure_room_for_conform(
+                estimated_bytes=estimated_bytes,
+                description=(
+                    f"{source_path.name} ("
+                    + (
+                        "unknown duration"
+                        if media_duration_seconds is None
+                        else f"{media_duration_seconds:g}s of media"
+                    )
+                    + ")"
+                ),
+                key=key,
+            ):
+                return None
             loudness_method: str | None = None
             measured_loudness: dict[str, str] | None = None
             if normalized and config.loudness_target_lufs is not None:
@@ -2227,7 +2411,7 @@ class SourcePreparer:
             with contextlib.suppress(OSError):
                 shutil.rmtree(entry)
 
-    def _evict_cache_over_budget(self) -> None:
+    def _evict_cache_over_budget(self, *, free_bytes_needed: float | None = None) -> None:
         """Oldest-first eviction of ``.ts`` entries over
         ``CIVICCAST_CONFORM_CACHE_GB``.
 
@@ -2247,9 +2431,22 @@ class SourcePreparer:
           probe meta -- see ``_write_cache_meta`` -- whose conform never
           followed) older than ``_ORPHAN_CACHE_META_MAX_AGE_S`` (24h) is
           deleted outright.
+
+        The budget is the SMALLER of ``CIVICCAST_CONFORM_CACHE_GB`` and (free
+        space on the cache volume minus the safety reserve) -- see
+        ``_cache_budget_bytes``. R9 (2026-11-17) had a 26.5 GB cache inside the
+        default 60 GB budget -- "under the cap", so nothing was evicted -- while
+        the disk it lived on had 6.0 GB free; the configured number alone is not
+        a bound on anything.
+
+        ``free_bytes_needed`` evicts for SPACE rather than for size: the loop
+        keeps giving up the least-recently-used entries until the volume would
+        hold ``free_bytes_needed`` more. That is the "the next conform will not
+        fit" case, and it runs the same oldest-first order as the budget pass.
         """
-        budget = _cache_budget_bytes()
         cache_dir = self._cache_dir()
+        budget = _cache_budget_bytes(cache_dir)
+        free_at_start = _free_disk_bytes(cache_dir)
         now = time.time()
         try:
             names = sorted(cache_dir.iterdir())
@@ -2293,14 +2490,22 @@ class SourcePreparer:
         for _mtime_s, p in ts_entries:
             with contextlib.suppress(OSError):
                 total += p.stat().st_size
+        freed = 0
         for _mtime_s, oldest in ts_entries:
-            if total <= budget:
+            within_budget = total <= budget
+            space_ok = (
+                free_bytes_needed is None
+                or free_at_start is None
+                or free_at_start + freed >= free_bytes_needed
+            )
+            if within_budget and space_ok:
                 break
             try:
                 size = oldest.stat().st_size
                 oldest.unlink()
                 oldest.with_suffix(".json").unlink(missing_ok=True)
                 total -= size
+                freed += size
             except OSError:
                 continue
 

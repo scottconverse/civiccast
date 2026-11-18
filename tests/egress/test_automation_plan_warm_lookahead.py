@@ -270,15 +270,21 @@ def test_lookahead_warms_the_next_boundary_in_ordinary_cadence() -> None:
     service.run_once(now=_at(1120))
 
     assert _pending_actions(store, "public") == ["reload"]
-    assert len(daemon.warmed) == 1, daemon.warmed
-    channel_id, warmed_plan = daemon.warmed[0]
-    assert channel_id == "public"
-    # NOT item-2: that is the plan this very dispatch is about to reload, and
-    # warming it would put a second whole-asset conform alongside the reload's
-    # own. The walk steps to the boundary after it.
-    assert [seg.source_ref for seg in warmed_plan.segments] == ["item-3"]
-    # The dispatch's own boundary, then the boundary the walk warmed.
-    assert schedule.calls == [_at(1800), _at(3600)]
+    # Two warms, and the first is the improvement: the horizon walk warmed
+    # item-2 at the tick item-1 took air (1900s of runway before its own
+    # dispatch), and this dispatch's walk warmed item-3.
+    channel_ids = [entry[0] for entry in daemon.warmed]
+    assert channel_ids == ["public", "public"]
+    # NOT item-2 at the DISPATCH: that is the plan this very reload is about
+    # to arm, and warming it here would put a second whole-asset conform
+    # alongside the reload's own. The walk steps to the boundary after it.
+    assert [entry[1].segments[0].source_ref for entry in daemon.warmed] == [
+        "item-2",
+        "item-3",
+    ]
+    # The horizon walk's own boundary, then the dispatch's boundary and the one
+    # its walk warmed.
+    assert schedule.calls == [_at(1800), _at(1800), _at(3600)]
 
 
 def test_the_ordinary_cadence_warm_gets_more_runway_than_the_asset_costs() -> None:
@@ -346,7 +352,11 @@ def test_the_ordinary_cadence_warm_gets_more_runway_than_the_asset_costs() -> No
 
     service.run_once(now=_at(1120))  # the dispatch; the warm is queued here
 
-    _channel_id, warmed_plan = daemon.warmed[0]
+    # The last warm is item-3, the one this dispatch's walk queued. (The first
+    # one is item-2, warmed by the horizon walk the moment item-1 took air --
+    # see ``_warm_next_boundary_ahead`` -- which only gives it MORE runway.)
+    assert [seg.source_ref for seg in daemon.warmed[0][1].segments] == ["item-2"]
+    _channel_id, warmed_plan = daemon.warmed[-1]
     assert [seg.source_ref for seg in warmed_plan.segments] == ["item-3"]
     # item-3 airs at _at(3600); its own dispatch fires one lead before that.
     warmed_dispatch_at = _at(3600) - timedelta(seconds=_LEAD_SECONDS)
@@ -449,3 +459,69 @@ def test_a_raising_warmer_never_breaks_the_dispatch() -> None:
     assert _pending_actions(store, "public") == ["reload"]
     assert [entry[1].segments[0].source_ref for entry in daemon.warmed] == ["item-3"]
     assert daemon.warm_raised == ["public"]
+
+
+# ---------------------------------------------------------------------------
+# A program must be prepared BEFORE its slot, whichever path put it on air
+# ---------------------------------------------------------------------------
+
+
+def _fresh_horizon_service(daemon: object, schedule: _Schedule, clock: dict[str, float]):
+    store = InMemoryEgressStore()
+    store.upsert_config(_config("public"))
+    _write_on_air_state(store, "public", proof_event_id="ev-1", pid=100)
+    return store, _service(store, daemon, schedule, clock)
+
+
+def test_a_long_program_started_without_a_rollover_warms_its_successor_at_once() -> None:
+    """MSI, 2026-11-17: government's 5.3-hour program, started by the operator.
+
+    The look-ahead used to run only AFTER a rollover dispatch, so a plan that
+    took air any other way -- an operator start, an auto_start recovery after
+    the driver reboot, a crash relaunch -- never warmed the program behind it.
+    Five hours later that program's boundary was reached with a cold cache and
+    the channel aired the slate for ~25 minutes.
+
+    The warm belongs at the moment the CURRENT program starts: that is the
+    only instant that gives its successor the whole slot as runway, and it is
+    reachable without any dispatch.
+    """
+
+    clock = {"t": 0.0}
+    schedule = _Schedule("public", count=4, seconds=19080.0)  # 5.3 hours
+    daemon = _WarmFakeDaemon(live_channels={"public"})
+    store, service = _fresh_horizon_service(daemon, schedule, clock)
+
+    service.run_once(now=_NOW)
+
+    # Nothing is due: the plan just took air. Nothing is reloaded either.
+    assert _pending_actions(store, "public") == []
+    assert [entry[1].segments[0].source_ref for entry in daemon.warmed] == ["item-2"]
+
+
+def test_the_horizon_warm_is_issued_once_per_plan() -> None:
+    """Every ~2s tick must not re-queue the same whole-asset conform."""
+
+    clock = {"t": 0.0}
+    schedule = _Schedule("public", count=4, seconds=19080.0)
+    daemon = _WarmFakeDaemon(live_channels={"public"})
+    _store, service = _fresh_horizon_service(daemon, schedule, clock)
+
+    service.run_once(now=_NOW)
+    service.run_once(now=_at(2))
+    service.run_once(now=_at(60))
+
+    assert [entry[1].segments[0].source_ref for entry in daemon.warmed] == ["item-2"]
+
+
+def test_a_plan_shorter_than_the_lead_is_left_to_the_dispatch_tick() -> None:
+    """A 290s leg has no runway to spend: its dispatch fires on the next tick."""
+
+    clock = {"t": 0.0}
+    schedule = _Schedule("public", count=10, seconds=290.0)
+    daemon = _WarmFakeDaemon(live_channels={"public"})
+    _store, service = _fresh_horizon_service(daemon, schedule, clock)
+
+    service.run_once(now=_NOW)
+
+    assert daemon.warmed == []
