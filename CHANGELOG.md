@@ -1,8 +1,8 @@
 # Changelog
 
-## [Unreleased]
+## [1.0.0-rc.6] - 2026-11-15
 
-Release candidate **v1.0.0-rc.6** (unpublished candidate). Full notes, verification and known issues:
+Release candidate **v1.0.0-rc.6**, published November 15, 2026. Full notes, verification and known issues:
 `docs/releases/v1.0.0-rc.6-release-notes.md`.
 
 - AI summaries and translation now use an integrated graphics chip. Before: the bundled Ollama dropped an integrated GPU, so a station with only a Radeon 780M ran every summary and translation on the processor. Measured November 12, 2026 on three stations with that chip (Beelink 64 GB, R9, R7), same request on both paths: gemma4:12b 4.5-5.8 to 7.5-8.1 tokens per second, gemma4:e4b 10.0-14.3 to 19.6-21.0, translategemma:4b 11.1-16.2 to 23.6-24.8. On the Beelink with three live channels, the processor path made `/health` report `degraded` for two minutes (live caption inference up to 9.5 s); the chip path stayed `healthy`. The Ollama child now starts with `OLLAMA_IGPU_ENABLE=1` and with `OLLAMA_CONTEXT_LENGTH=4096`, which keeps the default context every station had (with the chip on, Ollama counts shared memory as VRAM and would pick 262,144 tokens). Not measured: a station with both a discrete GPU and an integrated chip in use; hours of continuous AI work on the chip.
