@@ -13,7 +13,7 @@ Beta20 was publicly released; the October 19 pause is historical, not current st
 Read `docs/handoff/CURRENT.md` for the portable handoff and outstanding work.
 Scott authorized publishing the checker fix, portable instructions, and handoff on
 October 24. This is not an installer or product-release assignment. Do not launch
-builds, test suites, or release workflows merely because a new agent opens the repo.
+builds or release workflows merely because a new agent opens the repo.
 
 ## Completion contract (owner-approved 2026-10-19)
 
@@ -21,15 +21,15 @@ builds, test suites, or release workflows merely because a new agent opens the r
 - Treat "continue", "finish", and "keep going" as continuation of the current authorized scope. Continuous development requires an explicit request for ongoing work with no bounded terminal. Do not silently narrow an existing assignment.
 - Keep one concise current list of outcomes, passed evidence, remaining work, blockers, candidate identity, and next action when work spans sessions or external waits. Reuse an existing list; do not create parallel ledgers. Before handoff or compaction, preserve that state and relevant decisions.
 - Default to serial execution and one current candidate. No automatic delegation. Use a bounded independent reviewer only when explicitly authorized or required by the current assignment; otherwise disclose the absence of independent review rather than claiming it occurred.
-- Inspect relevant files, make the smallest sufficient change, and run the narrowest meaningful checks plus required CI and acceptance checks. Reproduce a bug before fixing when practical. Do not manufacture tests for prose or mechanical changes.
-- Every additional check, review, or rebuild must address changed behavior, a named defect, an unresolved required outcome, or required CI. Reuse valid unaffected evidence. Test-only and bookkeeping changes do not invalidate unchanged signed artifacts.
+- Inspect relevant files, make the smallest sufficient change, and run the checks that cover the change plus required CI and acceptance checks. Reproduce a bug before fixing when practical. Do not manufacture tests for prose or mechanical changes.
+- Every additional rebuild must address changed behavior, a named defect, an unresolved required outcome, or required CI. Reuse valid unaffected evidence. Test-only and bookkeeping changes do not invalidate unchanged signed artifacts.
 - After two failed attempts for the same cause, diagnose before another attempt. Change the approach based on evidence; if genuinely blocked, report the concrete blocker and continue independent authorized work. Do not blind-retry or abandon the whole task merely because a repair is difficult.
-- Update documentation where behavior or a relied-upon claim changed. Do not force every change through every document, a five-lens report, multiple review gates, or a new harness. Optional improvements go outside the current assignment.
+- Update documentation where behavior or a relied-upon claim changed. Do not force every change through every document or a five-lens report. Optional improvements go outside the current assignment.
 - Preserve required CI, review requirements enforced by the repository, data preservation, signing, backup/recovery, and actual installed-behavior acceptance. Do not waive required outcomes or fake receipts to finish faster. Existing authorization remains valid; do not ask again at every stage.
 - For background work, record the owned process/job identity, start time, expected terminal result, next action, and cancellation method in the existing task state. Verify resource headroom before expensive or concurrent operations. A watcher proves only what it actually performs; do not promise automatic continuation without a working wakeup/continuation mechanism.
 - An explicit stop takes priority: stop launching work, cancel owned agents/jobs/helpers/remote runs as authorized, verify terminal state, and report anything still running or inaccessible. Pausing a goal or ending a launcher is not OS/CI cancellation. Never act on stale PIDs without verifying ownership. A paused task requires explicit resumption.
 - Query live state for progress claims; distinguish prepared, executed, verified, and delivered. A documented blocker means incomplete, not complete. Final reports state delivered results, checks actually run, and remaining limitations. Effort, a deadline, or a polished summary is not completion evidence.
-- Mutation testing was removed by Scott on October 22. Do not restore it or turn informational checks into completion gates. No repeated broad testing, audits, or rebuilds without an affected requirement or concrete unresolved defect.
+- Mutation testing was removed by Scott on October 22. Do not restore it or turn informational checks into completion gates. No repeated audits or rebuilds without an affected requirement or concrete unresolved defect.
 - No Git LFS transfers or spending through October 2026. Keep LFS smudging and push transfers disabled. Source work and this handoff do not need installers or model downloads.
 - Keep Windows terminals/helpers invisible; use ConPTY (`tty=true`, `login=false`) and Hidden/CreateNoWindow for background children. Preserve disabled GitHub CLI telemetry and existing hidden launchers. Never reboot the host.
 - Never pause an active goal without a current owner request. A newer explicit resume or physical goal-start action supersedes an earlier pause. Do not mark a goal complete with required work remaining.
