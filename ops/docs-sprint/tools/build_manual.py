@@ -115,16 +115,12 @@ def includes(text: str) -> str:
 
 
 def swap_appendix_h(appendices: str) -> str:
-    """Replace the appendix-H stub written by the appendix author with the coordinator's evidence appendix."""
+    """Insert the coordinator's evidence appendix at the APPENDIX-H marker."""
     h = read("40h-evidence.md")
-    parts = re.split(r"(?m)^(?=# Appendix )", appendices)
-    kept = []
-    for p in parts:
-        if re.match(r"# Appendix H\b", p):
-            kept.append(h + "\n")
-        elif p.strip():
-            kept.append(p)
-    return "\n".join(kept)
+    marker = "<!-- APPENDIX-H: build_manual.py replaces this marker with 40h-evidence.md -->"
+    if marker not in appendices:
+        raise SystemExit("40-appendices.md is missing the APPENDIX-H marker")
+    return appendices.replace(marker, h, 1)
 
 
 def render_mermaid(text: str, diagrams: bool) -> str:
@@ -201,6 +197,9 @@ def main():
     text = "\n\n".join(body)
     text = includes(text)
     text = render_mermaid(text, diagrams)
+    # Source chapters live in docs/manual/src/; the assembled manual lives in docs/.
+    # Rewrite chapter-relative image links so they resolve from docs/USER-MANUAL.md.
+    text = text.replace("](../images/", "](manual/images/")
     # Barlow has no arrow or check-mark glyphs; use plain text for the few places they appear.
     text = text.replace("→", ">").replace("✓", "yes")
     text = re.sub(r"\n{3,}", "\n\n", text)
@@ -209,7 +208,7 @@ def main():
         "title: CivicCast User Manual\n"
         f"subtitle: For station staff, volunteers and city IT staff - {VERSION} (native Windows line)\n"
         "author: The CivicCast Authors\n"
-        "date: 2026-10-30\n"
+        "date: 2026-11-15\n"
         "urlcolor: blue\n"
         "toccolor: black\n"
         "---\n\n"

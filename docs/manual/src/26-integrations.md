@@ -288,7 +288,7 @@ The **Alerts** screen can hold destinations of three kinds: email, text message 
 
 `POST /api/webhooks/stripe` accepts a payment provider's notification. It requires a `Stripe-Signature` header, rejects a body over 1 MiB, and answers 401 for a bad signature. It is not reachable from the internet unless you build a path to it.
 
-> **Beta 19 status:** A configured mail provider sends sign-in links and reports delivery failures. The public portal still asks for paywall tiers and a checkout, but the server has no routes for them (the API list shows only `access`, `magic-link` and `verify`), and public VOD media is not grant-protected. See [Publishing](#ch-publishing).
+> **Current limitation:** A configured mail provider sends sign-in links and reports delivery failures. The public portal still asks for paywall tiers and a checkout, but the server has no routes for them (the API list shows only `access`, `magic-link` and `verify`), and public VOD media is not grant-protected. See [Publishing](#ch-publishing).
 
 ## Station import from Cablecast {#station-import-cablecast}
 
@@ -331,7 +331,7 @@ environment procedure in [Running it day to day](#ch-operations). Never put the
 token itself in this JSON. File changes take effect on the next request;
 service-environment changes require a planned service restart. For catalog-only
 sharing, omit `staff_origin`, `token_env` and `channel_ids`. This source feature
-is not included in the published Beta 19 package.
+was not included in Beta 19; it shipped in Beta 20.
 
 ## External agenda import
 

@@ -64,7 +64,7 @@ The most important idea in this chapter: CivicCast has several separate controls
 
 Do this early on meeting night, before anyone is in the room. The same screen is covered in more depth in [When something looks wrong](#ch-something-wrong).
 
-1. In the left menu, under **System Health**, click **Readiness**. The page's own title is "Safe to broadcast".
+1. In the left menu, under **System Health**, click **Readiness**. The page's own title is "Station health and readiness".
 2. Read the banner called "On air right now". It lists each channel with a state word and a small colour tag, and it updates itself about every 5 seconds.
 3. Read the card under the title. Its tag is **Ready** (green), **Check before meeting** (yellow) or **Do not broadcast yet** (red). The card's heading can also read "Ready with optional items", which means only optional items still need attention. The card's text says what to do next.
 4. To run a full test, click **Check broadcast readiness**. This needs the Meeting operator role.
@@ -442,7 +442,7 @@ To send a bulletin back, click **Request changes**, type a note and click **Send
 
 > **Warning:** the board is what viewers see between programs. Changing the **Board template** menu takes effect **immediately, with no confirmation**. Deleting a zone asks only "Confirm delete?".
 
-> **Package note:** Board audio and live-video zones are part of Beta 19, not the published Beta 18 package. Support admins can view the designer but cannot edit it.
+> **Package note:** Board audio and live-video zones have been part of the package since Beta 19 (historical releases). Support admins can view the designer but cannot edit it.
 
 ## Bring in remote guests (Remote Contribution)
 
