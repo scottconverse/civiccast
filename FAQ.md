@@ -1,7 +1,8 @@
 # CivicCast FAQ
 
-Questions and practical answers for CivicCast. Source documentation describes
-the unpublished RC2 candidate; public downloads remain RC1.
+Questions and practical answers for CivicCast. The current published package is
+[v1.0.0-rc.6](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-rc.6);
+see its [release notes](docs/releases/v1.0.0-rc.6-release-notes.md).
 
 ## What is CivicCast?
 
@@ -117,8 +118,8 @@ there. Residents do not need an operator account.
 ## How do subscribers work?
 
 Residents can use email double opt-in and public RSS feeds. Automatic
-subscriber notifications on publication and podcast publication are not available
-in this edition. Email handles and
+subscriber notifications on publication and podcast publication use configured
+mail or webhook providers, with delivery outcomes and retries (Beta 17 and later). Email handles and
 webhook secrets are encrypted at rest. Public subscribe endpoints are
 rate-limited to reduce spam and abuse.
 
@@ -177,7 +178,7 @@ tokens, passwords, private keys, resident data, or private meeting content.
 
 ## Release status and evidence
 
-RC1 is the [published release](https://github.com/scottconverse/civiccast-native/releases/tag/v1.0.0-rc.1); its [verification record](docs/releases/v1.0.0-rc.1-verification.md) identifies the signed package and scoped checks.
+v1.0.0-rc.6 is the [published release](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-rc.6); its [verification record](docs/releases/v1.0.0-rc.6-verification.md) identifies the signed package and scoped checks.
 
 Beta 15 passed Windows Sandbox installation, first-admin setup, built-in Help and built-in uninstall checks. Its corrected installer also restored a working station automatically after a simulated activation failure. The bundled Welcome programme aired and returned to slate in the short-programme rollover check. The [Beta 15 verification record](docs/releases/v1.0.0-beta.15-verification.md) identifies each tested package and its results.
 

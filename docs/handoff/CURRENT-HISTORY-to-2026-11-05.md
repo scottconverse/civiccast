@@ -3186,7 +3186,7 @@ or merge. Check current remote state before later integration.
   GitHub labels it a prerelease because it is a beta; it is not a draft.
 - Current installer is the documentation revision built from
   `2e19612467fda894d63e499580e4d7b5f029f5f2`, signed
-  [build 39810481727](https://github.com/scottconverse/civiccast-native/actions/runs/39810481727).
+  build 39810481727.
   Setup SHA-256: `6c0aa52d773a4c5c0a0643e00d860a83560551d497c5f1efb05cba5beadc3e5d`.
   Existing evidence records a valid Scott Converse signature and installed Help/manual acceptance.
   See [Beta20 verification](../releases/v1.0.0-beta.20-verification.md).

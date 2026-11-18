@@ -18,7 +18,7 @@ schema_version: 1
 # Was scottconverse/civiccast-wsl-legacy. This manifest governs THIS repository's
 # release state; pointing it at the archived repo would have made every
 # release claim here checked against a line this repo does not ship.
-repository: scottconverse/civiccast-native
+repository: scottconverse/civiccast
 
 # The tag that public surfaces may present as the current install target.
 current: v1.0.0-rc.6

@@ -713,7 +713,7 @@ For all other variables, the appendix of settings ([Appendix: settings](#app-set
 
 ## Package status
 
-These instructions describe the published Beta 20 edition. Use the release page and the Help and verification record that match the package on the station. The [Beta 20 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.20-verification.md) identifies that package's scoped checks; the [Beta 18 record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.18-verification.md) remains historical.
+These instructions describe the published v1.0.0-rc.6 edition. Use the release page and the Help and verification record that match the package on the station. The [RC6 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-rc.6-verification.md) identifies that package's scoped checks; the [Beta 20 record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.20-verification.md) remains historical.
 
 ## Related
 

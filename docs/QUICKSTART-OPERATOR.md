@@ -1,6 +1,6 @@
 # New PEG operator: install and run three channels
 
-Use the complete signed kit matching the release. The current public download is [v1.0.0-rc.5](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-rc.5), published November 7, 2026; see its [release notes](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-rc.5-release-notes.md) for verification and known issues. Start with the [Windows installation guide](https://github.com/scottconverse/civiccast/blob/main/INSTALL-WINDOWS.md) and [release-trust guide](https://github.com/scottconverse/civiccast/blob/main/docs/install/windows-release-trust.md). In the kit, read `manual/USER-MANUAL.pdf` or use Help in the app.
+Use the complete signed kit matching the release. The current public download is [v1.0.0-rc.6](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-rc.6), published November 15, 2026; see its [release notes](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-rc.6-release-notes.md) for verification and known issues. Start with the [Windows installation guide](https://github.com/scottconverse/civiccast/blob/main/INSTALL-WINDOWS.md) and [release-trust guide](https://github.com/scottconverse/civiccast/blob/main/docs/install/windows-release-trust.md). In the kit, read `manual/USER-MANUAL.pdf` or use Help in the app.
 
 1. Back up a working station before upgrading. Install only the complete matching signed kit and wait for successful completion. In First Setup, save the recovery kit away from the station.
 2. Open the local operator console at `http://127.0.0.1:8000/operator/` on the station.
@@ -12,7 +12,7 @@ Use the complete signed kit matching the release. The current public download is
 
 Use the Manual for full steps, error recovery, and responsibilities. Preparation is not on-air proof. Do not repeatedly reload an already pending handoff.
 
-For RC5, Windows 11 x64 is the verified platform; Windows 10/Server support is unverified. No minimum hardware specification is certified for three simultaneous captioned channels. Captions are machine-generated, and their accuracy is not calibrated against human transcripts. At a program change, a caption page still being spoken can be cut off. Captions can slow down if the station PC is busy with programs other than CivicCast. Check caption delivery at transitions on your configuration. See the RC5 release notes for the measured scope, security findings and known issues before a distribution decision.
+For RC6, Windows 11 x64 is the verified platform; Windows 10/Server support is unverified. No minimum hardware specification is certified for three simultaneous captioned channels. Captions are machine-generated, and their accuracy is not calibrated against human transcripts. At a program change, a caption page still being spoken can be cut off. Captions can slow down if the station PC is busy with programs other than CivicCast. Check caption delivery at transitions on your configuration. See the RC6 release notes for the measured scope, security findings and known issues before a distribution decision.
 
 ---
 

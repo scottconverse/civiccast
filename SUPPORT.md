@@ -28,7 +28,7 @@ community-driven; there is no commercial support contract or SLA.
 The source manual describes current station operation, scheduling,
 output and recorded-caption settings. For an installed station, use the Help
 bundled with its release or the matching manual assets from that release page.
-RC5 is published ([release notes](docs/releases/v1.0.0-rc.5-release-notes.md)). Its known issues are listed there. Source changes after publication do not update an installed station.
+RC6 is published ([release notes](docs/releases/v1.0.0-rc.6-release-notes.md)). Its known issues are listed there. Source changes after publication do not update an installed station.
 
 ## Retired WSL2 Support History
 
@@ -60,13 +60,13 @@ enabled throwaway development.
 ## Native Windows Beta
 
 The native Windows runtime ([ADR 0021](docs/adr/0021-native-windows-runtime.md))
-is a public beta. The current published package is `v1.0.0-rc.5`, available
-from its [GitHub Release](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-rc.5).
-Its [release notes](docs/releases/v1.0.0-rc.5-release-notes.md)
+is a public pre-release. The current published package is `v1.0.0-rc.6`, available
+from its [GitHub Release](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-rc.6).
+Its [release notes](docs/releases/v1.0.0-rc.6-release-notes.md)
 identify the signed installer, verification and known issues.
 Package and installation claims must name the exact published version; source
 changes do not update an installed station. The
-[RC5 release notes](docs/releases/v1.0.0-rc.5-release-notes.md)
+[RC6 release notes](docs/releases/v1.0.0-rc.6-release-notes.md)
 contain package-specific results and boundaries. There is no dedicated,
 SLA-backed support intake for the native beta.
 
@@ -76,7 +76,7 @@ If you are working on, evaluating, or running the native line:
   [BRANCHES.md](BRANCHES.md) first.
 - When reporting a source issue, include the branch or commit being used. The
   station-operation, unattended-scheduling, broadcast-output, and recorded-
-  caption updates ship in Beta 16; Beta 15 remains a separate historical package.
+  caption updates ship in the current release; Beta 16 and Beta 15 remain separate historical packages.
 - Use a regular [GitHub Issue](https://github.com/scottconverse/civiccast/issues)
   for questions (GitHub Discussions is not enabled on this repository), and say explicitly in the report
   that it concerns the native line and which release tag or source commit you're on -- the templates don't yet

@@ -17,7 +17,7 @@ Branch from `main`, target `main`. There is no second line to choose between.
 ## Where the old line went
 
 This repository was created on 2026-08-19 by copying the native product out of
-[`scottconverse/civiccast-wsl-legacy`](https://github.com/scottconverse/civiccast-wsl-legacy) with
+`scottconverse/civiccast-wsl-legacy` with
 **fresh history**. That repository (named `scottconverse/civiccast` until
 2026-11-08, when it was renamed and archived; this repository then took the
 `scottconverse/civiccast` name) is now private and still holds:
@@ -52,13 +52,13 @@ not scratch.
 
 ## Release identity
 
-v1.0.0-beta.20 is the current public release, published 2026-10-21 (MDT) as a
+v1.0.0-rc.6 is the current public release, published 2026-11-15 as a
 GitHub pre-release (not a production release). Its signed installer was built from source
-ea8fb798; PR #259 subsequently merged as a1744918. See the [Beta 20 verification
-record](docs/releases/v1.0.0-beta.20-verification.md) for the exact package and
+d74a8c31; the tag target is 830b53df. See the [RC6 verification
+record](docs/releases/v1.0.0-rc.6-verification.md) for the exact package and
 its scoped checks.
 
-Beta 19 and earlier releases are superseded; Beta 8 and Beta 9 were never
+RC5, Beta 20 and earlier releases are superseded; Beta 8 and Beta 9 were never
 published, and Beta 2 exists only as an internal upgrade-baseline kit. See
 [`docs/releases/release-truth.yaml`](docs/releases/release-truth.yaml) for the
 authored state of each tag and [`docs/releases/`](docs/releases/) for

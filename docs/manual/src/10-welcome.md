@@ -100,7 +100,7 @@ The portal is an English-only website with a dark look and no sign-in. Its heade
 - A recording's **watch page** shows the video with captions, the meeting's agenda beside it if staff published one, the description, and a **Copy share link** button.
 - **Schedule** shows what airs on each channel.
 
-![The resident portal Home page while a channel is on air. The header shows the links Home, Recordings and Schedule. The Live now panel has a video player beside a Broadcast status card.](manual/images/portal-home.png){width=90%}
+![The resident portal Home page while a channel is on air. The header shows the links Home, Recordings and Schedule. The Live now panel has a video player beside a Broadcast status card.](../images/portal-home.png){width=90%}
 
 *Figure 1.2. The resident portal's Home page.*
 

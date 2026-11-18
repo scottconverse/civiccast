@@ -1,4 +1,4 @@
-> **RC2 source update:** The current public download is RC1. For the next RC2
+> **Current release:** the current public download is v1.0.0-rc.6. For an
 > operator run, use its matching packaged manual and built-in Help to install,
 > set up and run Public, Education and Government from the normal UI. Use
 > [the operator quick start](../QUICKSTART-OPERATOR.md) as the entry point.

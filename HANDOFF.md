@@ -221,7 +221,7 @@ commissioning, bulletin-board live video and audio, and native viewer
 completion, along with the earlier Beta 17/18 publication/import work.
 Beta 19's signed kit was built from
 `7d61cbede3123a65b4a0d6d4b413ae99edbc3f04` in
-[workflow 38797808863](https://github.com/scottconverse/civiccast/actions/runs/38797808863).
+workflow 38797808863.
 Its package identity and scoped checks are in the
 [Beta 19 verification record](docs/releases/v1.0.0-beta.19-verification.md).
 The [public Beta 19 release](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-beta.19)
@@ -256,7 +256,7 @@ identifies its installer and checks.
 PR #249 merged to `main` as `efcab4c1f618e4a46bf62491ee410a9fcd9e7618`, the Beta 16 tag target.
 The signed Beta 16 package was built from
 `e92bebd4b5289dce969f81b72515cfa0d45eba55`, successful
-[build 38635220200](https://github.com/scottconverse/civiccast/actions/runs/38635220200).
+build 38635220200.
 The corrected package passed upgrade, administrator/profile preservation,
 restricted service/process identity, installed GStreamer smoke, and uninstall
 in the 240 GiB Hyper-V guest. Clean fresh installation also passed, including
@@ -264,7 +264,7 @@ new administrator setup, healthy/current Beta 16, restricted process ownership
 and installed runtime smoke. The owner subsequently authorized publication.
 The earlier candidate used
 `9b83d7b89cddc987fbbcc5e23a1433339810d5d6` on `codex/beta16-release`,
-[build 38579665236](https://github.com/scottconverse/civiccast/actions/runs/38579665236).
+build 38579665236.
 That candidate failed upgrade service registration in the replacement 160 GiB
 Hyper-V guest and restored healthy Beta 15 with the saved station profile.
 The corrected source stops the service before migrating its identity.
