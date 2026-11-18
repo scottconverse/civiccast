@@ -31,6 +31,23 @@ class OperatorFixtureAssetStore:
     def get_staff_row(self, asset_id: str) -> StaffAssetRow | None:
         return next((asset for asset in self._assets if asset.asset_id == asset_id), None)
 
+    def mark_published(self, asset_id: str, *, published_at: datetime) -> StaffAssetRow:
+        """Same contract as the real asset store's ``mark_published``.
+
+        The publish router calls this after a Portal surface succeeds
+        (``_apply_portal_visibility``). Without it the router records Portal
+        as failed, which is what this full-stack gate must not hide.
+        """
+        for index, asset in enumerate(self._assets):
+            if asset.asset_id != asset_id:
+                continue
+            if not asset.manifest_url:
+                raise ValueError(f"Asset is not packaged: {asset_id}")
+            published = asset.model_copy(update={"published_at": published_at})
+            self._assets[index] = published
+            return published
+        raise ValueError(f"Asset not found: {asset_id}")
+
 
 asset_store = OperatorFixtureAssetStore(
     [

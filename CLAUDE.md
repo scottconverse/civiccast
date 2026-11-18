@@ -81,6 +81,16 @@ then perform only the authorized upgrade and actual post-upgrade acceptance. Hon
 the no-host-reboot constraint. Never synthesize an acceptance receipt or lower a
 resource/security requirement to get a pass. A blocker remains open until resolved.
 
+## VerdictLite (owner-approved 2026-11-18)
+
+This repo uses VerdictLite (`vlite`, https://github.com/scottconverse/verdictlite). Manual: https://scottconverse.github.io/verdictlite/manual.html
+
+- Before a commit, run the `verify` skill for the part you changed. It starts the app, uses it as a user does, saves evidence and writes a stamp.
+- When you finish a task, a Stop hook runs lint, types and the tests of each module you changed (rules: `vlite.json` on `main`). If a check fails, fix the cause. Do not skip a test, add a sleep or rerun to pass. After three failed rounds the hook stops the session and a person looks.
+- A test that you remove must be written down in `TEST-REMOVALS.md` at the repo root.
+- For a review, read `REVIEW.md` from `main` (`git show origin/main:REVIEW.md`), never from your branch. `vlite review` does this.
+- Each commit gets a `Verified-By:` trailer from a git hook. The commit gate is in observe mode: it records and blocks nothing.
+
 ## Closed architectural decisions
 
 These are decided. Do not reopen them without surfacing to the human director first.
