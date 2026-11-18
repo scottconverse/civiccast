@@ -150,7 +150,8 @@ function Stop-Backend([string]$label) {
     Add-Content (Join-Path $evidence 'processes.log') "stop $label $line"
     $port = ([uri]$script:baseUrl).Port
     $stillListening = Get-NetTCPConnection -State Listen -LocalPort $port -ErrorAction SilentlyContinue
-    $ok = ($line -like '*stopped*' -or $line -like '*already exited*') -and -not $stillListening
+    # ': stopped (tree' is the success text. 'NOT stopped' (a refused stop) must not count as a pass.
+    $ok = ($line -like '*: stopped (tree*' -or $line -like '*: already exited*') -and -not $stillListening
     $steps.Add([pscustomobject]@{ flow = 'server'; step = "stop-$label"; method = '-'; path = '-'; status = $(if ($ok) { 'down' } else { 'up' }); expected = 'down'; ms = 0; result = $(if ($ok) { 'PASS' } else { 'FAIL' }); note = $line })
     $script:server = $null
     if (-not $ok) { throw "Could not stop backend ($label): $line" }

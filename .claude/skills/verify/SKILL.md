@@ -58,7 +58,7 @@ What it does:
    marker is a whole word in the command line, so `--port 5173` does not match `--port 51730`; then `taskkill /PID <pid> /T /F`, hidden and bounded to 15 s, and a timeout is noted in `processes.log`). Never by process name.
 7. Fails if any `Traceback` shows up in the server logs. Deletes the throwaway state (unless `-KeepState`).
 
-Expected time: 15-40 s on a quiet disk. The `POST /api/setup/storage` step makes about 100 SQLite commits in
+Measured on the Halo PC on 2026-11-18: 119 to 186 s with a busy disk. A quiet disk was not measured. The `POST /api/setup/storage` step makes about 100 SQLite commits in
 rollback-journal FULL-sync mode, so it follows disk fsync latency. On a disk that other programs saturate, it was
 measured at 150 s. `report.md` shows the time of each step, so a slow run is easy to explain.
 
