@@ -5220,6 +5220,115 @@ def test_u37_drain_deadline_switches_anyway_and_names_the_pad(
     ) in capsys.readouterr().err
 
 
+def test_rc61_drain_waits_for_the_loudness_window_to_flush_the_retiring_audio_tail(
+    engine_module: types.ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A mux pad emptied by the loudness element is not a pad that has aired its tail.
+
+    MEASURED on the 5060 Ti, rc.6, 2026-11-17/18 (reload id=1, public, 01:12:24Z):
+    ``stage=rebase-drain-drained waited=1.812s`` was followed 16s later by
+    ``CTRL stall: audio running time 3.0s behind video for 10s (last reload id=1
+    stage=committed)``. The same commit's own fence line names the shortfall
+    exactly: ``stage=mux-tail-wait seen={'sink_66': 401173333333}
+    target={'sink_66': 404181333332}`` -- 3.008s of retiring audio that had not
+    reached the mux, against ``audio_end=404.181`` measured at the selector.
+
+    3.008s is the declared per-output loudness latency
+    (``audioloudnorm`` buffers a 3s BS.1770 window -- ``bridge.py`` builds
+    ``audio_latency_ns`` from it, and the graph already carries it so the drain
+    can wait for emitted tails). At the drain poll the pad's
+    ``current-level-buffers`` is 0 because the element has not EMITTED the tail
+    yet, so the drain's predicate ("this pad has handed over everything it had
+    taken") is true while a full loudness window of the retiring leg is still
+    inside the chain. The commit then switches, the changeover SEGMENT crosses
+    the audio pad ahead of that tail, and the tail arrives afterwards -- clipped,
+    at POP time, under the NEW base. Only the VIDEO pad has an arrival guard
+    against a future-dated arrival; the audio pad has none, so the re-dated tail
+    sits at the head of the pad, the new leg's audio queues behind it, and audio
+    stops being consumed while video keeps airing. That is the watchdog line.
+
+    RED without the fix: the drain names no held pad and the selector switches on
+    the first pass even though the audio mux pad is a loudness window short of the
+    outgoing leg's own measured end.
+    """
+    recorder = _Recorder()
+    engine = _bare_engine_for_commit(engine_module, recorder)
+    # audio_level=0 is the measured state: the pad is empty because the element
+    # downstream of the selector still holds the tail.
+    pending, video_pad, audio_pad = _u37_rebase_pending(recorder, txn_id=51, audio_level=0)
+    old_audio = _FakeOldPad("old-audio", recorder, None)
+    pending["old_audio_pad"] = old_audio
+    # The two FINAL outgoing ends this commit rebases onto, keyed by pad identity
+    # exactly as ``_reload_outgoing_ends_in_order`` reads them.
+    pending["outgoing_end"] = {
+        pending["old_video_pad"]: {"end": 404_200_000_000, "segment": None},
+        old_audio: {"end": 404_181_333_332, "segment": None},
+    }
+    engine._mux_input_pads = {"sink_65": video_pad, "sink_66": audio_pad}
+    # What the mux has AIRED off each pad, straight from the run's own fence line.
+    engine._mux_pad_airing_rt = {
+        "sink_65": 404_166_666_666,
+        "sink_66": 401_173_333_333,
+    }
+    engine.output_audio_latency_ns = 3_000_000_000
+    engine._pending_reload = pending
+    armed = _u37_timeout_adds(monkeypatch, engine_module)
+
+    engine._prepare_reload_handoff(pending)
+    engine._begin_reload_commit(pending)
+
+    assert "video_sel.set_property:active-pad=new-video" not in recorder.calls, (
+        "the switch must not run while the loudness window still holds the "
+        f"retiring audio tail; calls={recorder.calls}"
+    )
+    assert [callback.__name__ for _ms, callback, _args in armed] == [
+        "_on_rebase_observer_deadline",
+        "_resume_rebase_drain",
+    ], armed
+    err = capsys.readouterr().err
+    assert (
+        "CTRL reload diagnostic: stage=rebase-drain-wait pads=sink_66=tail reload_id=51" in err
+    ), err
+
+    # A tick while the tail is still inside the element switches nothing.
+    assert engine._resume_rebase_drain(pending) is True
+    assert "video_sel.set_property:active-pad=new-video" not in recorder.calls, recorder.calls
+
+    # The window flushes: the tail crosses the mux pad and the switch proceeds.
+    engine._mux_pad_airing_rt["sink_66"] = 404_181_333_332
+    assert engine._resume_rebase_drain(pending) is False
+    assert "video_sel.set_property:active-pad=new-video" in recorder.calls, recorder.calls
+
+
+def test_rc61_a_graph_without_loudness_latency_does_not_wait_for_a_tail(
+    engine_module: types.ModuleType,
+) -> None:
+    """A branch with no declared processing latency keeps today's predicate.
+
+    ``audio_latency_ns`` is 0 for every graph without ``audioloudnorm``; nothing
+    sits between the selector and the mux that can hold a tail, so an empty pad
+    really is a consumed pad and the wait must not be introduced there."""
+    recorder = _Recorder()
+    engine = _bare_engine_for_commit(engine_module, recorder)
+    pending, _video_pad, audio_pad = _u37_rebase_pending(recorder, txn_id=52, audio_level=0)
+    engine._mux_pad_airing_rt = {"sink_66": 0}
+    engine.output_audio_latency_ns = 0
+
+    assert (
+        engine._rebase_drain_held(
+            {
+                "txn_id": 52,
+                "old_audio_pad": pending.get("old_audio_pad"),
+                "outgoing_end": {},
+                "rebase_observer_pads": [("audio", audio_pad, "sink_66")],
+            }
+        )
+        == []
+    )
+
+
 def test_u37_an_unreadable_pad_level_is_not_proven_empty(engine_module: types.ModuleType) -> None:
     """Treating an unreadable level as empty would reinstate the very re-dating
     this guard exists to remove, so it waits and lets the deadline decide."""
