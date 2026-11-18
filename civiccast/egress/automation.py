@@ -850,6 +850,11 @@ class ChannelAutomationService:
         # see that method's docstring.
         self._plan_horizon: dict[str, tuple[str | None, datetime, datetime, float]] = {}
         self._rollover_issued: set[str] = set()
+        #: Which horizon the off-air look-ahead has already warmed, per channel:
+        #: ``(proof_event_id, plan_end_at)``. The walk itself is idempotent in the
+        #: preparer (``_warming`` plus the resident-entry check), but this tick is
+        #: ~2s, so without a latch every tick would queue the same job.
+        self._warm_ahead_for: dict[str, tuple[str | None, datetime]] = {}
         # U53 item 3 (2026-09-26): the boundary plan resolved for the NEXT
         # boundary, remembered per channel as ``(boundary, seconds, label)``.
         # ``_rollover_lead_seconds`` sizes the lead from the item that must be
@@ -2114,6 +2119,7 @@ class ChannelAutomationService:
             # Not airing a finite program or filler plan right now (dark,
             # starting, transitioning, draining) -- nothing to extend.
             self._plan_horizon.pop(channel_id, None)
+            self._warm_ahead_for.pop(channel_id, None)
             self._rollover_issued.discard(channel_id)
             self._rollover_issued_at.pop(channel_id, None)
             # The cadence floor governs EXTENSIONS of a live plan; a channel
@@ -2161,8 +2167,10 @@ class ChannelAutomationService:
                 previous_end_at=previous_end_at,
                 previous_planned_seconds=previous_planned_seconds,
             )
+            self._warm_next_boundary_ahead(channel_id, now=now)
             return
         _, plan_end_at, last_segment_start_at, planned_seconds = tracked
+        self._warm_next_boundary_ahead(channel_id, now=now)
 
         # A newly started Windows worker can report ON_AIR before its pipe-reader
         # thread has accepted the daemon's control connection. Do not consume any
@@ -2679,6 +2687,66 @@ class ChannelAutomationService:
                 fresh_start=fresh_start,
                 fresh_end=fresh_end,
             )
+
+    def _warm_next_boundary_ahead(self, channel_id: str, *, now: datetime) -> None:
+        """Start the program AFTER the one on air, however the current one started.
+
+        The U60/U61 look-ahead (``_warm_upcoming_plan``) runs from the rollover
+        DISPATCH tick. That covers a channel that automation itself rolled into
+        its current program -- and nothing else. A program that took air any
+        other way has no dispatch to hang a look-ahead from, so its successor
+        is never warmed and the whole-asset conform only begins when the
+        rollover fires:
+
+        * an operator start (stop/start, the documented recovery in
+          ``docs/manual/src/25-troubleshooting.md:160``),
+        * an ``auto_start`` recovery start after a reboot,
+        * a crash relaunch, or
+        * the slate pre-arm path, which arms the due program with a reload
+          command and so never passes the warm.
+
+        Live, MSI 2026-11-17: government's 5.3-hour program went on air from an
+        operator start after the driver reboot and ran for five hours. No
+        look-ahead ran for it at any point, so the boundary at its end was
+        reached with a cold cache and the channel aired the slate for ~25
+        minutes -- the second time that day it lost the slot.
+
+        So the walk runs from the horizon instead of from a dispatch: the first
+        tick that knows when the plan on air ends. That is the earliest moment
+        the successor can be conformed, which is the whole slot's runway.
+
+        Deliberately narrow:
+
+        * It is a no-op while the plan on air has LESS runway left than a full
+          lead (``plan_end_at - now < lead``). That is the short-leg regime: its
+          dispatch fires on the next tick anyway and warms the collapsed
+          successor itself, so warming here would only duplicate it.
+        * It is latched per horizon, so the ~2s tick does not re-queue the walk.
+        * It reuses ``_warm_upcoming_plan`` unchanged -- same ``now + lead``
+          rule, same collapsed-boundary case, same daemon capability probe --
+          so it can never race the reload's own synchronous conform.
+        * Best-effort: ``_warm_upcoming_plan`` is already total, and this body
+          never raises into the pass.
+        """
+
+        tracked = self._plan_horizon.get(channel_id)
+        if tracked is None:
+            return
+        proof_event_id, plan_end_at, last_segment_start_at, _planned_seconds = tracked
+        lead_seconds = self._rollover_lead_seconds()
+        if (plan_end_at - now).total_seconds() < lead_seconds:
+            return
+        marker = (proof_event_id, plan_end_at)
+        if self._warm_ahead_for.get(channel_id) == marker:
+            return
+        self._warm_ahead_for[channel_id] = marker
+        self._warm_upcoming_plan(
+            channel_id,
+            now=now,
+            lead_seconds=lead_seconds,
+            fresh_start=last_segment_start_at,
+            fresh_end=plan_end_at,
+        )
 
     #: How many boundaries the U60 look-ahead will step over before giving up.
     #: Deliberately a STEP cap and not a time horizon: a boundary beyond any
