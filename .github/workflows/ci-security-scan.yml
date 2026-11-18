@@ -149,7 +149,7 @@ jobs:
         run: npm audit --audit-level=high --json > npm-audit-report.json || true
 
       - name: Triage npm audit findings
-        run: python scripts/check_npm_audit_allowlist.py portal-operator npm-audit-report.json
+        run: python ../../../scripts/check_npm_audit_allowlist.py portal-operator npm-audit-report.json
 
   npm-audit-public:
     name: npm audit (public portal)
@@ -179,7 +179,7 @@ jobs:
         run: npm audit --audit-level=high --json > npm-audit-report.json || true
 
       - name: Triage npm audit findings
-        run: python scripts/check_npm_audit_allowlist.py portal-public npm-audit-report.json
+        run: python ../../../scripts/check_npm_audit_allowlist.py portal-public npm-audit-report.json
 
   npm-audit-tsr:
     # RC4 F8: the station ships this lockfile and IT installs the sidecar from it

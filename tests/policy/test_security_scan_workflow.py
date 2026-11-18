@@ -64,7 +64,7 @@ def test_security_scan_workflow_covers_pip_audit_bandit_and_both_npm_audits() ->
     ):
         commands = _job_run_commands(jobs[npm_job])
         assert (
-            f"python scripts/check_npm_audit_allowlist.py {app} npm-audit-report.json" in commands
+            f"python ../../../scripts/check_npm_audit_allowlist.py {app} npm-audit-report.json" in commands
         )
         # --omit=dev would hide every dev advisory and defeat the gate.
         assert "--omit=dev" not in commands
