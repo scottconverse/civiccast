@@ -70,6 +70,9 @@ no `mark_published` (the publish router calls it since the Portal-visibility cha
 Everything goes to `.vlite-evidence/<yyyyMMdd-HHmmss-fff>-portal/` at the repo root (git-ignored):
 `report.md`, `summary.json`, `<phase>.log` for each install or build step, `preview.out/err.log`, `processes.log`,
 `playwright-results.json`, `playwright-report/` (HTML), and `playwright-output/<test>/` with `trace.zip` and screenshots.
+**Nothing in this evidence folder is redacted.** The Playwright traces (`trace.zip`) record network traffic, so they
+contain the throwaway test-server's login tokens and request bodies. Do not commit, upload or share an evidence
+folder, and delete it when you no longer need it.
 To open a trace: `npx playwright show-trace <path>\trace.zip`. That opens a window, so do it only when the owner asks.
 
 ## Report format

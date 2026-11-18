@@ -129,7 +129,7 @@ try {
         $_.CreationDate -ge $runStart -and $_.CommandLine -like "*$repo*" -and $_.CommandLine -like '*tests.integration.operator_*'
     }
     foreach ($p in @($leftover)) {
-        $rec = [pscustomobject]@{ Pid = [int]$p.ProcessId; StartTime = $p.CreationDate; Marker = 'tests.integration.operator_' }
+        $rec = [pscustomobject]@{ Pid = [int]$p.ProcessId; StartTime = $p.CreationDate; Marker = 'tests.integration.operator_'; MarkerMode = 'prefix' }
         $failures.Add("fixture API pid $($p.ProcessId) outlived its spec")
         Write-ProcLog ("leftover fixture: " + (Stop-OwnedProcess -Record $rec))
     }

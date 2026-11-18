@@ -64,6 +64,8 @@ measured at 150 s. `report.md` shows the time of each step, so a slow run is eas
 
 ## 4. Evidence
 
+This section describes the backend evidence only. Portal evidence is not redacted; see the portal skill's Evidence section.
+
 Everything goes to `.vlite-evidence/<yyyyMMdd-HHmmss-fff>-backend/` (git-ignored):
 - `report.md` - the pass/fail table
 - `summary.json` - machine-readable result

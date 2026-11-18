@@ -54,6 +54,8 @@ function Start-HiddenProcess {
       Starts a console program hidden, stdout/stderr to files, and returns a
       record { Pid; StartTime; CommandLine; Marker }. Marker is a string that
       must appear in the command line when the record is re-checked on stop.
+      The match is a whole word (so '--port 5173' does not match '--port 51730').
+      A record may set MarkerMode = 'prefix' to match the marker anywhere.
     #>
     param(
         [Parameter(Mandatory)][string]$FilePath,
@@ -103,7 +105,9 @@ function Stop-OwnedProcess {
     param([Parameter(Mandatory)]$Record, [int]$WaitSec = 15)
     $cim = Get-CimInstance Win32_Process -Filter "ProcessId = $($Record.Pid)"
     if (-not $cim) { return "pid $($Record.Pid): already exited" }
-    if ($cim.CreationDate -ne $Record.StartTime -or ($cim.CommandLine -notmatch ('(?:^|\s)' + [regex]::Escape($Record.Marker) + '(?:\s|$)'))) {
+    $mode = if ($Record.PSObject.Properties['MarkerMode']) { $Record.MarkerMode } else { 'word' }
+    $rx = if ($mode -eq 'prefix') { [regex]::Escape($Record.Marker) } else { '(?:^|\s)' + [regex]::Escape($Record.Marker) + '(?:\s|$)' }
+    if ($cim.CreationDate -ne $Record.StartTime -or ($cim.CommandLine -notmatch $rx)) {
         return "pid $($Record.Pid): NOT stopped - PID now belongs to another process ($($cim.Name))"
     }
     $tree = Get-OwnedTree -Record $Record
