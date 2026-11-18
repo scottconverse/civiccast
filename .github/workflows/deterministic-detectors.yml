@@ -24,6 +24,8 @@ name: deterministic-detectors
 
 on:
   pull_request:
+    # Agent-tooling-only changes (.claude/, vlite.json) start no run. Docs still run here.
+    paths-ignore: ['.claude/**', '**/.claude/**', 'vlite.json']
     branches: [main, 'program/**']
   workflow_dispatch:
 

@@ -6,6 +6,8 @@ name: ci-test
 # (the Postgres restore drill's evidence is this workflow's Docker gate).
 on:
   pull_request:
+    # Agent-tooling-only changes (.claude/, vlite.json) start no run. Docs still run here.
+    paths-ignore: ['.claude/**', '**/.claude/**', 'vlite.json']
     branches: [main, 'program/**', 'release/**']
 
 concurrency:

@@ -23,6 +23,7 @@ on:
       - "scripts/verify_native_app_payload.py"
       - "scripts/collect_source_state.py"
       - "civiccast/**"
+      - "!civiccast/**/.claude/**"
       - "tests/native/**"
       - "tests/captions/**"
       - "tests/egress/**"
