@@ -376,7 +376,7 @@ Audit expectation: 0/0/0/0/0 (0 bugs, 0 unsafe transitions, 0 races, 0 rollback 
 Commit-to-air section is "shipped" when:
 
 1. Entities & models: All Pydantic models compile, have unit test coverage.
-2. Persistence: Migration 0038 applies cleanly; table durable and queryable.
+2. Persistence: Migration 0040 applies cleanly; table durable and queryable.
 3. Dry-run logic: Detects missing media, conflicts, gaps. 5+ unit test scenarios.
 4. API endpoints: All 5 endpoints respond with correct codes. Playwright tests cover happy/error paths. Auth enforced.
 5. Egress integration: PlayoutDispatcher calls supervisor methods. Integration tests verify state changes.

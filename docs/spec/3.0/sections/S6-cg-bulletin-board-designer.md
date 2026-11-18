@@ -65,7 +65,7 @@
 | **Board history/audit** | Append-only `cg_board_audit` table (board_id, event, operator_id, timestamp, details). |
 | **Expiration + scheduler** | Bulletin `requested_start/end` enforcement in the filler (don't show expired; show scheduled). Background job to clear expired bulletins (daily). |
 | **Operator UI screens** | Phone-first Bulletin Moderation Queue, Board Layout Designer, Feed Manager, Live Preview. |
-| **Migrations** | New migration `0040_cg_board_zone_bulletin` (single global chain) for `cg_boards`, `cg_zone_configs`, `cg_feed_sources`, `cg_board_audit`, + feed-item approval. |
+| **Migrations** | New migration `0044_cg_board_designer` (single global chain) for `cg_boards`, `cg_zone_configs`, `cg_feed_sources`, `cg_board_audit`, + feed-item approval. |
 | **Feed-item approval gate** | `cg_feed_item_approvals` table + approval workflow: zones with `approval_required=true` hide unapproved feed items until an operator approves them. Shipped in V1 (not deferred). |
 | **Manual zone text editor** | Operator-edited text for zones with `content_source == "manual"`. Shipped in V1 (not deferred). |
 

@@ -442,7 +442,7 @@ All of the following must be true:
 
 1. ✓ \EgressCommand.action\ enum extended to \["start", "stop", "reload", "drain", "takeover", "handback"]\.
 2. ✓ \TakeoverSession\, \ManualRouteState\, \TakeoverAuditRecord\ entities defined in \egress/models.py\.
-3. ✓ Migration created and verified (`0039_takeover_audit_and_command_action`: takeover audit table + `EgressCommand.action` enum extension).
+3. ✓ Migration created and verified (`0042_takeover_audit_and_command_action`: takeover audit table + `EgressCommand.action` enum extension).
 4. ✓ API endpoints implemented:
    - \POST /api/staff/egress/channels/{channel_id}/takeover\ (202)
    - \DELETE /api/staff/egress/channels/{channel_id}/takeover\ (200)

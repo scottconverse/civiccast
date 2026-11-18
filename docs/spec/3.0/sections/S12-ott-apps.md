@@ -22,7 +22,7 @@ real `.wgt` build**, matching every other platform in this matrix; the static `c
 validation (`tizen/validate_config.py`) remains as the fallback path for the (currently theoretical)
 case where the headless Tizen Studio install itself fails on a given run. App-store publication
 remains external (owner decision 2026-06-14: code-verify only, no store submission in V1).
-**Scope:** Roku, Apple TV, Fire TV, Android TV, Android mobile, iOS/iPadOS, and Web/PWA shells  
+**Scope:** Roku, Apple TV, Fire TV, Android TV, Android mobile, iOS/iPadOS, Samsung Tizen, LG webOS and Web/PWA shells  
 **Functional target:** incumbent PEG workflow "branded streaming app workflow" / templated streaming app workflow (basic apps free with the incumbent cloud service; up to 3 channels)
 **Key claim boundary:** Build + locally-prove generic multi-platform apps; app-store publication/certification is complete_with_external_dependency (rung gated by external store review)
 

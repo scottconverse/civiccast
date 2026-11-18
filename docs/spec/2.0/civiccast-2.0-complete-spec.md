@@ -1,7 +1,7 @@
 # CivicCast 2.0 Complete Specification
 
 Status: release specification for the CivicCast 2.0 software parity line
-Current release line: `2.0.1`
+Historical release line: `2.0.1` (pre-reset; the current release is v1.0.0-rc.6)
 Primary source specs:
 
 - `docs/spec/spec.md`
