@@ -281,3 +281,7 @@ UsersscottAppDataLocalTemp*
 *.gguf
 *.bin
 *.onnx
+
+# Verify-skill evidence (screenshots, traces, logs, throwaway state).
+# Written by .claude/skills/verify and the nested app verify skills.
+.vlite-evidence/
