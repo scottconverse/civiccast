@@ -1,8 +1,8 @@
 # Changelog
 
-## [Unreleased]
+## [1.0.0-rc.6] - 2026-11-15
 
-Release candidate **v1.0.0-rc.6** (unpublished candidate). Full notes, verification and known issues:
+Release candidate **v1.0.0-rc.6**, published November 15, 2026. Full notes, verification and known issues:
 `docs/releases/v1.0.0-rc.6-release-notes.md`.
 
 - A programme is prepared before its slot however the channel reached the one on air, so a rollover no longer lands on the slate while the next programme is still conforming. Before: the look-ahead that warms the next programme ran only from a rollover DISPATCH, so a programme started any other way -- an operator stop/start, an `auto_start` recovery after a reboot, a crash relaunch -- never warmed its successor. Measured on the MSI, November 17, 2026: `government`'s 5.3-hour programme went on air from an operator start after the NVIDIA driver reboot and ran five hours with no look-ahead for the programme behind it; that boundary was then reached cold and the channel aired the slate for about 25 minutes. Now the look-ahead runs from the moment the plan on air and its end are known, which is the first tick after any start, and is latched per plan so the ~2-second tick never re-queues it. A plan with less runway left than one preparation lead is still left to its own dispatch tick, exactly as before.

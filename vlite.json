@@ -1,0 +1,121 @@
+{
+  "version": 1,
+  "base": "origin/main",
+  "docs": [
+    "**/*.md",
+    "**/*.mdx",
+    "**/*.rst",
+    "**/*.docx",
+    "**/*.pdf",
+    "LICENSE*",
+    "NOTICE*",
+    "docs/**",
+    "website/**"
+  ],
+  "codeDespiteDocs": [
+    "**/SKILL.md",
+    ".claude/**",
+    "**/.claude/**",
+    "REVIEW.md",
+    "CLAUDE.md",
+    "**/AGENTS.md",
+    "docs/**/*.json",
+    "docs/**/*.yaml",
+    "docs/**/*.yml"
+  ],
+  "parts": [
+    {
+      "name": "backend",
+      "paths": [
+        "civiccast/**/*.py",
+        "civiccast/**/*.json",
+        "civiccast/**/*.yaml",
+        "civiccast/**/*.ini",
+        "alembic/**",
+        "alembic.ini",
+        "tests/**",
+        "pyproject.toml",
+        "uv.lock"
+      ],
+      "cwd": ".",
+      "checks": [
+        {
+          "name": "lint",
+          "run": "uv run --no-sync ruff check . && uv run --no-sync ruff format --check .",
+          "timeoutSec": 120
+        },
+        {
+          "name": "types",
+          "run": "uv run --no-sync mypy civiccast",
+          "timeoutSec": 300
+        }
+      ]
+    },
+    {
+      "name": "backend:{name}",
+      "paths": [
+        "civiccast/{name}/**",
+        "tests/{name}/**"
+      ],
+      "requires": [
+        "tests/{name}"
+      ],
+      "cwd": ".",
+      "checks": [
+        {
+          "name": "tests",
+          "run": "uv run --no-sync pytest tests/{name} -m \"not integration and not slow\" -q -x -p no:cacheprovider",
+          "timeoutSec": 900
+        }
+      ]
+    },
+    {
+      "name": "portal-operator",
+      "paths": [
+        "civiccast/apps/portal-operator/**"
+      ],
+      "cwd": "civiccast/apps/portal-operator",
+      "checks": [
+        {
+          "name": "lint",
+          "run": "npm run lint",
+          "timeoutSec": 600
+        },
+        {
+          "name": "unit",
+          "run": "npm run test:unit",
+          "timeoutSec": 300
+        },
+        {
+          "name": "build",
+          "run": "npm run build",
+          "timeoutSec": 300
+        }
+      ]
+    }
+  ],
+  "tests": {
+    "paths": [
+      "tests/**",
+      "**/*.spec.ts",
+      "**/*.test.ts",
+      "**/*.test.tsx",
+      "**/e2e/**"
+    ],
+    "removalsLog": "TEST-REMOVALS.md"
+  },
+  "maxRounds": 3,
+  "gate": {
+    "mode": "observe"
+  },
+  "review": {
+    "command": "claude",
+    "args": [
+      "-p",
+      "--model",
+      "sonnet"
+    ],
+    "rulesFile": "REVIEW.md",
+    "timeoutSec": 900
+  }
+}
