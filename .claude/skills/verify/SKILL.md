@@ -55,7 +55,7 @@ What it does:
    `/me` shows only `records_clerk` → the clerk is refused the accounts list (403) → **stop and restart the server** →
    setup is still complete → the clerk and admin sign in again → the account list still has the clerk.
 6. Stops the server **by its recorded PID only** (the record is re-checked first: same creation time,
-   marker in the command line; then `taskkill /PID <pid> /T /F`). Never by process name.
+   marker is a whole word in the command line, so `--port 5173` does not match `--port 51730`; then `taskkill /PID <pid> /T /F`, hidden and bounded to 15 s, and a timeout is noted in `processes.log`). Never by process name.
 7. Fails if any `Traceback` shows up in the server logs. Deletes the throwaway state (unless `-KeepState`).
 
 Expected time: 15-40 s on a quiet disk. The `POST /api/setup/storage` step makes about 100 SQLite commits in
@@ -67,7 +67,12 @@ measured at 150 s. `report.md` shows the time of each step, so a slow run is eas
 Everything goes to `.vlite-evidence/<yyyyMMdd-HHmmss-fff>-backend/` (git-ignored):
 - `report.md` - the pass/fail table
 - `summary.json` - machine-readable result
-- `http-transcript.log` - every request and response, with passwords and tokens redacted
+- `http-transcript.log` - every request and response (response bodies cut at 600 characters after redaction).
+  Redacted: any JSON value, at any depth, whose key (case-insensitive) is `token`, `*_token`, `password`, `*password*`,
+  `secret`, `*secret*`, `recovery*`, `authorization`, `api_key` or `database_url`, or ends in `_url` and holds a
+  `user:pass@` URL, becomes `"[redacted]"` (request bodies too). Also redacted: `Bearer <value>` text, and the exact
+  password and token values this run created. Nothing else is redacted; a body that is not JSON is logged as is,
+  apart from the Bearer and exact-value rules.
 - `processes.log` - PIDs started and stopped, with how each was stopped
 - `server-<label>.out.log` / `.err.log` - uvicorn output for each start
 

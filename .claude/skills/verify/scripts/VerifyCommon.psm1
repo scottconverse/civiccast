@@ -103,20 +103,27 @@ function Stop-OwnedProcess {
     param([Parameter(Mandatory)]$Record, [int]$WaitSec = 15)
     $cim = Get-CimInstance Win32_Process -Filter "ProcessId = $($Record.Pid)"
     if (-not $cim) { return "pid $($Record.Pid): already exited" }
-    if ($cim.CreationDate -ne $Record.StartTime -or ($cim.CommandLine -notlike "*$($Record.Marker)*")) {
+    if ($cim.CreationDate -ne $Record.StartTime -or ($cim.CommandLine -notmatch ('(?:^|\s)' + [regex]::Escape($Record.Marker) + '(?:\s|$)'))) {
         return "pid $($Record.Pid): NOT stopped - PID now belongs to another process ($($cim.Name))"
     }
     $tree = Get-OwnedTree -Record $Record
     # taskkill /T walks the tree from OUR verified root PID; /F because a
     # hidden console child cannot receive Ctrl+C from this session.
-    & taskkill.exe /PID $Record.Pid /T /F 2>&1 | Out-Null
+    # Bounded: a hung taskkill must not hang the run. Hidden, no window.
+    $tk = Start-Process -FilePath 'taskkill.exe' -ArgumentList @('/PID', "$($Record.Pid)", '/T', '/F') `
+        -WindowStyle Hidden -PassThru
+    $tkNote = ''
+    if (-not $tk.WaitForExit(15000)) {
+        $tkNote = ' (taskkill timed out after 15s)'
+        try { $tk.Kill() } catch { }
+    }
     $deadline = (Get-Date).AddSeconds($WaitSec)
     do {
         $alive = @($tree | Where-Object { Get-Process -Id $_ -ErrorAction SilentlyContinue })
-        if ($alive.Count -eq 0) { return "pid $($Record.Pid): stopped (tree $($tree -join ','))" }
+        if ($alive.Count -eq 0) { return "pid $($Record.Pid): stopped (tree $($tree -join ','))$tkNote" }
         Start-Sleep -Milliseconds 200
     } while ((Get-Date) -lt $deadline)
-    return "pid $($Record.Pid): STILL RUNNING after ${WaitSec}s: $($alive -join ',')"
+    return "pid $($Record.Pid): STILL RUNNING after ${WaitSec}s: $($alive -join ',')$tkNote"
 }
 
 function Wait-HttpOk {

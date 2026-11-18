@@ -54,8 +54,40 @@ $script:baseUrl = ''
 $failed = $false
 $failure = ''
 
+# Redaction is by KEY NAME, so it does not depend on when a secret was learned.
+# A JSON value whose key matches is replaced with "[redacted]" whatever its type.
+$script:SensitiveKey = '(?i)^(token|.*_token|.*password.*|secret|.*secret.*|recovery.*|authorization|api_key|database_url)$'
+$script:CredUrl = '://[^/\s@]*:[^/\s@]*@'
+
+function Protect-JsonValue($Value, [string]$Key) {
+    if ($Key -match $script:SensitiveKey) { return '[redacted]' }
+    if ($Value -is [string]) {
+        if ($Key -match '(?i)_url$' -and $Value -match $script:CredUrl) { return '[redacted]' }
+        return $Value
+    }
+    if ($Value -is [System.Management.Automation.PSCustomObject]) {
+        $o = [ordered]@{}
+        foreach ($p in $Value.PSObject.Properties) { $o[$p.Name] = Protect-JsonValue $p.Value $p.Name }
+        return $o
+    }
+    if ($Value -is [System.Collections.IEnumerable]) {
+        return , @(foreach ($i in $Value) { Protect-JsonValue $i '' })
+    }
+    return $Value
+}
+
+function Format-Redacted([string]$Json) {
+    # Request/response bodies: redact by key, then return compact JSON.
+    # Text that is not JSON is returned unchanged (Write-Transcript still
+    # applies the Bearer and known-value layers).
+    if ([string]::IsNullOrWhiteSpace($Json)) { return $Json }
+    try { $parsed = $Json | ConvertFrom-Json -Depth 32 } catch { return $Json }
+    return (ConvertTo-Json -InputObject (Protect-JsonValue $parsed '') -Depth 32 -Compress)
+}
+
 function Write-Transcript([string]$text) {
-    foreach ($s in $secrets) { if ($s) { $text = $text.Replace($s, '<redacted>') } }
+    $text = [regex]::Replace($text, '(?i)(Bearer\s+)[A-Za-z0-9._~+/=-]+', '$1[redacted]')
+    foreach ($s in $secrets) { if ($s) { $text = $text.Replace($s, '[redacted]') } }
     Add-Content -Path $transcript -Value $text -Encoding utf8
 }
 
@@ -89,9 +121,12 @@ function Invoke-Step {
     } elseif (-not $ok) {
         $note = "expected HTTP $Expect, got $($resp.StatusCode)"
     }
-    $short = if ($content.Length -gt 600) { $content.Substring(0, 600) + '...' } else { $content }
+    # Redact the whole body first, then shorten, so a cut never leaves part of a secret.
+    $safeContent = Format-Redacted $content
+    $safeJson = Format-Redacted $json
+    $short = if ($safeContent.Length -gt 600) { $safeContent.Substring(0, 600) + '...' } else { $safeContent }
     Write-Transcript ("[{0}] {1} {2} {3} -> {4} ({5} ms) {6}`n  request: {7}`n  response: {8}`n" -f `
-        $Flow, $Name, $Method, $Path, $resp.StatusCode, $ms, $(if ($ok) { 'PASS' } else { 'FAIL' }), $json, $short)
+        $Flow, $Name, $Method, $Path, $resp.StatusCode, $ms, $(if ($ok) { 'PASS' } else { 'FAIL' }), $safeJson, $short)
     $steps.Add([pscustomobject]@{ flow = $Flow; step = $Name; method = $Method; path = $Path; status = $resp.StatusCode; expected = $Expect; ms = $ms; result = $(if ($ok) { 'PASS' } else { 'FAIL' }); note = $note })
     if (-not $ok) { throw "[$Flow] $Name failed: $note" }
     return $data
