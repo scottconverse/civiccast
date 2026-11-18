@@ -155,6 +155,20 @@ test('@fullstack approves a public-record publish cycle against the live API', a
   await expect(councilPanel.getByText('Local NAS ZFS', { exact: true }).first()).toBeVisible()
   await expect(councilPanel.getByText('YouTube Live', { exact: true }).first()).toBeVisible()
 
+  // B3: only Portal is selected by default; archive surfaces are opt-in per
+  // approval. A public record needs all three required archive surfaces, so
+  // the operator ticks each one, exactly as a clerk does.
+  await expect(councilPanel.getByTestId('required-surfaces-unselected')).toHaveText(
+    /3 required archive surfaces not selected/,
+  )
+  for (const surfaceId of ['internet-archive', 'local-nas-rsync', 'local-nas-zfs']) {
+    await councilPanel
+      .locator(`[data-surface-id="${surfaceId}"]`)
+      .getByRole('checkbox', { name: 'Approve this surface' })
+      .check()
+  }
+  await expect(councilPanel.getByTestId('required-surfaces-unselected')).toHaveCount(0)
+
   await councilPanel.getByRole('button', { name: 'Approve and Publish selected' }).click()
   await page.getByRole('alertdialog').getByRole('button', { name: 'Approve and Publish' }).click()
 
