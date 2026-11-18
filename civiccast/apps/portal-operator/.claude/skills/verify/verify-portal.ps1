@@ -12,7 +12,8 @@ param(
     [ValidateSet('publish', 'setup')][string[]]$Flows = @('publish'),   # add 'setup' when the disk is quiet (see SKILL.md)
     [switch]$Install,      # force `npm ci` even when node_modules exists
     [switch]$SkipBuild,    # reuse the existing dist folders
-    [int]$TestTimeoutSec = 900
+    [int]$TestTimeoutSec = 900,
+    [int]$PhaseTimeoutSec = 900   # limit for each install and build phase
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 3.0
@@ -37,11 +38,23 @@ $runStart = Get-Date
 function Write-ProcLog([string]$line) { Add-Content -Path $procLog -Value ("{0:HH:mm:ss.fff} {1}" -f (Get-Date), $line) }
 
 function Invoke-Phase {
-    param([string]$Name, [string]$Dir, [string]$Exe, [string[]]$Arguments)
+    # Runs one phase hidden with a time limit. On timeout the phase tree is
+    # stopped by its recorded PID (never by name) and the phase fails.
+    param([string]$Name, [string]$Dir, [string]$Exe, [string[]]$Arguments, [int]$TimeoutSec = $PhaseTimeoutSec)
     $log = Join-Path $evidence "$Name.log"
     $sw = [System.Diagnostics.Stopwatch]::StartNew()
-    Push-Location $Dir
-    try { & $Exe @Arguments *> $log; $code = $LASTEXITCODE } finally { Pop-Location }
+    $rec = Start-HiddenProcess -FilePath $Exe -ArgumentList $Arguments -WorkingDirectory $Dir `
+        -StdOut $log -StdErr (Join-Path $evidence "$Name.err.log") -Marker $Arguments[0]
+    $rec | Add-Member -NotePropertyName MarkerMode -NotePropertyValue 'prefix'
+    $null = $rec.Process.Handle   # keep the handle so ExitCode is readable after exit
+    Write-ProcLog "started $Name pid $($rec.Pid) limit ${TimeoutSec}s cmd: $($rec.CommandLine)"
+    if ($rec.Process.WaitForExit($TimeoutSec * 1000)) {
+        $rec.Process.WaitForExit()
+        $code = $rec.Process.ExitCode
+    } else {
+        Write-ProcLog ("$Name timed out after ${TimeoutSec}s: " + (Stop-OwnedProcess -Record $rec))
+        $code = 124
+    }
     $sec = [math]::Round($sw.Elapsed.TotalSeconds, 1)
     $phases.Add([pscustomobject]@{ phase = $Name; seconds = $sec; exit = $code; log = (Split-Path $log -Leaf) })
     Write-Output ("{0,-22} {1,7} s  exit {2}" -f $Name, $sec, $code)
@@ -113,7 +126,7 @@ try {
     $pwArgs = @($cli, 'test', '--config', '.claude/skills/verify/playwright.verify.config.ts',
         '--timeout', "$($TestTimeoutSec * 1000)") + @($Flows | ForEach-Object { $specs[$_] })
     try {
-        Invoke-Phase 'playwright' $appDir $node $pwArgs
+        Invoke-Phase 'playwright' $appDir $node $pwArgs -TimeoutSec ($TestTimeoutSec * $Flows.Count + 300)
     } catch {
         Write-Output "playwright reported failures (details below)"
     } finally {
@@ -122,7 +135,18 @@ try {
 } catch {
     if ($failures.Count -eq 0) { $failures.Add($_.Exception.Message) }
 } finally {
-    if ($preview) { Write-ProcLog ("stop preview: " + (Stop-OwnedProcess -Record $preview)) }
+    if ($preview) {
+        $stop = Stop-OwnedProcess -Record $preview
+        Write-ProcLog "stop preview: $stop"
+        if ($stop -notlike '*: stopped (tree*' -and $stop -notlike '*: already exited*') {
+            Start-Sleep -Seconds 2
+            $stop = Stop-OwnedProcess -Record $preview
+            Write-ProcLog "stop preview (retry): $stop"
+            if ($stop -notlike '*: stopped (tree*' -and $stop -notlike '*: already exited*') {
+                $failures.Add("preview pid $($preview.Pid) was not stopped: $stop")
+            }
+        }
+    }
     # The specs stop the API processes they spawn. Report (and stop, by PID)
     # any that outlived them: only ones started by this run from this repo.
     $leftover = Get-CimInstance Win32_Process -Filter "Name='python.exe'" | Where-Object {
