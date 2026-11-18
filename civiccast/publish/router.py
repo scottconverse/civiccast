@@ -462,7 +462,7 @@ def stop_youtube_output(asset_id: str, request: Request) -> dict[str, str]:
 @staff_router.get(
     "/assets/{asset_id}/preflight",
     response_model=PublishPreflightResponse,
-    summary="Check v0.7 publish readiness before operator approval",
+    summary="Check publish readiness before operator approval",
     responses={
         404: {"description": "Asset not found"},
         503: {"description": _DB_NOT_READY_DESCRIPTION},
@@ -499,7 +499,7 @@ def get_publish_preflight(
 @staff_router.post(
     "/assets/{asset_id}/approve",
     response_model=PublishAssetStatus,
-    summary="Approve and run the v0.7 three-tier publish workflow",
+    summary="Approve and run the three-tier publish workflow",
     dependencies=[Depends(require_any_role("publish_operator"))],
     responses={
         404: {"description": "Asset not found"},
@@ -638,7 +638,7 @@ def approve_publish_asset(
 @staff_router.post(
     "/assets/{asset_id}/surfaces/{surface_id}/retry",
     response_model=PublishAssetStatus,
-    summary="Retry one v0.7 publish surface",
+    summary="Retry one publish surface",
     dependencies=[Depends(require_any_role("publish_operator"))],
     responses={
         404: {"description": "Asset or surface not found"},

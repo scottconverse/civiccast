@@ -34,7 +34,7 @@ curl -X POST http://127.0.0.1:8000/api/setup/first-admin \
 Automation and technical support can still create staff tokens from the deployment host after Postgres is configured and migrations have run:
 
 ```bash
-uv run civiccast token issue --operator-id clerk-1 --display-name "Clerk One" --scopes staff --json
+uv run civiccast token issue --operator-id clerk-1 --display-name "Clerk One" --scopes operator --json
 ```
 
 Store the printed bearer secret in the OS keyring or your secret manager. It is shown once. Do not paste it into issues, screenshots, chat, or release evidence.
@@ -52,7 +52,7 @@ A missing, invalid, or revoked token returns `401`. A token that exists only in 
 
 ### 3. Read Operator Setup And Readiness
 
-v1.3 implements the first-admin setup handoff, recovery-kit response, local admin sign-in/recovery, System Health report, safe-to-broadcast signal, resident preview target, and private rehearsal endpoint. Use these when building installer, support, or admin integrations:
+This release implements the first-admin setup handoff, recovery-kit response, local admin sign-in/recovery, System Health report, safe-to-broadcast signal, resident preview target, and private rehearsal endpoint. Use these when building installer, support, or admin integrations:
 
 ```bash
 curl http://127.0.0.1:8000/api/setup/station-state
@@ -4331,7 +4331,7 @@ Get publish-dashboard status for one asset.
 
 ### `POST /api/staff/publish/assets/{asset_id}/approve`
 
-Approve and run the v0.7 three-tier publish workflow.
+Approve and run the three-tier publish workflow.
 
 - Access: staff bearer token required; keep loopback or reverse-proxy network protection enabled
 - Parameters: `asset_id` (path, required): `string`
@@ -4340,7 +4340,7 @@ Approve and run the v0.7 three-tier publish workflow.
 
 ### `GET /api/staff/publish/assets/{asset_id}/preflight`
 
-Check v0.7 publish readiness before operator approval.
+Check publish readiness before operator approval.
 
 - Access: staff bearer token required; keep loopback or reverse-proxy network protection enabled
 - Parameters: `asset_id` (path, required): `string`
@@ -4349,7 +4349,7 @@ Check v0.7 publish readiness before operator approval.
 
 ### `POST /api/staff/publish/assets/{asset_id}/surfaces/{surface_id}/retry`
 
-Retry one v0.7 publish surface.
+Retry one publish surface.
 
 - Access: staff bearer token required; keep loopback or reverse-proxy network protection enabled
 - Parameters: `asset_id` (path, required): `string`; `surface_id` (path, required): `string`
@@ -9788,7 +9788,7 @@ rule (S13 §5.1).
 - `default_channel_id` (optional): `string`
 - `default_roles` (optional): `Array<string>`
 - `initial_schedule_enabled` (optional): `boolean`
-- `live_captions_enabled` (optional): `boolean` -- Operator switch for LIVE captions: the real-time ASR tap on the broadcast audio of every ON_AIR channel AND the CEA-708 caption embed leg on the video path. OFF by default in beta.5 (temporary): with the embed leg built, the 2026-09-09 sandbox soak measured a recurring 25-30 s video hold followed by a burst of frames every 1-2 minutes on every channel, and twice the 10 s stall watchdog restarted a channel. Turn it ON from the operator console (Setup > Station Profile > Show live captions on air) on a station that can keep up. Turning it off does NOT affect captions on published recordings (the offline caption job), which is the legal requirement; this is the live one.
+- `live_captions_enabled` (optional): `boolean` -- Operator switch for LIVE captions: the real-time ASR tap on the broadcast audio of every ON_AIR channel AND the CEA-708 caption embed leg on the video path. OFF by default: with the embed leg built, the 2026-09-09 sandbox soak measured a recurring 25-30 s video hold followed by a burst of frames every 1-2 minutes on every channel, and twice the 10 s stall watchdog restarted a channel. Turn it ON from the operator console (Setup > Station Profile > Show live captions on air) on a station that can keep up. Turning it off does NOT affect captions on published recordings (the offline caption job); this switch controls live captions only.
 - `operation_mode` (optional): `'test' | 'on_air'`
 - `public_base_url` (optional): `string | null`
 - `recovery_kit_generated_at` (required): `string`

@@ -30224,7 +30224,7 @@
           "staff",
           "publish"
         ],
-        "summary": "Check v0.7 publish readiness before operator approval",
+        "summary": "Check publish readiness before operator approval",
         "description": "Return portal, Internet Archive, NAS, YouTube, and subscriber readiness.\n\nReads through the real provider registry (WP-03): every check here is the\nsame non-secret, side-effect-free readiness ``approve_publish`` uses, so\nthis response and what approval would actually do cannot disagree.",
         "operationId": "get_publish_preflight_api_staff_publish_assets__asset_id__preflight_get",
         "parameters": [
@@ -30293,7 +30293,7 @@
           "staff",
           "publish"
         ],
-        "summary": "Approve and run the v0.7 three-tier publish workflow",
+        "summary": "Approve and run the three-tier publish workflow",
         "description": "Approve per-surface publication through the configured providers.",
         "operationId": "approve_publish_asset_api_staff_publish_assets__asset_id__approve_post",
         "parameters": [
@@ -30375,7 +30375,7 @@
           "staff",
           "publish"
         ],
-        "summary": "Retry one v0.7 publish surface",
+        "summary": "Retry one publish surface",
         "description": "Retry a single surface without changing the rest of the publish run.",
         "operationId": "retry_publish_asset_surface_api_staff_publish_assets__asset_id__surfaces__surface_id__retry_post",
         "parameters": [
@@ -65347,7 +65347,7 @@
           "live_captions_enabled": {
             "type": "boolean",
             "title": "Live Captions Enabled",
-            "description": "Operator switch for LIVE captions: the real-time ASR tap on the broadcast audio of every ON_AIR channel AND the CEA-708 caption embed leg on the video path. OFF by default in beta.5 (temporary): with the embed leg built, the 2026-09-09 sandbox soak measured a recurring 25-30 s video hold followed by a burst of frames every 1-2 minutes on every channel, and twice the 10 s stall watchdog restarted a channel. Turn it ON from the operator console (Setup > Station Profile > Show live captions on air) on a station that can keep up. Turning it off does NOT affect captions on published recordings (the offline caption job), which is the legal requirement; this is the live one.",
+            "description": "Operator switch for LIVE captions: the real-time ASR tap on the broadcast audio of every ON_AIR channel AND the CEA-708 caption embed leg on the video path. OFF by default: with the embed leg built, the 2026-09-09 sandbox soak measured a recurring 25-30 s video hold followed by a burst of frames every 1-2 minutes on every channel, and twice the 10 s stall watchdog restarted a channel. Turn it ON from the operator console (Setup > Station Profile > Show live captions on air) on a station that can keep up. Turning it off does NOT affect captions on published recordings (the offline caption job); this switch controls live captions only.",
             "default": false
           },
           "default_roles": {
