@@ -1127,8 +1127,19 @@ entries:
         # commit (engine); source tests in tests/egress/test_caption_boundary_
         # sharing_f7.py. Field: final-code r9 three-channel run, 0 hand-over
         # restarts. Source-tripwire rebind only, not installed/release proof.
+        # 2026-11-18 (rc.6 seamless-reload stall, engine.py drift): the rebase
+        # drain also holds an AUDIO mux pad while a loudness element downstream
+        # of the selector still holds the retiring tail
+        # (``_audio_branch_still_holds_tail``, reported ``pad=tail``), and the
+        # deadline WARN names the unflushed loudness window when that is what
+        # held it. Only engine.py changed; worker.py, caption_flow.py,
+        # decode_policy.py, graph.py, control.py and audio_tap.py are
+        # unchanged. Current-source proof: new gi-free coverage in tests/egress/
+        # test_gst_engine_reload_commit_ordering.py. Source-tripwire rebind
+        # only, not installed/release proof. Blob IDs re-hashed with
+        # `git hash-object <file>`.
         - path: civiccast/egress/gst/engine.py
-          blob: 2a05ca1abf9f3d33eedc893b01870e7339d75745
+          blob: 78e64b7917e1eae96b5ecc3d696b53a6657d9476
         - path: civiccast/egress/gst/caption_flow.py
           blob: c0c981dfa050e8ca196533c791a99028302c5ca5
         - path: civiccast/egress/gst/decode_policy.py
@@ -2067,8 +2078,19 @@ entries:
         # commit (engine); source tests in tests/egress/test_caption_boundary_
         # sharing_f7.py. Field: final-code r9 three-channel run, 0 hand-over
         # restarts. Source-tripwire rebind only, not installed/release proof.
+        # 2026-11-18 (rc.6 seamless-reload stall, engine.py drift): the rebase
+        # drain also holds an AUDIO mux pad while a loudness element downstream
+        # of the selector still holds the retiring tail
+        # (``_audio_branch_still_holds_tail``, reported ``pad=tail``), and the
+        # deadline WARN names the unflushed loudness window when that is what
+        # held it. Only engine.py changed; worker.py, caption_flow.py,
+        # decode_policy.py, graph.py, control.py and audio_tap.py are
+        # unchanged. Current-source proof: new gi-free coverage in tests/egress/
+        # test_gst_engine_reload_commit_ordering.py. Source-tripwire rebind
+        # only, not installed/release proof. Blob IDs re-hashed with
+        # `git hash-object <file>`.
         - path: civiccast/egress/gst/engine.py
-          blob: 2a05ca1abf9f3d33eedc893b01870e7339d75745
+          blob: 78e64b7917e1eae96b5ecc3d696b53a6657d9476
         - path: civiccast/egress/gst/caption_flow.py
           blob: c0c981dfa050e8ca196533c791a99028302c5ca5
         - path: civiccast/egress/gst/decode_policy.py

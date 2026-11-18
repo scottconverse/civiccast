@@ -850,6 +850,11 @@ _MUX_TAIL_QUIET_S = 0.020
 # excluded by measurement, not by preference -- see ``_arm_mux_tail_cutoff``.
 _MUX_TAIL_FENCE_STREAM = "audio"
 _REBASE_OBSERVER_DEADLINE_S = 1.0
+# How much of a latency-bearing audio branch's retiring tail may still be missing
+# before the drain counts the pad as drained. The frontier records the last
+# CONSUMED buffer's PTS while the target is that buffer's END, so one buffer
+# interval is a complete tail, not a short one; one AAC frame is 21.3ms at 48kHz.
+_AUDIO_TAIL_FRONTIER_SLACK_NS = 64_000_000
 # 20ms: fine enough that a drain is seen within a frame of the pad emptying, and
 # that the wait added to a real switch is its own duration and no more; coarse
 # enough not to spin.
@@ -8740,6 +8745,61 @@ class GstPlayoutEngine:
 
         return _observe_rebase_arrivals
 
+    def _audio_branch_still_holds_tail(self, pending: dict[str, Any], pad_name: str) -> bool:
+        """Whether a loudness element downstream of the selector still holds the tail.
+
+        ``_rebase_drain_held`` reads the mux sink pad's queue depth, and that
+        predicate is exactly right about what it measures: the pad HAS handed over
+        everything it had taken. It says nothing about what the branch between the
+        selector and the pad has taken and not yet emitted, and ``audioloudnorm``
+        holds a whole 3s BS.1770 window before it emits.
+
+        MEASURED on the 5060 Ti, rc.6, 2026-11-17/18 (public, reload id=1, commit
+        01:12:24Z): ``stage=rebase-drain-drained waited=1.812s`` with the drain
+        naming only ``sink_65`` (video), then the same commit's fence line
+        ``stage=mux-tail-wait seen={'sink_66': 401173333333}
+        target={'sink_66': 404181333332}`` -- 3.008s of retiring audio that had not
+        reached the mux, against ``audio_end=404.181`` measured at the selector.
+        16s later the worker exited: ``CTRL stall: audio running time 3.0s behind
+        video for 10s (last reload id=1 stage=committed)``.
+
+        The graph already declares that latency (``OutputBranch.audio_latency_ns``,
+        built from ``audioloudnorm`` in ``bridge.py``) and
+        ``_rebase_drain_deadline_s`` already spends it on the BOUND. What was
+        missing is the condition: with the window full, level 0 is reached while
+        the retiring tail is still inside the element, the switch proceeds, the
+        changeover SEGMENT crosses the audio pad ahead of that tail, and the tail
+        then arrives under the new base -- re-dated by the whole rebase offset.
+        The future-arrival guard that drops such a buffer exists on the VIDEO pad
+        only (``_make_mux_pad_arrival_guard``), so on audio the stale head blocks
+        the new leg's audio and the mux stops consuming it while video airs on.
+
+        The comparison is the same one the fence makes: the audio mux pad's last
+        CONSUMED running time against the retiring leg's own measured end. One
+        audio buffer interval of slack, because the frontier records the last
+        consumed buffer's PTS and the end is that buffer's end. Bounded by the
+        caller's latency-extended deadline, so a tail that never comes out still
+        switches with a WARN rather than holding the channel.
+        """
+        if int(getattr(self, "output_audio_latency_ns", 0) or 0) <= 0:
+            # Nothing between the selector and this pad can hold a tail: an empty
+            # pad really is a consumed pad, and the wait must not be invented here.
+            return False
+        try:
+            target = dict(self._reload_outgoing_ends_in_order(pending)).get("audio")
+        except Exception:
+            # A pending record that never measured its ends has nothing to compare
+            # against; the drain waits on the level reading alone, as before.
+            return False
+        if target is None:
+            return False
+        frontier = (getattr(self, "_mux_pad_airing_rt", None) or {}).get(pad_name)
+        if frontier is None:
+            # No consumed-buffer frontier on this pad: nothing is proven, and the
+            # level reading above is all this guard has. Wait for the deadline.
+            return False
+        return int(frontier) + _AUDIO_TAIL_FRONTIER_SLACK_NS < int(target)
+
     def _rebase_drain_held(self, pending: dict[str, Any]) -> list[str]:
         """``pad=level`` for each affected mux sink pad STILL holding a buffer.
 
@@ -8749,12 +8809,16 @@ class GstPlayoutEngine:
         decrements it as it POPS a buffer, clipped buffer included, so zero means
         this pad has handed over everything it had taken before the rebase.
 
+        An AUDIO pad with a declared branch processing latency is additionally
+        held while the loudness element still holds the retiring tail
+        (``_audio_branch_still_holds_tail``) -- reported as ``pad=tail``.
+
         A level that cannot be read is reported as ``unknown`` and is therefore
         NOT proven empty; the caller waits and its deadline decides. Treating an
         unreadable property as empty would silently reinstate the very re-dating
         this guard exists to remove."""
         held: list[str] = []
-        for _stream, pad, pad_name in pending.get("rebase_observer_pads") or ():
+        for stream, pad, pad_name in pending.get("rebase_observer_pads") or ():
             level: int | None = None
             with contextlib.suppress(Exception):
                 level = int(pad.get_property("current-level-buffers"))
@@ -8762,6 +8826,8 @@ class GstPlayoutEngine:
                 held.append(f"{pad_name}=unknown")
             elif level > 0:
                 held.append(f"{pad_name}={level}")
+            elif stream == "audio" and self._audio_branch_still_holds_tail(pending, pad_name):
+                held.append(f"{pad_name}=tail")
         return held
 
     def _defer_rebase_drain(self, pending: dict[str, Any], held: list[str]) -> bool:
@@ -8814,10 +8880,12 @@ class GstPlayoutEngine:
         if held and waited < deadline_s:
             return True  # keep polling
         if held:
+            window_unflushed = any(entry.endswith("=tail") for entry in held)
             print(
                 f"WARN: rebase drain did not empty within {deadline_s:.1f}s "
-                f"for reload {pending['txn_id']} ({', '.join(held)} still queued at the mux); "
-                "switching anyway -- a stale buffer may still be re-dated by the segment",
+                f"for reload {pending['txn_id']} ({', '.join(held)} still queued at the mux"
+                f"{'; the loudness window has not emitted the retiring audio tail' if window_unflushed else ''}"
+                "); switching anyway -- a stale buffer may still be re-dated by the segment",
                 file=sys.stderr,
                 flush=True,
             )
