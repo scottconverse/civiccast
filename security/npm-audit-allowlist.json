@@ -1,0 +1,16 @@
+{
+  "_comment": "Audit item #27 CI security scanning. Each entry documents an npm audit high/critical advisory with no available fix, reviewed and accepted for the named apps with a dated reason. Every other high/critical finding fails the gate. Apps are listed explicitly so one portal's dev-only finding never covers another app.",
+  "allowed": [
+    {
+      "package": "picomatch",
+      "id": "GHSA-fc5q-39xc-vjpf",
+      "apps": [
+        "portal-operator",
+        "portal-public"
+      ],
+      "reviewed": "2026-11-18",
+      "review_by": "2027-02-18",
+      "reason": "ReDoS in picomatch (<= 4.0.7, no patched version published). The resolved node_modules/picomatch 4.0.7 is dev=true in both portal lockfiles and is pulled only by vite, vitest, tinyglobby and fdir — build and test tooling. The shipped dist/ bundles (scripts/build_native_app_payload.py) do not contain it, and the runtime dependencies are react, react-dom, react-router, hls.js and @tanstack/react-query. Re-review when picomatch publishes a fix; reviewed 2026-11-18 and re-review by 2027-02-18."
+    }
+  ]
+}

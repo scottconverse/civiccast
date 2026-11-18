@@ -56,6 +56,19 @@ def test_security_scan_workflow_covers_pip_audit_bandit_and_both_npm_audits() ->
     assert "bandit -ll -r civiccast" in _job_run_commands(jobs["bandit"])
     for npm_job in ("npm-audit-operator", "npm-audit-public", "npm-audit-tsr"):
         assert "npm audit --audit-level=high" in _job_run_commands(jobs[npm_job])
+    # Both portal audits triage through the allowlist instead of failing the
+    # job on the report itself; the TSR sidecar is still audited directly.
+    for npm_job, app in (
+        ("npm-audit-operator", "portal-operator"),
+        ("npm-audit-public", "portal-public"),
+    ):
+        commands = _job_run_commands(jobs[npm_job])
+        assert (
+            f"python scripts/check_npm_audit_allowlist.py {app} npm-audit-report.json" in commands
+        )
+        # --omit=dev would hide every dev advisory and defeat the gate.
+        assert "--omit=dev" not in commands
+    assert "check_npm_audit_allowlist.py" not in _job_run_commands(jobs["npm-audit-tsr"])
     # RC4 F8: the shipped TSR control sidecar lockfile is audited without installing it.
     assert "--package-lock-only" in _job_run_commands(jobs["npm-audit-tsr"])
     assert jobs["npm-audit-tsr"]["defaults"]["run"]["working-directory"] == (
@@ -167,3 +180,226 @@ def test_pip_audit_allowlist_checker_passes_on_known_findings(tmp_path: Path) ->
         check=False,
     )
     assert result.returncode == 0
+
+
+def _npm_report(vulnerabilities: dict[str, Any], total: int = 300) -> dict[str, Any]:
+    return {
+        "auditReportVersion": 2,
+        "vulnerabilities": vulnerabilities,
+        "metadata": {"dependencies": {"prod": 9, "dev": 300, "total": total}},
+    }
+
+
+def _npm_advisory(name: str, ghsa: str, *, severity: str = "high") -> dict[str, Any]:
+    return {
+        "name": name,
+        "severity": severity,
+        "isDirect": False,
+        "via": [
+            {
+                "source": 1,
+                "name": name,
+                "dependency": name,
+                "title": "made up",
+                "url": f"https://github.com/advisories/{ghsa}",
+                "severity": severity,
+                "range": "<=1.0.0",
+            }
+        ],
+        "effects": [],
+        "range": "<=1.0.0",
+        "nodes": [f"node_modules/{name}"],
+        "fixAvailable": False,
+    }
+
+
+def test_npm_audit_allowlist_entries_are_dated_and_reasoned() -> None:
+    data = json.loads(Path("security/npm-audit-allowlist.json").read_text(encoding="utf-8"))
+
+    assert data["allowed"], "allowlist should document at least the known picomatch finding"
+    for entry in data["allowed"]:
+        assert entry["package"]
+        assert entry["id"]
+        assert entry["apps"], "an entry must name the apps it applies to"
+        assert entry["reviewed"]
+        assert entry["review_by"]
+        assert len(entry["reason"]) > 20
+
+
+def test_npm_audit_allowlist_checker_fails_on_unlisted_findings(tmp_path: Path) -> None:
+    import subprocess
+    import sys
+
+    report = tmp_path / "report.json"
+    report.write_text(
+        json.dumps(
+            _npm_report(
+                {
+                    "totally-made-up-package": _npm_advisory(
+                        "totally-made-up-package", "GHSA-aaaa-bbbb-cccc"
+                    )
+                }
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "scripts/check_npm_audit_allowlist.py",
+            "portal-operator",
+            str(report),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 1
+    assert "totally-made-up-package" in result.stderr
+    assert "GHSA-aaaa-bbbb-cccc" in result.stderr
+
+
+def test_npm_audit_allowlist_checker_passes_on_known_findings(tmp_path: Path) -> None:
+    import subprocess
+    import sys
+
+    entry = json.loads(Path("security/npm-audit-allowlist.json").read_text(encoding="utf-8"))[
+        "allowed"
+    ][0]
+
+    report = tmp_path / "report.json"
+    report.write_text(
+        json.dumps(_npm_report({entry["package"]: _npm_advisory(entry["package"], entry["id"])})),
+        encoding="utf-8",
+    )
+
+    for app in entry["apps"]:
+        result = subprocess.run(
+            [sys.executable, "scripts/check_npm_audit_allowlist.py", app, str(report)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert result.returncode == 0, result.stderr
+
+    # The same advisory is not allowlisted for an app it was not reviewed for.
+    unlisted_app = (
+        next(app for app in ("portal-operator", "portal-public") if app not in entry["apps"])
+        if len(entry["apps"]) < 2
+        else "some-other-app"
+    )
+    result = subprocess.run(
+        [
+            sys.executable,
+            "scripts/check_npm_audit_allowlist.py",
+            unlisted_app,
+            str(report),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 1
+
+
+def test_npm_audit_allowlist_checker_ignores_below_high(tmp_path: Path) -> None:
+    import subprocess
+    import sys
+
+    report = tmp_path / "report.json"
+    report.write_text(
+        json.dumps(
+            _npm_report(
+                {
+                    "minimatch": _npm_advisory(
+                        "minimatch", "GHSA-dddd-eeee-ffff", severity="moderate"
+                    )
+                }
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "scripts/check_npm_audit_allowlist.py",
+            "portal-public",
+            str(report),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+
+
+def test_npm_audit_allowlist_checker_follows_propagation_to_the_advisory(
+    tmp_path: Path,
+) -> None:
+    """npm marks every affected parent high too, with only the child's name in
+    `via`; those entries are not separate findings and must not need entries."""
+    import subprocess
+    import sys
+
+    entry = json.loads(Path("security/npm-audit-allowlist.json").read_text(encoding="utf-8"))[
+        "allowed"
+    ][0]
+    app = entry["apps"][0]
+    parent = {
+        "name": "some-build-tool",
+        "severity": "high",
+        "via": [entry["package"]],
+        "effects": [],
+        "range": "*",
+        "fixAvailable": False,
+    }
+
+    report = tmp_path / "report.json"
+    report.write_text(
+        json.dumps(
+            _npm_report(
+                {
+                    entry["package"]: _npm_advisory(entry["package"], entry["id"]),
+                    "some-build-tool": parent,
+                }
+            )
+        ),
+        encoding="utf-8",
+    )
+    result = subprocess.run(
+        [sys.executable, "scripts/check_npm_audit_allowlist.py", app, str(report)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+
+
+def test_npm_audit_allowlist_checker_refuses_empty_or_error_reports(
+    tmp_path: Path,
+) -> None:
+    import subprocess
+    import sys
+
+    cases = [
+        {"error": {"code": "ENOLOCK", "summary": "no lockfile"}},
+        _npm_report({}, total=0),
+        {"auditReportVersion": 2, "vulnerabilities": {}},
+    ]
+    for case in cases:
+        report = tmp_path / "report.json"
+        report.write_text(json.dumps(case), encoding="utf-8")
+        result = subprocess.run(
+            [
+                sys.executable,
+                "scripts/check_npm_audit_allowlist.py",
+                "portal-operator",
+                str(report),
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert result.returncode == 2, case

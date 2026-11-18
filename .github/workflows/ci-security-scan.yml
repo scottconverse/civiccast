@@ -4,8 +4,8 @@
 # before triage tooling exists. Runs pip-audit (Python deps), bandit -ll
 # (service code static analysis), and npm audit --audit-level=high (both
 # portals and the TSR control sidecar lockfile). Known, triaged findings with no available fix are pinned in
-# security/pip-audit-allowlist.json with a dated reason; everything else
-# must be zero.
+# security/pip-audit-allowlist.json (pip) and security/npm-audit-allowlist.json
+# (npm, per app) with a dated reason; everything else must be zero.
 
 name: ci-security-scan
 
@@ -143,8 +143,13 @@ jobs:
       - name: npm ci
         run: npm ci --no-audit --no-fund
 
-      - name: npm audit --audit-level=high
-        run: npm audit --audit-level=high
+      - name: npm audit --audit-level=high (report only)
+        # The triage decision is made by the checker below, so a reviewed
+        # advisory does not fail the gate and nothing else is silently passed.
+        run: npm audit --audit-level=high --json > npm-audit-report.json || true
+
+      - name: Triage npm audit findings
+        run: python scripts/check_npm_audit_allowlist.py portal-operator npm-audit-report.json
 
   npm-audit-public:
     name: npm audit (public portal)
@@ -168,8 +173,13 @@ jobs:
       - name: npm ci
         run: npm ci --no-audit --no-fund
 
-      - name: npm audit --audit-level=high
-        run: npm audit --audit-level=high
+      - name: npm audit --audit-level=high (report only)
+        # The triage decision is made by the checker below, so a reviewed
+        # advisory does not fail the gate and nothing else is silently passed.
+        run: npm audit --audit-level=high --json > npm-audit-report.json || true
+
+      - name: Triage npm audit findings
+        run: python scripts/check_npm_audit_allowlist.py portal-public npm-audit-report.json
 
   npm-audit-tsr:
     # RC4 F8: the station ships this lockfile and IT installs the sidecar from it
