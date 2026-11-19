@@ -239,36 +239,48 @@ provision_media_from_image() {
   # ffmpeg needs libblas.so.3 and liblapack.so.3, which on Ubuntu 24.04 are
   # update-alternatives links (proven in run 44435763611: "ffmpeg: error while
   # loading shared libraries: libblas.so.3: cannot open shared object file").
-  # Re-point every library the extracted binaries cannot resolve at the real
-  # file the tar did carry (e.g. .../blas/libblas.so.3), then rebuild the
-  # loader cache. Unresolvable entries are left alone; the probes below decide.
-  local missing_lib found real multiarch
+  #
+  # What the tar actually carries (verified against the pinned image digest
+  # 610c89c2 by listing `opt/ci-media/rootfs.tar.gz`):
+  #   usr/lib/x86_64-linux-gnu/blas/libblas.so.3.12.0     (real file, SONAME libblas.so.3)
+  #   usr/lib/x86_64-linux-gnu/blas/libblas.so.3          (relative symlink to it)
+  #   usr/lib/x86_64-linux-gnu/lapack/liblapack.so.3.12.0 (real file, SONAME liblapack.so.3)
+  #   usr/lib/x86_64-linux-gnu/lapack/liblapack.so.3      (relative symlink to it)
+  # So the real files exist, but in `blas/` and `lapack/` SUBDIRECTORIES, which
+  # the loader does not search. Three attempts failed before this was known:
+  #   - 985fdc46 still warned "no real file exists after extraction" because
+  #     its find excluded `-not -path "${multiarch}/*"` -- exactly the prefix
+  #     that contains `.../blas/libblas.so.3.12.0` (run 44457546990).
+  #
+  # Fix: put each directory that actually holds a real file for an unresolved
+  # SONAME on the loader path via /etc/ld.so.conf.d and run ldconfig once.
+  # ldconfig indexes a library by its SONAME, so the unversioned
+  # update-alternatives link is never needed. No symlink is written into
+  # /usr/lib and no image rebuild is required.
+  local missing_lib found real multiarch lib_dirs=()
   multiarch=$(media_multiarch_dir)
   echo "multiarch dir: ${multiarch}"
   for missing_lib in $(ldd /usr/bin/ffmpeg /usr/bin/ffprobe /usr/bin/tsp 2>/dev/null \
       | awk '$3 == "not" && $4 == "found" {print $1}' | sort -u); do
-    # Match the SONAME as a PREFIX, not as the whole name: the package ships
-    # the versioned real file (libblas.so.3.12.0), and the unversioned
-    # libblas.so.3 the loader asks for is an update-alternatives link made in
-    # postinst. Run 44451338188 showed the exact-name lookup finding nothing
-    # while the libraries were plainly there ("libblas.so.3 is missing and no
-    # real file exists after extraction"), i.e. the tar had the versioned
-    # file. -type f only, so a stale link cannot be picked; the multiarch dir
-    # itself is excluded so a link we created cannot resolve to itself.
-    found=$(find /usr/lib -type f -not -path "${multiarch}/*" \
-              -name "${missing_lib}*" -print 2>/dev/null | sort -V | tail -n 1 || true)
+    # Search every library directory, including alternative-managed
+    # subdirectories such as .../blas. Match the SONAME as a PREFIX because
+    # the package ships the versioned real file (libblas.so.3.12.0).
+    # -type f only, so a symlink cannot be picked as the "real" file.
+    found=$(find /usr/lib -type f -name "${missing_lib}*" -print 2>/dev/null \
+              | sort -V | tail -n 1 || true)
     real="$found"
     if [ -z "$real" ] || [ ! -e "$real" ]; then
       echo "::warning::${missing_lib} is missing and no real file exists after extraction"
       continue
     fi
-    sudo -n mkdir -p "$multiarch"
-    if sudo -n ln -sf "$real" "${multiarch}/${missing_lib}"; then
-      echo "linked ${missing_lib} -> ${real}"
-    else
-      echo "::warning::could not link ${missing_lib} -> ${real}"
-    fi
+    echo "found ${missing_lib} -> ${real}"
+    lib_dirs+=("$(dirname "$real")")
   done
+  if [ "${#lib_dirs[@]}" -gt 0 ]; then
+    printf '%s\n' "${lib_dirs[@]}" | sort -u \
+      | sudo -n tee /etc/ld.so.conf.d/ci-media-extracted.conf >/dev/null
+    echo "loader path entries: $(sort -u <<<"$(printf '%s\n' "${lib_dirs[@]}")" | tr '\n' ' ')"
+  fi
   sudo -n ldconfig || true
 
   if ! command -v ffmpeg >/dev/null 2>&1; then
