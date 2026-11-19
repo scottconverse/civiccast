@@ -207,6 +207,32 @@ provision_media_from_image() {
   # These files were not present when the runner built its loader cache.
   sudo -n ldconfig || true
 
+  # `dpkg -L` lists only files a .deb ships. Alternative-managed symlinks are
+  # created by each package's postinst instead, so they are NOT in the tar:
+  # ffmpeg needs libblas.so.3 and liblapack.so.3, which on Ubuntu 24.04 are
+  # update-alternatives links (proven in run 44435763611: "ffmpeg: error while
+  # loading shared libraries: libblas.so.3: cannot open shared object file").
+  # Re-point every library the extracted binaries cannot resolve at the real
+  # file the tar did carry (e.g. .../blas/libblas.so.3), then rebuild the
+  # loader cache. Unresolvable entries are left alone; the probes below decide.
+  local missing_lib found real multiarch
+  multiarch="/usr/lib/$(dpkg --print-architecture)-linux-gnu"
+  for missing_lib in $(ldd /usr/bin/ffmpeg /usr/bin/ffprobe /usr/bin/tsp 2>/dev/null \
+      | awk '$3 == "not" && $4 == "found" {print $1}' | sort -u); do
+    found=$(find /usr/lib -name "$missing_lib" -print -quit 2>/dev/null || true)
+    real=$(readlink -f "$found" 2>/dev/null || true)
+    if [ -z "$real" ] || [ ! -e "$real" ]; then
+      echo "::warning::${missing_lib} is missing and no real file exists after extraction"
+      continue
+    fi
+    if sudo -n ln -sf "$real" "${multiarch}/${missing_lib}"; then
+      echo "linked ${missing_lib} -> ${real}"
+    else
+      echo "::warning::could not link ${missing_lib} -> ${real}"
+    fi
+  done
+  sudo -n ldconfig || true
+
   if ! command -v ffmpeg >/dev/null 2>&1; then
     echo "::warning::ffmpeg is not on PATH after extraction"
     return 1
