@@ -172,7 +172,8 @@ provision_media_from_image() {
   echo "::group::Pulling ${CI_MEDIA_IMAGE} (3 attempts)"
   local attempt ok=0
   for attempt in 1 2 3; do
-    if timeout 600 docker pull "$CI_MEDIA_IMAGE"; then
+    # 300 s per attempt: a stalled pull must not eat the step's whole budget.
+    if timeout 300 docker pull "$CI_MEDIA_IMAGE"; then
       ok=1
       break
     fi
@@ -183,29 +184,49 @@ provision_media_from_image() {
   [ "$ok" = 1 ] || return 1
 
   local cid
-  cid=$(docker create "$CI_MEDIA_IMAGE") || return 1
+  cid=$(docker create "$CI_MEDIA_IMAGE") || { echo "::warning::docker create failed"; return 1; }
   if ! docker cp "$cid:/opt/ci-media/rootfs.tar.gz" /tmp/ci-media-rootfs.tar.gz; then
+    echo "::warning::docker cp of the rootfs tar failed"
     docker rm -f "$cid" >/dev/null 2>&1 || true
     return 1
   fi
   docker rm -f "$cid" >/dev/null 2>&1 || true
+  ls -l /tmp/ci-media-rootfs.tar.gz
 
   echo "::group::Installing media stack from the image"
   # tar runs over the identical ubuntu-24.04 base; the archive holds only
   # files owned by the ffmpeg/TSDuck packages.
   if ! sudo -n tar -xzpf /tmp/ci-media-rootfs.tar.gz -C /; then
+    echo "::warning::extracting the media rootfs tar failed"
     echo "::endgroup::"
-    rm -f /tmp/ci-media-rootfs.tar.gz
     return 1
   fi
-  rm -f /tmp/ci-media-rootfs.tar.gz
   echo "::endgroup::"
+  echo "extracted: $(ls -l /usr/bin/ffmpeg /usr/bin/ffprobe /usr/bin/tsp 2>&1 | tr '\n' ' ')"
 
-  # Prove the extracted binaries run before trusting them.
-  command -v ffmpeg >/dev/null 2>&1 \
-    && command -v ffprobe >/dev/null 2>&1 \
-    && ffmpeg -version >/dev/null 2>&1 \
-    && ffprobe -version >/dev/null 2>&1
+  # These files were not present when the runner built its loader cache.
+  sudo -n ldconfig || true
+
+  if ! command -v ffmpeg >/dev/null 2>&1; then
+    echo "::warning::ffmpeg is not on PATH after extraction"
+    return 1
+  fi
+  if ! command -v ffprobe >/dev/null 2>&1; then
+    echo "::warning::ffprobe is not on PATH after extraction"
+    return 1
+  fi
+  if ! ffmpeg -version >/tmp/ci-ffmpeg-probe.log 2>&1; then
+    echo "::warning::ffmpeg does not run after extraction:"
+    tail -n 20 /tmp/ci-ffmpeg-probe.log
+    ldd /usr/bin/ffmpeg 2>&1 | grep 'not found' || true
+    return 1
+  fi
+  if ! ffprobe -version >/tmp/ci-ffprobe-probe.log 2>&1; then
+    echo "::warning::ffprobe does not run after extraction:"
+    tail -n 20 /tmp/ci-ffprobe-probe.log
+    return 1
+  fi
+  echo "provisioned: $(head -n 1 /tmp/ci-ffmpeg-probe.log)"
 }
 
 if ! command -v ffmpeg >/dev/null 2>&1 || ! command -v ffprobe >/dev/null 2>&1; then
