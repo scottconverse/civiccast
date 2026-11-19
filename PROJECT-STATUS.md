@@ -10,12 +10,12 @@
 > are historical Beta 10 audit records; the linked Beta 11 inventory is a dated
 > source audit, not the current defect list.
 
-## Current release: Beta 20
+## Current release: RC6
 
-Beta 20 is the current published native Windows package. It includes the
-Sprint 6 preparation, hardware-aware encoding, webhook/Roku, and station
-federation changes; TownLight integration remains deferred to 2.0. Its signed
-package and scoped checks are in the [Beta 20 record](docs/releases/v1.0.0-beta.20-verification.md). Beta 19 remains historical.
+v1.0.0-rc.6 is the current published native Windows package, published
+2026-11-15. It includes the AC-3 cable-output fix, the upgrade repair for saved
+cable presets, and AI summaries and translation on an integrated graphics chip.
+Its signed package and scoped checks are in the [RC6 record](docs/releases/v1.0.0-rc.6-verification.md); the [RC6 release notes](docs/releases/v1.0.0-rc.6-release-notes.md) list known issues. RC5, Beta 20 and Beta 19 remain historical.
 
 ## Historical Beta 17 release
 

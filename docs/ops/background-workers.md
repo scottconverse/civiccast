@@ -2,7 +2,7 @@
 
 # Background Workers
 
-CivicCast runs three lifespan-supervised background services when durable
+CivicCast runs four lifespan-supervised background services when durable
 storage is active. Each follows the same deployment shape: env-selected mode,
 fail-fast settings validation at startup, a loop that survives and logs scan
 errors, clean stop on shutdown.

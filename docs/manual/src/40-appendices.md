@@ -408,7 +408,7 @@ Each surface has its own state: Blocked, Not set up yet, Coming soon (shown as "
 
 | Where | Words | Meaning |
 | --- | --- | --- |
-| Caption review queue, each line | Pending, Approved, Edited, Rejected | Nothing is attached to a recording's public video until every line is approved, edited or rejected. Lines are marked EN (English transcription) or ES (the Spanish translation pass). |
+| Caption review queue, each line | Pending, Approved, Edited, Rejected | Nothing is attached to a recording's public video until every line is approved, edited or rejected. Lines are marked with their language code — EN (English transcription) or the translation pass (ES, ZH-HANS, FIL, VI or AR). |
 | Recording's caption job (Assets) | Transcribing..., Awaiting review, Complete, Failed | `pending`, `awaiting_review`, `complete`, `failed`. "Awaiting review" means the cues are in the review queue. |
 | Channel card, Captions row | On / Off (switched off in the station profile) / Not verified; open channel caption proof | Whether captions in the live output have been proven by decoding them back. |
 | Channel caption card | Captions off, Not verified, Captions on, Caption proof failed, Stale (older than 120 seconds) | The result of the decode-back proof. |
@@ -921,9 +921,7 @@ Checklist:
 
 <!-- SOURCES: inventory/screens/health.md (controls, check names, Machine health, self-check, update/rollback panel); inventory/screens/live.md (flow, 30 s freshness, 50 GiB, 1.1.1.1/8.8.8.8, refresh loses session); inventory/screens/setup.md and station-profile.md (Verify backup only probes a folder; storage defaults; live captions default off); inventory/screens/channels.md (commit panel, Keep this channel on air); inventory/screens/controlroom.md (30 min); inventory/screens/remotecontribution.md (invite 4 h); inventory/screens/recording.md, guide.md, schedule.md, alerts.md, epg.md, autoschedule.md (time zones); inventory/screens/_shell-signin-and-session.md (recovery kit, 8 codes, nav lock); inventory/screens/installer-install-layout.md sections 7-8 (upgrade behavior); docs/releases/v1.0.0-beta.10-verification.md (proof status); civiccast/dr/__init__.py:1-70 (drill, media manifest not replication); civiccast/egress/preparer.py:23 (60 GB); civiccast/app.py:724 (maintenance 503) -->
 
-# Appendix H: Measured evidence and known limits {#app-evidence}
-
-<!-- COORDINATOR WRITES SECTION H -->
+<!-- APPENDIX-H: build_manual.py replaces this marker with 40h-evidence.md -->
 
 # Appendix I: Glossary {#app-glossary}
 
@@ -1163,7 +1161,7 @@ Gemma
 :   The family of AI models used for summaries (12B and e4b) and, as TranslateGemma 4B, for Spanish translation. They run locally through *Ollama*.
 
 GitHub pre-release
-:   A release on GitHub marked as not final. Beta.11 is published this way.
+:   A release on GitHub marked as not final. v1.0.0-rc.6 is published this way.
 
 GStreamer
 :   The video framework CivicCast's playout engine is built on.
@@ -1261,7 +1259,7 @@ NWS
 **O**
 
 Ollama
-:   The local AI engine program (version 0.40.13 in the RC5 runtime lock), started by the service on `127.0.0.1:11434`.
+:   The local AI engine program (version 0.40.13 in the installed runtime lock), started by the service on `127.0.0.1:11434`.
 
 On-Air Mode
 :   A Control Room session type that really fires cues. It expires after 30 minutes. The other type, Test Mode, fires nothing.
@@ -1542,7 +1540,7 @@ LGPL means you receive the right to use and replace the library, and CivicCast s
 
 | Component | Version / source record | License (as the project records it) | What it does here |
 | --- | --- | --- | --- |
-| CivicCast program and web portals | 1.0.0-rc.5 published release; source may contain later fixes | Apache-2.0 | The station itself; use each installed package's matching component records. |
+| CivicCast program and web portals | 1.0.0-rc.6 published release; source may contain later fixes | Apache-2.0 | The station itself; use each installed package's matching component records. |
 | GStreamer libraries and plugins | 1.28 series | LGPL-2.1-or-later for the libraries and almost all plugins; the Rust-based plugins (`hlssink3`, closed captions) are MPL-2.0 | The playout engine. |
 | Cisco OpenH264 | in the closure | BSD-2-Clause | H.264 video encoding. Its patent position is a separate question that the license text does not answer. |
 | VisualOn AAC encoder | in the closure | Apache-2.0 for the encoder library; the GStreamer plugin that wraps it is LGPL-2.1-or-later | AAC audio encoding. |
@@ -1601,11 +1599,17 @@ The installer is signed with an Authenticode signature (publisher Scott Converse
 
 The native Windows release history and the source edition covered by this manual, newest first. The project's release-truth file and GitHub release page establish package publication state. "Superseded" means a newer release replaced it; it does not mean it was bad.
 
-> **Note:** This manual describes the 1.0.0-rc.6 edition. The [RC5 release notes](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-rc.5-release-notes.md) identify that package; the [Beta 20 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.20-verification.md) and the [Beta 18 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.18-verification.md) remain historical. A 72-hour Beta 11 host run recorded **99.78% live caption-input coverage** across three channels; see the [host report](https://github.com/scottconverse/civiccast/blob/main/docs/ops/beta11-host-caption-performance-72-hour-2026-10-11.md). The earlier 48-hour window remains in its dated report.
+> **Note:** This manual describes the 1.0.0-rc.6 edition. The [RC6 release notes](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-rc.6-release-notes.md) identify this package; the [RC5 release notes](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-rc.5-release-notes.md), the [Beta 20 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.20-verification.md) and the [Beta 18 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.18-verification.md) remain historical. A 72-hour Beta 11 host run recorded **99.78% live caption-input coverage** across three channels; see the [host report](https://github.com/scottconverse/civiccast/blob/main/docs/ops/beta11-host-caption-performance-72-hour-2026-10-11.md). The earlier 48-hour window remains in its dated report.
 
 | Release | Date | Status | What it was |
 | --- | --- | --- | --- |
-| **v1.0.0-beta.20** | 2026-10-21 | Published package; scoped checks in the Beta 20 verification record | Consolidates Sprint 6 preparation, hardware-aware encoding, webhook/Roku and station-federation changes. TownLight integration remains deferred to 2.0. |
+| **v1.0.0-rc.6** | 2026-11-15 | Current published package; scoped checks in the [RC6 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-rc.6-verification.md) | AC-3 sound and a constant bit rate on the cable output, an upgrade repair for saved cable presets, and AI summaries and translation on an integrated graphics chip. Soaked about 28 hours on five test PCs. |
+| **v1.0.0-rc.5** | 2026-11-07 | Superseded by rc.6 | Live captions stay on time while the station prepares upcoming programmes; uploads and imports refuse XML documents before FFmpeg opens them; a failed programme change no longer leaves the channel on the slate for about 28 minutes. |
+| **v1.0.0-rc.4** | 2026-11-05 | Superseded by rc.5 | Installer and upgrade fixes and caption corrections following RC3. See the [RC4 release notes](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-rc.4-release-notes.md). |
+| **v1.0.0-rc.3** | 2026-11-01 | Superseded by rc.4 | Addresses the RC2 operator findings: credential-validation redaction, restore safety, caption ownership and delivery, scheduling, health/errors and reporting. See the [RC3 release notes](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-rc.3-release-notes.md). |
+| **v1.0.0-rc.2** | 2026-10-30 | Superseded by rc.3 | Addresses the R9 and R7 operator findings with credential-error redaction, model-store permissions, caption corrections, second-level scheduling and measured output health. |
+| **v1.0.0-rc.1** | 2026-10-30 | Superseded by rc.2 | First release candidate: administrator agenda setup with bundled offline English OCR, retained PDF review, agenda backup/recovery and native dependency security updates. |
+| **v1.0.0-beta.20** | 2026-10-21 | Superseded by rc.1; scoped checks in the Beta 20 verification record | Consolidates Sprint 6 preparation, hardware-aware encoding, webhook/Roku and station-federation changes. TownLight integration remains deferred to 2.0. |
 | **v1.0.0-beta.18** | 2026-10-15 | Published package; historical record | Guided Cablecast station import; see its verification record. |
 | **v1.0.0-beta.17** | 2026-10-15 | Superseded by beta.18 | Published signed package; fresh Sandbox install and service checks passed, while the product-engine TSDuck probe timed out. See the [matching verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.17-verification.md). |
 | **v1.0.0-beta.16** | 2026-10-14 | Superseded by beta.17 | Published signed package with recorded clean install, Beta 15 upgrade, restricted service identity, installed runtime smoke and uninstall checks in a Windows 11 Hyper-V guest. See the [matching verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.16-verification.md). |

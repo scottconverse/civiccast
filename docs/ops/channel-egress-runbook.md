@@ -231,7 +231,9 @@ itself — no CLI worker needed. Posture for a three-channel station:
   H.264 encodes are the realistic load shape. The CA-8 4-hour development
   acceptance window measured flat combined encoder RSS of 49–89 MB across
   three channels on one machine (see
-  `tester-handoff/v2.1.0/test-results/windows/20260612-0824-local-ca8-4h-acceptance.md`);
+  the external tester-handoff record
+  `tester-handoff/v2.1.0/test-results/windows/20260612-0824-local-ca8-4h-acceptance.md`,
+  which is not in this repository);
   full-day CPU/memory figures come from the pending 24-hour unattended
   soak — this runbook does not claim load figures that have not been
   measured.

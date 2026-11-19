@@ -86,7 +86,7 @@ The gap we close: today the codebase has four overlapping proof vocabularies (`p
 2. CAPABILITIES.md: single authoritative doc listing all capabilities + rung + proof boundary
 3. Proof rung API: read-only endpoint exposing CAPABILITIES
 4. Certified-integrator program: formal spec + contract language
-5. Per-section proof tiers: all 13 section specs state current rung + advancement path
+5. Per-section proof tiers: all 27 section specs state current rung + advancement path
 6. Release gates (per-tier): contract → lab → machine → SDI → headend → field
 
 ---
@@ -426,7 +426,7 @@ def validate_proof_claim(self):
    - Machine: clean Windows install + wizard completes
    - SDI/Headend/Field: manual gates with blocking_reason + unblock_step
 
-7. **All 13 section specs** include:
+7. **All 27 section specs** include:
    - Current rung statement
    - Advancement path
    - Honest boundary (not_claimed items)
@@ -485,4 +485,4 @@ def validate_proof_claim(self):
 
 ---
 
-*S10 is the final operational spec document. Implementation does not begin until Scott approves all 13 section specs together. This section governs how every other section states its proof; it is not independent work.*
+*S10 is the final operational spec document. Implementation does not begin until Scott approves all 27 section specs together. This section governs how every other section states its proof; it is not independent work.*

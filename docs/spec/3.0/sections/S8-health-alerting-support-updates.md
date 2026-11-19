@@ -67,7 +67,7 @@ S8 **reuses the delivery *patterns*** proven in `subscribe/` (signed webhook, bo
 
 ## 3. Entities / data model & migrations
 
-All net-new entities are pydantic contracts plus SQLAlchemy rows. Persisted tables are added by **`0042_alerting_and_sinkhealth`** (single global chain; head `0037` advances through `0038`–`0041` to `0042`). RuntimeSafeToAirStatus and ChannelRuntimeStatus are **computed/ephemeral** (returned by API, optionally snapshotted into a sample table — see §3.7).
+All net-new entities are pydantic contracts plus SQLAlchemy rows. Persisted tables are added by **`0039_alerting_and_sinkhealth`** (single global chain; it follows `0038_reliability_fields`, as the canonical-decision note above records). RuntimeSafeToAirStatus and ChannelRuntimeStatus are **computed/ephemeral** (returned by API, optionally snapshotted into a sample table — see §3.7).
 
 ### 3.1 Enums
 

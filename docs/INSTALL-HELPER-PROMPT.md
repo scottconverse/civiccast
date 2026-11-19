@@ -2,10 +2,9 @@
 
 Use this guide only for an owner-authorized Windows beta field test. It is
 candidate-neutral: the tester handoff and release verification record identify
-the approved installer and procedure. Beta 20 is the current public pre-release,
-originally published 2026-10-21 (MDT), with corrected documentation packaged
-on 2026-10-22 from signed source 2e196124 (build 39810481727). The original
-tag remains at a1744918; the verification record identifies the revised assets. See the [Beta 20 verification record](releases/v1.0.0-beta.20-verification.md)
+the approved installer and procedure. v1.0.0-rc.6 is the current public
+pre-release, published 2026-11-15 from signed source d74a8c31 (tag target
+830b53df). See the [RC6 verification record](releases/v1.0.0-rc.6-verification.md)
 for its exact package identity and scoped checks. This guide does not itself
 authorize an installation, upgrade, release or station cutover.
 

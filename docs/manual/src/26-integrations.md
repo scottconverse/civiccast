@@ -288,7 +288,7 @@ The **Alerts** screen can hold destinations of three kinds: email, text message 
 
 `POST /api/webhooks/stripe` accepts a payment provider's notification. It requires a `Stripe-Signature` header, rejects a body over 1 MiB, and answers 401 for a bad signature. It is not reachable from the internet unless you build a path to it.
 
-> **Beta 19 status:** A configured mail provider sends sign-in links and reports delivery failures. The public portal still asks for paywall tiers and a checkout, but the server has no routes for them (the API list shows only `access`, `magic-link` and `verify`), and public VOD media is not grant-protected. See [Publishing](#ch-publishing).
+> **Current limitation:** A configured mail provider sends sign-in links and reports delivery failures. The public portal still asks for paywall tiers and a checkout, but the server has no routes for them (the API list shows only `access`, `magic-link` and `verify`), and public VOD media is not grant-protected. See [Publishing](#ch-publishing).
 
 ## Station import from Cablecast {#station-import-cablecast}
 
@@ -331,7 +331,7 @@ environment procedure in [Running it day to day](#ch-operations). Never put the
 token itself in this JSON. File changes take effect on the next request;
 service-environment changes require a planned service restart. For catalog-only
 sharing, omit `staff_origin`, `token_env` and `channel_ids`. This source feature
-is not included in the published Beta 19 package.
+was not included in Beta 19; it shipped in Beta 20.
 
 ## External agenda import
 
@@ -461,7 +461,7 @@ Other things worth reading with a token: `GET /api/staff/runtime-safe-to-air`, `
 
 ## Package status and verification
 
-This chapter describes the published Beta 20 edition. Use the [Beta 20 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.20-verification.md) for that package's scoped checks; the [Beta 18 record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.18-verification.md) remains historical. Commission each external service and headend for the station's actual configuration.
+This chapter describes the published v1.0.0-rc.6 edition. Use the [RC6 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-rc.6-verification.md) for that package's scoped checks; the [Beta 20 record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.20-verification.md) and [Beta 18 record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.18-verification.md) remain historical. Commission each external service and headend for the station's actual configuration.
 
 ## Related
 

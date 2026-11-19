@@ -403,7 +403,7 @@ If nothing here matches, do the following in order. First, run `curl.exe http://
 
 ## Package status and verification
 
-This chapter describes the published Beta 20 edition. For package-specific results, use the [Beta 20 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.20-verification.md). The [Beta 18 record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.18-verification.md) and [Beta 15 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.15-verification.md) remain historical.
+This chapter describes the published v1.0.0-rc.6 edition. For package-specific results, use the [RC6 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-rc.6-verification.md). The [Beta 20 record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.20-verification.md), [Beta 18 record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.18-verification.md) and [Beta 15 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.15-verification.md) remain historical.
 
 ## Related
 

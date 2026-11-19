@@ -86,8 +86,8 @@ class MediaIngestJob(Base):
 
 ### Migration
 
-S7 ships a **single migration `0041_media_lifecycle`** on the single global alembic chain
-(head `0037_asset_meeting_body` → `0038`+; S7's slot is `0041`). It creates all five S7 tables in
+S7 ships a **single migration `0080_watch_folder_daemon`** on the single global alembic chain
+(the chain has one head; S7 landed as `0080`). It creates all five S7 tables in
 one revision: `media_ingest_jobs`, `transcode_jobs`, `asset_readiness`, `watch_folder_configs`,
 `asset_retention_policies`. (One head despite the per-module directory layout, per
 `tests/live/test_real_postgres.py`.)

@@ -58,7 +58,7 @@ Residents see approved programmes in two views of the same published schedule.
 - **Coming up** on the portal home page lists programs placed with **Schedule** (or Contributors) that are **Published** and start in the future. It never lists a Scheduled item.
 - **Channel schedule** lists the next 72 hours of published premieres, including recordings added directly on **Schedule** and approved recurring **Program Guide** airings. Drafts, cancelled items and embargoes are excluded.
 
-![The resident portal's Channel schedule page, which lists the next three days of programs for one channel.](manual/images/portal-schedule.png){width=90%}
+![The resident portal's Channel schedule page, which lists the next three days of programs for one channel.](../images/portal-schedule.png){width=90%}
 
 *Figure: the Channel schedule page that residents see.*
 

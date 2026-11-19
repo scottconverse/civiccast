@@ -1,4 +1,4 @@
-## RC2 operator guidance — October 30, 2026
+## Operator guidance — RC2 snapshot, October 30, 2026 (historical)
 
 Schedule and Program Guide accept second-level starts through their normal date/time controls. Match the next start to the preceding duration; approve the entries and use Commit to Air. Upload local media through Assets, not an API workaround.
 

@@ -3,8 +3,8 @@
 > **Status boundary (October 11, 2026):** This directory contains design and
 > recovery records whose decision states are dated in their individual files.
 > They describe design targets and owner decisions; they are not a report of
-> what the current Beta 20 package ships. Use the [Beta 20 verification
-> record](../releases/v1.0.0-beta.20-verification.md) and current source for
+> what the current package ships. Use the [RC6 verification
+> record](../releases/v1.0.0-rc.6-verification.md) and current source for
 > shipped behavior. Later dated amendments remain in force where explicitly
 > recorded; this notice does not reopen or replace owner decisions.
 
@@ -18,8 +18,7 @@ owner-approved D2 architecture amendment (2026-07-29) that keeps the NSIS
 bootstrap below 300,000,000 bytes without removing the legally required
 offline caption model. Its owner-approved design is not proof that the planned
 model-acquisition path is present in the Beta 20 public asset set. The inherited 2026-07-24 coder
-handoff, including its lessons learned, is preserved at
-`docs/process/CODEX-NATIVE-BETA-HANDOFF-2026-07-24.md` (historical handoff; not included in this repository).
+handoff, including its lessons learned, is a historical record that is not included in this repository.
 
 Specifications for the remaining program work (charter §7–§8,
 civiccast-audit-control). Written 2026-07-17 while the design-tier coder model

@@ -1,5 +1,9 @@
 # Current checkpoint: October 19, 2026 - resumed acceptance source corrections
 
+> **Historical record.** This file is a dated October 2026 checkpoint chain, not
+> current release state. The current published release is `v1.0.0-rc.6`
+> (2026-11-15); see `docs/handoff/CURRENT.md` for the portable project state.
+
 Scott explicitly resumed the finite nine-outcome assignment. Both isolated VMs
 were observed Off; production service Running. No production upgrade or verified
 recovery backup exists. The b693 signed build and test runs were canceled, not
@@ -213,7 +217,8 @@ are in the Sprint 6 record above. No package build or production cutover occurre
 ## Published Beta 19 record (2026-10-15)
 
 Publication branch was `main`. Read current branch and HEAD from Git.
-Current published tag: `v1.0.0-beta.19`.
+Current published tag at that time: `v1.0.0-beta.19` (historical; the current
+published tag is `v1.0.0-rc.6`).
 PR #257: https://github.com/scottconverse/civiccast/pull/257;
 merge/tag target `b5204750bd96986dcde1adadffc0fe4b4e81f695`.
 Current source includes Sprint 5 remote-guest composition and relay
@@ -221,7 +226,7 @@ commissioning, bulletin-board live video and audio, and native viewer
 completion, along with the earlier Beta 17/18 publication/import work.
 Beta 19's signed kit was built from
 `7d61cbede3123a65b4a0d6d4b413ae99edbc3f04` in
-[workflow 38797808863](https://github.com/scottconverse/civiccast/actions/runs/38797808863).
+workflow 38797808863.
 Its package identity and scoped checks are in the
 [Beta 19 verification record](docs/releases/v1.0.0-beta.19-verification.md).
 The [public Beta 19 release](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-beta.19)
@@ -256,7 +261,7 @@ identifies its installer and checks.
 PR #249 merged to `main` as `efcab4c1f618e4a46bf62491ee410a9fcd9e7618`, the Beta 16 tag target.
 The signed Beta 16 package was built from
 `e92bebd4b5289dce969f81b72515cfa0d45eba55`, successful
-[build 38635220200](https://github.com/scottconverse/civiccast/actions/runs/38635220200).
+build 38635220200.
 The corrected package passed upgrade, administrator/profile preservation,
 restricted service/process identity, installed GStreamer smoke, and uninstall
 in the 240 GiB Hyper-V guest. Clean fresh installation also passed, including
@@ -264,7 +269,7 @@ new administrator setup, healthy/current Beta 16, restricted process ownership
 and installed runtime smoke. The owner subsequently authorized publication.
 The earlier candidate used
 `9b83d7b89cddc987fbbcc5e23a1433339810d5d6` on `codex/beta16-release`,
-[build 38579665236](https://github.com/scottconverse/civiccast/actions/runs/38579665236).
+build 38579665236.
 That candidate failed upgrade service registration in the replacement 160 GiB
 Hyper-V guest and restored healthy Beta 15 with the saved station profile.
 The corrected source stops the service before migrating its identity.

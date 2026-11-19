@@ -50,7 +50,7 @@
 
 ### Net-new (S2 scope)
 
-1. **Per-sink loudness target specification (D6)**: The loudness **target** lives on `EgressSinkSpec` so each sink carries its own target — a cable udp-ts sink at -24 LKFS (ATSC A/85 for cable receivers) and a streaming sink at -16 LUFS (LKFS == LUFS per ITU-R BS.1770). The field migrates off `EgressConfig` onto `EgressSinkSpec`; the per-sink target is selected at egress time by the same `loudnorm` code path (see Behavior § 6). Owned for egress-time selection by S2/S11; the migration adding the column lands in S11's `0044_loudness_and_eas`.
+1. **Per-sink loudness target specification (D6)**: The loudness **target** lives on `EgressSinkSpec` so each sink carries its own target — a cable udp-ts sink at -24 LKFS (ATSC A/85 for cable receivers) and a streaming sink at -16 LUFS (LKFS == LUFS per ITU-R BS.1770). The field migrates off `EgressConfig` onto `EgressSinkSpec`; the per-sink target is selected at egress time by the same `loudnorm` code path (see Behavior § 6). Owned for egress-time selection by S2/S11; the migration adding the column lands in S11's `0049_per_sink_loudness`.
 
 2. **Video profile matrix — interlaced cable profiles (D13, NOT deferred)**: Master scope specifies "default video profiles 1080i59.94/720p59.94/480i29.97." Currently the 6 profiles are hard-coded in `headend.py` with fixed fps=30 + resolution. Per D13 the interlaced cable profiles **1080i59.94** and **480i29.97** plus **720p59.94** are cable-parity and **ship in S2/S3** as selectable `CanonicalProfile` presets — they are not later polish (see Behavior § 6.5).
 

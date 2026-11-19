@@ -12,7 +12,7 @@ Use the complete signed kit matching the release. The current public download is
 
 Use the Manual for full steps, error recovery, and responsibilities. Preparation is not on-air proof. Do not repeatedly reload an already pending handoff.
 
-For RC6, Windows 11 x64 is the verified platform; Windows 10/Server support is unverified. No minimum hardware specification is certified for three simultaneous captioned channels. Captions are machine-generated, and their accuracy is not calibrated against human transcripts. At a program change, a caption page still being spoken can be cut off. Captions can slow down if the station PC is busy with programs other than CivicCast. Check caption delivery at transitions on your configuration. See the RC5 release notes for the measured scope, security findings and known issues before a distribution decision.
+For RC6, Windows 11 x64 is the verified platform; Windows 10/Server support is unverified. No minimum hardware specification is certified for three simultaneous captioned channels. Captions are machine-generated, and their accuracy is not calibrated against human transcripts. At a program change, a caption page still being spoken can be cut off. Captions can slow down if the station PC is busy with programs other than CivicCast. Check caption delivery at transitions on your configuration. See the RC6 release notes for the measured scope, security findings and known issues before a distribution decision.
 
 ---
 

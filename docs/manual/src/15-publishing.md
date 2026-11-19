@@ -167,7 +167,7 @@ Some stations may want some recordings behind a paid subscription. The **Paywall
 
 The screen has three cards: **Config** (the **Enable paywall** box, a provider, a signing secret), **Tiers** (plans that map to prices you create yourself in Stripe, a payment company) and **Comp access grants** (free passes you give to an email address).
 
-> **Beta 19 status:** Treat the Paywall as a test-only screen, not protected paid access. In the current code:
+> **Current limitation:** Treat the Paywall as a test-only screen, not protected paid access. In the current code:
 >
 > - Turning it on does not select particular recordings. The Watch page asks every resident for a pass on every recording.
 > - The video file itself is not protected. The gate is a screen shown in front of the player.
@@ -182,11 +182,11 @@ If you turn the paywall on for testing, the Watch page shows the gate described 
 
 The portal needs no sign-in. It is English only and always shows a dark theme. At the top are the title "CivicCast public portal", three buttons **Home**, **Recordings** and **Schedule**, and a link **Report a beta issue**. The page address changes as you move, so any page can be copied and shared. On a phone the same page stacks into one column.
 
-![The portal Home page on a computer while a channel is on air.](manual/images/portal-home.png){width=90%}
+![The portal Home page on a computer while a channel is on air.](../images/portal-home.png){width=90%}
 
 *Figure: the portal Home page.*
 
-![The portal Home page on a phone-sized screen.](manual/images/portal-home-phone.png){width=40%}
+![The portal Home page on a phone-sized screen.](../images/portal-home-phone.png){width=40%}
 
 *Figure: Home on a phone.*
 
@@ -225,7 +225,7 @@ Each card shows the title, the description, "Published {date}" and **Watch recor
 
 Meeting body and extra fields are set by staff on the video's detail page. A recording with no meeting body never matches a Meeting body filter. If the station has published nothing yet it says "No recordings have been published yet." and links to the channel schedule. If the list cannot load it says "Published recordings could not be loaded. Try again or contact the station." with **Retry**. When a search or filter matches nothing the page says "No recordings match this filter. Clear the search or facets to browse everything." There is no "Clear" button; the resident resets each control. When the search service is not ready, the page falls back to a plain list and shows "Showing recordings in a reduced-search mode — full search is temporarily unavailable, so some filters below may show fewer results than normal. Try again shortly for full search."
 
-![The Recordings page with the search box, the Year and Meeting body menus, and recording cards.](manual/images/portal-recordings.png){width=90%}
+![The Recordings page with the search box, the Year and Meeting body menus, and recording cards.](../images/portal-recordings.png){width=90%}
 
 *Figure: the Recordings page.*
 
@@ -240,7 +240,7 @@ For a recording that requires access, transcript text and search excerpts requir
 
 The page reads "What airs over the next three days. Times are shown in your local timezone." It lists each day with time, title and length. The program on the air now has a green bar and the tag **On now**. Entries are not links. If nothing is listed the page says "Nothing is on the schedule for this channel yet. Check back soon." The Schedule page comes from the station's program log. **Coming up** on Home is a different list: committed premieres only.
 
-![The Schedule page with channel buttons. The channel shown has no entries yet.](manual/images/portal-schedule.png){width=90%}
+![The Schedule page with channel buttons. The channel shown has no entries yet.](../images/portal-schedule.png){width=90%}
 
 *Figure: the Schedule page.*
 
@@ -248,7 +248,7 @@ The page reads "What airs over the next three days. Times are shown in your loca
 
 A resident opens a recording by clicking **Watch recording**. The page shows **Back to all recordings**, the title, "Published {date} / {length}", the video player, the description, and **Copy share link**. Click **Copy share link**; the page says "Link copied." and puts the page address on the clipboard. The video is a normal browser player with play, volume and full screen controls.
 
-![A recording's Watch page with the video player and the Copy share link button.](manual/images/portal-watch.png){width=90%}
+![A recording's Watch page with the video player and the Copy share link button.](../images/portal-watch.png){width=90%}
 
 *Figure: a Watch page.*
 

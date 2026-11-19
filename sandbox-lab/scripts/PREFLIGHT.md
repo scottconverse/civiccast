@@ -11,7 +11,7 @@ of the script against documented PowerShell 5.1 semantics.
 
 ```
 [System.Management.Automation.Language.Parser]::ParseFile(
-  'C:\Users\scott\Desktop\Code\sandbox-lab\scripts\In-Sandbox-Report.ps1', ...)
+  'sandbox-lab/scripts/In-Sandbox-Report.ps1', ...)
 ```
 
 **PARSE CLEAN: 0 errors.** Re-run after every edit in this pass; last run immediately
@@ -56,7 +56,7 @@ subexpression syntax `$($e.p)` and needed no change.
 
 ## (c) Captions block — PS 5.1 semantics walk-through
 
-Full block: `In-Sandbox-Report.ps1` lines ~1038–1210 (Step 8, offline-caption
+Full block: `In-Sandbox-Report.ps1` lines ~3438–4109 (Step 8, offline-caption
 discovery/poll/manual-enqueue/verdict). Walked every statement against Windows
 PowerShell 5.1 (not pwsh 7) semantics:
 

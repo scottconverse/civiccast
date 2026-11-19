@@ -19,7 +19,7 @@ It also reinforces two existing gaps: **captions** (S11) and **descriptive/secon
 
 | Surface | Standard | Deadline (entity-size dependent) |
 |---|---|---|
-| **Public portal** (VOD player, search, show/series pages, meeting + **agenda** pages [S26], login/recovery) | WCAG 2.1 AA | 2026 (large) / 2027 (small) |
+| **Public portal** (VOD player, search, show/series pages, meeting + **agenda** pages [S25], login/recovery) | WCAG 2.1 AA | 2026 (large) / 2027 (small) |
 | **OTT apps** (Roku/Apple TV/Fire TV/Android TV/mobile — S12) | WCAG 2.1 AA *as applicable to the platform*, plus each platform's native a11y API (VoiceOver, TalkBack, Roku audio guide) | 2027 |
 | **Operator console** (staff UI) | Best-effort AA (not strictly Title-II-scoped, but adopt the same components) | — |
 

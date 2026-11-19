@@ -303,9 +303,8 @@ The remote-contribution tier is DONE when:
    (in-engine, S15 §5, CPU-heavy). Recommendation: **GStreamer `wpesrc`** to avoid adding an OBS/GPL
    co-process to the base tier, with OBS as the documented premium-compositor option — but OBS is the
    lower-risk near-term path. *(Needs the S16 section to exist; see #2.)*
-2. **Author an S16 compositor section?** S17 (and S15 §5) both reference a compositor tier; there is no
-   `S16-*.md` yet. Recommend authoring S16 (OBS/compositor) so the dependency is real, and reserving
-   migration `0047` for it ahead of S17's `0048`.
+2. **S16 compositor section:** S17 (and S15 §5) both reference a compositor tier; the section now
+   exists as `S16-production-control-room.md`. Migration `0047` is reserved for it ahead of S17's `0048`.
 3. **`LiveSource` kind:** add a `"webrtc"` kind to the CHECK constraint (cleaner semantics, schema
    co-edit) vs reuse existing `ndi`/`srt` from the compositor (zero schema change). Recommendation:
    **reuse `ndi`/`srt`** for V1 (no migration risk), add `"webrtc"` later if the distinction earns its

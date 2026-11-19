@@ -2,7 +2,7 @@
 title: CivicCast User Manual
 subtitle: For station staff, volunteers and city IT staff - v1.0.0-rc.6 (native Windows line)
 author: The CivicCast Authors
-date: 2026-10-30
+date: 2026-11-15
 urlcolor: blue
 toccolor: black
 ---
@@ -281,7 +281,7 @@ You are signed in and taken to the same place as after a normal sign-in. Every o
 
 > **Warning:** Your printed kit may still list an old password. After a recovery, write the new password somewhere safe. While you can still sign in, a Setup admin can make a fresh set of eight codes with **Regenerate recovery kit** in the **Security** card on **Station Profile**; the old codes stop working at once, and the new kit lists the codes only, not the password. If the password and all recovery codes are lost, a local Windows administrator can recover the account offline with the administrator-reset command in [Security and privacy](#ch-security). That reset preserves station data, revokes existing first-admin sessions and old recovery codes, and requires a fresh recovery kit afterward.
 
-The Beta20 package includes station-state recovery repair so the normal service can replace the session automatically without manually changing permissions. In the signed Beta20 package, recovery/reset and normal HTTP login were exercised without manual ACL repair; private-key protection remained in place. The interactive prompt was not exercised.
+Station-state recovery repair arrived with the Beta 20 package (historical): the normal service can replace the session automatically without manually changing permissions. In that signed Beta20 package, recovery/reset and normal HTTP login were exercised without manual ACL repair; private-key protection remained in place. The interactive prompt was not exercised.
 
 ### Sign out
 
@@ -382,7 +382,7 @@ These screens open for every role but refuse some things:
 >
 > | Sidebar name | Page heading |
 > | --- | --- |
-> | Readiness | Safe to broadcast |
+> | Readiness | Station health and readiness |
 > | Alerts | Alerts & monitoring |
 > | Federation | ActivityPub federation |
 > | CG Designer | CG Board Designer |
@@ -1230,7 +1230,7 @@ The most important idea in this chapter: CivicCast has several separate controls
 
 Do this early on meeting night, before anyone is in the room. The same screen is covered in more depth in [When something looks wrong](#ch-something-wrong).
 
-1. In the left menu, under **System Health**, click **Readiness**. The page's own title is "Safe to broadcast".
+1. In the left menu, under **System Health**, click **Readiness**. The page's own title is "Station health and readiness".
 2. Read the banner called "On air right now". It lists each channel with a state word and a small colour tag, and it updates itself about every 5 seconds.
 3. Read the card under the title. Its tag is **Ready** (green), **Check before meeting** (yellow) or **Do not broadcast yet** (red). The card's heading can also read "Ready with optional items", which means only optional items still need attention. The card's text says what to do next.
 4. To run a full test, click **Check broadcast readiness**. This needs the Meeting operator role.
@@ -1606,7 +1606,7 @@ To send a bulletin back, click **Request changes**, type a note and click **Send
 
 > **Warning:** the board is what viewers see between programs. Changing the **Board template** menu takes effect **immediately, with no confirmation**. Deleting a zone asks only "Confirm delete?".
 
-> **Package note:** Board audio and live-video zones are part of Beta 19, not the published Beta 18 package. Support admins can view the designer but cannot edit it.
+> **Package note:** Board audio and live-video zones have been part of the package since Beta 19 (historical releases). Support admins can view the designer but cannot edit it.
 
 ### Bring in remote guests (Remote Contribution)
 
@@ -2077,16 +2077,6 @@ Each folder row shows **Not scanned yet**, **OK** with "Last poll" and "Last ing
 
 > **For IT staff:** Watch folders, upload storage and the storage budget are set up in Part II (configuration and operations chapters). If the budget card says no budget is configured, the setting is an environment variable that only IT can change.
 
-### Agenda-based draft minutes
-
-A records clerk can open the meeting agenda and expand **Draft meeting minutes** once its recording and reviewed English transcript are available. Choose a completed cited summary from that same recording, or choose the manual option when generation is unavailable. Creating minutes does not run a separate model for every agenda item. Untimed or uncited discussion needs clerk entry; an empty section is not a claim that nothing happened.
-
-Open the draft in Summary review. Each agenda section has editable discussion and transcript citations. Citation playback follows the packaged recording timeline, while stored evidence keeps its source-recording times. Add motions with the mover, optional seconder, outcome and individual member votes. Check the recording and citations, then explicitly confirm each motion and its votes. Editing a motion or vote clears that confirmation. Mark an item not discussed only after checking it, and confirm that all items were checked for motions and votes.
-
-Use **Save draft minutes** before approval. Approval stays unavailable while edits are unsaved or saving. Every save keeps the previous content, editor and time; approval is tied to the saved fingerprint. If another clerk edits the draft, reload and review the current version. Transcript corrections require rebuilding the draft against the current reviewed cues. These are editable drafts, not an automatic or certified parliamentary record.
-
-After human approval, the signed record export includes the agenda discussion, citations, confirmed motions and votes in the rendered minutes, plus structured minutes and edit history in its PDF attachment. Approved minutes are immutable. If a model fails or no suitable cited summary exists, use the manual option with the same reviewed transcript and human approval controls.
-
 ### If it did not work
 
 | What you see | Cause and fix |
@@ -2278,7 +2268,7 @@ Some stations may want some recordings behind a paid subscription. The **Paywall
 
 The screen has three cards: **Config** (the **Enable paywall** box, a provider, a signing secret), **Tiers** (plans that map to prices you create yourself in Stripe, a payment company) and **Comp access grants** (free passes you give to an email address).
 
-> **Beta 19 status:** Treat the Paywall as a test-only screen, not protected paid access. In the current code:
+> **Current limitation:** Treat the Paywall as a test-only screen, not protected paid access. In the current code:
 >
 > - Turning it on does not select particular recordings. The Watch page asks every resident for a pass on every recording.
 > - The video file itself is not protected. The gate is a screen shown in front of the player.
@@ -2725,7 +2715,7 @@ The **Paywall** screen, in the **Setup** section, lets a station hold some recor
 
 A *tier* is a price level, for example "Basic monthly", linked to a price you made in Stripe. CivicCast never creates prices and never stores card numbers.
 
-> **Beta 19 status:** The magic-link button sends through a configured mail provider and reports delivery failure. Paid access remains incomplete: the portal's tier-list and checkout routes are unavailable, and the gate covers the player rather than protecting the video file itself. The **Recently issued grants** list shows grants from the current browser session only. The screen preserves a saved signing secret when an ordinary save leaves the secret box blank; clearing it requires the explicit clear control.
+> **Current limitation:** The magic-link button sends through a configured mail provider and reports delivery failure. Paid access remains incomplete: the portal's tier-list and checkout routes are unavailable, and the gate covers the player rather than protecting the video file itself. The **Recently issued grants** list shows grants from the current browser session only. The screen preserves a saved signing secret when an ordinary save leaves the secret box blank; clearing it requires the explicit clear control.
 
 > **For IT staff:** See [Chapter 15](#ch-integrations) before enabling this on a live station.
 
@@ -3104,7 +3094,7 @@ If you have the Support admin role, you can also make a *support bundle*. This i
 
 ### Report a beta issue
 
-CivicCast is a beta. Check the [releases page](https://github.com/scottconverse/civiccast/releases) for available downloads and use the verification record that matches the installed package. Support is community-driven, with no contract and no guaranteed response time. Problems that stop broadcasting or installation, lose data or expose a secret are handled first.
+CivicCast is a release candidate (v1.0.0-rc.6). Check the [releases page](https://github.com/scottconverse/civiccast/releases) for available downloads and use the verification record that matches the installed package. Support is community-driven, with no contract and no guaranteed response time. Problems that stop broadcasting or installation, lose data or expose a secret are handled first.
 
 1. In the operator console, click **Report a beta issue** at the bottom of the sidebar. It opens this **Report a beta issue** section in the Manual.
 2. If you have a free GitHub account, open a new issue on the project's issue page: <https://github.com/scottconverse/civiccast/issues>.
@@ -3374,7 +3364,7 @@ Windows may show a blue **Windows protected your PC** screen. That screen is abo
 
 #### Pre-install checklist
 
-- [ ] I know this is a beta candidate and who in the city has accepted that.
+- [ ] I know this is a release candidate (v1.0.0-rc.6) and who in the city has accepted that.
 - [ ] For a first install, I have prepared the matching kit with `scripts\download_windows_release_artifacts.ps1 -Install`; the helper verifies and assembles runtime and signed station resources before setup runs. The R9 asset set failed activation because required station packs were missing.
 - [ ] I checked the installer's SHA-256 against two sources and its signature shows `Valid` for the expected signer.
 - [ ] The computer is 64-bit Windows, dedicated to CivicCast, and not running the older WSL-based CivicCast.
@@ -3596,7 +3586,7 @@ The self-test runs the real programs once. The caption test is forced onto the p
 | 1 | The bundled Python imports CivicCast, the caption libraries (faster-whisper 1.2.1, ctranslate2 4.8.1) | It prints `native-core-ok` | 30 s |
 | 2 | PostgreSQL tools `postgres` and `pg_ctl` run | Output names each | 30 s each |
 | 3 | `ffmpeg` runs | Output contains "ffmpeg" | 30 s |
-| 4 | The AI engine runs | Output matches the installed runtime lock (0.40.13 in RC5) | 30 s |
+| 4 | The AI engine runs | Output matches the installed runtime lock (0.40.13 in this release) | 30 s |
 | 5 | TSDuck `tsp`, only if present | Absent is allowed and logged | 30 s |
 | 6 | Caption test: a short recording, using Large if installed, else Medium, on the processor | The text contains "fellow americans" and "country" | 300 s |
 | 7 | AI test: a private Ollama starts on a free local port; asks `gemma4:12b` to reply `CIVICCAST_OK`, `gemma4:e4b` to reply `CIVICCAST_FALLBACK_OK`, and `translategemma:4b` to translate "The council meeting is open." into Spanish | Exact replies | Ready within 300 s; each request up to 300 s |
@@ -3920,7 +3910,7 @@ Because the database password is deleted from the registry, the surviving databa
 
 ### Package status and verification
 
-This chapter identifies the Beta 20 software edition. Install only a package on the [releases page](https://github.com/scottconverse/civiccast/releases), and follow its bundled Help and the version-specific verification record for that package. The [Beta 18 record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.18-verification.md) remains historical. A historical Beta 15 field report found the installed `CivicCast Native.exe` unsigned while the outer setup was signed; that observation does not establish another package's status.
+This chapter describes the published v1.0.0-rc.6 edition. Install only a package on the [releases page](https://github.com/scottconverse/civiccast/releases), and follow its bundled Help and the version-specific verification record for that package. The [Beta 20 record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.20-verification.md) and the [Beta 18 record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.18-verification.md) remain historical. A historical Beta 15 field report found the installed `CivicCast Native.exe` unsigned while the outer setup was signed; that observation does not establish another package's status.
 
 ### Related
 
@@ -4059,8 +4049,10 @@ these settings; meeting operators and support admins can read them.
 
 1. Choose **Enable recorded captions**. Turning this off stops new caption jobs
    from being queued and pauses existing work until processing is enabled again.
-2. Keep English selected and choose whether to include **Spanish**, translated
-   from reviewed English. Clear Spanish for English-only operation.
+2. Keep English selected and choose any translation languages to add —
+   **Spanish**, **Chinese (Simplified)**, **Tagalog / Filipino**, **Vietnamese**
+   or **Arabic** — translated from reviewed English. Clear every translation
+   language for English-only operation.
 3. When Spanish is selected, choose **Wait for every selected language** to
    attach both reviewed tracks together, or **Attach English after its review**
    to make reviewed English available while Spanish translation and review
@@ -4433,7 +4425,7 @@ Custom Fields (Setup group; `setup_admin`) are your own labels for programs, suc
 
 The paywall (Setup group; `setup_admin`) is optional paid access to recordings through Stripe-hosted checkout, plus free "comp" passes. It is **off** by default; when off, every asset is public.
 
-> **Beta 19 status:** Do not rely on the paywall for paid access. A configured mail provider sends magic links and reports delivery failure, but the public site's calls for tiers and checkout (`/api/public/paywall/tiers`, `/api/public/paywall/checkout`) have no matching server routes, and the public VOD media route does not enforce grants. The access check trusts the email address passed to it; the code does not prove the caller owns it.
+> **Current limitation:** Do not rely on the paywall for paid access. A configured mail provider sends magic links and reports delivery failure, but the public site's calls for tiers and checkout (`/api/public/paywall/tiers`, `/api/public/paywall/checkout`) have no matching server routes, and the public VOD media route does not enforce grants. The access check trusts the email address passed to it; the code does not prove the caller owns it.
 
 > **Signing secret:** The server never returns the saved value, so the field stays blank after you open or reload this page. If a secret is saved, leave the field blank to keep it during an ordinary **Save**. To replace it, enter a new secret of at least 32 characters or generate one. Confirm the exact value currently in the field, then **Save**; editing the value clears confirmation, so confirm again. **Cancel** discards the pending replacement. To remove the saved secret, choose **Clear saved secret**, confirm, then **Save**. Clearing stops magic-link signing and Stripe webhook verification until you save a new one.
 
@@ -4650,7 +4642,7 @@ For all other variables, the appendix of settings ([Appendix: settings](#app-set
 
 ### Package status
 
-These instructions describe the published Beta 20 edition. Use the release page and the Help and verification record that match the package on the station. The [Beta 20 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.20-verification.md) identifies that package's scoped checks; the [Beta 18 record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.18-verification.md) remains historical.
+These instructions describe the published v1.0.0-rc.6 edition. Use the release page and the Help and verification record that match the package on the station. The [RC6 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-rc.6-verification.md) identifies that package's scoped checks; the [Beta 20 record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.20-verification.md) remains historical.
 
 ### Related
 
@@ -5067,7 +5059,7 @@ Hardware sizing (CPU, memory, number of channels) is in [Chapter 9](#ch-planning
 
 ### Package status and verification
 
-This chapter describes the published Beta 20 edition. For package results, use the [Beta 20 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.20-verification.md). The [Beta 18 record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.18-verification.md) and [Beta 15 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.15-verification.md) remain historical. Historical host measurements retain their Beta 11 or C16 run identity.
+This chapter describes the published v1.0.0-rc.6 edition. For package results, use the [RC6 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-rc.6-verification.md). The [Beta 20 record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.20-verification.md), [Beta 18 record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.18-verification.md) and [Beta 15 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.15-verification.md) remain historical. Historical host measurements retain their Beta 11 or C16 run identity.
 
 ### Related
 
@@ -5373,7 +5365,7 @@ The entries below summarize the whole-repository audit dated 2026-10-02 (`audit-
 
 ### Package status and verification
 
-This chapter describes the published Beta 20 edition. Use the [Beta 20 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.20-verification.md) for package checks; the [Beta 18 record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.18-verification.md) remains historical. A historical Beta 15 field report found the installed `CivicCast Native.exe` unsigned while the outer setup was signed; this does not establish the status of another package. See the [deferred field follow-up](https://github.com/scottconverse/civiccast/blob/main/docs/ops/beta17-deferred.md).
+This chapter describes the published v1.0.0-rc.6 edition. Use the [RC6 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-rc.6-verification.md) for package checks; the [Beta 20 record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.20-verification.md) and [Beta 18 record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.18-verification.md) remain historical. A historical Beta 15 field report found the installed `CivicCast Native.exe` unsigned while the outer setup was signed; this does not establish the status of another package. See the [deferred field follow-up](https://github.com/scottconverse/civiccast/blob/main/docs/ops/beta17-deferred.md).
 
 #### Report a security problem
 
@@ -5811,7 +5803,7 @@ If nothing here matches, do the following in order. First, run `curl.exe http://
 
 ### Package status and verification
 
-This chapter describes the published Beta 20 edition. For package-specific results, use the [Beta 20 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.20-verification.md). The [Beta 18 record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.18-verification.md) and [Beta 15 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.15-verification.md) remain historical.
+This chapter describes the published v1.0.0-rc.6 edition. For package-specific results, use the [RC6 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-rc.6-verification.md). The [Beta 20 record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.20-verification.md), [Beta 18 record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.18-verification.md) and [Beta 15 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.15-verification.md) remain historical.
 
 ### Related
 
@@ -6109,7 +6101,7 @@ The **Alerts** screen can hold destinations of three kinds: email, text message 
 
 `POST /api/webhooks/stripe` accepts a payment provider's notification. It requires a `Stripe-Signature` header, rejects a body over 1 MiB, and answers 401 for a bad signature. It is not reachable from the internet unless you build a path to it.
 
-> **Beta 19 status:** A configured mail provider sends sign-in links and reports delivery failures. The public portal still asks for paywall tiers and a checkout, but the server has no routes for them (the API list shows only `access`, `magic-link` and `verify`), and public VOD media is not grant-protected. See [Publishing](#ch-publishing).
+> **Current limitation:** A configured mail provider sends sign-in links and reports delivery failures. The public portal still asks for paywall tiers and a checkout, but the server has no routes for them (the API list shows only `access`, `magic-link` and `verify`), and public VOD media is not grant-protected. See [Publishing](#ch-publishing).
 
 ### Station import from Cablecast {#station-import-cablecast}
 
@@ -6152,7 +6144,7 @@ environment procedure in [Running it day to day](#ch-operations). Never put the
 token itself in this JSON. File changes take effect on the next request;
 service-environment changes require a planned service restart. For catalog-only
 sharing, omit `staff_origin`, `token_env` and `channel_ids`. This source feature
-is not included in the published Beta 19 package.
+was not included in Beta 19; it shipped in Beta 20.
 
 ### External agenda import
 
@@ -6282,7 +6274,7 @@ Other things worth reading with a token: `GET /api/staff/runtime-safe-to-air`, `
 
 ### Package status and verification
 
-This chapter describes the published Beta 20 edition. Use the [Beta 20 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.20-verification.md) for that package's scoped checks; the [Beta 18 record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.18-verification.md) remains historical. Commission each external service and headend for the station's actual configuration.
+This chapter describes the published v1.0.0-rc.6 edition. Use the [RC6 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-rc.6-verification.md) for that package's scoped checks; the [Beta 20 record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.20-verification.md) and [Beta 18 record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.18-verification.md) remain historical. Commission each external service and headend for the station's actual configuration.
 
 ### Related
 
@@ -9193,7 +9185,7 @@ Each surface has its own state: Blocked, Not set up yet, Coming soon (shown as "
 
 | Where | Words | Meaning |
 | --- | --- | --- |
-| Caption review queue, each line | Pending, Approved, Edited, Rejected | Nothing is attached to a recording's public video until every line is approved, edited or rejected. Lines are marked EN (English transcription) or ES (the Spanish translation pass). |
+| Caption review queue, each line | Pending, Approved, Edited, Rejected | Nothing is attached to a recording's public video until every line is approved, edited or rejected. Lines are marked with their language code — EN (English transcription) or the translation pass (ES, ZH-HANS, FIL, VI or AR). |
 | Recording's caption job (Assets) | Transcribing..., Awaiting review, Complete, Failed | `pending`, `awaiting_review`, `complete`, `failed`. "Awaiting review" means the cues are in the review queue. |
 | Channel card, Captions row | On / Off (switched off in the station profile) / Not verified; open channel caption proof | Whether captions in the live output have been proven by decoding them back. |
 | Channel caption card | Captions off, Not verified, Captions on, Caption proof failed, Stale (older than 120 seconds) | The result of the decode-back proof. |
@@ -9708,7 +9700,7 @@ Checklist:
 
 ## Appendix H: Measured evidence and known limits {#app-evidence}
 
-This appendix preserves historical evidence and its build identity. Use the verification record matching the package for its identity and checks. The [Beta 18 record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.18-verification.md) remains historical; the published Beta 20 package checks are in the [Beta 20 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.20-verification.md). The older beta.10 record is `docs/releases/v1.0.0-beta.10-verification.md`, with evidence under `ops/beta10-oversight/` in the repository.
+This appendix preserves historical evidence and its build identity. Use the verification record matching the package for its identity and checks. The [Beta 18 record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.18-verification.md) remains historical; the published RC6 package checks are in the [RC6 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-rc.6-verification.md). The older beta.10 record is `docs/releases/v1.0.0-beta.10-verification.md`, with evidence under `ops/beta10-oversight/` in the repository.
 
 ### Historical Beta 11: three channels, 72 hours, 99.78% live caption-input coverage
 
@@ -9770,7 +9762,7 @@ After a planned run ended on 2026-09-29, the lab station was left running. The s
 
 ### H.6 How to use this evidence
 
-Read sections H.1 through H.5 as historical evidence for their named builds and runs. For the published Beta 20 package, use the current operating chapters and its verification record; keep each measured result associated with its recorded source and run.
+Read sections H.1 through H.5 as historical evidence for their named builds and runs. For the published RC6 package, use the current operating chapters and its verification record; keep each measured result associated with its recorded source and run.
 
 <!-- SOURCES: docs/releases/v1.0.0-beta.10-verification.md; ops/beta10-oversight/OVERSIGHT-LOG.md entries 2026-10-01 14:12 and 14:22; ops/beta10-oversight/verdicts/rung-8h-c16-20261001-163004--VERDICT-NOTE.md -->
 
@@ -10012,7 +10004,7 @@ Gemma
 :   The family of AI models used for summaries (12B and e4b) and, as TranslateGemma 4B, for Spanish translation. They run locally through *Ollama*.
 
 GitHub pre-release
-:   A release on GitHub marked as not final. Beta.11 is published this way.
+:   A release on GitHub marked as not final. v1.0.0-rc.6 is published this way.
 
 GStreamer
 :   The video framework CivicCast's playout engine is built on.
@@ -10110,7 +10102,7 @@ NWS
 **O**
 
 Ollama
-:   The local AI engine program (version 0.40.13 in the RC5 runtime lock), started by the service on `127.0.0.1:11434`.
+:   The local AI engine program (version 0.40.13 in the installed runtime lock), started by the service on `127.0.0.1:11434`.
 
 On-Air Mode
 :   A Control Room session type that really fires cues. It expires after 30 minutes. The other type, Test Mode, fires nothing.
@@ -10450,11 +10442,17 @@ The installer is signed with an Authenticode signature (publisher Scott Converse
 
 The native Windows release history and the source edition covered by this manual, newest first. The project's release-truth file and GitHub release page establish package publication state. "Superseded" means a newer release replaced it; it does not mean it was bad.
 
-> **Note:** This manual describes the 1.0.0-rc.6 edition. The [RC6 release notes](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-rc.6-release-notes.md) identify that package; the [Beta 20 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.20-verification.md) and the [Beta 18 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.18-verification.md) remain historical. A 72-hour Beta 11 host run recorded **99.78% live caption-input coverage** across three channels; see the [host report](https://github.com/scottconverse/civiccast/blob/main/docs/ops/beta11-host-caption-performance-72-hour-2026-10-11.md). The earlier 48-hour window remains in its dated report.
+> **Note:** This manual describes the 1.0.0-rc.6 edition. The [RC6 release notes](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-rc.6-release-notes.md) identify this package; the [RC5 release notes](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-rc.5-release-notes.md), the [Beta 20 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.20-verification.md) and the [Beta 18 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.18-verification.md) remain historical. A 72-hour Beta 11 host run recorded **99.78% live caption-input coverage** across three channels; see the [host report](https://github.com/scottconverse/civiccast/blob/main/docs/ops/beta11-host-caption-performance-72-hour-2026-10-11.md). The earlier 48-hour window remains in its dated report.
 
 | Release | Date | Status | What it was |
 | --- | --- | --- | --- |
-| **v1.0.0-beta.20** | 2026-10-21 | Published package; scoped checks in the Beta 20 verification record | Consolidates Sprint 6 preparation, hardware-aware encoding, webhook/Roku and station-federation changes. TownLight integration remains deferred to 2.0. |
+| **v1.0.0-rc.6** | 2026-11-15 | Current published package; scoped checks in the [RC6 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-rc.6-verification.md) | AC-3 sound and a constant bit rate on the cable output, an upgrade repair for saved cable presets, and AI summaries and translation on an integrated graphics chip. Soaked about 28 hours on five test PCs. |
+| **v1.0.0-rc.5** | 2026-11-07 | Superseded by rc.6 | Live captions stay on time while the station prepares upcoming programmes; uploads and imports refuse XML documents before FFmpeg opens them; a failed programme change no longer leaves the channel on the slate for about 28 minutes. |
+| **v1.0.0-rc.4** | 2026-11-05 | Superseded by rc.5 | Installer and upgrade fixes and caption corrections following RC3. See the [RC4 release notes](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-rc.4-release-notes.md). |
+| **v1.0.0-rc.3** | 2026-11-01 | Superseded by rc.4 | Addresses the RC2 operator findings: credential-validation redaction, restore safety, caption ownership and delivery, scheduling, health/errors and reporting. See the [RC3 release notes](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-rc.3-release-notes.md). |
+| **v1.0.0-rc.2** | 2026-10-30 | Superseded by rc.3 | Addresses the R9 and R7 operator findings with credential-error redaction, model-store permissions, caption corrections, second-level scheduling and measured output health. |
+| **v1.0.0-rc.1** | 2026-10-30 | Superseded by rc.2 | First release candidate: administrator agenda setup with bundled offline English OCR, retained PDF review, agenda backup/recovery and native dependency security updates. |
+| **v1.0.0-beta.20** | 2026-10-21 | Superseded by rc.1; scoped checks in the Beta 20 verification record | Consolidates Sprint 6 preparation, hardware-aware encoding, webhook/Roku and station-federation changes. TownLight integration remains deferred to 2.0. |
 | **v1.0.0-beta.18** | 2026-10-15 | Published package; historical record | Guided Cablecast station import; see its verification record. |
 | **v1.0.0-beta.17** | 2026-10-15 | Superseded by beta.18 | Published signed package; fresh Sandbox install and service checks passed, while the product-engine TSDuck probe timed out. See the [matching verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.17-verification.md). |
 | **v1.0.0-beta.16** | 2026-10-14 | Superseded by beta.17 | Published signed package with recorded clean install, Beta 15 upgrade, restricted service identity, installed runtime smoke and uninstall checks in a Windows 11 Hyper-V guest. See the [matching verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.16-verification.md). |

@@ -2,7 +2,7 @@
 
 Version 1.0 · 2026-11-15 · Written by Claude (Opus 5.5) on the Halo coordinator PC from the station logger data. Bump the version on any change.
 
-**Candidate:** signed kit from source `d74a8c3110618d62b82f25e7383e93258f9a556b` (build run [43576185174](https://github.com/scottconverse/civiccast/actions/runs/43576185174)). Every PC reported `1.0.0-rc.6`, schema `0098_channel_repeat_schedule` (current) at the end of the soak.
+**Candidate:** signed kit from source `d74a8c3110618d62b82f25e7383e93258f9a556b` (build run 43576185174). Every PC reported `1.0.0-rc.6`, schema `0098_channel_repeat_schedule` (current) at the end of the soak.
 
 **Result in one line:** five PCs ran 15 channels for 27.6 to 28.5 hours each. The service never stopped. No playout worker exited by itself. Three problems were found: slow `/health` answers on the MSI laptop, one lost reload on R7 that held a channel on the slate for about 16 minutes, and two small caption faults on the cable output ([#342](https://github.com/scottconverse/civiccast/issues/342)). All three are open issues. They are not fixed in rc.6.
 

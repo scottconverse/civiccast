@@ -1305,7 +1305,8 @@ instead of re-downloading the whole station bundle) silently stopped working.
 No existing Gate A lane caught it: the clean lane and the dirty lane above
 both install from the **full** kit (`setup.exe` + `packs\` + `station\`), so
 neither ever exercises a payload with `station\` absent. The owner ruled that
-a download-only lane is required for every release from now on.
+a download-only lane is required for every release from then on; Gate A and
+its lanes were later retired as a release requirement (2026-11-14, banner above).
 
 **What closed the gap, and why this lane still exists.** Two changes landed
 after this lane was written, and together they are what it now grades:

@@ -26,8 +26,9 @@
 > engine instead of spawning ffmpeg). GStreamer is the engine across **all tiers**; CasparCG
 > is demoted to an **optional** premium-rich-CG co-process only (see §5).
 
-> **🔧 DECISION — SWAP MECHANISM RECONCILED (2026-06-14, Stage-0 result).** The shipping hot-swap
-> mechanism is **`input-selector` + `fallbackswitch`** (core GStreamer + gst-plugins-rs), **not**
+> **🔧 DECISION — SWAP MECHANISM RECONCILED (2026-06-14, Stage-0 result; amended October 17, 2026).** The shipping hot-swap
+> mechanism is **`input-selector` only** (`fallbackswitch` is not shipped in the installed
+> runtime — see the clarification at the top), **not**
 > GstInterpipe. Stage 0 validated `input-selector`: **0 MPEG-TS continuity-counter errors across 40
 > source swaps, flat RSS, clean teardown** — the #151-fix premise holds. **GstInterpipe (called
 > "primary" in §3 and gated in §9 below) is demoted to an OPTIONAL future enhancement**: its external

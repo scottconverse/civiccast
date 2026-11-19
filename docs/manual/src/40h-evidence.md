@@ -1,6 +1,6 @@
 # Appendix H: Measured evidence and known limits {#app-evidence}
 
-This appendix preserves historical evidence and its build identity. Use the verification record matching the package for its identity and checks. The [Beta 18 record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.18-verification.md) remains historical; the published Beta 20 package checks are in the [Beta 20 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.20-verification.md). The older beta.10 record is `docs/releases/v1.0.0-beta.10-verification.md`, with evidence under `ops/beta10-oversight/` in the repository.
+This appendix preserves historical evidence and its build identity. Use the verification record matching the package for its identity and checks. The [Beta 18 record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.18-verification.md) remains historical; the published RC6 package checks are in the [RC6 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-rc.6-verification.md). The older beta.10 record is `docs/releases/v1.0.0-beta.10-verification.md`, with evidence under `ops/beta10-oversight/` in the repository.
 
 ## Historical Beta 11: three channels, 72 hours, 99.78% live caption-input coverage
 
@@ -62,6 +62,6 @@ After a planned run ended on 2026-09-29, the lab station was left running. The s
 
 ## H.6 How to use this evidence
 
-Read sections H.1 through H.5 as historical evidence for their named builds and runs. For the published Beta 20 package, use the current operating chapters and its verification record; keep each measured result associated with its recorded source and run.
+Read sections H.1 through H.5 as historical evidence for their named builds and runs. For the published RC6 package, use the current operating chapters and its verification record; keep each measured result associated with its recorded source and run.
 
 <!-- SOURCES: docs/releases/v1.0.0-beta.10-verification.md; ops/beta10-oversight/OVERSIGHT-LOG.md entries 2026-10-01 14:12 and 14:22; ops/beta10-oversight/verdicts/rung-8h-c16-20261001-163004--VERDICT-NOTE.md -->

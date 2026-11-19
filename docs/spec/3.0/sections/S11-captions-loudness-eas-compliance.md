@@ -180,8 +180,9 @@ Master §6 net-new for S11: **`EasCapSource`**, **`EasDisplayMode`**, **per-sink
 - **New (persisted) `EgressCaptionProofSample`** — a small rolling table the live decode loop
   writes (channel_id, sampled_at, status PASS/FAIL, matched/expected counts, decoder_name,
   proof_boundary, blocker). Feeds the `caption_status_provider`. Capped/rolling like the existing
-  health/proof tables (cross-ref S9 proof-event caps). Migration: ships in S11's single
-  `0044_loudness_and_eas` revision (single global alembic chain — S11 owns exactly one revision).
+  health/proof tables (cross-ref S9 proof-event caps). Migration: ships in S11's loudness/EAS
+  revisions `0049_per_sink_loudness`, `0050_caption_proof_samples` and
+  `0051_public_safety_eas` (single global alembic chain).
 
 ### (b) Loudness — per-sink `loudness_target_lufs` on `EgressSinkSpec` (master §6, D6)
 The canonical per-sink field is **`loudness_target_lufs`** on `EgressSinkSpec` (RECONCILIATION D6:

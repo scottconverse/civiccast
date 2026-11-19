@@ -192,7 +192,7 @@ class AnalyticsReport(BaseModel):         # EXTEND existing (analytics/models.py
 
 ### 3.2 Migration
 
-S14 ships a **single migration `0046_analytics_viewership`** on the **single global alembic
+S14 ships a **single migration `0076_analytics_viewership`** on the **single global alembic
 chain**. The chain has **one head** (currently `0037_asset_meeting_body` in-tree; per
 `tests/live/test_real_postgres.py` "one head despite the per-module directory layout"), and the
 3.0 sections take a single monotonic sequence `0038`+. S14 is assigned the **next number after

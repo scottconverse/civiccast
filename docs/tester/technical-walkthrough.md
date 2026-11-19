@@ -1,7 +1,7 @@
 # Beta 18 Technical Tester Walkthrough (historical)
 
-For the current Beta 20 package and feature paths, start with the
-[Beta 20 tester quickstart](START-HERE.md) and its linked manual. This page
+For the current v1.0.0-rc.6 package and feature paths, start with the
+[tester quickstart](START-HERE.md) and its linked manual. This page
 preserves the Beta 18 test scope.
 
 Beta 18 adds guided Cablecast station import to CivicCast for native Windows,

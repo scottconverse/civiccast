@@ -1,6 +1,6 @@
 # Install CivicCast on Windows
 
-CivicCast RC6 is a complete native Windows station. It includes Python, PostgreSQL, FFmpeg, GStreamer and local AI runtimes. You do not need Git, Python, Docker, WSL, Ollama or GitHub CLI installed separately.
+CivicCast v1.0.0-rc.6 is a complete native Windows station. It includes Python, PostgreSQL, FFmpeg, GStreamer and local AI runtimes. You do not need Git, Python, Docker, WSL, Ollama or GitHub CLI installed separately.
 
 [RC6 manual PDF](https://github.com/scottconverse/civiccast/releases/download/v1.0.0-rc.6/USER-MANUAL.pdf) · [RC6 release notes](docs/releases/v1.0.0-rc.6-release-notes.md) · [Current source manual](docs/USER-MANUAL.md)
 
@@ -62,7 +62,7 @@ It prompts privately, preserves station data and revokes that administrator's ex
 
 The release's `station-models.zip.001`, `.002` and subsequent parts form one ZIP64 archive. **Use the helper to verify and extract them.** Individual parts are not runtime packs.
 
-The layout below is the RC6 kit created by the published-download command. It was checked against a full public download with the RC4 helper on November 5, 2026 (exit 0, every file's SHA-256 verified); it has not been re-checked against a fresh RC6 download.
+The layout below is the RC6 kit created by the published-download command. It matches the rc.6 release asset list, and it was checked against a full public download with the RC4 helper on November 5, 2026 (exit 0, every file's SHA-256 verified); it has not been re-checked against a fresh RC6 download.
 
 ```text
 CivicCast-RC6/
@@ -103,8 +103,8 @@ See [Windows release trust](docs/install/windows-release-trust.md) and [Support]
 
 ## Package evidence and historical results
 
-[RC6 release notes](docs/releases/v1.0.0-rc.6-release-notes.md) are the current package record. [RC2 package checks](docs/releases/v1.0.0-rc.2-verification.md) document the
-published package and its scoped acceptance. [Beta 17 follow-up](docs/ops/beta17-deferred.md)
+[RC6 release notes](docs/releases/v1.0.0-rc.6-release-notes.md) are the current package record. [RC2 package checks](docs/releases/v1.0.0-rc.2-verification.md) document that
+historical package and its scoped acceptance. [Beta 17 follow-up](docs/ops/beta17-deferred.md)
 records deferred field findings.
 
 Beta 15 passed Windows Sandbox installation, first-admin setup, built-in Help and built-in uninstall checks. Its corrected installer also restored a working station automatically after a simulated activation failure. The bundled Welcome programme aired and returned to slate in the short-programme rollover check. The [Beta 15 verification record](docs/releases/v1.0.0-beta.15-verification.md) identifies each tested package and its results.
@@ -117,6 +117,6 @@ The current supported station activation contract requires all six signed statio
 
 ## Agenda setup and OCR
 
-Published `v1.0.0-rc.2` includes English OCR in its offline runtime. Do not install Tesseract separately or edit service environment variables for ordinary PrimeGov setup. A setup administrator uses **Agendas → Agenda source setup → Use Longmont / PrimeGov → Save agenda source**. Review the chosen meeting’s preview and original pages before confirming. Unreadable pages cannot be confirmed. Use the matching RC2 package verification record for the scope and limitations of installed checks.
+English OCR has shipped in the offline runtime since `v1.0.0-rc.2`. Do not install Tesseract separately or edit service environment variables for ordinary PrimeGov setup. A setup administrator uses **Agendas → Agenda source setup → Use Longmont / PrimeGov → Save agenda source**. Review the chosen meeting’s preview and original pages before confirming. Unreadable pages cannot be confirmed. Use the matching package verification record for the scope and limitations of installed checks.
 
 Qualified human review of Spanish, Simplified Chinese, Filipino/Tagalog, Vietnamese and Arabic remains pending. RC2 does not claim human-validated translation accuracy; review translated records before publication.
