@@ -160,6 +160,33 @@ apt_install_with_mirror_fallback() {
 # ---------------------------------------------------------------------------
 CI_MEDIA_IMAGE="${CIVICAST_CI_MEDIA_IMAGE:-ghcr.io/scottconverse/civiccast-ci-media@sha256:610c89c2cfb37fa0aab236ce6ce80a7d1f6c67a6a55112ebbf379b9b703c0473}"
 
+# The directory the dynamic loader searches for multiarch libraries on this
+# host, e.g. /usr/lib/x86_64-linux-gnu. `dpkg --print-architecture` returns the
+# Debian architecture name (amd64), NOT the directory name, so building the
+# path from it produced /usr/lib/amd64-linux-gnu -- a directory that does not
+# exist (run 44443329905: "ln: failed to create symbolic link
+# '/usr/lib/amd64-linux-gnu/libblas.so.3': No such file or directory"). Ask
+# for the real triplet instead, and only trust an answer that matches a
+# directory actually present on disk.
+media_multiarch_dir() {
+  local triplet candidate
+  triplet=$(dpkg-architecture -qDEB_HOST_MULTIARCH 2>/dev/null || true)
+  if [ -z "$triplet" ]; then
+    triplet=$(gcc -print-multiarch 2>/dev/null || true)
+  fi
+  if [ -n "$triplet" ] && [ -d "/usr/lib/$triplet" ]; then
+    printf '/usr/lib/%s\n' "$triplet"
+    return 0
+  fi
+  # Neither dpkg-dev nor gcc guaranteed; use what the extracted rootfs has.
+  candidate=$(find /usr/lib -maxdepth 1 -type d -name '*-linux-gnu*' -print 2>/dev/null | head -n 1)
+  if [ -n "$candidate" ]; then
+    printf '%s\n' "$candidate"
+    return 0
+  fi
+  printf '/usr/lib/%s-linux-gnu\n' "$(dpkg --print-architecture)"
+}
+
 provision_media_from_image() {
   command -v docker >/dev/null 2>&1 || { echo "docker not available"; return 1; }
 
@@ -216,15 +243,19 @@ provision_media_from_image() {
   # file the tar did carry (e.g. .../blas/libblas.so.3), then rebuild the
   # loader cache. Unresolvable entries are left alone; the probes below decide.
   local missing_lib found real multiarch
-  multiarch="/usr/lib/$(dpkg --print-architecture)-linux-gnu"
+  multiarch=$(media_multiarch_dir)
+  echo "multiarch dir: ${multiarch}"
   for missing_lib in $(ldd /usr/bin/ffmpeg /usr/bin/ffprobe /usr/bin/tsp 2>/dev/null \
       | awk '$3 == "not" && $4 == "found" {print $1}' | sort -u); do
-    found=$(find /usr/lib -name "$missing_lib" -print -quit 2>/dev/null || true)
+    # Skip anything already sitting in the multiarch dir (including a link a
+    # previous loop iteration created) so we always resolve a real file.
+    found=$(find /usr/lib -name "$missing_lib" -not -path "${multiarch}/*" -print -quit 2>/dev/null || true)
     real=$(readlink -f "$found" 2>/dev/null || true)
     if [ -z "$real" ] || [ ! -e "$real" ]; then
       echo "::warning::${missing_lib} is missing and no real file exists after extraction"
       continue
     fi
+    sudo -n mkdir -p "$multiarch"
     if sudo -n ln -sf "$real" "${multiarch}/${missing_lib}"; then
       echo "linked ${missing_lib} -> ${real}"
     else
