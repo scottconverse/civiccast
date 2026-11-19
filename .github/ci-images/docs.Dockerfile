@@ -21,6 +21,10 @@ ENV DEBIAN_FRONTEND=noninteractive
 # of a bare Ubuntu rootfs:
 #   - git/ca-certificates/curl/xz-utils/tar: actions/checkout and
 #     astral-sh/setup-uv inside a container job.
+#   - fonts-liberation: docs/assets/manual.pandoc.yaml sets monofont:
+#     "Liberation Mono". The ubuntu-latest runner this job used to run on has
+#     it preinstalled; a bare Ubuntu rootfs does not, and without it the render
+#     fails with "fontspec Error: The font "Liberation Mono" cannot be found."
 #   - build-essential/pkg-config/libssl-dev/libffi-dev: `uv sync --all-extras
 #     --group dev` builds any dependency that has no manylinux wheel.
 #   - python3/python3-venv: the job's own setup-python step is kept, but a
@@ -33,6 +37,7 @@ RUN apt-get update -qq \
       texlive-fonts-recommended \
       texlive-latex-recommended \
       texlive-latex-extra \
+      fonts-liberation \
       git \
       ca-certificates \
       curl \
