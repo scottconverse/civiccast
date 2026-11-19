@@ -21,7 +21,8 @@
     "**/AGENTS.md",
     "docs/**/*.json",
     "docs/**/*.yaml",
-    "docs/**/*.yml"
+    "docs/**/*.yml",
+    "tests/**/fixtures/**"
   ],
   "parts": [
     {
