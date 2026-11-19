@@ -21,7 +21,7 @@ schema_version: 1
 repository: scottconverse/civiccast
 
 # The tag that public surfaces may present as the current install target.
-current: v1.0.0-rc.6
+current: v1.0.0-rc.7
 # Live tags matching these regexes predate this manifest and are exempt from
 # per-entry listing (they remain visible on GitHub as history). Anything else
 # unlisted is drift.
@@ -37,8 +37,13 @@ historical_unlisted_patterns:
   - '^v4\.0\.0-rc\.'
 
 entries:
-  - tag: v1.0.0-rc.6
+  - tag: v1.0.0-rc.7
     status: current
+    notes: >-
+      Published by publish_beta_candidate.py, artifact source 93bb148c009e39015eb7f7d893be41927bec0c05, tag target 93bb148c009e39015eb7f7d893be41927bec0c05, build run 44583617980, direct physical-host consumer receipt C:\Users\scott\AppData\Local\Temp\claude\7c9579b96eddd03e\4d82a3e8-0dc4-41c9-b407-6d4c6758e92d\scratchpad\owner-decision-receipt-rc7.json; This receipt covers the host installation and output only; consult the release verification record for separate Sandbox checks. Gate A not run.
+  - tag: v1.0.0-rc.6
+    status: superseded
+    superseded_by: v1.0.0-rc.7
     notes: >-
       Published by publish_beta_candidate.py, artifact source d74a8c3110618d62b82f25e7383e93258f9a556b, tag target 830b53dfca167031c335a10b7ccd47aedd7b50f2, build run 43576185174. Owner decision (Scott, 2026-11-15): published without the physical-host consumer receipt; installer hash, version, signature and manual checks passed; station evidence is the rc.6 soak report. See docs/releases/v1.0.0-rc.6-verification.md. Gate A not run.
   - tag: v1.0.0-rc.5
