@@ -143,7 +143,7 @@ apt_install_with_mirror_fallback() {
 # The apt calls above are the slow-archive failure mode that hung CI for ~2
 # hours on 2026-11-18. .github/ci-images/media.Dockerfile builds an
 # ubuntu-24.04 image with ffmpeg + TSDuck already installed, plus
-# /opt/ci-media/rootfs.tar: exactly the files those packages own (dpkg -L of
+# /opt/ci-media/rootfs.tar.gz: exactly the files those packages own (dpkg -L of
 # the packages the install added). Extracting that tar over the runner's own
 # identical ubuntu-24.04 base installs the media stack with no archive access
 # at all, typically in a few seconds.
@@ -184,7 +184,7 @@ provision_media_from_image() {
 
   local cid
   cid=$(docker create "$CI_MEDIA_IMAGE") || return 1
-  if ! docker cp "$cid:/opt/ci-media/rootfs.tar" /tmp/ci-media-rootfs.tar; then
+  if ! docker cp "$cid:/opt/ci-media/rootfs.tar.gz" /tmp/ci-media-rootfs.tar.gz; then
     docker rm -f "$cid" >/dev/null 2>&1 || true
     return 1
   fi
@@ -193,12 +193,12 @@ provision_media_from_image() {
   echo "::group::Installing media stack from the image"
   # tar runs over the identical ubuntu-24.04 base; the archive holds only
   # files owned by the ffmpeg/TSDuck packages.
-  if ! sudo -n tar -xpf /tmp/ci-media-rootfs.tar -C /; then
+  if ! sudo -n tar -xzpf /tmp/ci-media-rootfs.tar.gz -C /; then
     echo "::endgroup::"
-    rm -f /tmp/ci-media-rootfs.tar
+    rm -f /tmp/ci-media-rootfs.tar.gz
     return 1
   fi
-  rm -f /tmp/ci-media-rootfs.tar
+  rm -f /tmp/ci-media-rootfs.tar.gz
   echo "::endgroup::"
 
   # Prove the extracted binaries run before trusting them.

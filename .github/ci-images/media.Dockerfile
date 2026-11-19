@@ -42,7 +42,8 @@ RUN curl -fsSL -o /tmp/tsduck.deb "${TSDUCK_DEB_URL}" \
  && rm -f /tmp/tsduck.deb \
  && rm -rf /var/lib/apt/lists/*
 
-# Files owned by the packages we just added, as one tar the CI runner can
+# Files owned by the packages we just added, as one gzipped tar (~1/3 the
+# raw 485 MB, so the pull and the image layer stay small) the CI runner can
 # extract over its own (identical) ubuntu-24.04 base. dpkg -L is the package
 # database, so this cannot miss a shared library the way a hand-written file
 # list would.
@@ -54,12 +55,12 @@ RUN dpkg-query -W -f='${Package}\n' | sort -u > /tmp/pkgs-after \
       | while IFS= read -r path; do \
           if [ -e "/$path" ] || [ -L "/$path" ]; then printf '%s\0' "$path"; fi; \
         done > /tmp/files.list \
- && tar -cpf /opt/ci-media/rootfs.tar --numeric-owner --no-recursion --null -C / -T /tmp/files.list \
- && tar -tf /opt/ci-media/rootfs.tar | sort > /tmp/tar-contents.txt \
+ && tar -czpf /opt/ci-media/rootfs.tar.gz --numeric-owner --no-recursion --null -C / -T /tmp/files.list \
+ && tar -tzf /opt/ci-media/rootfs.tar.gz | sort > /tmp/tar-contents.txt \
  && grep -qx usr/bin/ffmpeg /tmp/tar-contents.txt \
  && grep -qx usr/bin/ffprobe /tmp/tar-contents.txt \
  && grep -qx usr/bin/tsp /tmp/tar-contents.txt \
- && ls -l /opt/ci-media/rootfs.tar
+ && ls -l /opt/ci-media/rootfs.tar.gz
 
 # Build-time proof that the binaries in the tar actually run.
 RUN ffmpeg -version | head -n 1 \
