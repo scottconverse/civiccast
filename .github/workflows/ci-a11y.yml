@@ -40,7 +40,7 @@ jobs:
       - name: Pull the pinned Playwright image (3 attempts)
         run: |
           set -euo pipefail
-          IMAGE="mcr.microsoft.com/playwright:v1.59.1-noble@sha256:PENDING_DIGEST"
+          IMAGE="mcr.microsoft.com/playwright:v1.59.1-noble@sha256:b0ab6f3cb99aa7803adbc14d9027ec1785fc6e433b97e134e0f8fe61683b6b53"
           for attempt in 1 2 3; do
             if docker pull "$IMAGE"; then
               echo "Pulled on attempt ${attempt}: ${IMAGE}"
@@ -58,7 +58,7 @@ jobs:
     # Playwright 1.59.1 does not support the ubuntu26.04 image behind latest.
     runs-on: ubuntu-24.04
     container:
-      image: mcr.microsoft.com/playwright:v1.59.1-noble@sha256:PENDING_DIGEST
+      image: mcr.microsoft.com/playwright:v1.59.1-noble@sha256:b0ab6f3cb99aa7803adbc14d9027ec1785fc6e433b97e134e0f8fe61683b6b53
     timeout-minutes: 30
     if: |
       github.event_name != 'pull_request' ||
@@ -147,7 +147,7 @@ jobs:
     needs: image-ready
     runs-on: ubuntu-24.04
     container:
-      image: mcr.microsoft.com/playwright:v1.59.1-noble@sha256:PENDING_DIGEST
+      image: mcr.microsoft.com/playwright:v1.59.1-noble@sha256:b0ab6f3cb99aa7803adbc14d9027ec1785fc6e433b97e134e0f8fe61683b6b53
     timeout-minutes: 30
     if: |
       github.event_name != 'pull_request' ||

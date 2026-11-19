@@ -39,7 +39,7 @@ jobs:
       - name: Pull the pinned docs image (3 attempts)
         run: |
           set -euo pipefail
-          IMAGE="ghcr.io/${{ github.repository_owner }}/civiccast-ci-docs@sha256:PENDING_DIGEST"
+          IMAGE="ghcr.io/${{ github.repository_owner }}/civiccast-ci-docs@sha256:1ea54c8de96bd74af0a7134860ac2994f4aad49edf43a729a7b3eefa8ad3b673"
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
           for attempt in 1 2 3; do
             if docker pull "$IMAGE"; then
@@ -61,7 +61,7 @@ jobs:
     # apt list, installed once at image build time.
     runs-on: ubuntu-24.04
     container:
-      image: ghcr.io/${{ github.repository_owner }}/civiccast-ci-docs@sha256:PENDING_DIGEST
+      image: ghcr.io/${{ github.repository_owner }}/civiccast-ci-docs@sha256:1ea54c8de96bd74af0a7134860ac2994f4aad49edf43a729a7b3eefa8ad3b673
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}

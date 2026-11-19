@@ -158,7 +158,7 @@ apt_install_with_mirror_fallback() {
 # built the image yet) or the extracted binaries do not run, this returns
 # non-zero and the caller falls through to the original apt path below.
 # ---------------------------------------------------------------------------
-CI_MEDIA_IMAGE="${CIVICAST_CI_MEDIA_IMAGE:-ghcr.io/scottconverse/civiccast-ci-media@sha256:PENDING_DIGEST}"
+CI_MEDIA_IMAGE="${CIVICAST_CI_MEDIA_IMAGE:-ghcr.io/scottconverse/civiccast-ci-media@sha256:f14fb9621532e269c7c4fcd22c13458af7595c48d016148a3960d5a85e1a3b1b}"
 
 provision_media_from_image() {
   command -v docker >/dev/null 2>&1 || { echo "docker not available"; return 1; }
