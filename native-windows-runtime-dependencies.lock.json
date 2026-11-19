@@ -52,7 +52,7 @@
     },
     "postgres": {
       "archive": "zip",
-      "bytes": 340722468,
+      "bytes": 386263884,
       "expected_executables": [
         "bin/initdb.exe",
         "bin/pg_ctl.exe",
@@ -61,7 +61,7 @@
         "bin/postgres.exe",
         "bin/psql.exe"
       ],
-      "filename": "postgresql-17.11-2-windows-x64-binaries.zip",
+      "filename": "postgresql-17.12-1-windows-x64-binaries.zip",
       "include": [
         "bin/**",
         "lib/**",
@@ -69,11 +69,11 @@
         "commandlinetools_3rd_party_licenses.txt",
         "server_license.txt"
       ],
-      "sha256": "2f868d77832f5cbc62182a0ca57f02df14d33d85ce0d0bbaaeb0de3a7029bd2b",
+      "sha256": "a2cd8a774389347b70be7748ac4a37ef43cb6ee539c5fc3e85ae264b15e4a04c",
       "spdx_license": "PostgreSQL",
       "strip_prefix": "pgsql",
-      "url": "https://get.enterprisedb.com/postgresql/postgresql-17.11-2-windows-x64-binaries.zip",
-      "version": "17.11-2"
+      "url": "https://get.enterprisedb.com/postgresql/postgresql-17.12-1-windows-x64-binaries.zip",
+      "version": "17.12-1"
     },
     "tsduck": {
       "archive": "zip",

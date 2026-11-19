@@ -21,7 +21,7 @@ PROVISIONER_PATH = ROOT / "scripts" / "provision_native_runtime_dependencies.py"
 BUILD_TOOLCHAIN_LOCK_PATH = ROOT / "native-windows-build-toolchain.lock.json"
 ARTIFACT_NAMES = {"postgres", "tsduck", "ffmpeg", "node", "ollama"}
 EXPECTED_VERSIONS = {
-    "postgres": "17.11-2",
+    "postgres": "17.12-1",
     "tsduck": "3.44-4676",
     "ffmpeg": "N-128227-g4811625b5f",
     "node": "24.16.0",
