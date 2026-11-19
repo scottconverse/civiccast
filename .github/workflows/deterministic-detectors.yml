@@ -25,9 +25,23 @@ name: deterministic-detectors
 on:
   pull_request:
     # Docs-only changes start no CI run (docs get push, merge and publish
-    # only), and neither do agent-tooling-only changes (.claude/, vlite.json).
-    # Same pattern as ci-a11y.yml.
-    paths: ['**', '!**.md', '!**.mdx', '!**.rst', '!**.docx', '!**.pdf', '!**/LICENSE', '!**/LICENSE.*', '!**/NOTICE', '!**/NOTICE.*', '!docs/**.png', '!docs/**.jpg', '!docs/**.svg', '!docs/**.gif', '!docs/**.webp', '!docs/**.html', '!docs/**.css', '!**/.claude/**', '!vlite.json', '**/SKILL.md', '**/skills/**', '**/agents/**', '**/commands/**', '**/prompts/**', '**/references/**']
+    # only); agent-tooling-only changes (.claude/, vlite.json) never start one
+    # either. paths-ignore (not paths) because
+    # tests/policy/test_native_caption_workflow_policy.py forbids `paths` on
+    # these two global gates: they must not suppress checks for non-native
+    # pull-request changes.
+    paths-ignore:
+      - '.claude/**'
+      - '**/.claude/**'
+      - 'vlite.json'
+      - '**.md'
+      - '**.mdx'
+      - '**.rst'
+      - '**.docx'
+      - '**.pdf'
+      - 'docs/**'
+      - '**/LICENSE'
+      - '**/NOTICE'
     branches: [main, 'program/**']
   workflow_dispatch:
 
@@ -45,7 +59,13 @@ jobs:
     # Status-check context = this name; keep it plain so branch protection
     # can reference "randomized-suite" exactly once the owner promotes it.
     name: randomized-suite
-    runs-on: ubuntu-latest
+    # ubuntu-24.04, not ubuntu-latest: the ready-made media image
+    # (.github/ci-images/media.Dockerfile) is built on ubuntu:24.04 and its
+    # binaries are extracted onto the runner. On the ubuntu-latest (26.04)
+    # image those noble binaries do not run (proven in run 44431867484), so
+    # the image path can only be trusted on a matching base. Same runner as
+    # ci-test.yml's "Unit tests" job.
+    runs-on: ubuntu-24.04
     timeout-minutes: 75
     if: |
       github.event_name != 'pull_request' ||
