@@ -137,9 +137,182 @@ apt_install_with_mirror_fallback() {
   return 1
 }
 
+# ---------------------------------------------------------------------------
+# Ready-made image path (2026-11-18).
+#
+# The apt calls above are the slow-archive failure mode that hung CI for ~2
+# hours on 2026-11-18. .github/ci-images/media.Dockerfile builds an
+# ubuntu-24.04 image with ffmpeg + TSDuck already installed, plus
+# /opt/ci-media/rootfs.tar.gz: exactly the files those packages own (dpkg -L of
+# the packages the install added). Extracting that tar over the runner's own
+# identical ubuntu-24.04 base installs the media stack with no archive access
+# at all, typically in a few seconds.
+#
+# Why extract instead of `container:`: the jobs that call this script run
+# testcontainers against a real Postgres and need the runner's Docker socket
+# (ci-test.yml -- CIVICCAST_RUN_POSTGRES_TESTS=1, TEST-001). A GitHub container
+# job does not get the runner's Docker daemon, so containerizing them would
+# silently break that proof.
+#
+# Fallback: if the image cannot be pulled (registry outage, branch that has not
+# built the image yet) or the extracted binaries do not run, this returns
+# non-zero and the caller falls through to the original apt path below.
+# ---------------------------------------------------------------------------
+CI_MEDIA_IMAGE="${CIVICAST_CI_MEDIA_IMAGE:-ghcr.io/scottconverse/civiccast-ci-media@sha256:610c89c2cfb37fa0aab236ce6ce80a7d1f6c67a6a55112ebbf379b9b703c0473}"
+
+# The directory the dynamic loader searches for multiarch libraries on this
+# host, e.g. /usr/lib/x86_64-linux-gnu. `dpkg --print-architecture` returns the
+# Debian architecture name (amd64), NOT the directory name, so building the
+# path from it produced /usr/lib/amd64-linux-gnu -- a directory that does not
+# exist (run 44443329905: "ln: failed to create symbolic link
+# '/usr/lib/amd64-linux-gnu/libblas.so.3': No such file or directory"). Ask
+# for the real triplet instead, and only trust an answer that matches a
+# directory actually present on disk.
+media_multiarch_dir() {
+  local triplet candidate
+  triplet=$(dpkg-architecture -qDEB_HOST_MULTIARCH 2>/dev/null || true)
+  if [ -z "$triplet" ]; then
+    triplet=$(gcc -print-multiarch 2>/dev/null || true)
+  fi
+  if [ -n "$triplet" ] && [ -d "/usr/lib/$triplet" ]; then
+    printf '/usr/lib/%s\n' "$triplet"
+    return 0
+  fi
+  # Neither dpkg-dev nor gcc guaranteed; use what the extracted rootfs has.
+  candidate=$(find /usr/lib -maxdepth 1 -type d -name '*-linux-gnu*' -print 2>/dev/null | head -n 1)
+  if [ -n "$candidate" ]; then
+    printf '%s\n' "$candidate"
+    return 0
+  fi
+  printf '/usr/lib/%s-linux-gnu\n' "$(dpkg --print-architecture)"
+}
+
+provision_media_from_image() {
+  command -v docker >/dev/null 2>&1 || { echo "docker not available"; return 1; }
+
+  if [ -n "${GHCR_TOKEN:-}" ]; then
+    echo "$GHCR_TOKEN" | docker login ghcr.io \
+      -u "${GHCR_USER:-github-actions}" --password-stdin >/dev/null 2>&1 \
+      || echo "::warning::ghcr.io login failed; continuing (the image may be public)"
+  fi
+
+  echo "::group::Pulling ${CI_MEDIA_IMAGE} (3 attempts)"
+  local attempt ok=0
+  for attempt in 1 2 3; do
+    # 300 s per attempt: a stalled pull must not eat the step's whole budget.
+    if timeout 300 docker pull "$CI_MEDIA_IMAGE"; then
+      ok=1
+      break
+    fi
+    echo "::warning::attempt ${attempt} to pull ${CI_MEDIA_IMAGE} failed"
+    sleep $((attempt * 15))
+  done
+  echo "::endgroup::"
+  [ "$ok" = 1 ] || return 1
+
+  local cid
+  cid=$(docker create "$CI_MEDIA_IMAGE") || { echo "::warning::docker create failed"; return 1; }
+  if ! docker cp "$cid:/opt/ci-media/rootfs.tar.gz" /tmp/ci-media-rootfs.tar.gz; then
+    echo "::warning::docker cp of the rootfs tar failed"
+    docker rm -f "$cid" >/dev/null 2>&1 || true
+    return 1
+  fi
+  docker rm -f "$cid" >/dev/null 2>&1 || true
+  ls -l /tmp/ci-media-rootfs.tar.gz
+
+  echo "::group::Installing media stack from the image"
+  # tar runs over the identical ubuntu-24.04 base; the archive holds only
+  # files owned by the ffmpeg/TSDuck packages.
+  if ! sudo -n tar -xzpf /tmp/ci-media-rootfs.tar.gz -C /; then
+    echo "::warning::extracting the media rootfs tar failed"
+    echo "::endgroup::"
+    return 1
+  fi
+  echo "::endgroup::"
+  echo "extracted: $(ls -l /usr/bin/ffmpeg /usr/bin/ffprobe /usr/bin/tsp 2>&1 | tr '\n' ' ')"
+
+  # These files were not present when the runner built its loader cache.
+  sudo -n ldconfig || true
+
+  # `dpkg -L` lists only files a .deb ships. Alternative-managed symlinks are
+  # created by each package's postinst instead, so they are NOT in the tar:
+  # ffmpeg needs libblas.so.3 and liblapack.so.3, which on Ubuntu 24.04 are
+  # update-alternatives links (proven in run 44435763611: "ffmpeg: error while
+  # loading shared libraries: libblas.so.3: cannot open shared object file").
+  #
+  # What the tar actually carries (verified against the pinned image digest
+  # 610c89c2 by listing `opt/ci-media/rootfs.tar.gz`):
+  #   usr/lib/x86_64-linux-gnu/blas/libblas.so.3.12.0     (real file, SONAME libblas.so.3)
+  #   usr/lib/x86_64-linux-gnu/blas/libblas.so.3          (relative symlink to it)
+  #   usr/lib/x86_64-linux-gnu/lapack/liblapack.so.3.12.0 (real file, SONAME liblapack.so.3)
+  #   usr/lib/x86_64-linux-gnu/lapack/liblapack.so.3      (relative symlink to it)
+  # So the real files exist, but in `blas/` and `lapack/` SUBDIRECTORIES, which
+  # the loader does not search. Three attempts failed before this was known:
+  #   - 985fdc46 still warned "no real file exists after extraction" because
+  #     its find excluded `-not -path "${multiarch}/*"` -- exactly the prefix
+  #     that contains `.../blas/libblas.so.3.12.0` (run 44457546990).
+  #
+  # Fix: put each directory that actually holds a real file for an unresolved
+  # SONAME on the loader path via /etc/ld.so.conf.d and run ldconfig once.
+  # ldconfig indexes a library by its SONAME, so the unversioned
+  # update-alternatives link is never needed. No symlink is written into
+  # /usr/lib and no image rebuild is required.
+  local missing_lib found real multiarch lib_dirs=()
+  multiarch=$(media_multiarch_dir)
+  echo "multiarch dir: ${multiarch}"
+  for missing_lib in $(ldd /usr/bin/ffmpeg /usr/bin/ffprobe /usr/bin/tsp 2>/dev/null \
+      | awk '$3 == "not" && $4 == "found" {print $1}' | sort -u); do
+    # Search every library directory, including alternative-managed
+    # subdirectories such as .../blas. Match the SONAME as a PREFIX because
+    # the package ships the versioned real file (libblas.so.3.12.0).
+    # -type f only, so a symlink cannot be picked as the "real" file.
+    found=$(find /usr/lib -type f -name "${missing_lib}*" -print 2>/dev/null \
+              | sort -V | tail -n 1 || true)
+    real="$found"
+    if [ -z "$real" ] || [ ! -e "$real" ]; then
+      echo "::warning::${missing_lib} is missing and no real file exists after extraction"
+      continue
+    fi
+    echo "found ${missing_lib} -> ${real}"
+    lib_dirs+=("$(dirname "$real")")
+  done
+  if [ "${#lib_dirs[@]}" -gt 0 ]; then
+    printf '%s\n' "${lib_dirs[@]}" | sort -u \
+      | sudo -n tee /etc/ld.so.conf.d/ci-media-extracted.conf >/dev/null
+    echo "loader path entries: $(sort -u <<<"$(printf '%s\n' "${lib_dirs[@]}")" | tr '\n' ' ')"
+  fi
+  sudo -n ldconfig || true
+
+  if ! command -v ffmpeg >/dev/null 2>&1; then
+    echo "::warning::ffmpeg is not on PATH after extraction"
+    return 1
+  fi
+  if ! command -v ffprobe >/dev/null 2>&1; then
+    echo "::warning::ffprobe is not on PATH after extraction"
+    return 1
+  fi
+  if ! ffmpeg -version >/tmp/ci-ffmpeg-probe.log 2>&1; then
+    echo "::warning::ffmpeg does not run after extraction:"
+    tail -n 20 /tmp/ci-ffmpeg-probe.log
+    ldd /usr/bin/ffmpeg 2>&1 | grep 'not found' || true
+    return 1
+  fi
+  if ! ffprobe -version >/tmp/ci-ffprobe-probe.log 2>&1; then
+    echo "::warning::ffprobe does not run after extraction:"
+    tail -n 20 /tmp/ci-ffprobe-probe.log
+    return 1
+  fi
+  echo "provisioned: $(head -n 1 /tmp/ci-ffmpeg-probe.log)"
+}
+
 if ! command -v ffmpeg >/dev/null 2>&1 || ! command -v ffprobe >/dev/null 2>&1; then
-  timeout "$APT_TIMEOUT_SECS" "${APT[@]}" update
-  apt_install_with_mirror_fallback -y ffmpeg
+  if provision_media_from_image; then
+    echo "::notice::ffmpeg/ffprobe provisioned from ${CI_MEDIA_IMAGE} (no apt used)"
+  else
+    echo "::warning::ready-made media image unavailable; falling back to apt"
+    timeout "$APT_TIMEOUT_SECS" "${APT[@]}" update
+    apt_install_with_mirror_fallback -y ffmpeg
+  fi
 fi
 
 # #151 TS-relay behavioral splice test (skips without tsp).

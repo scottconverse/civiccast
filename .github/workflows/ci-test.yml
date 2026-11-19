@@ -6,8 +6,24 @@ name: ci-test
 # (the Postgres restore drill's evidence is this workflow's Docker gate).
 on:
   pull_request:
-    # Agent-tooling-only changes (.claude/, vlite.json) start no run. Docs still run here.
-    paths-ignore: ['.claude/**', '**/.claude/**', 'vlite.json']
+    # Docs-only changes start no CI run (docs get push, merge and publish
+    # only); agent-tooling-only changes (.claude/, vlite.json) never start one
+    # either. paths-ignore (not paths) because
+    # tests/policy/test_native_caption_workflow_policy.py forbids `paths` on
+    # these two global gates: they must not suppress checks for non-native
+    # pull-request changes.
+    paths-ignore:
+      - '.claude/**'
+      - '**/.claude/**'
+      - 'vlite.json'
+      - '**.md'
+      - '**.mdx'
+      - '**.rst'
+      - '**.docx'
+      - '**.pdf'
+      - 'docs/**'
+      - '**/LICENSE'
+      - '**/NOTICE'
     branches: [main, 'program/**', 'release/**']
 
 concurrency:
@@ -16,6 +32,8 @@ concurrency:
 
 permissions:
   contents: read
+  # Pull the ready-made media image (ghcr.io/scottconverse/civiccast-ci-media).
+  packages: read
 
 jobs:
   test:
@@ -69,7 +87,15 @@ jobs:
         # script's own internal per-apt-call timeouts (8 min each, up to 3
         # calls) need headroom to actually run to completion on a slow
         # mirror rather than being killed by the step wrapper first.
+        #
+        # The script first tries the ready-made media image (ffmpeg + TSDuck,
+        # built by .github/workflows/ci-images.yml) and only falls back to the
+        # apt path above if that image cannot be pulled or does not run.
+        # GHCR_TOKEN is for that pull; it is a normal, non-secret token.
         timeout-minutes: 30
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_USER: ${{ github.actor }}
         run: bash scripts/ci/install_media_test_prerequisites.sh
 
       - name: Install project (dev)
