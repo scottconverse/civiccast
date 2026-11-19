@@ -554,11 +554,13 @@ jobs:
         # three portable cases, 2221 pure tests; floor 2171 keeps the margin.
         # Chip left out when an NVIDIA card is present: three portable cases,
         # 2224 pure tests; floor 2174 keeps the margin.
+        # rc.6.1 item 7 CTRL_BREAK sender: four portable cases, 2232 pure
+        # tests; floor 2182 keeps the margin.
         if: always()
         run: |
           python scripts/verify_native_junit_floor.py \
             --junit junit-native-pure.xml \
-            --floor 2178 \
+            --floor 2182 \
             --label "tests/native pure suite"
 
       - name: Upload junit (ws3 claims-evidence D3/D7)
@@ -969,12 +971,14 @@ jobs:
         # three portable cases, 2466 Windows non-integration tests; floor 2416.
         # Chip left out when an NVIDIA card is present: three portable cases,
         # 2469 Windows non-integration tests; floor 2419.
+        # rc.6.1 item 7 CTRL_BREAK sender: six cases, 2479 Windows
+        # non-integration tests; floor 2429 keeps the margin.
         if: always()
         shell: bash
         run: |
           python scripts/verify_native_junit_floor.py \
             --junit junit-native-win.xml \
-            --floor 2423 \
+            --floor 2429 \
             --label "tests/native Windows suite"
 
       - name: Upload Windows native junit

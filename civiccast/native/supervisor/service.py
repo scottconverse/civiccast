@@ -582,15 +582,62 @@ def _file_backed_popen_factory(
         log_handle.close()
 
 
-def _default_ctrl_break_sender(pid: int) -> None:
+_CTRL_BREAK_EVENT = 1
+_ATTACH_PARENT_PROCESS = 0xFFFFFFFF
+_CONSOLE_ATTACH_LOCK = threading.Lock()
+
+
+class _ConsoleApi(Protocol):
+    """The four kernel32 console calls :func:`_default_ctrl_break_sender`
+    makes. Production binds ``ctypes.WinDLL("kernel32")``; tests inject a
+    recorder so the call order is proven without touching a real console."""
+
+    def FreeConsole(self) -> int: ...  # noqa: N802 - Win32 name
+    def AttachConsole(self, pid: int) -> int: ...  # noqa: N802 - Win32 name
+    def SetConsoleCtrlHandler(self, handler: object, add: int) -> int: ...  # noqa: N802
+    def GenerateConsoleCtrlEvent(self, event: int, group: int) -> int: ...  # noqa: N802
+
+
+def _kernel32_console_api() -> _ConsoleApi:
+    import ctypes
+
+    return cast(_ConsoleApi, ctypes.WinDLL("kernel32", use_last_error=True))  # type: ignore[attr-defined,unused-ignore]
+
+
+def _default_ctrl_break_sender(pid: int, *, api: _ConsoleApi | None = None) -> None:
     """Deliver ``CTRL_BREAK`` to the process group whose leader is ``pid`` --
     the RAT-004 drain signal for the control-plane child (spawned with its own
-    process group by :func:`_file_backed_popen_factory`)."""
+    process group by :func:`_file_backed_popen_factory`).
 
-    import os
-    import signal
+    rc.6.1 item 7: the old body was ``os.kill(pid, CTRL_BREAK_EVENT)``, i.e. a
+    plain ``GenerateConsoleCtrlEvent``. Windows delivers that event only to
+    processes on the CALLER'S console. The service has no console, and every
+    child is spawned ``CREATE_NO_WINDOW``, which gives each child its own
+    hidden console. So the signal never reached control_plane or ollama, the
+    failure was swallowed by ``_safe_ctrl_break``, and every stop sat out the
+    full 15 s deadline before ``TerminateProcess`` (the station logs
+    "control_plane overran the 15s graceful deadline; TerminateProcess", and
+    the same for ollama).
 
-    os.kill(pid, signal.CTRL_BREAK_EVENT)
+    The fix joins the child's console for the one call: leave our own console
+    (a no-op in the service), attach to the child's, ignore console events in
+    this process, send the event, leave the child's console, and stop ignoring.
+    A process-wide lock keeps two senders from interleaving the attach. Raises
+    ``OSError`` when the attach or the send is refused (the child is gone, for
+    example); the caller decides whether that matters."""
+
+    console = api if api is not None else _kernel32_console_api()
+    with _CONSOLE_ATTACH_LOCK:
+        console.FreeConsole()
+        if not console.AttachConsole(pid):
+            raise OSError(f"AttachConsole({pid}) was refused; CTRL_BREAK not delivered")
+        console.SetConsoleCtrlHandler(None, 1)
+        try:
+            if not console.GenerateConsoleCtrlEvent(_CTRL_BREAK_EVENT, pid):
+                raise OSError(f"GenerateConsoleCtrlEvent(CTRL_BREAK, {pid}) was refused")
+        finally:
+            console.FreeConsole()
+            console.SetConsoleCtrlHandler(None, 0)
 
 
 class _OpenedProcess:
@@ -806,12 +853,12 @@ class Win32ChildProcessRunner:
         proc_handle = cast(_ProcHandle, handle)
         action = graceful_stop_action(proc_handle.spec, pid=proc_handle.pid)
         if action.kind == "ctrl_break_event":
-            self._safe_ctrl_break(proc_handle.pid)
+            self._safe_ctrl_break(proc_handle.pid, expect_alive=True)
         else:  # "argv" -- action.argv is guaranteed non-None by GracefulStopAction
             self._stop_command_runner(list(action.argv or []))
         return action.kind
 
-    def _safe_ctrl_break(self, pid: int) -> None:
+    def _safe_ctrl_break(self, pid: int, *, expect_alive: bool = False) -> None:
         """Best-effort ``CTRL_BREAK``. A control plane that already exited (a
         spawn/stop race, or the redundant re-drain from ``core.graceful_stop``
         after the service chain already stopped it) makes the underlying
@@ -820,8 +867,19 @@ class Win32ChildProcessRunner:
         ``TerminateProcess`` and the Job Object kill-on-close remain the ground
         truth. A signal that cannot be delivered must never crash the stop path."""
 
-        with contextlib.suppress(OSError):
+        try:
             self._ctrl_break_sender(pid)
+        except OSError as exc:
+            # Named, not silent: a CTRL_BREAK that is never delivered turns
+            # every stop into a 15 s wait and a TerminateProcess (item 7).
+            # The redundant re-drain (``send_ctrl_break``) usually targets a
+            # process that already left, so it only notes the refusal.
+            logging.getLogger(LOGGER_NAME).log(
+                logging.WARNING if expect_alive else logging.INFO,
+                "stop: CTRL_BREAK to pid %s was not delivered (%s)",
+                pid,
+                exc,
+            )
 
 
 # ---------------------------------------------------------------------------
