@@ -15,11 +15,9 @@ hidden console), so the old ``os.kill(pid, CTRL_BREAK_EVENT)`` never arrived.
 from __future__ import annotations
 
 import logging
-import os
 import subprocess
 import sys
 import textwrap
-import time
 from pathlib import Path
 
 import pytest
@@ -105,16 +103,24 @@ def test_graceful_stop_names_an_undelivered_break(caplog: pytest.LogCaptureFixtu
 
 _CHILD = textwrap.dedent(
     """
-    import signal, sys, time
+    import signal, sys, threading
     from pathlib import Path
     marker = Path(sys.argv[1])
+    idle = threading.Event()
     def on_break(signum, frame):
         marker.write_text("break", encoding="utf-8")
         raise SystemExit(0)
     signal.signal(signal.SIGBREAK, on_break)
-    marker.write_text("ready", encoding="utf-8")
+    # Ready is announced on stdout so the parent waits for the real event
+    # instead of polling the filesystem. The child then stays alive until the
+    # break arrives or the 60 s guard fires. It waits in short slices on a
+    # threading.Event, not on one long block: CPython only runs a Windows
+    # signal handler at a bytecode boundary, and a single long lock wait
+    # defers the handler until that wait returns.
+    sys.stdout.write("ready\\n")
+    sys.stdout.flush()
     for _ in range(600):
-        time.sleep(0.1)
+        idle.wait(0.1)
     marker.write_text("timeout", encoding="utf-8")
     """
 )
@@ -143,12 +149,12 @@ def _break_reaches_child(tmp_path: Path, sender_source: str) -> bool:
     child = subprocess.Popen(
         [sys.executable, "-c", _CHILD, str(marker)],
         creationflags=subprocess.CREATE_NO_WINDOW | subprocess.CREATE_NEW_PROCESS_GROUP,
+        stdout=subprocess.PIPE,
+        text=True,
     )
     try:
-        deadline = time.monotonic() + 30
-        while not (marker.exists() and marker.read_text(encoding="utf-8") == "ready"):
-            assert time.monotonic() < deadline, "child never became ready"
-            time.sleep(0.05)
+        assert child.stdout is not None
+        assert child.stdout.readline().strip() == "ready", "child never became ready"
         subprocess.run(
             [sys.executable, "-c", sender_source, str(child.pid)],
             creationflags=subprocess.DETACHED_PROCESS,
@@ -164,10 +170,11 @@ def _break_reaches_child(tmp_path: Path, sender_source: str) -> bool:
         if child.poll() is None:
             child.kill()
             child.wait(timeout=10)
+        if child.stdout is not None:
+            child.stdout.close()
 
 
 @pytest.mark.windows_only
-@pytest.mark.skipif(os.name != "nt", reason="real Win32 console control events")
 def test_real_break_reaches_a_windowless_child_from_a_consoleless_sender(
     tmp_path: Path,
 ) -> None:
@@ -175,7 +182,6 @@ def test_real_break_reaches_a_windowless_child_from_a_consoleless_sender(
 
 
 @pytest.mark.windows_only
-@pytest.mark.skipif(os.name != "nt", reason="real Win32 console control events")
 def test_real_old_os_kill_never_reached_the_child(tmp_path: Path) -> None:
     """Pins the root cause: the pre-fix sender, run the way the service runs."""
 

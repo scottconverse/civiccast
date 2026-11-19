@@ -11,17 +11,13 @@ DACL; a missing or broad DACL still gets the standard strict ACL.
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
 
 import pytest
 
 from civiccast.installer import station_state
 
-pytestmark = [
-    pytest.mark.windows_only,
-    pytest.mark.skipif(sys.platform != "win32", reason="Windows DACLs only"),
-]
+pytestmark = [pytest.mark.windows_only]
 
 # LocalService read: a principal CivicCast never grants, so it proves the
 # operator's own entry survived.
