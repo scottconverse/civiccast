@@ -2,6 +2,12 @@
 
 ## [1.0.0-rc.6] - 2026-11-15
 
+## [1.0.0-rc.6.1]
+
+- The on-air CG board clock shows the station's time (issue #347). Before: it showed UTC, so on R9 (Mountain time) it read 04:04 at 21:04. Now: a named station time zone wins; the `local` default, or an unknown zone name, uses the station PC's own time zone. It never falls back to UTC.
+
+## [1.0.0-rc.6] - 2026-11-15
+
 Release candidate **v1.0.0-rc.6**, published November 15, 2026. Full notes, verification and known issues:
 `docs/releases/v1.0.0-rc.6-release-notes.md`.
 
