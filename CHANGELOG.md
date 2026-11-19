@@ -4,6 +4,7 @@
 
 - The on-air CG board clock shows the station's time (issue #347). Before: it showed UTC, so on R9 (Mountain time) it read 04:04 at 21:04. Now: a named station time zone wins; the `local` default, or an unknown zone name, uses the station PC's own time zone. It never falls back to UTC.
 - A power cut no longer leaves the caption program boundary file empty and every caption scan raising. Before: the file was written in place, so a station that lost power came back with an empty file and 14 control-plane errors after the reboot. Now: the file is written to a temp copy, flushed to disk and then put in place, and an empty, broken or non-text file reads as "no boundary" with one warning per file instead of an error on every scan.
+- Live captions are ON by default. Before: a new station had live captions off until an operator turned them on. Now: a new station has them on. A station that saved "off" under an older build (which shipped them off by default) is turned on once at upgrade. An operator who turns them off after the upgrade keeps them off. `CIVICCAST_CAPTION_TAP=off` still turns them off.
 
 ## [1.0.0-rc.6] - 2026-11-15
 
