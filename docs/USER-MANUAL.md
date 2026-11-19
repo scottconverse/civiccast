@@ -4026,7 +4026,7 @@ The Station Profile shows the station's identity and what this computer actually
 | **Default channel id** | The channel the first-run sample content uses; unknown ids are healed to `government` when read | It does not change which channel residents see first |
 | **Public base URL (optional)** | Stored and displayed | See the Known issue below: nothing reads it, and it cannot be cleared here |
 | **Media library / Recordings / Backups** folders | The three paths stored in the profile; each Copy path button copies one | See the Known issue below: they do not move or choose where any file is written |
-| **Show live captions on air** | The operator switch for live captions (the live speech-to-text tap on every on-air channel and the CEA-708 caption leg in the video). Turning it off stops recognition and drains queued audio on the next tap-worker scan; turning it on resumes recognition on the next scan. The caption routing in the video changes when each channel next starts | It does not affect captions on published recordings (those are the offline job, see [Captions](#configuration-captions)). New station profiles default to off |
+| **Show live captions on air** | The operator switch for live captions (the live speech-to-text tap on every on-air channel and the CEA-708 caption leg in the video). Turning it off stops recognition and drains queued audio on the next tap-worker scan; turning it on resumes recognition on the next scan. The caption routing in the video changes when each channel next starts | It does not affect captions on published recordings (those are the offline job, see [Captions](#configuration-captions)). New station profiles default to on; a station that saved "off" under an earlier build is switched on once at upgrade, and a later operator choice is kept |
 
 The time zone is free text. Choose an IANA name such as `America/Denver`. The default `local`, a blank value, or an unknown name falls back to UTC; an unknown name is logged as a warning. Set the station's real zone here before creating schedules. A zone change does not rewrite already-generated occurrences; check the future calendar after saving.
 
@@ -4704,7 +4704,7 @@ The supervisor itself starts only three kinds of child, in this order: **Postgre
 | Playout workers | The processes that put your channel on the air | Control plane | The playout engine is GStreamer by default. The older ffmpeg concatenation engine is used only when `CIVICCAST_EGRESS_ENGINE` selects it. |
 | TS relay | Sends a transport stream (for a headend encoder) | Control plane | Uses TSDuck (`tsp.exe`). Automatic mode runs only when `tsp` is present. |
 | HLS relay | Sends a web stream | Control plane | Supervised `ffmpeg` process. |
-| Caption tap | Listens to the channel audio for live captions | Control plane | Runs inside the control plane. Live captions are off by default; `CIVICCAST_CAPTION_TAP=off` forces them off. |
+| Caption tap | Listens to the channel audio for live captions | Control plane | Runs inside the control plane. Live captions are on by default; `CIVICCAST_CAPTION_TAP=off` forces them off. |
 
 If CivicCast finds another CivicCast runtime active on the same computer (the older WSL-based product), the supervisor refuses to start the station and reports `blocked_wsl_active`. See [If it did not work](#ch-operations-did-not-work).
 
@@ -5309,7 +5309,7 @@ Do not publish `/api/public/contribute*` while the upload limitations below appl
 | Playout health telemetry | Not trimmed automatically; trim with `civiccast egress trim-health --older-than-days N` | CLI |
 | Staff token audit events, alert history, as-run records | No deletion setting found | not found |
 
-Live captions are off by default, and `CIVICCAST_CAPTION_TAP=off` forces them off. The native runtime separates transient live caption work from recorded-caption review. It does not make the live worker or broadcast readiness depend on archive-wide review/evidence retention discovery. No live review/evidence archive is created by ordinary live captioning; this does not change recorded captions or original recordings.
+Live captions are on by default, and `CIVICCAST_CAPTION_TAP=off` forces them off. The native runtime separates transient live caption work from recorded-caption review. It does not make the live worker or broadcast readiness depend on archive-wide review/evidence retention discovery. No live review/evidence archive is created by ordinary live captioning; this does not change recorded captions or original recordings.
 
 > **Historical finding (published Beta 10):** Audit findings B-003, B-004, B-005 and B-009 recorded unbounded live-caption evidence growth. The current native live path does not run that archive sweep, writes no per-cue evidence, deletes processed chunks and bounds the queued audio and rolling caption history. These source behaviors do not replace package-specific verification; see the release record matching the installed package.
 
@@ -5584,7 +5584,7 @@ CivicCast conforms every program to a loudness target. There are three targets: 
 
 ### Captions late or missing
 
-There are two separate caption paths. **Live captions** are off by default in beta.11. Enabling **Show live captions on air** in Station Profile starts speech recognition on the next tap-worker scan; stop and start each channel before expecting captions in its video. Turning the switch off stops recognition and drains queued audio on the next scan; caption routing is removed when each channel next starts. The service setting `CIVICCAST_CAPTION_TAP=off` overrides the profile and keeps the tap off. **Recorded captions** run after publication and use the separate review workflow; see the Publishing and Recording sections.
+There are two separate caption paths. **Live captions** are on by default from rc.6.1; they were off by default through rc.6. Enabling **Show live captions on air** in Station Profile starts speech recognition on the next tap-worker scan; stop and start each channel before expecting captions in its video. Turning the switch off stops recognition and drains queued audio on the next scan; caption routing is removed when each channel next starts. The service setting `CIVICCAST_CAPTION_TAP=off` overrides the profile and keeps the tap off. **Recorded captions** run after publication and use the separate review workflow; see the Publishing and Recording sections.
 
 #### Live captions and recovery
 
@@ -5596,7 +5596,7 @@ The audio tap has bounded queues and can discard older working audio or pause ca
 
 | Symptom | Likely cause | How to confirm | Fix |
 |---|---|---|---|
-| No captions on the live picture at all | Live captions are off by default, the service override is `off`, or the current channel has not started since the switch was enabled. | Station Profile checkbox **Show live captions on air**; the **Channels** caption status card; confirm `CIVICCAST_CAPTION_TAP` is not `off`. | Enable the profile switch; recognition resumes on the next worker scan. Then stop and start the channel so its video includes captions. |
+| No captions on the live picture at all | Live captions are switched off, the service override is `off`, or the current channel has not started since the switch was enabled. | Station Profile checkbox **Show live captions on air**; the **Channels** caption status card; confirm `CIVICCAST_CAPTION_TAP` is not `off`. | Enable the profile switch; recognition resumes on the next worker scan. Then stop and start the channel so its video includes captions. |
 | `Whistle failed for <channel>; switching to Whisper` appears | Whistle failed or missed its 30-second deadline; that channel is using backup captioning during recovery. | Check the engine and recovery countdown on **System Health**; search `C:\ProgramData\CivicCast\logs\control_plane-app.log*` for the failure and recovery messages. | CivicCast retries Whistle after 30 seconds, with further failed probes backing off to at most 300 seconds. Successful recognition restores Whistle automatically. A failed Whisper child gets one immediate replay, then a 30-second cooldown after another failure. Bounded failure diagnostics are retained for investigation. |
 | Captions have gaps and the log says `Caption tap catch-up ... Discarded` | Recognition fell behind and the bounded tap shed old working audio to preserve playout. | `Select-String -Path C:\ProgramData\CivicCast\logs\control_plane-app.log* -Pattern "Caption tap"`. | Reduce other heavy work on the station and watch the output. An NVIDIA GPU is optional for Whisper and does not accelerate Whistle. Do not treat a gap-free run as established until it has been observed under your workload. |
 | Caption status shows delayed, overloaded or paused | Delayed means the queue is temporarily behind; overloaded indicates sustained backlog; paused means the tap has engaged its protective pause. | Check queue depth, queue age and engine recovery on **System Health**, and search the control-plane log for `Caption tap overload`. | Let a temporary delay catch up. For persistent overload, reduce competing CPU/disk work; caption recognition resumes according to its backoff. Restart the channel only if its caption state does not recover. |
@@ -5939,7 +5939,7 @@ The shipped GStreamer runtime has no HLS writer. So for an output of kind `hls`,
 
 What residents see is decided by `GET /api/public/live/current`. Its `state` is one of `offline`, `on_air`, `on_air_no_web_output` or `standing_by`, and the `reason` can be "no HLS output configured", "HLS output configured but not serving yet" or "fallback slate, no program on air". `/api/public/channels/<channel>/live.m3u8` redirects to the live playlist, and `/api/public/channels/<channel>/captions.vtt` serves the current live captions.
 
-> **Note:** Live captions are off by default in a new station profile and can have gaps under load. See [the captions section of the troubleshooting matrix](#ch-troubleshooting).
+> **Note:** Live captions are on by default in a new station profile and can have gaps under load. See [the captions section of the troubleshooting matrix](#ch-troubleshooting).
 
 ### CDN and provider options
 
@@ -9560,7 +9560,7 @@ Do this once before the first public meeting, and again after any reinstall.
 **Configuration**
 
 - [ ] Station Profile: station name, time zone, default channel, public web address and the three storage folders look right and have space.
-- [ ] Station Profile: decide the **Show live captions on air** switch (off by default). Turning it off stops recognition on the next tap-worker scan and removes caption routing when each channel next starts. Turning it on resumes recognition on the next scan; stop and start each channel before expecting captions in its video. Whistle is the native CPU primary; NVIDIA/CUDA is optional Whisper acceleration.
+- [ ] Station Profile: decide the **Show live captions on air** switch (on by default). Turning it off stops recognition on the next tap-worker scan and removes caption routing when each channel next starts. Turning it on resumes recognition on the next scan; stop and start each channel before expecting captions in its video. Whistle is the native CPU primary; NVIDIA/CUDA is optional Whisper acceleration.
 - [ ] AI Models: the caption, summary and translation models are the ones you intend. Remember that a local change takes effect the moment the choice changes.
 - [ ] First Setup: **Verify backup** succeeded for your backup folder; this only checks storage. On **Backup and restore**, configure an encrypted station archive, select media roots and retention, create and verify a backup, and retain its passphrase separately ([G.7](#g-drill)).
 - [ ] Readiness: no required row is red; read every row in "Required before broadcast" (First admin, Recovery kit, Durable records storage, Backup, Camera or meeting source, Local recording, Resident portal, Station policy).
