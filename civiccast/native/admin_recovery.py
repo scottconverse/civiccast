@@ -14,10 +14,16 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 import typer
 
-from civiccast.installer.station_state import _replace_admin_password, _restrict_state_file
+from civiccast.installer.station_state import (
+    _apply_state_dacl,
+    _preserved_state_dacl,
+    _replace_admin_password,
+    _restrict_state_file,
+)
 from civiccast.native.service_identity import is_station_service_account
 
 admin_app = typer.Typer(
@@ -163,13 +169,15 @@ def _prompt_password() -> str:
     return password
 
 
-def _protected_copy(path: Path, data: bytes, *, suffix: str) -> Path:
+def _protected_copy(path: Path, data: bytes, *, suffix: str, preserved: Any = None) -> Path:
     fd, name = tempfile.mkstemp(prefix=path.name + ".", suffix=suffix, dir=path.parent)
     target = Path(name)
     try:
         # Harden the empty file BEFORE writing any password/session hashes.
+        # ``preserved`` is the live file's own DACL: the replacement keeps it.
         with os.fdopen(fd, "wb") as stream:
-            _restrict_state_file(target, service_can_replace=suffix == ".tmp")
+            if preserved is None or not _apply_state_dacl(target, preserved):
+                _restrict_state_file(target, service_can_replace=suffix == ".tmp")
             stream.write(data)
             stream.flush()
             os.fsync(stream.fileno())
@@ -209,7 +217,9 @@ def reset_password(path: Path, password: str) -> Path:
     raw["recovery"]["local_admin_reset_at"] = now
     replacement = json.dumps(raw, indent=2, sort_keys=True).encode("utf-8")
     backup = _protected_copy(path, original, suffix=".before-admin-reset.bak")
-    pending = _protected_copy(path, replacement, suffix=".tmp")
+    pending = _protected_copy(
+        path, replacement, suffix=".tmp", preserved=_preserved_state_dacl(path)
+    )
     try:
         # Refuse an out-of-band writer even though normal service starts are excluded.
         if path.read_bytes() != original:
