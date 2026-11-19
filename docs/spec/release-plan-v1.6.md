@@ -1,4 +1,4 @@
-Status: SUPERSEDED -- historical plan from the pre-reset "v1.6" numbering. The current release line is v1.0.0-rc18 (see docs/releases/v1.0.0-rc18-verification.md, which exists and is confirmed).
+Status: SUPERSEDED -- historical plan from the pre-reset "v1.6" numbering. The current release is v1.0.0-rc.6 (see docs/releases/v1.0.0-rc.6-verification.md); v1.0.0-rc18 belongs to the retired WSL2 line and its record is in the archived repository.
 
 ## Goal
 

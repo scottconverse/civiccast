@@ -186,11 +186,11 @@ The `build_first_run_plan()` function returns a `FirstRunPlan` with:
 - `civiccast/egress/sinks.py` — `EgressSinkSpec` (udp-ts/srt/rtmp/file/ndi-relay/sdi-relay), each now realized as a GStreamer sink (S15 §4)
 - `civiccast/egress/slate_source.py` — Emergency slate generation
 
-### CLI stubs needing implementation
+### CLI (shipped)
 
-- `civiccast station doctor` — NOT YET IMPLEMENTED; cable-readiness extension over S1's canonical `civiccast doctor` (D10) — adds headend/SDI/TSDuck checks, does not duplicate the hardware probe/`StationBoxProfile`
-- `civiccast station commission` — NOT YET IMPLEMENTED; orchestrates the cable commissioning steps (calls S1's `doctor` for the hardware/tier portion, per D10)
-- `civiccast station support-bundle` — NOT YET IMPLEMENTED; export logs + config + health
+The cable CLI commands shipped (see the implementation status above): `cable doctor`,
+`cable commission`, `cable support-bundle` (a thin wrapper over the pre-existing
+`create_diagnostic_bundle`), plus `output sdi-readiness` and `egress output test-pattern`.
 - `civiccast output sdi-readiness` — NOT YET IMPLEMENTED; verifies the SDI output path the installer placed: GStreamer `decklinkvideosink` element present + DeckLink card detected + BMD Desktop Video SDK at runtime (S15) — not a BYO ffmpeg
 
 ---

@@ -150,6 +150,7 @@ def test_persistent_replace_failure_is_reraised_after_bounded_retries(
         raise PermissionError("[WinError 5] Access is denied (persistent)")
 
     monkeypatch.setattr(sidecar_module.os, "replace", always_fail)
+    monkeypatch.setattr(sidecar_module.time, "sleep", lambda _seconds: None)
 
     with pytest.raises(PermissionError):
         publisher.publish([_cue("must not be lost")])
@@ -159,6 +160,88 @@ def test_persistent_replace_failure_is_reraised_after_bounded_retries(
     )
     assert active.read_bytes() == before
     assert list(active.parent.glob("*.tmp")) == []
+
+
+def test_replace_retry_outlasts_the_station_reader_retry(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#342: the writer gave up after ~0.15 s while a reader held active.vtt.
+
+    The cable embed / proof reader (``caption_embed._read_timed_text``) holds the
+    file for up to its own retry cycle. The writer's waits must grow and must
+    outlast that cycle, so a held handle is waited out instead of raised.
+    """
+
+    from civiccast.egress import caption_embed
+
+    schedule = sidecar_module._ATOMIC_REPLACE_BACKOFF_SCHEDULE_SECONDS
+    assert list(schedule) == sorted(schedule), "the retry wait must grow"
+    reader_cycle = (
+        caption_embed._ACTIVE_VTT_READ_ATTEMPTS - 1
+    ) * caption_embed._ACTIVE_VTT_READ_BACKOFF_SECONDS
+    assert sum(schedule) > 10 * reader_cycle
+
+    active = tmp_path / "public" / "captions" / "active.vtt"
+    publisher = LiveWebVttPublisher(active)
+    slept: list[float] = []
+    calls = {"n": 0}
+    real_replace = sidecar_module.os.replace
+
+    def held_for_a_while(source: Path, destination: Path) -> None:
+        calls["n"] += 1
+        if calls["n"] <= 5:
+            raise PermissionError("[WinError 5] Access is denied (reader holds the file)")
+        real_replace(source, destination)
+
+    monkeypatch.setattr(sidecar_module.os, "replace", held_for_a_while)
+    monkeypatch.setattr(sidecar_module.time, "sleep", slept.append)
+
+    publisher.publish([_cue("Let's build it.")])
+
+    assert slept == list(schedule[:5])
+    cues = load_caption_cues_from_timed_text(active, source_id="public")
+    assert [cue.text for cue in cues] == ["Let's build it."]
+
+
+def test_refused_publish_carries_its_cues_into_the_next_publish(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#342: a refused write may delay a caption, but must never drop one."""
+
+    active = tmp_path / "public" / "captions" / "active.vtt"
+    publisher = LiveWebVttPublisher(active)
+    real_replace = sidecar_module.os.replace
+    refuse = {"on": True}
+
+    def maybe_refuse(source: Path, destination: Path) -> None:
+        if refuse["on"]:
+            raise PermissionError("[WinError 5] Access is denied")
+        real_replace(source, destination)
+
+    monkeypatch.setattr(sidecar_module.os, "replace", maybe_refuse)
+    monkeypatch.setattr(sidecar_module.time, "sleep", lambda _seconds: None)
+
+    first = CaptionCue(
+        cue_id="cue-a", start_seconds=1.0, end_seconds=3.0, text="Let's build it.", confidence=0.9
+    )
+    second = CaptionCue(
+        cue_id="cue-b", start_seconds=3.0, end_seconds=5.0, text="Next line.", confidence=0.9
+    )
+    with pytest.raises(PermissionError):
+        publisher.publish([first])
+
+    refuse["on"] = False
+    publisher.publish([second])
+
+    cues = load_caption_cues_from_timed_text(active, source_id="public")
+    assert [cue.text for cue in cues] == ["Let's build it.", "Next line."]
+
+    # Once written, the carried cue is not repeated by later publishes.
+    publisher.publish([second])
+    cues = load_caption_cues_from_timed_text(active, source_id="public")
+    assert [cue.text for cue in cues] == ["Next line."]
 
 
 def test_failed_replace_does_not_close_a_reused_reader_descriptor(

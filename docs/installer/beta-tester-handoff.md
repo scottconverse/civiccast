@@ -13,7 +13,7 @@ This whole document describes the retired WSL2 line as of 2026-07-23, when
 `v1.0.0-rc18` was its current published release. It is not current native
 Windows release guidance. For current native guidance, use the [current User
 Manual](../USER-MANUAL.md), [Windows install guide](../../INSTALL-WINDOWS.md),
-and [Beta 20 verification record](../releases/v1.0.0-beta.20-verification.md).
+and [RC6 verification record](../releases/v1.0.0-rc.6-verification.md).
 The remainder of this file is preserved only for WSL2 historical reference.
 
 This guide was the beta tester path for the CivicCast operator-first

@@ -345,16 +345,6 @@ Each folder row shows **Not scanned yet**, **OK** with "Last poll" and "Last ing
 
 > **For IT staff:** Watch folders, upload storage and the storage budget are set up in Part II (configuration and operations chapters). If the budget card says no budget is configured, the setting is an environment variable that only IT can change.
 
-## Agenda-based draft minutes
-
-A records clerk can open the meeting agenda and expand **Draft meeting minutes** once its recording and reviewed English transcript are available. Choose a completed cited summary from that same recording, or choose the manual option when generation is unavailable. Creating minutes does not run a separate model for every agenda item. Untimed or uncited discussion needs clerk entry; an empty section is not a claim that nothing happened.
-
-Open the draft in Summary review. Each agenda section has editable discussion and transcript citations. Citation playback follows the packaged recording timeline, while stored evidence keeps its source-recording times. Add motions with the mover, optional seconder, outcome and individual member votes. Check the recording and citations, then explicitly confirm each motion and its votes. Editing a motion or vote clears that confirmation. Mark an item not discussed only after checking it, and confirm that all items were checked for motions and votes.
-
-Use **Save draft minutes** before approval. Approval stays unavailable while edits are unsaved or saving. Every save keeps the previous content, editor and time; approval is tied to the saved fingerprint. If another clerk edits the draft, reload and review the current version. Transcript corrections require rebuilding the draft against the current reviewed cues. These are editable drafts, not an automatic or certified parliamentary record.
-
-After human approval, the signed record export includes the agenda discussion, citations, confirmed motions and votes in the rendered minutes, plus structured minutes and edit history in its PDF attachment. Approved minutes are immutable. If a model fails or no suitable cited summary exists, use the manual option with the same reviewed transcript and human approval controls.
-
 ## If it did not work
 
 | What you see | Cause and fix |

@@ -569,3 +569,106 @@ def test_health_sample_defaults_round_trip(store: PostgresEgressStore) -> None:
     got = store.recent_health("gov", 1)[0]
     assert got.schema_version == current_schema_version()
     assert got.proof_events_appended_since_last_sample == 0
+
+
+def _health_at(sampled_at: datetime, state: str = "ON_AIR") -> EgressHealthSample:
+    return EgressHealthSample(
+        channel_id="gov",
+        sampled_at=sampled_at,
+        state=state,  # type: ignore[arg-type]
+        sink_connected={"Headend": True},
+    )
+
+
+def test_postgres_store_counts_health_states_in_a_window(store: PostgresEgressStore) -> None:
+    """#327: restart-loop detection counts STARTING samples inside a window."""
+
+    now = datetime(2026, 6, 5, 12, 0, tzinfo=UTC)
+    for minutes_ago in (20, 8, 4, 1):
+        store.append_health(_health_at(now - timedelta(minutes=minutes_ago), "STARTING"))
+    store.append_health(_health_at(now, "ON_AIR"))
+
+    since = now - timedelta(minutes=10)
+    assert store.count_health_states_since("gov", "STARTING", since) == 3
+    assert store.count_health_states_since("gov", "ON_AIR", since) == 1
+    assert store.count_health_states_since("other", "STARTING", since) == 0
+
+
+def test_postgres_store_trims_health_past_retention_on_append(
+    store: PostgresEgressStore,
+) -> None:
+    """#343: append trims samples older than the retention window, without a manual job."""
+
+    now = datetime(2026, 6, 5, 12, 0, tzinfo=UTC)
+    old = now - timedelta(days=egress_store_module.HEALTH_RETENTION_DAYS + 1)
+    store.append_health(_health_at(old))
+    store.append_health(_health_at(now - timedelta(days=1)))
+
+    store.append_health(_health_at(now))
+
+    kept = [_strip_tz(s.sampled_at) for s in store.recent_health("gov", 10)]
+    assert _strip_tz(old) not in kept
+    assert len(kept) == 2
+
+
+def test_postgres_store_health_trim_runs_once_per_interval(
+    store: PostgresEgressStore,
+) -> None:
+    now = datetime(2026, 6, 5, 12, 0, tzinfo=UTC)
+    old = now - timedelta(days=egress_store_module.HEALTH_RETENTION_DAYS + 5)
+    store.append_health(_health_at(old))
+    store._health_trimmed_at = now  # a trim just ran
+    store.append_health(_health_at(now + timedelta(minutes=1)))
+    assert len(store.recent_health("gov", 10)) == 2  # inside the interval: no trim
+
+    interval = timedelta(seconds=egress_store_module.HEALTH_TRIM_INTERVAL_SECONDS)
+    store.append_health(_health_at(now + interval))
+    assert len(store.recent_health("gov", 10)) == 2  # trim ran: ``old`` gone
+
+
+def test_postgres_store_health_trim_drains_a_backlog_in_batches(
+    store: PostgresEgressStore, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A big backlog (621k rows on one station) goes in bounded batches, one per append."""
+
+    monkeypatch.setattr(egress_store_module, "HEALTH_TRIM_BATCH_SIZE", 2)
+    now = datetime(2026, 6, 5, 12, 0, tzinfo=UTC)
+    old = now - timedelta(days=egress_store_module.HEALTH_RETENTION_DAYS + 1)
+    store._health_trimmed_at = now  # keep the backlog in place while it is written
+    for i in range(5):
+        store.append_health(_health_at(old - timedelta(minutes=i)))
+    store._health_trimmed_at = None
+
+    store.append_health(_health_at(now))
+    assert len(store.recent_health("gov", 10)) == 4  # 5 old - 2 + 1 new
+    store.append_health(_health_at(now + timedelta(seconds=10)))
+    assert len(store.recent_health("gov", 10)) == 3  # full batch kept the trim due
+    store.append_health(_health_at(now + timedelta(seconds=20)))
+    assert len(store.recent_health("gov", 10)) == 3  # last old row gone; batch not full
+
+
+def test_health_trim_failure_never_fails_the_append(
+    store: PostgresEgressStore, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def _boom(cutoff: datetime, batch_size: int) -> int:
+        raise RuntimeError("disk busy")
+
+    monkeypatch.setattr(store, "trim_health_batch_before", _boom)
+    now = datetime(2026, 6, 5, 12, 0, tzinfo=UTC)
+
+    store.append_health(_health_at(now))
+
+    assert len(store.recent_health("gov", 10)) == 1
+
+
+def test_in_memory_store_counts_and_trims_health() -> None:
+    from civiccast.egress.store import InMemoryEgressStore
+
+    store = InMemoryEgressStore()
+    now = datetime(2026, 6, 5, 12, 0, tzinfo=UTC)
+    store.append_health(_health_at(now - timedelta(days=40), "STARTING"))
+    store.append_health(_health_at(now - timedelta(minutes=5), "STARTING"))
+    store.append_health(_health_at(now))
+
+    assert store.count_health_states_since("gov", "STARTING", now - timedelta(days=60)) == 1
+    assert len(store.recent_health("gov", 10)) == 2

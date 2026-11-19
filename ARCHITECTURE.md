@@ -300,8 +300,8 @@ TownLight: Station, to 2.0; see the
 RC6 is the published download. Its package-specific checks are in the
 [RC6 release notes](docs/releases/v1.0.0-rc.6-release-notes.md), which identify exact
 package provenance, verification and known issues. The previous release's
-[RC4 release notes](docs/releases/v1.0.0-rc.4-release-notes.md) and the earlier
-[RC3 record](docs/releases/v1.0.0-rc.3-verification.md) are retained as history. Historical package results are retained
+[RC5 release notes](docs/releases/v1.0.0-rc.5-release-notes.md) and the earlier
+[RC4 record](docs/releases/v1.0.0-rc.4-verification.md) are retained as history. Historical package results are retained
 in the [Beta 19 record](docs/releases/v1.0.0-beta.19-verification.md) and the
 [Beta 16 record](docs/releases/v1.0.0-beta.16-verification.md);
 [Beta 17 follow-up](docs/ops/beta17-deferred.md) records the owner-deferred field findings.

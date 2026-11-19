@@ -24,7 +24,7 @@ manual provenance remains recorded below.
 
 The current published release is source
 `a0c98cb7367dc106042ec89d35a91905470d350c`, producer run
-[38097350705](https://github.com/scottconverse/civiccast-native/actions/runs/38097350705).
+38097350705.
 Its candidate-assets job `114349148673` completed successfully; the signed
 installer reports a valid Authenticode signature for Scott Converse and its
 six candidate files matched the run's SHA-256 manifest. The 19-member local

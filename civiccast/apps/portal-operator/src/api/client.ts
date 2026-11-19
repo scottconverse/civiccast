@@ -14,6 +14,7 @@ import type {
   RevokeOtherSessionsResponse,
   StationBoxProfile,
   StationProfile,
+  StationProfileUpdateResponse,
   StationTimeZone,
 } from '../types/api.generated'
 import type {
@@ -1049,8 +1050,10 @@ export function updateStationProfile(
       | 'live_captions_enabled'
     >
   >,
-): Promise<StationProfile> {
-  return request<StationProfile>('/api/staff/station/profile', {
+): Promise<StationProfileUpdateResponse> {
+  // rc.6.1 item 3: the reply carries live_captions_notice when the save
+  // changed the live-caption switch (it applies at each channel's next start).
+  return request<StationProfileUpdateResponse>('/api/staff/station/profile', {
     method: 'PUT',
     body: payload,
   })
@@ -1395,6 +1398,19 @@ export function queueEgressCommand(
       method: 'POST',
       body: { action },
     },
+  )
+}
+
+/**
+ * rc.6.1 item 3: POST /api/staff/egress/channels/{id}/apply-captions. Restarts
+ * only this channel's playout worker so the station live-caption switch takes
+ * effect now. It never restarts the service. 409 when the channel is not on
+ * air or on its fallback slate (the switch then applies at its next start).
+ */
+export function applyCaptionsNow(channelId: string): Promise<EgressCommandResponse> {
+  return request<EgressCommandResponse>(
+    `/api/staff/egress/channels/${encodeURIComponent(channelId)}/apply-captions`,
+    { method: 'POST' },
   )
 }
 

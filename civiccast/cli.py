@@ -2032,6 +2032,99 @@ def live_takeover_state(
     typer.echo(f"Can return: {'yes' if state.can_return else 'no'}")
 
 
+_STAFF_DB_ADDRESS_HELP = (
+    "DATABASE_URL must point at the CivicCast database before running "
+    "staff token lifecycle commands."
+)
+
+
+def _token_command_error(message: str) -> typer.Exit:
+    typer.echo(message, err=True)
+    return typer.Exit(1)
+
+
+def _ensure_token_database_url() -> None:
+    """Load the installed station's database address into THIS process only.
+
+    An explicit ``DATABASE_URL`` still wins. On an installed Windows station the
+    address comes from the admin-only registry value the service also reads
+    (:func:`civiccast.native.supervisor.service_env.ensure_database_url_env`).
+    The value is never printed, logged by this command, or passed to a child.
+    """
+
+    if os.environ.get("DATABASE_URL", "").strip():
+        return
+    if sys.platform != "win32":
+        raise _token_command_error(_STAFF_DB_ADDRESS_HELP)
+
+    from civiccast.native.supervisor.service_env import (
+        DATABASE_URL_REGISTRY_KEY,
+        DATABASE_URL_REGISTRY_VALUE_NAME,
+        DatabaseUrlUnavailableError,
+        ensure_database_url_env,
+    )
+
+    try:
+        ensure_database_url_env()
+    except PermissionError:
+        raise _token_command_error(
+            "Cannot read the station database address. Open PowerShell with "
+            "Run as administrator, then retry."
+        ) from None
+    except DatabaseUrlUnavailableError:
+        raise _token_command_error(
+            "No installed CivicCast station database address was found in "
+            f"HKLM\\{DATABASE_URL_REGISTRY_KEY}\\{DATABASE_URL_REGISTRY_VALUE_NAME}. "
+            "Run this command on the station computer, or set DATABASE_URL."
+        ) from None
+
+
+@contextmanager
+def _token_database_errors() -> Iterator[None]:
+    """Report database failures without echoing driver text or the address."""
+
+    from sqlalchemy.exc import SQLAlchemyError
+
+    try:
+        yield
+    except SQLAlchemyError:
+        raise _token_command_error(
+            "The CivicCast database did not answer. Check that the CivicCast "
+            "services are running, then retry."
+        ) from None
+
+
+def _refuse_existing_token_file(out: Path | None) -> None:
+    if out is not None and (out.expanduser().exists() or out.expanduser().is_symlink()):
+        raise _token_command_error(
+            f"{out} already exists. Choose a new file name; existing files are never replaced."
+        )
+
+
+def _write_token_secret_file(path: Path, secret: str) -> Path:
+    """Write one bearer secret to a NEW file only administrators can read."""
+
+    from civiccast.native.private_files import (
+        PrivateFileProtectionError,
+        write_admin_only_new_file,
+    )
+
+    target = path.expanduser().absolute()
+    try:
+        write_admin_only_new_file(target, (secret + "\n").encode("ascii"))
+    except FileExistsError:
+        raise _token_command_error(
+            f"{target} already exists. Choose a new file name; existing files are never replaced."
+        ) from None
+    except (OSError, PrivateFileProtectionError):
+        raise _token_command_error(
+            f"Cannot write an administrator-only token file at {target}. "
+            "Check the folder exists and you can write to it. The token was issued; "
+            "revoke it with 'token revoke' and retry."
+        ) from None
+    return target
+
+
 def _get_staff_token_store() -> PostgresStaffTokenStore:
     """Build the DB-backed staff token store for CLI lifecycle commands."""
 
@@ -2039,16 +2132,15 @@ def _get_staff_token_store() -> PostgresStaffTokenStore:
 
     from civiccast.db import get_session
 
+    _ensure_token_database_url()
+
     @contextmanager
     def _session_factory() -> Iterator[Session]:
         gen = get_session()
         try:
             session = next(gen)
         except RuntimeError as exc:
-            raise typer.BadParameter(
-                "DATABASE_URL must point at the CivicCast database before running "
-                "staff token lifecycle commands."
-            ) from exc
+            raise typer.BadParameter(_STAFF_DB_ADDRESS_HELP) from exc
         try:
             yield session
         finally:
@@ -2098,30 +2190,51 @@ def token_issue(
         bool,
         typer.Option("--save-keyring", help="Save the issued token in the OS keyring."),
     ] = False,
+    out: Annotated[
+        Path | None,
+        typer.Option(
+            "--out",
+            help=(
+                "Write the secret to this NEW file, readable only by administrators, "
+                "instead of printing it."
+            ),
+        ),
+    ] = None,
     json_output: Annotated[
         bool, typer.Option("--json", help="Emit machine-readable JSON.")
     ] = False,
 ) -> None:
-    """Issue a staff bearer token and print the secret once."""
+    """Issue a staff bearer token; show the secret once or write it to --out."""
 
-    issued = _get_staff_token_store().issue_token(
-        operator_id=operator_id,
-        operator_display_name=display_name,
-        scopes=_parse_scopes(scopes),
-    )
+    _refuse_existing_token_file(out)
+    store = _get_staff_token_store()
+    with _token_database_errors():
+        issued = store.issue_token(
+            operator_id=operator_id,
+            operator_display_name=display_name,
+            scopes=_parse_scopes(scopes),
+        )
     if save_keyring:
         from civiccast.auth.keyring_store import save_staff_token
 
         save_staff_token(operator_id, issued.secret)
     payload = _token_metadata_payload(issued.metadata)
-    payload["secret"] = issued.secret
+    secret_file = None if out is None else _write_token_secret_file(out, issued.secret)
+    if secret_file is None:
+        payload["secret"] = issued.secret
+    else:
+        payload["secret_file"] = str(secret_file)
     payload["secret_shown_once"] = True
     if json_output:
         typer.echo(json.dumps(payload, indent=2))
         return
     typer.echo(f"Issued staff token {issued.metadata.token_id} for {display_name}.")
-    typer.echo("Store this token now; CivicCast will not show it again:")
-    typer.echo(issued.secret)
+    if secret_file is not None:
+        typer.echo(f"Wrote the secret to {secret_file} (administrators only).")
+        typer.echo("Delete that file after you hand the token over.")
+    else:
+        typer.echo("Store this token now; CivicCast will not show it again:")
+        typer.echo(issued.secret)
     if save_keyring:
         typer.echo(f"Saved active token for {operator_id} in the OS keyring.")
 
@@ -2134,7 +2247,9 @@ def token_list(
 ) -> None:
     """List staff token metadata without bearer secrets."""
 
-    tokens = [_token_metadata_payload(token) for token in _get_staff_token_store().list_tokens()]
+    store = _get_staff_token_store()
+    with _token_database_errors():
+        tokens = [_token_metadata_payload(token) for token in store.list_tokens()]
     if json_output:
         typer.echo(json.dumps({"tokens": tokens}, indent=2))
         return
@@ -2161,7 +2276,16 @@ def token_revoke(
 ) -> None:
     """Revoke a staff token so future staff-route requests fail closed."""
 
-    metadata = _get_staff_token_store().revoke_token(token_id, reason=reason)
+    from civiccast.auth.store import StaffTokenNotFoundError
+
+    store = _get_staff_token_store()
+    try:
+        with _token_database_errors():
+            metadata = store.revoke_token(token_id, reason=reason)
+    except StaffTokenNotFoundError:
+        raise _token_command_error(
+            f"No staff token has id {token_id}. Run 'token list' to see ids."
+        ) from None
     payload = _token_metadata_payload(metadata)
     if json_output:
         typer.echo(json.dumps(payload, indent=2))
@@ -2176,26 +2300,54 @@ def token_rotate(
         bool,
         typer.Option("--save-keyring", help="Save the replacement token in the OS keyring."),
     ] = False,
+    out: Annotated[
+        Path | None,
+        typer.Option(
+            "--out",
+            help=(
+                "Write the secret to this NEW file, readable only by administrators, "
+                "instead of printing it."
+            ),
+        ),
+    ] = None,
     json_output: Annotated[
         bool, typer.Option("--json", help="Emit machine-readable JSON.")
     ] = False,
 ) -> None:
     """Revoke one staff token and issue a replacement for the same operator."""
 
-    issued = _get_staff_token_store().rotate_token(token_id)
+    from civiccast.auth.store import StaffTokenNotFoundError
+
+    _refuse_existing_token_file(out)
+    store = _get_staff_token_store()
+    try:
+        with _token_database_errors():
+            issued = store.rotate_token(token_id)
+    except StaffTokenNotFoundError:
+        raise _token_command_error(
+            f"No staff token has id {token_id}. Run 'token list' to see ids."
+        ) from None
     if save_keyring:
         from civiccast.auth.keyring_store import save_staff_token
 
         save_staff_token(issued.metadata.operator_id, issued.secret)
     payload = _token_metadata_payload(issued.metadata)
-    payload["secret"] = issued.secret
+    secret_file = None if out is None else _write_token_secret_file(out, issued.secret)
+    if secret_file is None:
+        payload["secret"] = issued.secret
+    else:
+        payload["secret_file"] = str(secret_file)
     payload["secret_shown_once"] = True
     if json_output:
         typer.echo(json.dumps(payload, indent=2))
         return
     typer.echo(f"Rotated staff token {token_id} -> {issued.metadata.token_id}.")
-    typer.echo("Store this replacement token now; CivicCast will not show it again:")
-    typer.echo(issued.secret)
+    if secret_file is not None:
+        typer.echo(f"Wrote the replacement secret to {secret_file} (administrators only).")
+        typer.echo("Delete that file after you hand the token over.")
+    else:
+        typer.echo("Store this replacement token now; CivicCast will not show it again:")
+        typer.echo(issued.secret)
     if save_keyring:
         typer.echo(f"Saved replacement token for {issued.metadata.operator_id} in the OS keyring.")
 

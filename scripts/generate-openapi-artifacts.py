@@ -301,7 +301,7 @@ def render_reference(openapi: dict[str, Any]) -> str:
         "```bash",
         (
             "uv run civiccast token issue --operator-id clerk-1 "
-            '--display-name "Clerk One" --scopes staff --json'
+            '--display-name "Clerk One" --scopes operator --json'
         ),
         "```",
         "",
@@ -330,7 +330,7 @@ def render_reference(openapi: dict[str, Any]) -> str:
         "### 3. Read Operator Setup And Readiness",
         "",
         (
-            "v1.3 implements the first-admin setup handoff, recovery-kit response, "
+            "This release implements the first-admin setup handoff, recovery-kit response, "
             "local admin sign-in/recovery, System Health report, safe-to-broadcast "
             "signal, resident preview target, and private rehearsal endpoint. Use "
             "these when building installer, support, or admin integrations:"

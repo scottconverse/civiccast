@@ -65,7 +65,7 @@ class EgressStateRow(BaseModel):
     ndi_coproc_created_at: float | None = None  # process.create_time() at spawn
 ```
 
-**Migration:** `0043_reliability_fields` (S9-owned). Alembic is a **single global chain** — one head, currently `0037_asset_meeting_body`; 3.0 migrations take a single monotonic sequence and `0043` is **not** a per-package migration. This step adds four nullable integer/float columns to the `egress_state_rows` table. Existing rows default to NULL. Idempotent schema update. (See §3.2 — `0043` also touches `egress_health_samples`, sequenced after S8's `0042`.)
+**Migration:** `0038_reliability_fields` (S9-owned, the as-built number). Alembic is a **single global chain** — one head; 3.0 migrations take a single monotonic sequence and this is **not** a per-package migration. This step adds four nullable integer/float columns to the `egress_state_rows` table. Existing rows default to NULL. Idempotent schema update. (See §3.2 — it also touches `egress_health_samples`; S8's alerting migration follows as `0039`.)
 
 ### 3.2 Extend `EgressHealthSample` (models.py reuse)
 

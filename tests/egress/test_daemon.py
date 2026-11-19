@@ -9282,6 +9282,116 @@ def test_exhausted_boundary_reload_retries_arm_the_slate_at_the_boundary(
     assert daemon._pending_reloads == {}
 
 
+def test_content_reload_preparation_bound_follows_the_rollover_horizon(monkeypatch):
+    """rc.6.1 Dell bug 2: the total preparation budget, not just each ffmpeg call."""
+
+    from civiccast.egress.daemon import _content_reload_preparation_bound_seconds
+
+    monkeypatch.setenv("CIVICAST_EGRESS_PREPARATION_TIMEOUT_SECONDS", "300")
+    now = datetime.now(UTC)
+    # No horizon (an operator reload): two bounded passes plus the FT-8 grace.
+    assert _content_reload_preparation_bound_seconds(None) == pytest.approx(660.0)
+    # With one: the outgoing plan's end plus the same grace.
+    assert _content_reload_preparation_bound_seconds(now + timedelta(seconds=600)) == pytest.approx(
+        660.0
+    )
+    # ...but never below one bounded pass, even when the horizon is nearer.
+    assert _content_reload_preparation_bound_seconds(now + timedelta(seconds=120)) == pytest.approx(
+        300.0
+    )
+    # Never less than one full bounded pass, however late the reload was armed.
+    assert _content_reload_preparation_bound_seconds(now - timedelta(seconds=600)) == pytest.approx(
+        300.0
+    )
+
+
+def test_reload_preparation_past_its_bound_fails_clearly_and_falls_back(tmp_path, caplog):
+    """An accepted reload must not stay "settling" for as long as ffmpeg takes."""
+
+    from civiccast.egress.daemon import _PreparationRequest
+
+    entered, release = Event(), Event()
+    store = InMemoryEgressStore()
+    store.upsert_config(_config())
+    plan = _source_plan(tmp_path)
+
+    def slow_preparer(_plan, _config):
+        entered.set()
+        assert release.wait(5)
+        raise SourcePrepareError("a preparation this slow can never land")
+
+    daemon = EgressDaemon(
+        store,
+        work_dir=tmp_path,
+        source_plan_provider=lambda _: plan,
+        source_preparer=slow_preparer,
+    )
+    daemon.enable_async_preparation()
+    seen: list[Exception] = []
+    fallbacks: list[str] = []
+    daemon._fall_back_to_restart_reload = lambda channel_id, **_: fallbacks.append(channel_id)
+
+    def steps():
+        try:
+            yield _PreparationRequest(plan, _config(), bound_seconds=0.0)
+        except SourcePrepareError as exc:
+            seen.append(exc)
+        return False
+
+    try:
+        with caplog.at_level(logging.WARNING):
+            daemon._drive_preparation("gov", steps(), kind="reload")
+            assert entered.wait(5)
+            pending = daemon._preparations["gov"]
+            daemon._poll_preparation("gov")
+    finally:
+        release.set()
+        daemon.shutdown_preparation()
+
+    assert daemon._preparations.get("gov") is None
+    assert pending.cancel.is_set()
+    assert seen and "bound" in str(seen[0])
+    assert fallbacks == ["gov"]
+    assert [r.getMessage() for r in caplog.records if "exceeded its" in r.getMessage()]
+
+
+def test_reload_preparation_within_its_bound_is_left_running(tmp_path):
+    from civiccast.egress.daemon import _PreparationRequest
+
+    entered, release = Event(), Event()
+    store = InMemoryEgressStore()
+    store.upsert_config(_config())
+    plan = _source_plan(tmp_path)
+
+    def slow_preparer(_plan, _config):
+        entered.set()
+        assert release.wait(5)
+        raise SourcePrepareError("never used")
+
+    daemon = EgressDaemon(
+        store,
+        work_dir=tmp_path,
+        source_plan_provider=lambda _: plan,
+        source_preparer=slow_preparer,
+    )
+    daemon.enable_async_preparation()
+
+    def steps():
+        yield _PreparationRequest(plan, _config(), bound_seconds=60.0)
+        return False
+
+    try:
+        daemon._drive_preparation("gov", steps(), kind="reload")
+        assert entered.wait(5)
+        pending = daemon._preparations["gov"]
+        daemon._poll_preparation("gov")
+        assert daemon._preparations.get("gov") is pending
+        assert pending.cancel.is_set() is False
+    finally:
+        release.set()
+        daemon.shutdown_preparation()
+
+
 def test_caption_warmup_precedes_unprepared_speech_without_blocking_supervisor(tmp_path):
     entered, release = Event(), Event()
     started = []

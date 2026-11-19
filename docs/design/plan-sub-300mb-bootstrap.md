@@ -133,8 +133,11 @@ are never silently omitted or reclassified as optional.
 
 1. Bootstrap obtains a signed channel index over TLS.
 2. It verifies the index signature using its embedded trust root.
-3. It downloads the exact Core, Captions, both Summary, and Translation packs
-   into a bounded temporary staging directory with resume support.
+3. It downloads the two public packs (Core and Captions) into a bounded
+   temporary staging directory with resume support. AI model components
+   (caption tiers, both Summary models, Translation) come from the installer's
+   separate acquisition walkthrough, not as public release packs (amendment
+   above).
 4. It verifies, extracts, re-verifies, provisions, and performs the offline
    caption, summary, and translation proofs.
 5. Only then does it enable normal service start and station readiness.

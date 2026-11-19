@@ -122,8 +122,10 @@ these settings; meeting operators and support admins can read them.
 
 1. Choose **Enable recorded captions**. Turning this off stops new caption jobs
    from being queued and pauses existing work until processing is enabled again.
-2. Keep English selected and choose whether to include **Spanish**, translated
-   from reviewed English. Clear Spanish for English-only operation.
+2. Keep English selected and choose any translation languages to add —
+   **Spanish**, **Chinese (Simplified)**, **Tagalog / Filipino**, **Vietnamese**
+   or **Arabic** — translated from reviewed English. Clear every translation
+   language for English-only operation.
 3. When Spanish is selected, choose **Wait for every selected language** to
    attach both reviewed tracks together, or **Attach English after its review**
    to make reviewed English available while Spanish translation and review
@@ -496,7 +498,7 @@ Custom Fields (Setup group; `setup_admin`) are your own labels for programs, suc
 
 The paywall (Setup group; `setup_admin`) is optional paid access to recordings through Stripe-hosted checkout, plus free "comp" passes. It is **off** by default; when off, every asset is public.
 
-> **Beta 19 status:** Do not rely on the paywall for paid access. A configured mail provider sends magic links and reports delivery failure, but the public site's calls for tiers and checkout (`/api/public/paywall/tiers`, `/api/public/paywall/checkout`) have no matching server routes, and the public VOD media route does not enforce grants. The access check trusts the email address passed to it; the code does not prove the caller owns it.
+> **Current limitation:** Do not rely on the paywall for paid access. A configured mail provider sends magic links and reports delivery failure, but the public site's calls for tiers and checkout (`/api/public/paywall/tiers`, `/api/public/paywall/checkout`) have no matching server routes, and the public VOD media route does not enforce grants. The access check trusts the email address passed to it; the code does not prove the caller owns it.
 
 > **Signing secret:** The server never returns the saved value, so the field stays blank after you open or reload this page. If a secret is saved, leave the field blank to keep it during an ordinary **Save**. To replace it, enter a new secret of at least 32 characters or generate one. Confirm the exact value currently in the field, then **Save**; editing the value clears confirmation, so confirm again. **Cancel** discards the pending replacement. To remove the saved secret, choose **Clear saved secret**, confirm, then **Save**. Clearing stops magic-link signing and Stripe webhook verification until you save a new one.
 
@@ -713,7 +715,7 @@ For all other variables, the appendix of settings ([Appendix: settings](#app-set
 
 ## Package status
 
-These instructions describe the published Beta 20 edition. Use the release page and the Help and verification record that match the package on the station. The [Beta 20 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.20-verification.md) identifies that package's scoped checks; the [Beta 18 record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.18-verification.md) remains historical.
+These instructions describe the published v1.0.0-rc.6 edition. Use the release page and the Help and verification record that match the package on the station. The [RC6 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-rc.6-verification.md) identifies that package's scoped checks; the [Beta 20 record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.20-verification.md) remains historical.
 
 ## Related
 

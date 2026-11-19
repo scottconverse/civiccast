@@ -304,12 +304,22 @@ class StationChannelProfile(BaseModel):
 
 #: Fresh-install default for ``StationProfile.live_captions_enabled`` and the
 #: value ``resolve_live_captions_enabled`` (``station_state.py``) reports when
-#: the key is absent. ``False`` for beta.5 (temporary, owner decision
-#: 2026-09-09): the live caption embed leg held video for 25-30 s and then
-#: burst-released it every 1-2 minutes on every channel in the sandbox soak.
+#: the key is absent. ``True`` after rc.6 (owner decision 2026-11-15: live
+#: captions must be on by default -- a station on air without captions is a
+#: legal risk). beta.5 to rc.6 shipped ``False`` because the old caption embed
+#: leg held video for 25-30 s in the 2026-09-09 sandbox soak; the rc.6
+#: home-lab soak stations ran on the GStreamer path with live captions on.
 #: One constant so the model default, the resolver's absent-key default and
 #: the profile rehydration default cannot drift apart.
-LIVE_CAPTIONS_DEFAULT = False
+LIVE_CAPTIONS_DEFAULT = True
+
+#: Key in the ``station-state.json`` ``station`` block, written next to
+#: ``live_captions_enabled`` whenever an operator (or first-admin setup) saves
+#: the switch after rc.6. A persisted ``false`` WITHOUT this key was saved
+#: by an older build that shipped captions off by default, so the post-rc.6
+#: one-time migration reads it as on (owner decision 2026-11-15). A ``false``
+#: saved WITH this key is an operator's choice and is honoured.
+LIVE_CAPTIONS_CHOICE_KEY = "live_captions_choice_saved"
 
 
 class StationProfile(BaseModel):
@@ -334,15 +344,16 @@ class StationProfile(BaseModel):
         description=(
             "Operator switch for LIVE captions: the real-time ASR tap on the "
             "broadcast audio of every ON_AIR channel AND the CEA-708 caption "
-            "embed leg on the video path. OFF by default in beta.5 "
-            "(temporary): with the embed leg built, the 2026-09-09 sandbox "
+            "embed leg on the video path. ON by default from rc.6.1; it was "
+            "off by default before that, because with the embed leg "
+            "built, the 2026-09-09 sandbox "
             "soak measured a recurring 25-30 s video hold followed by a burst "
             "of frames every 1-2 minutes on every channel, and twice the 10 s "
-            "stall watchdog restarted a channel. Turn it ON from the operator "
-            "console (Setup > Station Profile > Show live captions on air) on "
-            "a station that can keep up. Turning it off does NOT affect "
-            "captions on published recordings (the offline caption job), "
-            "which is the legal requirement; this is the live one."
+            "stall watchdog restarted a channel. Switch it from the operator "
+            "console (Setup > Station Profile > Show live captions on air). "
+            "Turning it off does NOT affect "
+            "captions on published recordings (the offline caption job); "
+            "this switch controls live captions only."
         ),
     )
     default_roles: list[Annotated[str, Field(min_length=1, max_length=80)]] = Field(

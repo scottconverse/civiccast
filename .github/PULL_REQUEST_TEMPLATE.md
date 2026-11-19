@@ -29,10 +29,10 @@ base branch to choose. -->
 ## 5-lens self-audit
 
 <!--
-Mandatory before every push per CLAUDE.md; full rule at
-docs/process/5-lens-self-audit.md. Paste the fixed-format report —
-each lens is hostile: the diff is wrong until grep/tests/runtime
-evidence proves otherwise.
+Optional guidance, not a push gate (CLAUDE.md, "Verification and
+release"); full checklist at docs/process/5-lens-self-audit.md. When you
+use it, paste the fixed-format report — each lens is hostile: the diff
+is wrong until grep/tests/runtime evidence proves otherwise.
 -->
 
 ```

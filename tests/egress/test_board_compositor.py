@@ -375,3 +375,31 @@ class TestCacheKey:
 
 if __name__ == "__main__":  # pragma: no cover
     raise SystemExit(pytest.main([__file__, "-q"]))
+
+
+class TestClockShowsStationTime:
+    """#347: the on-air clock showed UTC (04:04 at a 21:04 Mountain station)."""
+
+    @staticmethod
+    def _clock_text(local: datetime) -> str:
+        from civiccast.egress.source_plan import _escape_drawtext
+
+        return _escape_drawtext(f"LPM  {local.strftime('%H:%M')}")
+
+    def _render(self) -> str:
+        return _joined(_args(board=_board(zones=_zones(schedule_clock=True))))
+
+    def test_named_zone_converts_utc_to_station_time(self, monkeypatch) -> None:
+        monkeypatch.setenv("CIVICCAST_STATION_TZ", "America/Denver")
+        joined = self._render()
+        # NOW is 19:30 UTC on Aug 5 -> 13:30 MDT.
+        assert self._clock_text(datetime(2026, 8, 5, 13, 30)) in joined
+        assert self._clock_text(NOW) not in joined
+
+    def test_local_sentinel_uses_the_machine_zone(self, monkeypatch) -> None:
+        monkeypatch.setenv("CIVICCAST_STATION_TZ", "local")
+        assert self._clock_text(NOW.astimezone()) in self._render()
+
+    def test_unknown_zone_falls_back_to_machine_zone_not_utc(self, monkeypatch) -> None:
+        monkeypatch.setenv("CIVICCAST_STATION_TZ", "Not/AZone")
+        assert self._clock_text(NOW.astimezone()) in self._render()

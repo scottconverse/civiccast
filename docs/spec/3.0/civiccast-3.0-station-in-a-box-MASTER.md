@@ -552,9 +552,9 @@ OTT apps present; exports a support bundle that explains failures without guessi
    transparently. (Open only if Scott explicitly wants bare-native-Windows as a separate project.)
    **Superseding note (2026-07-30):** ADR 0021 and the owner-approved native
    Windows execution contracts supersede this rejection. Native Windows is now
-   a distinct, first-class product line in development alongside the existing
-   WSL line; neither product line retires the other without a future owner
-   decision.
+   a distinct, first-class product line. The owner retired the WSL2 line on
+   2026-08-19 (see ADR 0021 and `docs/releases/release-truth.yaml`); this
+   repository ships the native line only.
    **Amendment (2026-08-20):** NATS JetStream was removed from the product; see
    ADR 0023, which supersedes ADR 0001. The in-process broker is now the sole
    event-bus implementation. The NATS/Postgres references above describing the
@@ -574,6 +574,6 @@ Everything else proceeds on the resolutions above.
 
 ---
 
-*Implementation does not begin until Scott approves this spec. The 13 section specs are authored
+*Implementation does not begin until Scott approves this spec. The 27 section specs are authored
 under `docs/spec/3.0/sections/`, the cross-document reconciliation/consistency pass is complete
 (`RECONCILIATION.md`, binding), and this master is finalized for review.*

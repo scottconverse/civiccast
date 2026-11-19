@@ -31,26 +31,31 @@ and a valid Authenticode signature. The
 [RC6 verification record](docs/releases/v1.0.0-rc.6-verification.md) lists the checks behind it.
 It puts AC-3 sound and a constant bit rate on a cable output while the web output stays
 AAC, and it repairs a station that saved a cable preset on an earlier release. It ran for
-about 28 hours on five Windows 11 test PCs: see the
-[rc.6 soak report](docs/evidence/rc6-soak-2026-11-15/SOAK-REPORT.md).
+about 28 hours on five Windows 11 test PCs, with no service restart: see the
+[rc.6 soak report](docs/evidence/rc6-soak-2026-11-15/SOAK-REPORT.md). That soak
+also recorded the MSI health result: 1,612 of 9,923 health checks (16.2 %) got no
+answer in time on the 16 GB laptop, which was healthy in 75.4 % of minutes.
 It replaces [`v1.0.0-rc.5`](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-rc.5)
 (published November 7, 2026), whose [release notes](docs/releases/v1.0.0-rc.5-release-notes.md)
 and [verification record](docs/releases/v1.0.0-rc.5-verification.md) are retained as history.
 Windows 11 is the verified platform. Source changes after publication do not
 update an installed station.
 
-## Previous published package (Beta 19)
+## Previous published package (RC5)
 
-The signed Beta 19 [release page](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-beta.19)
+The signed RC5 [release page](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-rc.5)
 provides the installer, runtime packs, station-model bundle, manuals, and
-checksums. The [Beta 19 verification record](docs/releases/v1.0.0-beta.19-verification.md)
+checksums. The [RC5 verification record](docs/releases/v1.0.0-rc.5-verification.md)
 identifies the exact package and its scoped verification results. For
 installation, begin with [Install CivicCast on Windows](INSTALL-WINDOWS.md);
-for Beta 19 operation, use the manual bundled on that release page. The
+for RC5 operation, use the manual bundled on that release page. The
 [source manual](docs/USER-MANUAL.md) documents current source and may differ from
-the Beta 19 bundled manual; use the bundled manual for that historical installer.
-[Sprint 6](docs/ops/sprint6.md) tracks preparation improvements, webhook and Roku
-corrections, and station integrations.
+the RC5 bundled manual; use the bundled manual for that historical installer.
+
+Beta 20 and Beta 19 are older historical packages. Their release pages and
+verification records are retained as history; do not install them for a new
+station. [Sprint 6](docs/ops/sprint6.md) records the preparation, webhook, Roku
+and station-integration work that shipped in Beta 20.
 
 The working manual also corrects older operating instructions and refreshes the
 CLI/API/settings references. These documentation corrections do not replace the

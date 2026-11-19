@@ -74,6 +74,8 @@ from civiccast.egress.hls_relay import (
     _segment_first_packet_pts,
 )
 from civiccast.egress.models import (
+    APPLY_CAPTIONS_COMMAND_PREFIX,
+    APPLY_CAPTIONS_STATES,
     MAX_PLAYLIST_SUBCHAINS,
     RESTART_RECOVERY_COMMAND_PREFIX,
     SCHEDULED_SLATE_START_COMMAND_PREFIX,
@@ -93,7 +95,10 @@ from civiccast.egress.models import (
     slate_restart_guard_state,
 )
 from civiccast.egress.pacing import UniformPacingLatch
-from civiccast.egress.preparer import SourcePreparationReport
+from civiccast.egress.preparer import (
+    SourcePreparationReport,
+    preparation_timeout_seconds_from_env,
+)
 from civiccast.egress.process_identity import verify_and_kill_process
 from civiccast.egress.runtime import (
     FfmpegStarter,
@@ -389,6 +394,25 @@ _FAILED_PREPARATION_STALL_MARGIN_SECONDS = 60.0
 # FT-8: a recorded preparation failure is honoured only by the pin it leads to
 # directly (armed in the same daemon tick), never by a later, unrelated pin.
 _FAILED_PREPARATION_RECORD_TTL_SECONDS = 30.0
+# rc.6.1 Dell bug 2 (2026-11-16): a content reload's air-path preparation is a
+# SEQUENCE of bounded ffmpeg calls -- probe, speech-leveling ride measurement,
+# ride mux, and (when either of those degrades) a loudnorm fallback conform --
+# each capped by CIVICAST_EGRESS_PREPARATION_TIMEOUT_SECONDS, with NOTHING
+# bounding the sequence. Measured on the Dell: one segment's preparation ran
+# 910.6s before reporting failure at 21:49:45, 8 minutes past the outgoing
+# plan's own end, and public sat on its fallback slate for 13 minutes while the
+# accepted reload was still "awaiting settlement". The rollover lead
+# (automation._rollover_lead_seconds) is computed from this same two-pass
+# model, so a preparation that outlives it can never land at the boundary it
+# was dispatched for. Rather than let it hold the channel, bound the whole
+# preparation and fail it into the existing FT-8 re-issue path with a clear
+# error. Expressed in passes of the configured preparation timeout so an
+# operator who has retuned that timeout keeps a proportional bound.
+_CONTENT_RELOAD_PREPARATION_PASSES = 2.0
+#: Slack past the outgoing plan's end before a still-running reload preparation
+#: is abandoned: the same 60s FT-8 already uses between a failed preparation
+#: and the rollover it re-issues.
+_CONTENT_RELOAD_PREPARATION_GRACE_SECONDS = 60.0
 # U36 item 7: how many times a boundary reload the worker ABORTED pre-commit is
 # re-resolved and re-armed before the channel gives up on the seamless path and
 # arms the fallback slate at the boundary instead. Two, because the abort's
@@ -652,6 +676,12 @@ class _PreparationRequest(NamedTuple):
     plan: EgressSourcePlan
     config: EgressConfig
     prepared_report: SourcePreparationReport | None = None
+    #: rc.6.1 Dell bug 2: the total wall-clock budget this preparation may
+    #: spend before the daemon abandons it with a clear error. Only a content
+    #: reload sets it (``_reload_steps``); a start has no boundary to miss, so
+    #: it keeps its existing unbounded-until-each-ffmpeg-call-times-out shape.
+    #: ``None`` means "no total bound".
+    bound_seconds: float | None = None
 
 
 class _ReusePreparedPlan(NamedTuple):
@@ -719,6 +749,10 @@ class _PendingPreparation:
     slate_first: bool = False
     since: float = 0.0
     supplied_report: SourcePreparationReport | None = None
+    #: rc.6.1 Dell bug 2: the monotonic instant this preparation must have
+    #: finished by, or ``None`` for "no total bound". Enforced in
+    #: ``_poll_preparation`` -- see ``_abort_overdue_preparation``.
+    deadline: float | None = None
 
 
 @dataclass
@@ -1277,6 +1311,13 @@ class EgressDaemon:
         # channel that gets stopped, so it did not even close the gap it was
         # written for. Reverted to a plain reload_id with no expiry.)
         self._discarded_reload_ids: dict[str, str] = {}
+        # #344: channels whose most recent reload declined only because the
+        # schedule has nothing due at wall-clock now (no recorded boundary).
+        # Set inside ``_reload_steps`` and consumed by ``_request_reload``,
+        # which keeps the air it has instead of pinning a restart that the
+        # U41 plan-EOS hold will never deliver. See
+        # ``_keep_air_after_no_plan_reload``.
+        self._no_plan_now_reloads: set[str] = set()
 
         # U36 item 7: bounded retry budget for a boundary reload the worker
         # aborted pre-commit, keyed by channel. The value is
@@ -1404,6 +1445,7 @@ class EgressDaemon:
                     assert preparer is not None
                     return preparer(request.plan, request.config)
 
+            since = self._monotonic()
             self._preparations[channel_id] = _PendingPreparation(
                 steps=steps,
                 future=executor.submit(prepare),
@@ -1412,8 +1454,9 @@ class EgressDaemon:
                 process=self._processes.get(channel_id),
                 config=self._store.get_config(channel_id),
                 slate_first=slate_first,
-                since=self._monotonic(),
+                since=since,
                 supplied_report=request.prepared_report,
+                deadline=(None if request.bound_seconds is None else since + request.bound_seconds),
             )
             _LOG.info("channel %s: %s source preparation queued", channel_id, kind)
             return _PreparationState.PENDING
@@ -1421,7 +1464,17 @@ class EgressDaemon:
     def _poll_preparation(self, channel_id: str) -> None:
         with self._preparation_guard:
             pending = self._preparations.get(channel_id)
-            if pending is None or not pending.future.done():
+            if pending is None:
+                return
+            if not pending.future.done():
+                # rc.6.1 Dell bug 2: a preparation that has outlived its own
+                # bound is abandoned here rather than waited out. Nothing else
+                # ever looks at a preparation's age -- the future is polled for
+                # completion only -- so before this check a reload whose
+                # preparation ran past the outgoing plan's end kept the channel
+                # on its slate for as long as the ffmpeg sequence took (910s
+                # measured) instead of failing into the FT-8 re-issue path.
+                self._abort_overdue_preparation(channel_id, pending)
                 return
             if pending.process is not self._processes.get(
                 channel_id
@@ -1430,59 +1483,118 @@ class EgressDaemon:
                 self._request_reload(channel_id)
                 return
             self._preparations.pop(channel_id)
-            completed = False
-            outcome: _PreparationOutcome = None
+            self._settle_preparation(channel_id, pending)
+
+    def _abort_overdue_preparation(self, channel_id: str, pending: _PendingPreparation) -> None:
+        """Abandon a preparation past ``pending.deadline`` with a clear error.
+
+        The executor thread cannot be killed, so the cancel event is set (the
+        running ffmpeg child terminates on it) and any plan directory a late
+        result still produces is released by the same callback
+        ``_cancel_preparation`` uses; the generator is then failed through the
+        ordinary ``SourcePrepareError`` path so the reload's own failure
+        handling -- the operator-visible warning, the FT-8 record and the
+        terminate+restart fallback -- runs exactly as it does for a preparation
+        that timed out on its own.
+        """
+
+        if pending.deadline is None or self._monotonic() < pending.deadline:
+            return
+        bound_seconds = pending.deadline - pending.since
+        elapsed_seconds = self._monotonic() - pending.since
+        self._preparations.pop(channel_id)
+        pending.cancel.set()
+
+        def release_unused(future: Future[SourcePreparationReport]) -> None:
+            if not future.cancelled() and future.exception() is None:
+                self._release_prepared_plan_dir(future.result().plan_dir)
+            elif pending.supplied_report is not None:
+                self._release_prepared_plan_dir(pending.supplied_report.plan_dir)
+
+        pending.future.add_done_callback(release_unused)
+        failure = SourcePrepareError(
+            f"Content-reload source preparation exceeded its {bound_seconds:.0f}s bound "
+            f"({elapsed_seconds:.0f}s elapsed); abandoning it so the rollover falls back "
+            "instead of holding the channel on its slate."
+        )
+        _LOG.warning(
+            "Content-reload source preparation for %s exceeded its %.0fs bound "
+            "(%.0fs elapsed, kind=%s); abandoning it and failing the reload now rather "
+            "than letting it hold the channel. %s",
+            channel_id,
+            bound_seconds,
+            elapsed_seconds,
+            pending.kind,
+            failure,
+        )
+        self._settle_preparation(channel_id, pending, failure=failure)
+
+    def _settle_preparation(
+        self,
+        channel_id: str,
+        pending: _PendingPreparation,
+        *,
+        failure: Exception | None = None,
+    ) -> None:
+        """Drive an already-popped preparation's steps to their outcome."""
+
+        completed = False
+        outcome: _PreparationOutcome = None
+        try:
             try:
-                try:
-                    report = pending.future.result()
-                except Exception as exc:
-                    pending.steps.throw(exc)
+                if failure is not None:
+                    pending.steps.throw(failure)
                 else:
-                    pending.steps.send(report)
+                    try:
+                        report = pending.future.result()
+                    except Exception as exc:
+                        pending.steps.throw(exc)
+                    else:
+                        pending.steps.send(report)
             except StopIteration as done:
                 completed = True
                 outcome = cast(_PreparationOutcome, done.value)
-            finally:
-                pending.steps.close()
-            if completed:
-                if isinstance(outcome, _ReusePreparedPlan):
-                    # F3(b): the reload declined the in-place selector swap
-                    # (FALLBACK_SLATE + non-deferred) and handed back the plan
-                    # it had already prepared. Terminate+restart, carrying that
-                    # report so the restart does not conform it again.
-                    self._fall_back_to_restart_for_reused_plan(channel_id, outcome)
-                elif pending.kind == "reload" and outcome is False:
-                    if pending.slate_first:
-                        # U47: the hand-off's program preparation failed while the
-                        # channel is ON AIR on the slate. The ordinary fallback
-                        # (``_fall_back_to_restart_reload``) adds this channel to
-                        # ``_reload_kills`` and terminates the live slate worker
-                        # (issue #157), taking an airing channel dark -- exactly
-                        # what U47 exists to prevent, and measurably what happened
-                        # before this branch existed: the slate worker was gone
-                        # and the channel had no encoder until the next restart.
-                        # Same handling as the synchronous path's tail in
-                        # ``_request_reload``.
-                        self._keep_slate_after_failed_hand_off(channel_id)
-                    else:
-                        self._fall_back_to_restart_reload(channel_id)
-                elif pending.kind == "start" and outcome is _PreparationState.START_EXPIRED:
-                    self._start(
-                        channel_id,
-                        force_fallback_slate=True,
-                        force_fallback_reason=_START_EXPIRED_FALLBACK_REASON,
-                    )
-                elif pending.kind == "start" and outcome is _PreparationState.SLATE_FIRST:
-                    # U47: this is where the production (async) path reaches the
-                    # hand-off. ``_start`` already returned at the slate's own
-                    # preparation being QUEUED, so -- unlike the synchronous path
-                    # -- the slate worker is only up now, as this tick's
-                    # preparation settles. Handing the program in from here is
-                    # what keeps an ON_AIR channel airing the slate for the whole
-                    # conform instead of being dark for it.
-                    self._hand_off_slate_first_program(channel_id)
-                return
-            raise RuntimeError("Unexpected second media preparation in one operation")
+        finally:
+            pending.steps.close()
+        if completed:
+            if isinstance(outcome, _ReusePreparedPlan):
+                # F3(b): the reload declined the in-place selector swap
+                # (FALLBACK_SLATE + non-deferred) and handed back the plan
+                # it had already prepared. Terminate+restart, carrying that
+                # report so the restart does not conform it again.
+                self._fall_back_to_restart_for_reused_plan(channel_id, outcome)
+            elif pending.kind == "reload" and outcome is False:
+                if pending.slate_first:
+                    # U47: the hand-off's program preparation failed while the
+                    # channel is ON AIR on the slate. The ordinary fallback
+                    # (``_fall_back_to_restart_reload``) adds this channel to
+                    # ``_reload_kills`` and terminates the live slate worker
+                    # (issue #157), taking an airing channel dark -- exactly
+                    # what U47 exists to prevent, and measurably what happened
+                    # before this branch existed: the slate worker was gone
+                    # and the channel had no encoder until the next restart.
+                    # Same handling as the synchronous path's tail in
+                    # ``_request_reload``.
+                    self._keep_slate_after_failed_hand_off(channel_id)
+                else:
+                    self._fall_back_to_restart_reload(channel_id)
+            elif pending.kind == "start" and outcome is _PreparationState.START_EXPIRED:
+                self._start(
+                    channel_id,
+                    force_fallback_slate=True,
+                    force_fallback_reason=_START_EXPIRED_FALLBACK_REASON,
+                )
+            elif pending.kind == "start" and outcome is _PreparationState.SLATE_FIRST:
+                # U47: this is where the production (async) path reaches the
+                # hand-off. ``_start`` already returned at the slate's own
+                # preparation being QUEUED, so -- unlike the synchronous path
+                # -- the slate worker is only up now, as this tick's
+                # preparation settles. Handing the program in from here is
+                # what keeps an ON_AIR channel airing the slate for the whole
+                # conform instead of being dark for it.
+                self._hand_off_slate_first_program(channel_id)
+            return
+        raise RuntimeError("Unexpected second media preparation in one operation")
 
     def process_once(self, channel_id: str) -> int:
         """Process all currently queued commands for one channel.
@@ -2293,6 +2405,11 @@ class EgressDaemon:
         if command.action == "drain":
             self._drain(command.channel_id)
             return
+        if command.action == "reload" and command.command_id.startswith(
+            APPLY_CAPTIONS_COMMAND_PREFIX
+        ):
+            self._apply_captions_now(command.channel_id)
+            return
         if command.action == "reload":
             config = self._store.get_config(command.channel_id)
             if config is not None and not config.enabled:
@@ -2309,6 +2426,49 @@ class EgressDaemon:
             self._request_reload(command.channel_id, command_id=command.command_id)
             return
         raise ConfigInvalidError(f"unsupported egress command action: {command.action}")
+
+    def _apply_captions_now(self, channel_id: str) -> None:
+        """rc.6.1 item 3: apply the live-caption switch to ONE channel now.
+
+        The caption legs (embed + audio tap) are built only when the playout
+        worker starts, so a changed switch waits for the channel's next start.
+        This restarts that one channel's worker through the ordinary
+        terminate+restart reload path: the relays keep their sessions, and the
+        restart re-reads the switch and carries the current plan. It never
+        restarts the service. A channel that is not running, or not in a
+        steady on-air state, is left alone: the switch lands at its next start.
+        """
+        config = self._store.get_config(channel_id)
+        if config is not None and not config.enabled:
+            _LOG.info(
+                "channel %s: ignoring apply-captions because the channel is disabled",
+                channel_id,
+            )
+            return
+        state = self._store.read_state(channel_id)
+        process = self._processes.get(channel_id)
+        if process is None or _process_poll(process) is not None or state is None:
+            _LOG.info(
+                "channel %s: apply-captions found no running worker; the caption "
+                "switch applies at the channel's next start",
+                channel_id,
+            )
+            return
+        if state.state not in APPLY_CAPTIONS_STATES:
+            _LOG.warning(
+                "channel %s: skipped apply-captions: the channel is %s; the caption "
+                "switch applies at the channel's next start",
+                channel_id,
+                state.state,
+            )
+            return
+        _LOG.info("channel %s: restarting the playout worker to apply captions now", channel_id)
+        self._cancel_preparation(channel_id)
+        self._fall_back_to_restart_reload(
+            channel_id,
+            immediate_reason="apply captions now: the operator asked to apply the "
+            "live-caption switch to this channel; the restart carries the current plan",
+        )
 
     def _discard_stale_hls_playlists(
         self, channel_id: str, *, config: EgressConfig | None = None
@@ -5539,6 +5699,77 @@ class EgressDaemon:
             channel_id,
         )
 
+    def _keep_air_after_no_plan_reload(
+        self, channel_id: str, state: EgressStateRow, process: object
+    ) -> bool:
+        """#344: a reload that found nothing due NOW keeps the air it has.
+
+        Measured on R7, 2026-11-15 23:42: about 30 schedule commits arrived four
+        minutes before the first program. Each commit queued a reload with no
+        recorded boundary; each resolved "now", found no item, and declined. The
+        decline ran ``_fall_back_to_restart_reload``, which (1) discarded the
+        reload already armed for the 23:46 start and (2) pinned the channel
+        TRANSITIONING until a worker exit. Under the U41 plan-EOS hold that exit
+        never comes, and automation does not replan a TRANSITIONING channel, so
+        the slate stayed on air past the due program until the stall watchdog.
+
+        A restart cannot air a program that is not due yet. So:
+
+        * a reload that is already armed (for example the slate's scheduled
+          start of the next program) stays armed, untouched;
+        * otherwise any pin an earlier decline left on this live worker is
+          dropped and the state it pinned over is restored, so the automation's
+          own slate replan / rollover policy can hand off at the next start.
+
+        Returns ``False`` (the caller then takes the ordinary restart fallback)
+        when a deliberate kill is already in flight for this channel (that exit
+        is the recovery, and the pin must stay to honor it), and when nothing is
+        armed and the slate is on air (that fallback cuts the slate worker at
+        once, issue #157, so it cannot pin).
+        """
+        if channel_id in self._reload_kills or _process_poll(process) is not None:
+            return False
+        if channel_id in self._pending_reload_settle:
+            pending = self._pending_reload_settle[channel_id]
+            _LOG.warning(
+                "Content-reload for %s found nothing due now; keeping the reload already "
+                "armed (reload_id=%s) instead of discarding it for a restart.",
+                channel_id,
+                pending.reload_id,
+            )
+            return True
+        if state.state == "FALLBACK_SLATE":
+            # Filler is interruptible (issue #157): the ordinary fallback cuts
+            # the slate worker at once and restarts it, so nothing pins.
+            return False
+        pin = self._pending_reloads.pop(channel_id, None)
+        restored: EgressState = state.state
+        if pin is not None:
+            self._discard_prepared_restart_plan(
+                channel_id, reason="nothing due now; the pinned restart is moot"
+            )
+            pinned_state, pinned_label = pin
+            if state.state == "TRANSITIONING" and pinned_state in ("ON_AIR", "FALLBACK_SLATE"):
+                restored = "ON_AIR" if pinned_state == "ON_AIR" else "FALLBACK_SLATE"
+                self._write_state(
+                    channel_id,
+                    restored,
+                    current_source_label=pinned_label,
+                    current_proof_event_id=state.current_proof_event_id,
+                    pid=_process_pid(process),
+                )
+        _LOG.warning(
+            "Content-reload for %s found nothing due now; keeping the current output on air "
+            "(state=%s, source=%s, pid=%s) for the next scheduled start instead of pinning a "
+            "restart%s.",
+            channel_id,
+            restored,
+            state.current_source_label or "-",
+            _process_pid(process),
+            " (cleared an earlier restart pin)" if pin is not None else "",
+        )
+        return True
+
     def _fall_back_to_restart_for_reused_plan(
         self, channel_id: str, outcome: _ReusePreparedPlan
     ) -> bool:
@@ -6198,6 +6429,12 @@ class EgressDaemon:
                 force_fallback,
                 "boundary" if boundary_provider is not None and boundary_at is not None else "now",
             )
+            if source_plan is None and rollover_plan_end_at is None and not force_fallback:
+                # #344: nothing is due NOW; a later item may still be. A restart
+                # cannot air a program that is not due yet, so the caller keeps
+                # the current air (and any reload already armed for that later
+                # start) instead of pinning TRANSITIONING.
+                self._no_plan_now_reloads.add(channel_id)
             return False
         if not force_fallback and target_state != "FALLBACK_SLATE":
             # U26 defect 2 applied where U26 deliberately skipped it.
@@ -6247,16 +6484,21 @@ class EgressDaemon:
             # production automation loop runs this work in the background.
             prepare_started = time.monotonic()
             try:
-                preparation_report = yield _PreparationRequest(source_plan, config)
+                preparation_report = yield _PreparationRequest(
+                    source_plan,
+                    config,
+                    bound_seconds=_content_reload_preparation_bound_seconds(rollover_plan_end_at),
+                )
                 source_plan = preparation_report.source_plan
                 prepared_plan_dir = preparation_report.plan_dir
                 self._record_prepared_loudness(channel_id, preparation_report)
-            except SourcePrepareError:
+            except SourcePrepareError as exc:
                 _LOG.warning(
-                    "Content-reload source preparation FAILED for %s after %.1fs; "
+                    "Content-reload source preparation FAILED for %s after %.1fs (%s); "
                     "falling back to restart.",
                     channel_id,
                     time.monotonic() - prepare_started,
+                    exc,
                 )
                 if rollover_plan_end_at is not None:
                     # FT-8: nothing is in flight now, so the pin this failure
@@ -6723,6 +6965,7 @@ class EgressDaemon:
                         discarded_id,
                     )
                     self._discarded_reload_ids.pop(channel_id, None)
+                    self._recover_pin_after_late_settlement(channel_id, status.get("result"))
             return
         status = self._read_reload_status(channel_id)
         if status is not None and status.get("id") == pending.reload_id:
@@ -6808,6 +7051,36 @@ class EgressDaemon:
                 channel_id, reason=f"no settlement within {settle_deadline:.0f}s"
             )
             self._fall_back_to_restart_reload(channel_id, plan_end_at=pending.rollover_plan_end_at)
+
+    def _recover_pin_after_late_settlement(self, channel_id: str, result: object) -> None:
+        """#344: a late settlement must not leave the channel pinned.
+
+        The discarded attempt's worker is alive and has just answered, so the
+        restart the ``_pending_reloads`` pin waits for (a worker exit at plan
+        EOS) will not come under the U41 hold. Re-issue the reload now instead
+        of waiting for the U67 stall watchdog (~1650 s): it either arms the
+        program that is due, or (nothing due yet) keeps the current air and
+        drops the pin -- see ``_keep_air_after_no_plan_reload``.
+
+        No-op unless the channel is pinned with nothing else in flight: no
+        deliberate kill pending (that exit is the recovery), no armed reload,
+        no preparation, and a live worker."""
+        if channel_id not in self._pending_reloads or channel_id in self._reload_kills:
+            return
+        if self.has_pending_reload_settlement(channel_id):
+            return
+        process = self._processes.get(channel_id)
+        if process is None or _process_poll(process) is not None:
+            return
+        _LOG.warning(
+            "Late settlement (%s) for %s arrived while the channel is pinned TRANSITIONING "
+            "on a live worker (pid=%s); re-issuing the reload now instead of waiting for "
+            "the stall watchdog.",
+            result,
+            channel_id,
+            _process_pid(process),
+        )
+        self._request_reload(channel_id)
 
     def _read_reload_status(self, channel_id: str) -> dict[str, Any] | None:
         """Best-effort read of ``<work>/<channel_id>/reload-status.json``
@@ -6994,6 +7267,7 @@ class EgressDaemon:
         failure_reason: str | None = None,
         prepared_reload: _ReusePreparedPlan | None = None,
         plan_end_at: datetime | None = None,
+        immediate_reason: str | None = None,
     ) -> None:
         """The terminate+restart reload path a declined/aborted/lost content-
         reload always falls through to -- factored out of ``_request_reload``
@@ -7017,7 +7291,11 @@ class EgressDaemon:
         reload was dispatched against, when the caller still has it. Recorded on
         the ``_pending_reloads`` pin so the reload-stall watchdog's bound can be
         derived from the plan that is actually left rather than only from its
-        flat floor -- see ``_arm_pending_reload``."""
+        flat floor -- see ``_arm_pending_reload``.
+
+        ``immediate_reason`` (rc.6.1, default ``None``): terminate the worker
+        now in every state, with this reason in the deliberate-kill note. Used
+        only by "Apply captions now"; every other caller passes nothing."""
         self._discard_pending_reload_settlement(channel_id, reason="falling back to restart")
         if prepared_reload is not None:
             self._stash_prepared_restart_plan(channel_id, prepared_reload)
@@ -7053,6 +7331,10 @@ class EgressDaemon:
             pid=_process_pid(process),
         )
         expired_boundary = plan_end_at is not None and plan_end_at <= datetime.now(UTC)
+        if immediate_reason is not None and process is not None:
+            self._note_deliberate_kill(channel_id, immediate_reason)
+            _process_terminate(process)
+            return
         if (
             state is not None
             and (state.state == "FALLBACK_SLATE" or expired_boundary)
@@ -7194,6 +7476,7 @@ class EgressDaemon:
                 and self.can_prearm_slate_program(channel_id)
                 else None
             )
+            self._no_plan_now_reloads.discard(channel_id)
             if self._try_content_reload(
                 channel_id,
                 state,
@@ -7236,6 +7519,10 @@ class EgressDaemon:
                 # helper, keyed off the pending preparation's ``slate_first``.
                 self._keep_slate_after_failed_hand_off(channel_id)
                 return
+            if channel_id in self._no_plan_now_reloads:
+                self._no_plan_now_reloads.discard(channel_id)
+                if self._keep_air_after_no_plan_reload(channel_id, state, process):
+                    return
             # U67: the seamless path was available and DECLINED this reload.
             # This used to be completely silent, and that silence is what made
             # the 2026-09-30 education incident (34 hours of black and silent
@@ -7693,6 +7980,33 @@ def _default_orphan_terminator(pid: int, created_at: float) -> None:
 
 def _process_pid(process: object) -> int | None:
     return getattr(process, "pid", None)
+
+
+def _content_reload_preparation_bound_seconds(plan_end_at: datetime | None) -> float:
+    """rc.6.1 Dell bug 2: how long a content reload's preparation may run.
+
+    With a recorded rollover horizon, the answer is "until the outgoing plan
+    ends, plus the same 60s FT-8 grace the failure path already uses": past
+    that instant the preparation can no longer land at the boundary it was
+    dispatched for, so keeping it running only holds the channel on the slate.
+    Never less than one full configured preparation timeout, so a reload
+    dispatched at or after its own boundary still gets the one bounded pass a
+    preparation has always been allowed.
+
+    Without a horizon (an operator reload), the preparation has no boundary to
+    miss; use the flat budget the rollover lead is computed from instead --
+    ``_CONTENT_RELOAD_PREPARATION_PASSES`` bounded calls plus the grace -- so
+    even that path cannot report "accepted" and then sit silent for as long as
+    the box is slow.
+    """
+
+    timeout = preparation_timeout_seconds_from_env()
+    if plan_end_at is None:
+        return (
+            _CONTENT_RELOAD_PREPARATION_PASSES * timeout + _CONTENT_RELOAD_PREPARATION_GRACE_SECONDS
+        )
+    remaining = (plan_end_at - datetime.now(UTC)).total_seconds()
+    return max(timeout, remaining + _CONTENT_RELOAD_PREPARATION_GRACE_SECONDS)
 
 
 def _reload_stall_bound_seconds(plan_end_at: datetime | None) -> float:

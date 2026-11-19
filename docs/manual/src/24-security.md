@@ -13,11 +13,10 @@ credentials still use the existing authentication and rate-limit responses.
 
 - You need Administrator rights on the station computer, and the Setup admin role in the console for the staff-token API calls.
 - Most commands below need the CivicCast command-line program. The installer does not add it to PATH, so use the full path: `<INSTDIR>\runtime\Lib\site-packages\bin\civiccast.exe` (`<INSTDIR>` is the folder CivicCast was installed to). In this chapter `$cc` stands for that path.
-- Token commands need the database address in the `DATABASE_URL` environment variable. Read it from the registry value `HKLM\SOFTWARE\CivicCast\Native\DatabaseUrl` in an elevated PowerShell window, use it only in that window, and never write it to a file or a ticket, because it contains the database password:
+- Run token commands in a PowerShell window opened with **Run as administrator**. They read the database address from the protected registry value `HKLM\SOFTWARE\CivicCast\Native\DatabaseUrl` themselves and never show it. You do not set `DATABASE_URL`; if you set it, it wins.
 
 ```powershell
 $cc = "<INSTDIR>\runtime\Lib\site-packages\bin\civiccast.exe"
-$env:DATABASE_URL = (Get-ItemProperty 'HKLM:\SOFTWARE\CivicCast\Native').DatabaseUrl
 ```
 
 ## The security model in one page
@@ -60,16 +59,16 @@ A **bearer credential** is a long secret string that proves an identity to the s
 
 ### Issue a database token
 
-1. Open an elevated PowerShell window and set `$cc` and `DATABASE_URL` as shown above.
+1. Open an elevated PowerShell window and set `$cc` as shown above.
 2. Run:
 
 ```powershell
 & $cc token issue --operator-id clerk-jones --display-name "Pat Jones" --scopes records_clerk,publish_operator --json
 ```
 
-`--operator-id` and `--display-name` are required. `--scopes` takes a comma-separated list of role ids or the aliases above; its default is `operator`, which is all five roles. Give people only the roles they need. `--save-keyring` stores the token in the Windows credential store under the service name `civiccast.staff-token`. `--json` prints machine-readable output.
+`--operator-id` and `--display-name` are required. `--scopes` takes a comma-separated list of role ids or the aliases above; its default is `operator`, which is all five roles. Give people only the roles they need. `--save-keyring` stores the token in the Windows credential store under the service name `civiccast.staff-token`. `--out <file>` writes the secret to a new file that only Administrators can read, instead of printing it; it never replaces an existing file. `--json` prints machine-readable output.
 
-3. Copy the secret that is printed. It is printed once and cannot be shown again. Deliver it to its owner through a channel you trust, not through the same ticket that names the person.
+3. Copy the secret that is printed (or the `--out` file). It is shown once and cannot be shown again. Deliver it to its owner through a channel you trust, not through the same ticket that names the person. To give an AI or IT helper a short-lived token and revoke it after, follow the [helper token guide](https://github.com/scottconverse/civiccast/blob/main/docs/ops/staff-token-for-helpers.md).
 4. Check it works. In PowerShell, on the station:
 
 ```powershell
@@ -82,7 +81,7 @@ You should see the operator's name and roles.
 
 - `& $cc token list` shows token metadata (never secrets). Add `--json` for scripts.
 - `& $cc token revoke <token_id> --reason "left the clerk's office"` makes the token fail from then on. `--reason` defaults to `operator-requested` and is saved in the audit record. `<token_id>` is the public id shown by `token list`.
-- `& $cc token rotate <token_id>` revokes that token and issues a replacement for the same operator with the same scopes. It prints the new secret once. `--save-keyring` saves it to the credential store.
+- `& $cc token rotate <token_id>` revokes that token and issues a replacement for the same operator with the same scopes. It prints the new secret once, or writes it to a new `--out` file. `--save-keyring` saves it to the credential store.
 
 The database records audit events for `issued`, `used`, `revoked` and `rotated`.
 
@@ -233,7 +232,7 @@ Do not publish `/api/public/contribute*` while the upload limitations below appl
 | Playout health telemetry | Not trimmed automatically; trim with `civiccast egress trim-health --older-than-days N` | CLI |
 | Staff token audit events, alert history, as-run records | No deletion setting found | not found |
 
-Live captions are off by default, and `CIVICCAST_CAPTION_TAP=off` forces them off. The native runtime separates transient live caption work from recorded-caption review. It does not make the live worker or broadcast readiness depend on archive-wide review/evidence retention discovery. No live review/evidence archive is created by ordinary live captioning; this does not change recorded captions or original recordings.
+Live captions are on by default, and `CIVICCAST_CAPTION_TAP=off` forces them off. The native runtime separates transient live caption work from recorded-caption review. It does not make the live worker or broadcast readiness depend on archive-wide review/evidence retention discovery. No live review/evidence archive is created by ordinary live captioning; this does not change recorded captions or original recordings.
 
 > **Historical finding (published Beta 10):** Audit findings B-003, B-004, B-005 and B-009 recorded unbounded live-caption evidence growth. The current native live path does not run that archive sweep, writes no per-cue evidence, deletes processed chunks and bounds the queued audio and rolling caption history. These source behaviors do not replace package-specific verification; see the release record matching the installed package.
 
@@ -289,7 +288,7 @@ The entries below summarize the whole-repository audit dated 2026-10-02 (`audit-
 
 ## Package status and verification
 
-This chapter describes the published Beta 20 edition. Use the [Beta 20 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.20-verification.md) for package checks; the [Beta 18 record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.18-verification.md) remains historical. A historical Beta 15 field report found the installed `CivicCast Native.exe` unsigned while the outer setup was signed; this does not establish the status of another package. See the [deferred field follow-up](https://github.com/scottconverse/civiccast/blob/main/docs/ops/beta17-deferred.md).
+This chapter describes the published v1.0.0-rc.6 edition. Use the [RC6 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-rc.6-verification.md) for package checks; the [Beta 20 record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.20-verification.md) and [Beta 18 record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.18-verification.md) remain historical. A historical Beta 15 field report found the installed `CivicCast Native.exe` unsigned while the outer setup was signed; this does not establish the status of another package. See the [deferred field follow-up](https://github.com/scottconverse/civiccast/blob/main/docs/ops/beta17-deferred.md).
 
 ### Report a security problem
 
@@ -299,7 +298,8 @@ Report a suspected vulnerability privately, as `SECURITY.md` in the repository d
 
 | What you see | Cause | What to do |
 | --- | --- | --- |
-| `No DATABASE_URL configured` or a database connection error from `civiccast token ...` | `DATABASE_URL` not set in this window | Set it as shown in "Before you start". |
+| `Cannot read the station database address. Open PowerShell with Run as administrator` from `civiccast token ...` | The window is not elevated | Open PowerShell with **Run as administrator**. |
+| `The CivicCast database did not answer` from `civiccast token ...` | The database service is stopped | Start the CivicCast services and retry. |
 | `Staff identity is required for this action.` (401) | No `Authorization: Bearer` header | Send the header. |
 | `This action requires one of these CivicCast roles: ...` (403) | The token lacks the role | Issue a token with the role. |
 | `Too many failed attempts to authenticate with the staff API. Wait N seconds, then try again.` (429) | 10 bad tokens in 60 seconds from one address | Wait. Check the token. |

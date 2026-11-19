@@ -1,6 +1,6 @@
 # Final package preparation checkpoint
 
-Package producer: `31298ce8492826d9987aff55ebe3658f8ff54559`, version `1.0.0-beta.11`, hosted run [37671057029](https://github.com/scottconverse/civiccast-native/actions/runs/37671057029), conclusion success. Tests/documentation-only follow-up does not change this artifact provenance or assert that a different source produced these bytes.
+Package producer: `31298ce8492826d9987aff55ebe3658f8ff54559`, version `1.0.0-beta.11`, hosted run 37671057029, conclusion success. Tests/documentation-only follow-up does not change this artifact provenance or assert that a different source produced these bytes.
 
 Local kit: `C:\Dev\Claude\civiccast-beta11-whistle\outputs\beta11-candidate-31298ce8\kit`. Full inventory/hash report: `C:\Dev\Claude\civiccast-beta11-whistle\outputs\beta11-candidate-31298ce8\kit-verification.md`. The kit contains 19 files totaling 26,913,523,987 bytes. Installer Authenticode is Valid, signer Scott Converse, version beta.11, SHA-256 `20afb093b5b7206be7589a400f185360a21b93425d2a9d94d92ede2372821db1`.
 

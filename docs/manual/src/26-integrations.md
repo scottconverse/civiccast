@@ -126,7 +126,7 @@ The shipped GStreamer runtime has no HLS writer. So for an output of kind `hls`,
 
 What residents see is decided by `GET /api/public/live/current`. Its `state` is one of `offline`, `on_air`, `on_air_no_web_output` or `standing_by`, and the `reason` can be "no HLS output configured", "HLS output configured but not serving yet" or "fallback slate, no program on air". `/api/public/channels/<channel>/live.m3u8` redirects to the live playlist, and `/api/public/channels/<channel>/captions.vtt` serves the current live captions.
 
-> **Note:** Live captions are off by default in a new station profile and can have gaps under load. See [the captions section of the troubleshooting matrix](#ch-troubleshooting).
+> **Note:** Live captions are on by default in a new station profile and can have gaps under load. See [the captions section of the troubleshooting matrix](#ch-troubleshooting).
 
 ## CDN and provider options
 
@@ -288,7 +288,7 @@ The **Alerts** screen can hold destinations of three kinds: email, text message 
 
 `POST /api/webhooks/stripe` accepts a payment provider's notification. It requires a `Stripe-Signature` header, rejects a body over 1 MiB, and answers 401 for a bad signature. It is not reachable from the internet unless you build a path to it.
 
-> **Beta 19 status:** A configured mail provider sends sign-in links and reports delivery failures. The public portal still asks for paywall tiers and a checkout, but the server has no routes for them (the API list shows only `access`, `magic-link` and `verify`), and public VOD media is not grant-protected. See [Publishing](#ch-publishing).
+> **Current limitation:** A configured mail provider sends sign-in links and reports delivery failures. The public portal still asks for paywall tiers and a checkout, but the server has no routes for them (the API list shows only `access`, `magic-link` and `verify`), and public VOD media is not grant-protected. See [Publishing](#ch-publishing).
 
 ## Station import from Cablecast {#station-import-cablecast}
 
@@ -331,7 +331,7 @@ environment procedure in [Running it day to day](#ch-operations). Never put the
 token itself in this JSON. File changes take effect on the next request;
 service-environment changes require a planned service restart. For catalog-only
 sharing, omit `staff_origin`, `token_env` and `channel_ids`. This source feature
-is not included in the published Beta 19 package.
+was not included in Beta 19; it shipped in Beta 20.
 
 ## External agenda import
 
@@ -359,15 +359,14 @@ None is declared stable. We searched the code and the repository's documents for
 
 ### Get a staff token
 
-For scripts, issue an access key with the command line. (The console sign-in keeps its own token inside the browser; the console has no screen for entering a script's key.) You need an Administrator PowerShell on the station computer and the database address.
+For scripts, issue an access key with the command line. (The console sign-in keeps its own token inside the browser; the console has no screen for entering a script's key.) You need an Administrator PowerShell on the station computer.
 
 ```powershell
 cd "<install folder>"
-$env:DATABASE_URL = (Get-ItemProperty 'HKLM:\SOFTWARE\CivicCast\Native').DatabaseUrl
 .\runtime\python.exe -m civiccast.cli token issue --operator-id integrations --display-name "Integrations script" --scopes operator --json
 ```
 
-`<install folder>` is where setup put CivicCast. The command prints the secret **once**; copy it into a password manager at once. The command needs `DATABASE_URL`; without it the message is "DATABASE_URL must point at the CivicCast database before running staff token lifecycle commands." The value is held in the registry where SYSTEM, Administrators and the station service identity can read it. Close the window afterwards so the variable is gone.
+`<install folder>` is where setup put CivicCast. The command prints the secret **once**; copy it into a password manager at once. Add `--out <file>` to write the secret to a new administrator-only file instead. The command reads the database address from the registry value `HKLM\SOFTWARE\CivicCast\Native\DatabaseUrl`, which only SYSTEM, Administrators and the station service identity can read, and never shows it. In a window that is not elevated it stops with "Open PowerShell with Run as administrator". See the [helper token guide](https://github.com/scottconverse/civiccast/blob/main/docs/ops/staff-token-for-helpers.md) to give an AI or IT helper a token and revoke it.
 
 The scopes `operator` and `admin` each grant all five roles (Setup admin, Meeting operator, Records clerk, Publish operator and Support admin); a token with no scopes grants none. To give a script only what it needs, name the roles instead, comma-separated: `setup_admin`, `meeting_operator`, `records_clerk`, `publish_operator`, `support_admin` (the code also accepts the hyphenated and short forms such as `meeting-operator` and `meeting`). See [Security and privacy](#ch-security). Other token commands are `token list`, `token revoke` and `token rotate`.
 
@@ -462,7 +461,7 @@ Other things worth reading with a token: `GET /api/staff/runtime-safe-to-air`, `
 
 ## Package status and verification
 
-This chapter describes the published Beta 20 edition. Use the [Beta 20 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.20-verification.md) for that package's scoped checks; the [Beta 18 record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.18-verification.md) remains historical. Commission each external service and headend for the station's actual configuration.
+This chapter describes the published v1.0.0-rc.6 edition. Use the [RC6 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-rc.6-verification.md) for that package's scoped checks; the [Beta 20 record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.20-verification.md) and [Beta 18 record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.18-verification.md) remain historical. Commission each external service and headend for the station's actual configuration.
 
 ## Related
 

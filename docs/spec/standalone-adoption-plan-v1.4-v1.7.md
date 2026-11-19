@@ -1,6 +1,6 @@
 # CivicCast Standalone Adoption Plan, v1.4-v1.7
 
-Status: SUPERSEDED -- historical plan from the pre-reset v1.4-v1.7 numbering. The current release line is v1.0.0-rc18 (see docs/releases/v1.0.0-rc18-verification.md).
+Status: SUPERSEDED -- historical plan from the pre-reset v1.4-v1.7 numbering. The current release is v1.0.0-rc.6 (see docs/releases/v1.0.0-rc.6-verification.md); v1.0.0-rc18 belongs to the retired WSL2 line.
 Created: 2026-05-30
 Baseline at the time: v1.3.1 private beta Windows installer proof (historical).
 Target: v1.7 announcement and early adoption readiness

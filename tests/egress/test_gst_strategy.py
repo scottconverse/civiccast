@@ -972,14 +972,14 @@ def test_strategy_builds_no_caption_embed_leg_when_live_captions_are_off(
     assert graph.audio_tap is None
 
 
-def test_strategy_builds_no_caption_embed_leg_on_a_fresh_station_by_default(
+def test_strategy_builds_the_caption_embed_leg_on_a_fresh_station_by_default(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A fresh station (no ``live_captions_enabled`` key persisted at all)
-    resolves to the beta.5 default -- OFF -- so the embed leg is not built
-    even with the deployment opt-in on. No stub on the resolver here: this
-    goes through the real ``resolve_live_captions_enabled`` against an
-    empty station-state path."""
+    resolves to the shipped default -- ON (owner decision 2026-11-15) -- so
+    with the deployment opt-in on, the embed leg and the audio tap are both
+    built. No stub on the resolver here: this goes through the real
+    ``resolve_live_captions_enabled`` against an empty station-state path."""
 
     monkeypatch.setenv("CIVICCAST_STATION_STATE_PATH", str(tmp_path / "station-state.json"))
     monkeypatch.delenv("CIVICCAST_CAPTION_TAP", raising=False)
@@ -996,10 +996,10 @@ def test_strategy_builds_no_caption_embed_leg_on_a_fresh_station_by_default(
     result = strategy.start(_start_request(tmp_path))
 
     graph_text = result.concat_plan_path.read_text(encoding="utf-8")
-    assert "cccombiner" not in graph_text
+    assert "cccombiner" in graph_text
     graph = graph_from_json(graph_text)
-    assert graph.captions is None
-    assert graph.audio_tap is None
+    assert graph.captions is not None
+    assert graph.audio_tap is not None
 
 
 def test_strategy_builds_the_live_caption_audio_tap_into_the_gstreamer_graph(
@@ -1073,7 +1073,7 @@ def test_strategy_start_survives_a_corrupt_station_state_file(
     accessibility feature. ``resolve_live_captions_enabled_or_default``
     (``civiccast.installer.station_state``, shared with the safe-to-air
     banner and the caption workers) must catch this, log once, and fall back
-    to the shipped default (``LIVE_CAPTIONS_DEFAULT``, off for beta.5)."""
+    to the shipped default (``LIVE_CAPTIONS_DEFAULT``, on after rc.6)."""
 
     station_state_module._live_captions_read_failure_announced = False
     state_path = tmp_path / "station-state.json"
@@ -1137,11 +1137,11 @@ def test_strategy_start_survives_a_locked_station_state_file(
         result = strategy.start(_start_request(tmp_path))  # must not raise
 
     assert "could not read the live-captions station-profile switch" in caplog.text
-    # Falls back to the shipped default (off for beta.5): the tap dir WAS
-    # configured, but the graph carries no tap leg -- exactly as if the read
+    # Falls back to the shipped default (on after rc.6): the tap dir WAS
+    # configured, so the graph carries the tap leg -- exactly as if the read
     # had succeeded and returned the default. start() did not raise.
     graph = graph_from_json(result.concat_plan_path.read_text(encoding="utf-8"))
-    assert graph.audio_tap is None
+    assert graph.audio_tap is not None
 
 
 def test_strategy_builds_the_audio_tap_when_live_captions_stay_enabled(

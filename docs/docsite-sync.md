@@ -18,7 +18,10 @@ Candidate PDF/DOCX renders are staged under
 
 ## The pipeline
 
-1. `docs/USER-MANUAL.md` is the single source of truth (per `CLAUDE.md`).
+1. The chapter files under `docs/manual/src/` are the authored source.
+   `ops/docs-sprint/tools/build_manual.py` assembles them into
+   `docs/USER-MANUAL.md`, and that rendered file is what every step below
+   reads (per `CLAUDE.md`).
 2. `scripts/render_docsite_manual.py` renders it to HTML with the same
    `pandoc` binary `scripts/render_user_manual.py` already requires for the
    PDF/DOCX artifacts (one rendering engine, not two), then:

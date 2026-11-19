@@ -19,7 +19,7 @@ Start by reading the docs, then install from the release assets:
 - Tester packet: `docs/tester/START-HERE.md`
 - Windows install guide: `INSTALL-WINDOWS.md`
 - Trust and verification: `docs/install/windows-release-trust.md`
-- RC evidence boundary: `docs/releases/v0.2.0-verification.md`
+- RC evidence boundary: the surviving 0.2.0 records, `docs/releases/0.2.0-direct-delivery-ceiling.md` and `docs/releases/0.2.0-switch-validation.md`
 - Release tag: `https://github.com/scottconverse/civiccast-wsl-legacy/releases/tag/v0.2.0`
 
 The clean-machine proof should confirm the published manifest and setup sidecar,

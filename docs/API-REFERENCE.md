@@ -34,7 +34,7 @@ curl -X POST http://127.0.0.1:8000/api/setup/first-admin \
 Automation and technical support can still create staff tokens from the deployment host after Postgres is configured and migrations have run:
 
 ```bash
-uv run civiccast token issue --operator-id clerk-1 --display-name "Clerk One" --scopes staff --json
+uv run civiccast token issue --operator-id clerk-1 --display-name "Clerk One" --scopes operator --json
 ```
 
 Store the printed bearer secret in the OS keyring or your secret manager. It is shown once. Do not paste it into issues, screenshots, chat, or release evidence.
@@ -52,7 +52,7 @@ A missing, invalid, or revoked token returns `401`. A token that exists only in 
 
 ### 3. Read Operator Setup And Readiness
 
-v1.3 implements the first-admin setup handoff, recovery-kit response, local admin sign-in/recovery, System Health report, safe-to-broadcast signal, resident preview target, and private rehearsal endpoint. Use these when building installer, support, or admin integrations:
+This release implements the first-admin setup handoff, recovery-kit response, local admin sign-in/recovery, System Health report, safe-to-broadcast signal, resident preview target, and private rehearsal endpoint. Use these when building installer, support, or admin integrations:
 
 ```bash
 curl http://127.0.0.1:8000/api/setup/station-state
@@ -2745,6 +2745,15 @@ Read egress channel config, state, and latest health.
 - Request body: none
 - Responses: 200 `StaffEgressChannelDetail`; 401 Missing, invalid, revoked, or misconfigured CivicCast staff bearer token.; 404 Egress config not found; 429 The observed peer exceeded the failed staff authentication budget. Wait for Retry-After before another invalid attempt; valid staff tokens remain accepted.; 503 Durable storage not ready -- run Setup storage or set DATABASE_URL
 
+### `POST /api/staff/egress/channels/{channel_id}/apply-captions`
+
+Apply the live-caption switch to this channel now (restarts its playout).
+
+- Access: staff bearer token required; keep loopback or reverse-proxy network protection enabled
+- Parameters: `channel_id` (path, required): `string`
+- Request body: none
+- Responses: 202 `EgressCommandResponse`; 401 Missing, invalid, revoked, or misconfigured CivicCast staff bearer token.; 409 The channel is not configured and enabled, or it is not on air or on its fallback slate; the switch applies at its next start; 429 The observed peer exceeded the failed staff authentication budget. Wait for Retry-After before another invalid attempt; valid staff tokens remain accepted.; 503 Durable storage not ready -- run Setup storage or set DATABASE_URL
+
 ### `GET /api/staff/egress/channels/{channel_id}/caption-proofs`
 
 Recent CEA-608/708 caption decode-back proof samples (S11a).
@@ -4331,7 +4340,7 @@ Get publish-dashboard status for one asset.
 
 ### `POST /api/staff/publish/assets/{asset_id}/approve`
 
-Approve and run the v0.7 three-tier publish workflow.
+Approve and run the three-tier publish workflow.
 
 - Access: staff bearer token required; keep loopback or reverse-proxy network protection enabled
 - Parameters: `asset_id` (path, required): `string`
@@ -4340,7 +4349,7 @@ Approve and run the v0.7 three-tier publish workflow.
 
 ### `GET /api/staff/publish/assets/{asset_id}/preflight`
 
-Check v0.7 publish readiness before operator approval.
+Check publish readiness before operator approval.
 
 - Access: staff bearer token required; keep loopback or reverse-proxy network protection enabled
 - Parameters: `asset_id` (path, required): `string`
@@ -4349,7 +4358,7 @@ Check v0.7 publish readiness before operator approval.
 
 ### `POST /api/staff/publish/assets/{asset_id}/surfaces/{surface_id}/retry`
 
-Retry one v0.7 publish surface.
+Retry one publish surface.
 
 - Access: staff bearer token required; keep loopback or reverse-proxy network protection enabled
 - Parameters: `asset_id` (path, required): `string`; `surface_id` (path, required): `string`
@@ -4633,7 +4642,7 @@ Edit the mutable station identity profile fields (including the live-caption swi
 - Access: staff bearer token required; keep loopback or reverse-proxy network protection enabled
 - Parameters: none
 - Request body: `StationProfileUpdateRequest`
-- Responses: 200 `StationProfile`; 401 Missing, invalid, revoked, or misconfigured CivicCast staff bearer token.; 422 `HTTPValidationError`; 429 The observed peer exceeded the failed staff authentication budget. Wait for Retry-After before another invalid attempt; valid staff tokens remain accepted.
+- Responses: 200 `StationProfileUpdateResponse`; 401 Missing, invalid, revoked, or misconfigured CivicCast staff bearer token.; 422 `HTTPValidationError`; 429 The observed peer exceeded the failed staff authentication budget. Wait for Retry-After before another invalid attempt; valid staff tokens remain accepted.
 
 ### `GET /api/staff/station/timezone`
 
@@ -6207,6 +6216,8 @@ Read CivicCast local federation metadata.
 - `live_captions` (optional): `ChannelCaptionProcessingStatus | null`
 - `on_air` (required): `boolean`
 - `on_healthy_slate` (required): `boolean`
+- `recent_restarts` (optional): `number`
+- `restart_loop` (optional): `boolean`
 - `seconds_in_state` (optional): `number`
 - `sink_health` (optional): `Record<string, boolean>`
 
@@ -9788,7 +9799,7 @@ rule (S13 §5.1).
 - `default_channel_id` (optional): `string`
 - `default_roles` (optional): `Array<string>`
 - `initial_schedule_enabled` (optional): `boolean`
-- `live_captions_enabled` (optional): `boolean` -- Operator switch for LIVE captions: the real-time ASR tap on the broadcast audio of every ON_AIR channel AND the CEA-708 caption embed leg on the video path. OFF by default in beta.5 (temporary): with the embed leg built, the 2026-09-09 sandbox soak measured a recurring 25-30 s video hold followed by a burst of frames every 1-2 minutes on every channel, and twice the 10 s stall watchdog restarted a channel. Turn it ON from the operator console (Setup > Station Profile > Show live captions on air) on a station that can keep up. Turning it off does NOT affect captions on published recordings (the offline caption job), which is the legal requirement; this is the live one.
+- `live_captions_enabled` (optional): `boolean` -- Operator switch for LIVE captions: the real-time ASR tap on the broadcast audio of every ON_AIR channel AND the CEA-708 caption embed leg on the video path. ON by default from rc.6.1; it was off by default before that, because with the embed leg built, the 2026-09-09 sandbox soak measured a recurring 25-30 s video hold followed by a burst of frames every 1-2 minutes on every channel, and twice the 10 s stall watchdog restarted a channel. Switch it from the operator console (Setup > Station Profile > Show live captions on air). Turning it off does NOT affect captions on published recordings (the offline caption job); this switch controls live captions only.
 - `operation_mode` (optional): `'test' | 'on_air'`
 - `public_base_url` (optional): `string | null`
 - `recovery_kit_generated_at` (required): `string`
@@ -9807,6 +9818,29 @@ rule (S13 §5.1).
 - `station_name` (optional): `string | null`
 - `station_timezone` (optional): `string | null`
 - `storage_locations` (optional): `StationStorageLocations | null`
+
+### `StationProfileUpdateResponse`
+
+- `admin_display_name` (required): `string`
+- `admin_username` (required): `string`
+- `channel_count` (optional): `number`
+- `channel_profiles` (optional): `Array<StationChannelProfile>`
+- `dashboard_ready_state` (optional): `'ready' | 'not_ready'`
+- `default_channel_id` (optional): `string`
+- `default_roles` (optional): `Array<string>`
+- `initial_schedule_enabled` (optional): `boolean`
+- `live_captions_enabled` (optional): `boolean` -- Operator switch for LIVE captions: the real-time ASR tap on the broadcast audio of every ON_AIR channel AND the CEA-708 caption embed leg on the video path. ON by default from rc.6.1; it was off by default before that, because with the embed leg built, the 2026-09-09 sandbox soak measured a recurring 25-30 s video hold followed by a burst of frames every 1-2 minutes on every channel, and twice the 10 s stall watchdog restarted a channel. Switch it from the operator console (Setup > Station Profile > Show live captions on air). Turning it off does NOT affect captions on published recordings (the offline caption job); this switch controls live captions only.
+- `live_captions_notice` (optional): `string | null`
+- `live_captions_restart_required` (optional): `boolean`
+- `operation_mode` (optional): `'test' | 'on_air'`
+- `public_base_url` (optional): `string | null`
+- `recovery_kit_generated_at` (required): `string`
+- `recovery_kit_id` (required): `string`
+- `runtime_paths` (optional): `StationRuntimePaths | null`
+- `sample_content_enabled` (optional): `boolean`
+- `station_name` (required): `string`
+- `station_timezone` (optional): `string`
+- `storage_locations` (required): `StationStorageLocations`
 
 ### `StationRecoveryRequest`
 

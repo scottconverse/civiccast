@@ -18,7 +18,10 @@ Before taking actions, read these files end to end in this order:
   Only Scott may authorize merge, tag, release signing, publication, shipment, gate bypass, force-push, or branch-protection changes.
 - Scope changes may proceed only as bounded, validated packages; no silent scope trimming.
 - Captions are legally required and cannot be downgraded.
-- Accepted caption contract is exact: `faster-whisper` large-v3 with model
+- **Superseded for the shipped station:** the later adaptive-tier decision and the Whistle
+  live-caption primary replace this fixed contract (see
+  `docs/design/spec-native-beta-recovery.md` and `docs/design/plan-sub-300mb-bootstrap.md`).
+- Accepted caption contract at the time is exact: `faster-whisper` large-v3 with model
   revision `edaa852ec7e145841d8ffdb056a99866b5f0a478`, `faster-whisper==1.2.1`,
   `ctranslate2==4.8.1`, `cuda`, `int8_float16`, local-only loading.
 - Do not substitute smaller/quantized runtime to satisfy size or speed gates.

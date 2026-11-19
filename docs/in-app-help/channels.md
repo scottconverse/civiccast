@@ -1,4 +1,4 @@
-## RC2 operator guidance — October 30, 2026
+## Operator guidance — RC2 snapshot, October 30, 2026 (historical)
 
 Use **Channel startup and repeat** to save automatic startup and **Repeat the published sequence** independently. Repeat marks the last contiguous published group in **Published playout plan**. A pending status is not Stopped. Preparation and handoff readiness are distinct from observed output.
 

@@ -1256,6 +1256,8 @@ export interface ChannelRuntimeStatus {
   captions_expected?: boolean
   captions_verified?: boolean
   live_captions?: ChannelCaptionProcessingStatus | null
+  recent_restarts?: number
+  restart_loop?: boolean
   color: 'green' | 'yellow' | 'red'
 }
 
@@ -4849,6 +4851,29 @@ export interface StationProfileUpdateRequest {
   default_channel_id?: string | null
   storage_locations?: StationStorageLocations | null
   live_captions_enabled?: boolean | null
+}
+
+export interface StationProfileUpdateResponse {
+  station_name: string
+  admin_display_name: string
+  admin_username: string
+  default_channel_id?: string
+  public_base_url?: string | null
+  station_timezone?: string
+  storage_locations: StationStorageLocations
+  runtime_paths?: StationRuntimePaths | null
+  channel_count?: number
+  channel_profiles?: Array<StationChannelProfile>
+  sample_content_enabled?: boolean
+  initial_schedule_enabled?: boolean
+  live_captions_enabled?: boolean
+  default_roles?: Array<string>
+  operation_mode?: 'test' | 'on_air'
+  dashboard_ready_state?: 'ready' | 'not_ready'
+  recovery_kit_id: string
+  recovery_kit_generated_at: string
+  live_captions_restart_required?: boolean
+  live_captions_notice?: string | null
 }
 
 export interface StationRecoveryRequest {

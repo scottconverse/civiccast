@@ -302,4 +302,4 @@ Sources that provide only PDFs, recording links, or notice metadata may be
 listed without structured items. Use CivicCast's document workflow for a
 published agenda PDF. Existing CivicCast source adapters remain selectable.
 
-The shared reader is included in the [published Townlight Windows1.8.1.1](https://github.com/townlight/townlight/releases/tag/townlight-windows-v1.8.1.1). Consult the [complete31-source format matrix and interface guide](https://townlight.github.io/manuals/meeting-imports.html) before selecting a connector. Installed Townlight acceptance and CivicCast source/client checks are separate evidence tiers.
+The shared reader is included in the [published Townlight Windows 1.8.1.1](https://github.com/townlight/townlight/releases/tag/townlight-windows-v1.8.1.1). Consult the [complete 31-source format matrix and interface guide](https://townlight.github.io/manuals/meeting-imports.html) before selecting a connector. Installed Townlight acceptance and CivicCast source/client checks are separate evidence tiers.

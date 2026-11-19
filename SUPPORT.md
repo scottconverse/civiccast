@@ -60,7 +60,7 @@ enabled throwaway development.
 ## Native Windows Beta
 
 The native Windows runtime ([ADR 0021](docs/adr/0021-native-windows-runtime.md))
-is a public beta. The current published package is `v1.0.0-rc.6`, available
+is a public pre-release. The current published package is `v1.0.0-rc.6`, available
 from its [GitHub Release](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-rc.6).
 Its [release notes](docs/releases/v1.0.0-rc.6-release-notes.md)
 identify the signed installer, verification and known issues.
@@ -76,7 +76,7 @@ If you are working on, evaluating, or running the native line:
   [BRANCHES.md](BRANCHES.md) first.
 - When reporting a source issue, include the branch or commit being used. The
   station-operation, unattended-scheduling, broadcast-output, and recorded-
-  caption updates ship in Beta 16; Beta 15 remains a separate historical package.
+  caption updates ship in the current release; Beta 16 and Beta 15 remain separate historical packages.
 - Use a regular [GitHub Issue](https://github.com/scottconverse/civiccast/issues)
   for questions (GitHub Discussions is not enabled on this repository), and say explicitly in the report
   that it concerns the native line and which release tag or source commit you're on -- the templates don't yet

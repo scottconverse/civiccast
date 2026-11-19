@@ -48,16 +48,18 @@ CivicCast will not approve a publish it cannot queue a caption job for. If
 approval fails with a message about the caption job, nothing was published —
 fix what the message names and approve again.
 
-### English and Spanish are two passes
+### English and each selected translation are separate passes
 
-A published recording carries **both** an English and a Spanish caption
-track. The review queue shows an **EN** or **ES** badge on every row and has
-a language filter above the list, because the two are reviewed separately:
+A published recording carries an English caption track plus one track for each
+selected translation language (Spanish, Chinese (Simplified), Tagalog /
+Filipino, Vietnamese or Arabic). The review queue shows the language code on
+every row and has a language filter above the list, because each track is
+reviewed separately:
 
-1. **English first.** Approve or edit the English cues as above. Nothing is
+1. **English first.** Approve or edit the English cues as above. No captions are
    published yet.
-2. **Spanish next.** Once English is fully decided, CivicCast translates the
-   cues you approved and files the Spanish text as its own set of rows, with
+2. **Translations next.** Once English is fully decided, CivicCast translates
+   the cues you approved and files each translated language as its own set of rows, with
    the same approve / edit / reject choices. The Spanish text is machine
    output too, so it gets a real review — not a rubber stamp.
 

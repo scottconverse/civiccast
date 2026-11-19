@@ -1,6 +1,6 @@
 # CivicCast v1.7 Early Adoption Candidate Plan
 
-Status: SUPERSEDED — historical plan from the pre-reset "v1.7" numbering. The current release line is v1.0.0-rc1 (see docs/releases/v1.0.0-rc1-verification.md).
+Status: SUPERSEDED — historical plan from the pre-reset "v1.7" numbering. The current release is v1.0.0-rc.6 (see docs/releases/v1.0.0-rc.6-verification.md).
 Created: 2026-05-31
 Baseline: v1.6.0 channel and CTV beta
 

@@ -30,6 +30,7 @@ Only a closed allowlist of analytics properties is retained:
 - `duration_seconds`
 - `platform`
 - `podcast_download`
+- `position_seconds`
 - `region`
 - `state`
 - `subscription_action`

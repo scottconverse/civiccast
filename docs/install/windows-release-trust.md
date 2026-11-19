@@ -17,8 +17,9 @@ known issues. Earlier installation results remain
 in their own verification records.
 [release-truth.yaml](../releases/release-truth.yaml)
 is the authored release-state record. Watch the official native release page,
-not `scottconverse/civiccast-wsl-legacy` (the retired, separate WSL2-line repository) and
-not any `v1.0.0-rcNN` tag, which belongs to that other repository.
+not `scottconverse/civiccast-wsl-legacy` (the retired, separate WSL2-line repository).
+The retired line's tags are the `v1.0.0-rc11` through `v1.0.0-rc18` style; this
+repository publishes the native line's `v1.0.0-rc.1` through `v1.0.0-rc.6` tags.
 
 This repository was renamed from `scottconverse/civiccast-native` to
 `scottconverse/civiccast` on 2026-11-08; the old address redirects to it.
@@ -83,22 +84,22 @@ report `Valid` and the approved publisher; a local `NotSigned` engineering build
 is suitable only for an explicitly authorized local acceptance run and must not
 be distributed as a public beta.
 
-## Download The Complete Beta 20 Kit
+## Download The Complete RC6 Kit
 
 Use the helper asset from the exact tagged release. Download the helper and
 `SHA256SUMS.txt`, then verify the helper's own hash before executing it:
 
 ```powershell
-$tag = "v1.0.0-beta.20"
+$tag = "v1.0.0-rc.6"
 $base = "https://github.com/scottconverse/civiccast/releases/download/$tag"
-$helper = Join-Path $env:TEMP "CivicCast-Install-Beta20.ps1"
-$sums = Join-Path $env:TEMP "CivicCast-Beta20-SHA256SUMS.txt"
+$helper = Join-Path $env:TEMP "CivicCast-Install-RC6.ps1"
+$sums = Join-Path $env:TEMP "CivicCast-RC6-SHA256SUMS.txt"
 Invoke-WebRequest -UseBasicParsing "$base/download_windows_release_artifacts.ps1" -OutFile $helper
 Invoke-WebRequest -UseBasicParsing "$base/SHA256SUMS.txt" -OutFile $sums
 $expected = ((Get-Content $sums) | Where-Object { $_ -match '\s+download_windows_release_artifacts\.ps1$' } | Select-Object -First 1) -replace '^([0-9a-fA-F]{64})\s+.*$', '$1'
 $actual = (Get-FileHash $helper -Algorithm SHA256).Hash
 if ($actual -ne $expected) { throw "Downloader hash does not match the release checksum list." }
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File $helper -Tag $tag -Version $tag.TrimStart('v') -Install -Destination (Join-Path $env:USERPROFILE "Downloads\CivicCast-Beta20")
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File $helper -Tag $tag -Version $tag.TrimStart('v') -Install -Destination (Join-Path $env:USERPROFILE "Downloads\CivicCast-RC6")
 ```
 
 With `-Install`, the helper downloads and checks all five runtime packs,

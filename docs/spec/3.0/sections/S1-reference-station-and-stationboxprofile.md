@@ -294,8 +294,8 @@ S1 (the profile is computed, not configured).
 
 | Method | Path | Roles | Purpose |
 |---|---|---|---|
-| GET | `/api/station-box-profile` | `setup_admin`, `meeting_operator`, `support_admin` | Full `StationBoxProfile` JSON. |
-| GET | `/api/station-box-profile/readiness` | `setup_admin`, `meeting_operator`, `support_admin` | `PegReadinessRollup` only — the cheap roll-up for the console badge and for S8 alerting to poll. |
+| GET | `/api/staff/station-box-profile` | `setup_admin`, `meeting_operator`, `support_admin` | Full `StationBoxProfile` JSON. |
+| GET | `/api/staff/station-box-profile/readiness` | `setup_admin`, `meeting_operator`, `support_admin` | `PegReadinessRollup` only — the cheap roll-up for the console badge and for S8 alerting to poll. |
 | GET | `/api/hardware` | (existing) | Unchanged; still returns the bare `HardwareProbe`. |
 
 **S1 owns the canonical `civiccast doctor` command and the `StationBoxProfile` output surface.**

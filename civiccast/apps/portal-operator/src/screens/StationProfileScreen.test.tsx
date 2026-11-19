@@ -393,6 +393,34 @@ describe('StationProfileScreen', () => {
       )
     })
 
+    it('shows the server notice that the switch applies at each channel next start (rc.6.1 item 3)', async () => {
+      vi.mocked(getStaffIdentity).mockResolvedValue(identity(['setup_admin']))
+      vi.mocked(getStationProfile).mockResolvedValue(profile({ live_captions_enabled: false }))
+      const notice =
+        'Live captions are now on for the station. Each channel changes at its next start. ' +
+        'To change a channel now, use Apply captions now on that channel in Channel Ops.'
+      vi.mocked(updateStationProfile).mockResolvedValue({
+        ...profile({ live_captions_enabled: true }),
+        live_captions_restart_required: true,
+        live_captions_notice: notice,
+      })
+      const { findByLabelText, findByText } = renderScreen()
+
+      fireEvent.click(await findByLabelText(/show live captions on air/i))
+      fireEvent.click(await findByLabelText(/save station profile/i))
+
+      expect(await findByText(notice)).toBeTruthy()
+    })
+
+    it('shows no caption notice when the save reply carries none', async () => {
+      vi.mocked(getStaffIdentity).mockResolvedValue(identity(['setup_admin']))
+      const { findByLabelText, findByText, queryByText } = renderScreen()
+      fireEvent.change(await findByLabelText('Station name'), { target: { value: 'Pinegrove PEG' } })
+      fireEvent.click(await findByText('Save'))
+      expect(await findByText(/station profile saved/i)).toBeTruthy()
+      expect(queryByText(/Apply captions now/)).toBeNull()
+    })
+
     it('shows an operator who turned live captions on as ON', async () => {
       vi.mocked(getStaffIdentity).mockResolvedValue(identity(['setup_admin']))
       vi.mocked(getStationProfile).mockResolvedValue(profile({ live_captions_enabled: true }))

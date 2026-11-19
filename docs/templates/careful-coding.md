@@ -6,7 +6,7 @@
 > autonomous continuation. Perform only the proportional checks explicitly
 > requested for the current work.
 
-> **When moving this file into the project repo, place it at `docs/templates/careful-coding.md`.** This is the per-change layer of the verification described in `CLAUDE.md`'s "Verification that actually gates this repo" section. Time budget: **5–10 minutes per non-trivial commit**. Skipping steps because the change "feels small" is the failure mode this checklist exists to prevent.
+> **When moving this file into the project repo, place it at `docs/templates/careful-coding.md`.** This is the per-change layer of the verification described in the "Verification that actually gates this repo" section of `CONTRIBUTING.md` (see also `CLAUDE.md`'s "Verification and release" section). Time budget: **5–10 minutes per non-trivial commit**. Skipping steps because the change "feels small" is the failure mode this checklist exists to prevent.
 
 ---
 

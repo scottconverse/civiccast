@@ -54,15 +54,26 @@ class LiveWebVttPublisher:
         self.active_path = active_path.expanduser().resolve()
         self.window_seconds = window_seconds
         self.max_cues = max_cues
+        # #342: cues from a publish the replace refused. They are carried into
+        # the next publish (unless that publish names the same cue_id), so a
+        # refused write delays a caption but never drops one.
+        self._unwritten: list[CaptionCue] = []
 
     def reset(self) -> None:
         """Remove stale cues at worker startup while keeping a valid WebVTT file."""
 
+        self._unwritten = []
         self.publish([])
 
     def publish(self, cues: list[CaptionCue]) -> None:
-        """Replace the sidecar with cues inside its configured delivery bounds."""
+        """Replace the sidecar with cues inside its configured delivery bounds.
 
+        If the replace is refused after every retry, the error is raised as
+        before, and these cues are kept for the next publish (#342)."""
+
+        if self._unwritten:
+            named = {cue.cue_id for cue in cues}
+            cues = [*(cue for cue in self._unwritten if cue.cue_id not in named), *cues]
         selected = cues
         if selected and self.window_seconds is not None:
             cutoff = max(cue.end_seconds for cue in selected) - self.window_seconds
@@ -72,7 +83,12 @@ class LiveWebVttPublisher:
             selected = sorted(
                 selected, key=lambda cue: (cue.start_seconds, cue.end_seconds, cue.cue_id)
             )[-self.max_cues :]
-        _atomic_write_text(self.active_path, render_webvtt(selected))
+        try:
+            _atomic_write_text(self.active_path, render_webvtt(selected))
+        except OSError:
+            self._unwritten = list(cues)
+            raise
+        self._unwritten = []
 
 
 def active_caption_sidecar(work_dir: Path, channel_id: str) -> Path:
@@ -180,8 +196,18 @@ def reset_existing_live_sidecars(work_dir: Path) -> None:
 #: permanent ACL/lock problem and it does not remove the external handle; if
 #: every attempt is refused the original error is re-raised so the caller can
 #: record it. A failure must never be swallowed into a silent success.
-_ATOMIC_REPLACE_ATTEMPTS = 3
-_ATOMIC_REPLACE_BACKOFF_SECONDS = 0.075
+#:
+#: #342 (rc.6, 5060 Ti, 2026-11-14 12:04:54): three attempts 75 ms apart
+#: (about 0.15 s in all) still gave up once in about 5 hours, and that caption
+#: update was lost. The station's own readers of ``active.vtt`` (the cable
+#: embed feed and the decode-back proof, ``caption_embed._read_timed_text``)
+#: open it without delete sharing, and Windows refuses a rename onto a file
+#: that is open that way. Those readers retry up to 2 x 50 ms themselves, so
+#: the writer must outlast one full reader retry cycle, not race it. The wait
+#: now grows (25, 50, 100, 200, 400, 800 ms): a quick release still costs
+#: 25 ms, and a held handle gets about 1.6 s before the error is raised.
+_ATOMIC_REPLACE_BACKOFF_SCHEDULE_SECONDS: tuple[float, ...] = (0.025, 0.05, 0.1, 0.2, 0.4, 0.8)
+_ATOMIC_REPLACE_ATTEMPTS = len(_ATOMIC_REPLACE_BACKOFF_SCHEDULE_SECONDS) + 1
 
 
 def _atomic_write_text(destination: Path, content: str) -> None:
@@ -218,8 +244,8 @@ def _atomic_write_text(destination: Path, content: str) -> None:
                 # scanner or indexer). Retry a bounded number of times, then
                 # surface the original failure to the caller.
                 last_error = error
-                if attempt + 1 < _ATOMIC_REPLACE_ATTEMPTS:
-                    time.sleep(_ATOMIC_REPLACE_BACKOFF_SECONDS)
+                if attempt < len(_ATOMIC_REPLACE_BACKOFF_SCHEDULE_SECONDS):
+                    time.sleep(_ATOMIC_REPLACE_BACKOFF_SCHEDULE_SECONDS[attempt])
         assert last_error is not None
         raise last_error
     except Exception:

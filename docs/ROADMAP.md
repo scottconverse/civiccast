@@ -22,7 +22,7 @@ release evidence retains its original identity.
 
 ## Beta 20 release
 
-The [published Beta 20 release](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-beta.20) ships the Sprint 6 source work and the current manual. The [Beta 20 package record](releases/v1.0.0-beta.20-verification.md) records its release identity and scoped checks. Earlier release records remain historical.
+The [published Beta 20 release](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-beta.20) ships the Sprint 6 source work and the manual bundled with that release. The [Beta 20 package record](releases/v1.0.0-beta.20-verification.md) records its release identity and scoped checks. Earlier release records remain historical.
 
 ## Beta 19 release
 

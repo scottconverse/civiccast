@@ -203,7 +203,7 @@ single line through `0072_normalize_recording_file_uris`. The full shape is:
              └→ 0057 → 0058 → 0059 → 0060 → 0061 → … → 0072 → 0073 → 0074 → 0075 → 0076 (HEAD)
 ```
 
-The head pin in `tests/live/test_real_postgres.py` is `0072_normalize_recording_file_uris`. **All S18
+The head pin in `tests/live/test_real_postgres.py` is `0098_channel_repeat_schedule`. **All S18
 capability gaps are closed on disk**; master §10 step-12 flips from `partial` to `built` with this
 ship.)
 

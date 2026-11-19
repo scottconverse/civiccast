@@ -221,7 +221,7 @@ Windows may show a blue **Windows protected your PC** screen. That screen is abo
 
 ### Pre-install checklist
 
-- [ ] I know this is a beta candidate and who in the city has accepted that.
+- [ ] I know this is a release candidate (v1.0.0-rc.6) and who in the city has accepted that.
 - [ ] For a first install, I have prepared the matching kit with `scripts\download_windows_release_artifacts.ps1 -Install`; the helper verifies and assembles runtime and signed station resources before setup runs. The R9 asset set failed activation because required station packs were missing.
 - [ ] I checked the installer's SHA-256 against two sources and its signature shows `Valid` for the expected signer.
 - [ ] The computer is 64-bit Windows, dedicated to CivicCast, and not running the older WSL-based CivicCast.

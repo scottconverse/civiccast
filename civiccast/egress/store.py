@@ -5,11 +5,12 @@
 from __future__ import annotations
 
 import json
+import logging
 import threading
 from collections import OrderedDict
 from collections.abc import Callable, Sequence
 from contextlib import AbstractContextManager
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Literal, Protocol, TypedDict, cast
 
 from sqlalchemy import delete, func, select, update
@@ -36,6 +37,25 @@ from civiccast.egress.models import (
 )
 
 SessionFactory = Callable[[], AbstractContextManager[Session]]
+
+_LOG = logging.getLogger(__name__)
+
+# #343 — health samples are append-only and were never trimmed (621k rows on one
+# station), which made /health slow. Keep the same 30-day window as the manual
+# ``egress trim-health`` default. The store trims on append, at most once per
+# interval, and deletes in bounded batches so one append never stalls a worker
+# tick. A full batch means a backlog: the next append trims again at once.
+HEALTH_RETENTION_DAYS = 30
+HEALTH_TRIM_INTERVAL_SECONDS = 3600
+HEALTH_TRIM_BATCH_SIZE = 5_000
+
+
+def _health_trim_due(last_trim_at: datetime | None, now: datetime) -> bool:
+    if last_trim_at is None:
+        return True
+    elapsed = (now - last_trim_at).total_seconds()
+    return elapsed < 0 or elapsed >= HEALTH_TRIM_INTERVAL_SECONDS
+
 
 # S9 §6.5 — proof-event churn cap. A broken source can write ~900 proof events/hr; left
 # unbounded that eats disk and makes the proof log unreadable. Keep the most recent
@@ -126,6 +146,14 @@ class EgressStore(Protocol):
 
     def trim_health_before(self, cutoff: datetime) -> int: ...
 
+    def count_health_states_since(self, channel_id: str, state: str, since: datetime) -> int:
+        """Count the channel's health samples in ``state`` sampled at or after ``since``.
+
+        The daemon appends one ``STARTING`` sample each time it relaunches a
+        worker, so ``/health`` uses this count to see a restart loop (#327).
+        """
+        ...
+
     def append_proof_event(self, event: EgressProofEvent) -> None: ...
 
     def recent_proof_events(self, channel_id: str, limit: int) -> list[EgressProofEvent]: ...
@@ -154,6 +182,7 @@ class InMemoryEgressStore:
         self._consumed_command_ids_by_channel: dict[str, OrderedDict[str, None]] = {}
         self._states: dict[str, EgressStateRow] = {}
         self._health: list[EgressHealthSample] = []
+        self._health_trimmed_at: datetime | None = None
         self._proof_events: list[EgressProofEvent] = []
         self._caption_proofs: list[EgressCaptionProofSample] = []
 
@@ -237,6 +266,9 @@ class InMemoryEgressStore:
 
     def append_health(self, sample: EgressHealthSample) -> None:
         self._health.append(sample)
+        if _health_trim_due(self._health_trimmed_at, sample.sampled_at):
+            self._health_trimmed_at = sample.sampled_at
+            self.trim_health_before(sample.sampled_at - timedelta(days=HEALTH_RETENTION_DAYS))
 
     def recent_health(self, channel_id: str, limit: int) -> list[EgressHealthSample]:
         if limit <= 0:
@@ -254,6 +286,15 @@ class InMemoryEgressStore:
                 reverse=True,
             )[:limit]
         ]
+
+    def count_health_states_since(self, channel_id: str, state: str, since: datetime) -> int:
+        return sum(
+            1
+            for sample in self._health
+            if sample.channel_id == channel_id
+            and sample.state == state
+            and sample.sampled_at >= since
+        )
 
     def trim_health_before(self, cutoff: datetime) -> int:
         kept = [sample for sample in self._health if sample.sampled_at >= cutoff]
@@ -339,6 +380,7 @@ class PostgresEgressStore:
 
     def __init__(self, session_factory: SessionFactory) -> None:
         self._session_factory = session_factory
+        self._health_trimmed_at: datetime | None = None
 
     def get_config(self, channel_id: str) -> EgressConfig | None:
         with self._session_factory() as session:
@@ -664,6 +706,45 @@ class PostgresEgressStore:
                 )
             )
             session.commit()
+        self._auto_trim_health(sample.sampled_at)
+
+    def _auto_trim_health(self, now: datetime) -> None:
+        """Delete one bounded batch of samples past the retention window (#343).
+
+        A trim failure is logged and never fails the append: losing a health
+        sample is worse than keeping old ones a little longer.
+        """
+
+        if not _health_trim_due(self._health_trimmed_at, now):
+            return
+        cutoff = now - timedelta(days=HEALTH_RETENTION_DAYS)
+        try:
+            deleted = self.trim_health_batch_before(cutoff, HEALTH_TRIM_BATCH_SIZE)
+        except Exception:
+            _LOG.warning("Could not trim old egress health samples", exc_info=True)
+            self._health_trimmed_at = now
+            return
+        # A full batch means more old rows wait; leave the timer unset so the
+        # next append trims the next batch.
+        self._health_trimmed_at = None if deleted >= HEALTH_TRIM_BATCH_SIZE else now
+
+    def trim_health_batch_before(self, cutoff: datetime, batch_size: int) -> int:
+        """Delete at most ``batch_size`` samples older than ``cutoff``."""
+
+        with self._session_factory() as session:
+            oldest = (
+                select(EgressHealthSampleDb.sample_id)
+                .where(EgressHealthSampleDb.sampled_at < cutoff)
+                .order_by(EgressHealthSampleDb.sampled_at.asc())
+                .limit(batch_size)
+                .scalar_subquery()
+            )
+            result = session.execute(
+                delete(EgressHealthSampleDb).where(EgressHealthSampleDb.sample_id.in_(oldest))
+            )
+            session.commit()
+            rowcount = cast(int | None, getattr(result, "rowcount", None))
+            return int(rowcount or 0)
 
     def recent_health(self, channel_id: str, limit: int) -> list[EgressHealthSample]:
         if limit <= 0:
@@ -683,6 +764,19 @@ class PostgresEgressStore:
                 .all()
             )
             return [_health_from_row(row) for row in rows]
+
+    def count_health_states_since(self, channel_id: str, state: str, since: datetime) -> int:
+        with self._session_factory() as session:
+            count = session.execute(
+                select(func.count())
+                .select_from(EgressHealthSampleDb)
+                .where(
+                    EgressHealthSampleDb.channel_id == channel_id,
+                    EgressHealthSampleDb.sampled_at >= since,
+                    EgressHealthSampleDb.state == state,
+                )
+            ).scalar_one()
+            return int(count or 0)
 
     def trim_health_before(self, cutoff: datetime) -> int:
         with self._session_factory() as session:
