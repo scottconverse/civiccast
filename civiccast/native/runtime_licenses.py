@@ -833,7 +833,9 @@ SERVER_PACK_BASENAME_LICENSE: Final[dict[str, str]] = {
     "libzstd.dll": "BSD-3-Clause",
     "libintl-9.dll": "LGPL-2.1-or-later",  # gettext
     "libiconv-2.dll": "LGPL-2.1-or-later",
-    "libwinpthread-1.dll": "LGPL-2.1-or-later",  # winpthreads (MinGW-w64)
+    # PostgreSQL 17.12-1's PE import closure no longer pulls
+    # libwinpthread-1.dll (the MinGW toolchain now links it statically);
+    # verified by a recursive PE import walk of the shipped executables.
     # Supported OpenSSL 3.5.9 source overlay links the MSVC CRT statically.
     "libcrypto-3-x64.dll": "Apache-2.0 AND LicenseRef-Microsoft-VCRedist",
     "libssl-3-x64.dll": "Apache-2.0 AND LicenseRef-Microsoft-VCRedist",

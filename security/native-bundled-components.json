@@ -5,7 +5,7 @@
   "sources": [
     {
       "parent": "postgres",
-      "archive_sha256": "2f868d77832f5cbc62182a0ca57f02df14d33d85ce0d0bbaaeb0de3a7029bd2b",
+      "archive_sha256": "a2cd8a774389347b70be7748ac4a37ef43cb6ee539c5fc3e85ae264b15e4a04c",
       "components": [
         {
           "name": "postgres-openssl",
@@ -55,7 +55,7 @@
         },
         {
           "name": "postgres-lz4",
-          "version": "1.10.0",
+          "version": "1.11.1",
           "cpe": "lz4:lz4",
           "files": [
             "liblz4.dll"

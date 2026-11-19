@@ -50,10 +50,10 @@
     },
     {
       "package": "postgres",
-      "version": "17.11",
+      "version": "17.12",
       "id": "CVE-2017-8806",
-      "reviewed": "2026-10-29",
-      "review_by": "2026-11-29",
+      "reviewed": "2026-11-19",
+      "review_by": "2026-12-19",
       "reason": "Debian postgresql-common shell wrapper vulnerability. The Windows EDB binaries do not contain pg_ctlcluster, pg_createcluster or pg_upgradecluster, and CivicCast ships only the explicitly pinned Windows PE closure.",
       "evidence": [
         "https://www.postgresql.org/support/security/",
@@ -7171,6 +7171,723 @@
         "https://nvd.nist.gov/vuln/detail/CVE-2026-125270",
         "native-windows-runtime-dependencies.lock.json",
         "native-windows-gstreamer-ffmpeg.lock.json"
+      ]
+    },
+    {
+      "package": "cpython",
+      "version": "3.12.16",
+      "id": "CVE-2026-16052",
+      "reviewed": "2026-11-19",
+      "review_by": "2026-12-19",
+      "reason": "http.cookies.Morsel accepts a separator semicolon inside attribute values, which could relax the Domain or SameSite restriction. CivicCast sets exactly two cookies, both through starlette.responses.Response.set_cookie (starlette 1.3.1, which builds http.cookies.SimpleCookie). No caller passes an attacker-controlled attribute value: paywall/router.py:780 uses the literal key civiccast_viewer, no domain, literal path /api/public, literal samesite=strict and a value of base64url(JSON)+'.'+hex HMAC (paywall/service.py:_encode_token, alphabet A-Za-z0-9-_ and '.', no semicolon). schedule/router.py:679 uses a cookie name of sha256(asset_id)[:16] hex, a value of secrets.token_urlsafe(32) (A-Za-z0-9-_), literal samesite=strict, and path /media/staff-source/{asset_id}/ where asset_id passed the ^[a-z0-9][a-z0-9-]{2,63}$ fullmatch before the grant was issued. No other set_cookie, delete_cookie or raw Set-Cookie writer exists in civiccast/. The upstream fix is only in 3.16.0.",
+      "evidence": [
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-16052",
+        "civiccast/paywall/router.py",
+        "civiccast/paywall/service.py",
+        "civiccast/schedule/router.py"
+      ]
+    },
+    {
+      "package": "cpython-libexpat",
+      "version": "2.10.0",
+      "id": "CVE-2026-128241",
+      "reviewed": "2026-11-19",
+      "review_by": "2026-12-19",
+      "reason": "Defect is in the xmlwf command-line tool's -d output mode, which opens the output file with fopen(\"wb\") and follows a planted symlink. CivicCast's CPython build vendors only the lib/ sources of expat (scripts/build_native_python_runtime.py EXPAT_LIB_FILES and vendor_expat copy lib/*.c/.h into Modules/expat); no xmlwf source or executable is built, packed or shipped. No upstream 2.11.0 release exists to move to: the latest libexpat release is R_2_10_0 (2026-11-02), so the pinned 2.10.0 cannot yet be replaced.",
+      "evidence": [
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-128241",
+        "scripts/build_native_python_runtime.py",
+        "https://github.com/libexpat/libexpat/releases"
+      ]
+    },
+    {
+      "package": "gstreamer-libexpat",
+      "version": "2.10.0",
+      "id": "CVE-2026-128241",
+      "reviewed": "2026-11-19",
+      "review_by": "2026-12-19",
+      "reason": "Defect is in the xmlwf command-line tool's -d output mode, which opens the output file with fopen(\"wb\") and follows a planted symlink. The shipped GStreamer closure contains libexpat.dll consumed only by fontconfig-1.dll and has no xmlwf executable. No upstream 2.11.0 release exists to move to: the latest libexpat release is R_2_10_0 (2026-11-02).",
+      "evidence": [
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-128241",
+        "docs/ops/evidence/rc1-native-security/expat-applicability.json",
+        "scripts/build_native_runtime_closure.py",
+        "https://github.com/libexpat/libexpat/releases"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-116303",
+      "reviewed": "2026-11-19",
+      "review_by": "2026-12-19",
+      "reason": "PostgreSQL server-backend defect (Missing authorization in PostgreSQL type conversion allows a database user to invoke a cast function despite lacking EXECUTE privilege on that functio\u2026). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) and its OpenSSL; it contains no server backend code. The station's own database server is the separately pinned postgres artifact, now 17.12-1 (fixed for this CVE).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-116303/",
+        "security/native-bundled-components.json",
+        "native-windows-runtime-dependencies.lock.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-116304",
+      "reviewed": "2026-11-19",
+      "review_by": "2026-12-19",
+      "reason": "PostgreSQL server-backend defect (Use after free in PostgreSQL coordination of anonymous RECORD type identifiers among parallel workers allows a database user to execute arbitrary code\u2026). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) and its OpenSSL; it contains no server backend code. The station's own database server is the separately pinned postgres artifact, now 17.12-1 (fixed for this CVE).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-116304/",
+        "security/native-bundled-components.json",
+        "native-windows-runtime-dependencies.lock.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-116306",
+      "reviewed": "2026-11-19",
+      "review_by": "2026-12-19",
+      "reason": "PostgreSQL server-backend defect (Type confusion in PostgreSQL composite-value field assignment allows an object creator to execute arbitrary code as the operating system user running \u2026). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) and its OpenSSL; it contains no server backend code. The station's own database server is the separately pinned postgres artifact, now 17.12-1 (fixed for this CVE).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-116306/",
+        "security/native-bundled-components.json",
+        "native-windows-runtime-dependencies.lock.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-116307",
+      "reviewed": "2026-11-19",
+      "review_by": "2026-12-19",
+      "reason": "PostgreSQL server-backend defect (Use after free in PostgreSQL plperl allows an object creator to execute arbitrary code as the operating system user running the database, via re-enter\u2026). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) and its OpenSSL; it contains no server backend code. The station's own database server is the separately pinned postgres artifact, now 17.12-1 (fixed for this CVE).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-116307/",
+        "security/native-bundled-components.json",
+        "native-windows-runtime-dependencies.lock.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-116308",
+      "reviewed": "2026-11-19",
+      "review_by": "2026-12-19",
+      "reason": "PostgreSQL server-backend defect (Buffer over-read in PostgreSQL dict_int allows a database user to disclose portions of server memory, via a zero-length token). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) and its OpenSSL; it contains no server backend code. The station's own database server is the separately pinned postgres artifact, now 17.12-1 (fixed for this CVE).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-116308/",
+        "security/native-bundled-components.json",
+        "native-windows-runtime-dependencies.lock.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-116309",
+      "reviewed": "2026-11-19",
+      "review_by": "2026-12-19",
+      "reason": "PostgreSQL server-backend defect (Type confusion in PostgreSQL plperl may allow an object creator to execute arbitrary code, via blessing a non-hash reference into PostgreSQL::InServer\u2026). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) and its OpenSSL; it contains no server backend code. The station's own database server is the separately pinned postgres artifact, now 17.12-1 (fixed for this CVE).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-116309/",
+        "security/native-bundled-components.json",
+        "native-windows-runtime-dependencies.lock.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-116310",
+      "reviewed": "2026-11-19",
+      "review_by": "2026-12-19",
+      "reason": "PostgreSQL server-backend defect (Use after free in PostgreSQL COPY FROM error reporting allows a database user to disclose portions of server memory, via a longer input row following \u2026). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) and its OpenSSL; it contains no server backend code. The station's own database server is the separately pinned postgres artifact, now 17.12-1 (fixed for this CVE).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-116310/",
+        "security/native-bundled-components.json",
+        "native-windows-runtime-dependencies.lock.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-116311",
+      "reviewed": "2026-11-19",
+      "review_by": "2026-12-19",
+      "reason": "PostgreSQL server-backend defect (Missing authorization in PostgreSQL DROP OWNED allows a role to remove itself from restrictive row level security policies, thereby reading or modifyi\u2026). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) and its OpenSSL; it contains no server backend code. The station's own database server is the separately pinned postgres artifact, now 17.12-1 (fixed for this CVE).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-116311/",
+        "security/native-bundled-components.json",
+        "native-windows-runtime-dependencies.lock.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-116312",
+      "reviewed": "2026-11-19",
+      "review_by": "2026-12-19",
+      "reason": "PostgreSQL server-backend defect (Inconsistent transition-capture state in PostgreSQL MERGE allows a table data modifier to make an AFTER trigger process the wrong new row, via a parti\u2026). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) and its OpenSSL; it contains no server backend code. The station's own database server is the separately pinned postgres artifact, now 17.12-1 (fixed for this CVE).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-116312/",
+        "security/native-bundled-components.json",
+        "native-windows-runtime-dependencies.lock.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-116313",
+      "reviewed": "2026-11-19",
+      "review_by": "2026-12-19",
+      "reason": "PostgreSQL client-utility defect (Untrusted search path in PostgreSQL vacuumdb allows a database owner to execute arbitrary SQL as the database user running vacuumdb, via shadowing ope\u2026). The psycopg-binary wheel ships only the libpq client library and its OpenSSL, not the vacuumdb executable. CivicCast ships no vacuumdb.",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-116313/",
+        "security/native-bundled-components.json",
+        "native-windows-runtime-dependencies.lock.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-116314",
+      "reviewed": "2026-11-19",
+      "review_by": "2026-12-19",
+      "reason": "PostgreSQL client-utility defect (Improper input validation in PostgreSQL pg_restore allows a non-plain archive provider to execute arbitrary code as the operating system user running \u2026). The psycopg-binary wheel ships only the libpq client library and its OpenSSL, not the pg_restore executable. CivicCast ships pg_restore from the separately pinned postgres 17.12-1 artifact, which is fixed for this CVE.",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-116314/",
+        "security/native-bundled-components.json",
+        "native-windows-runtime-dependencies.lock.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-116315",
+      "reviewed": "2026-11-19",
+      "review_by": "2026-12-19",
+      "reason": "PostgreSQL server-backend defect (Heap-based buffer overflow in PostgreSQL tsvector_delete() allows a database user to execute arbitrary code as the operating system user running the d\u2026). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) and its OpenSSL; it contains no server backend code. The station's own database server is the separately pinned postgres artifact, now 17.12-1 (fixed for this CVE).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-116315/",
+        "security/native-bundled-components.json",
+        "native-windows-runtime-dependencies.lock.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-116316",
+      "reviewed": "2026-11-19",
+      "review_by": "2026-12-19",
+      "reason": "PostgreSQL server-backend defect (Improper protection of alternate path in PostgreSQL security-restricted operations allows an object creator to execute arbitrary SQL as the operation'\u2026). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) and its OpenSSL; it contains no server backend code. The station's own database server is the separately pinned postgres artifact, now 17.12-1 (fixed for this CVE).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-116316/",
+        "security/native-bundled-components.json",
+        "native-windows-runtime-dependencies.lock.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-116317",
+      "reviewed": "2026-11-19",
+      "review_by": "2026-12-19",
+      "reason": "PostgreSQL server-backend defect (Heap-based buffer overflow in PostgreSQL ts_rank_cd() may allow a database user to execute arbitrary code as the operating system user running the dat\u2026). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) and its OpenSSL; it contains no server backend code. The station's own database server is the separately pinned postgres artifact, now 17.12-1 (fixed for this CVE).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-116317/",
+        "security/native-bundled-components.json",
+        "native-windows-runtime-dependencies.lock.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-116318",
+      "reviewed": "2026-11-19",
+      "review_by": "2026-12-19",
+      "reason": "PostgreSQL client-utility defect (SQL injection in PostgreSQL pg_dump allows an object creator to execute arbitrary SQL as the user restoring the dump, via an inherited column having a\u2026). The psycopg-binary wheel ships only the libpq client library and its OpenSSL, not the pg_dump executable. CivicCast ships pg_dump from the separately pinned postgres 17.12-1 artifact, which is fixed for this CVE.",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-116318/",
+        "security/native-bundled-components.json",
+        "native-windows-runtime-dependencies.lock.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-116319",
+      "reviewed": "2026-11-19",
+      "review_by": "2026-12-19",
+      "reason": "PostgreSQL server-backend defect (Use after free in PostgreSQL plperl allows an object creator to execute arbitrary code as the operating system user running the database, via reentran\u2026). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) and its OpenSSL; it contains no server backend code. The station's own database server is the separately pinned postgres artifact, now 17.12-1 (fixed for this CVE).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-116319/",
+        "security/native-bundled-components.json",
+        "native-windows-runtime-dependencies.lock.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-116320",
+      "reviewed": "2026-11-19",
+      "review_by": "2026-12-19",
+      "reason": "PostgreSQL server-backend defect (Use after free in PostgreSQL plperl allows an object creator to execute arbitrary code as the operating system user running the database, via dropping\u2026). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) and its OpenSSL; it contains no server backend code. The station's own database server is the separately pinned postgres artifact, now 17.12-1 (fixed for this CVE).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-116320/",
+        "security/native-bundled-components.json",
+        "native-windows-runtime-dependencies.lock.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-116321",
+      "reviewed": "2026-11-19",
+      "review_by": "2026-12-19",
+      "reason": "PostgreSQL server-backend defect (Improper null termination in PostgreSQL array element assignment allows a database user to disclose server memory, via changing the final byte of a fi\u2026). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) and its OpenSSL; it contains no server backend code. The station's own database server is the separately pinned postgres artifact, now 17.12-1 (fixed for this CVE).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-116321/",
+        "security/native-bundled-components.json",
+        "native-windows-runtime-dependencies.lock.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-116322",
+      "reviewed": "2026-11-19",
+      "review_by": "2026-12-19",
+      "reason": "PostgreSQL server-backend defect (Improper locking in PostgreSQL startup processing allows an unauthenticated network client to trigger a server restart, via arranging for authenticati\u2026). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) and its OpenSSL; it contains no server backend code. The station's own database server is the separately pinned postgres artifact, now 17.12-1 (fixed for this CVE).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-116322/",
+        "security/native-bundled-components.json",
+        "native-windows-runtime-dependencies.lock.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-116323",
+      "reviewed": "2026-11-19",
+      "review_by": "2026-12-19",
+      "reason": "PostgreSQL server-backend defect (Use after free in PostgreSQL pltcl allows an object creator to execute arbitrary code as the operating system user running the database, via a domain \u2026). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) and its OpenSSL; it contains no server backend code. The station's own database server is the separately pinned postgres artifact, now 17.12-1 (fixed for this CVE).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-116323/",
+        "security/native-bundled-components.json",
+        "native-windows-runtime-dependencies.lock.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-116325",
+      "reviewed": "2026-11-19",
+      "review_by": "2026-12-19",
+      "reason": "PostgreSQL client-utility defect (SQL injection in PostgreSQL reindexdb allows an object creator to execute arbitrary SQL as the database user running reindexdb, via a crafted index na\u2026). The psycopg-binary wheel ships only the libpq client library and its OpenSSL, not the reindexdb executable. CivicCast ships no reindexdb.",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-116325/",
+        "security/native-bundled-components.json",
+        "native-windows-runtime-dependencies.lock.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-116326",
+      "reviewed": "2026-11-19",
+      "review_by": "2026-12-19",
+      "reason": "PostgreSQL server-backend defect (Uncaught exceptions in PostgreSQL plperl allow an object creator to cause use of a stale sigjmp_buf, via a tied Perl object, or a Perl object whose ov\u2026). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) and its OpenSSL; it contains no server backend code. The station's own database server is the separately pinned postgres artifact, now 17.12-1 (fixed for this CVE).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-116326/",
+        "security/native-bundled-components.json",
+        "native-windows-runtime-dependencies.lock.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-116327",
+      "reviewed": "2026-11-19",
+      "review_by": "2026-12-19",
+      "reason": "PostgreSQL server-backend defect (Exposure of sensitive information in PostgreSQL security_barrier processing allows a database user to infer values hidden by a security_barrier view, \u2026). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) and its OpenSSL; it contains no server backend code. The station's own database server is the separately pinned postgres artifact, now 17.12-1 (fixed for this CVE).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-116327/",
+        "security/native-bundled-components.json",
+        "native-windows-runtime-dependencies.lock.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-116328",
+      "reviewed": "2026-11-19",
+      "review_by": "2026-12-19",
+      "reason": "PostgreSQL server-backend defect (Integer wraparound in PostgreSQL generation memory contexts allows a database user to execute arbitrary code as the operating system user running the \u2026). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) and its OpenSSL; it contains no server backend code. The station's own database server is the separately pinned postgres artifact, now 17.12-1 (fixed for this CVE).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-116328/",
+        "security/native-bundled-components.json",
+        "native-windows-runtime-dependencies.lock.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-116329",
+      "reviewed": "2026-11-19",
+      "review_by": "2026-12-19",
+      "reason": "PostgreSQL server-backend defect (Type confusion in PostgreSQL statistics import allows a table maintainer to execute arbitrary code as the operating system user running the database, \u2026). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) and its OpenSSL; it contains no server backend code. The station's own database server is the separately pinned postgres artifact, now 17.12-1 (fixed for this CVE).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-116329/",
+        "security/native-bundled-components.json",
+        "native-windows-runtime-dependencies.lock.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-116330",
+      "reviewed": "2026-11-19",
+      "review_by": "2026-12-19",
+      "reason": "PostgreSQL client-utility defect (Untrusted data inclusion in PostgreSQL pg_dump tar-format restore.sql allows a compromised origin server to execute arbitrary code as the client opera\u2026). The psycopg-binary wheel ships only the libpq client library and its OpenSSL, not the pg_dump executable. CivicCast ships pg_dump from the separately pinned postgres 17.12-1 artifact, which is fixed for this CVE.",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-116330/",
+        "security/native-bundled-components.json",
+        "native-windows-runtime-dependencies.lock.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-116331",
+      "reviewed": "2026-11-19",
+      "review_by": "2026-12-19",
+      "reason": "PostgreSQL server-backend defect (Type confusion in PostgreSQL min/max aggregate optimization allows an object creator to execute arbitrary code as the operating system user running th\u2026). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) and its OpenSSL; it contains no server backend code. The station's own database server is the separately pinned postgres artifact, now 17.12-1 (fixed for this CVE).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-116331/",
+        "security/native-bundled-components.json",
+        "native-windows-runtime-dependencies.lock.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-116332",
+      "reviewed": "2026-11-19",
+      "review_by": "2026-12-19",
+      "reason": "PostgreSQL server-backend defect (Use after free in PostgreSQL portal setup allows an object creator to execute arbitrary code as the operating system user running the database, via ru\u2026). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) and its OpenSSL; it contains no server backend code. The station's own database server is the separately pinned postgres artifact, now 17.12-1 (fixed for this CVE).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-116332/",
+        "security/native-bundled-components.json",
+        "native-windows-runtime-dependencies.lock.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-116333",
+      "reviewed": "2026-11-19",
+      "review_by": "2026-12-19",
+      "reason": "PostgreSQL server-backend defect (Buffer over-read in PostgreSQL parallel B-tree scans allows an object creator to read attacker-chosen server-memory addresses, via a function incorrec\u2026). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) and its OpenSSL; it contains no server backend code. The station's own database server is the separately pinned postgres artifact, now 17.12-1 (fixed for this CVE).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-116333/",
+        "security/native-bundled-components.json",
+        "native-windows-runtime-dependencies.lock.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-116335",
+      "reviewed": "2026-11-19",
+      "review_by": "2026-12-19",
+      "reason": "PostgreSQL server-backend defect (Type confusion in PostgreSQL operator commutator and negator links allows an object creator to execute arbitrary code as the operating system user run\u2026). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) and its OpenSSL; it contains no server backend code. The station's own database server is the separately pinned postgres artifact, now 17.12-1 (fixed for this CVE).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-116335/",
+        "security/native-bundled-components.json",
+        "native-windows-runtime-dependencies.lock.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-116336",
+      "reviewed": "2026-11-19",
+      "review_by": "2026-12-19",
+      "reason": "PostgreSQL server-backend defect (Operation on a dropped index in PostgreSQL REINDEX CONCURRENTLY allows an object creator to execute arbitrary code as the operating system user runnin\u2026). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) and its OpenSSL; it contains no server backend code. The station's own database server is the separately pinned postgres artifact, now 17.12-1 (fixed for this CVE).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-116336/",
+        "security/native-bundled-components.json",
+        "native-windows-runtime-dependencies.lock.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-120139",
+      "reviewed": "2026-11-19",
+      "review_by": "2026-12-19",
+      "reason": "PostgreSQL server-backend defect (Integer wraparound in PostgreSQL in-memory tuple-size calculations allows a database user to execute arbitrary code as the operating system user runni\u2026). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) and its OpenSSL; it contains no server backend code. The station's own database server is the separately pinned postgres artifact, now 17.12-1 (fixed for this CVE).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-120139/",
+        "security/native-bundled-components.json",
+        "native-windows-runtime-dependencies.lock.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-120141",
+      "reviewed": "2026-11-19",
+      "review_by": "2026-12-19",
+      "reason": "PostgreSQL server-backend defect (Type confusion in PostgreSQL materialized set-returning functions allows a database user to execute arbitrary code as the operating system user runnin\u2026). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) and its OpenSSL; it contains no server backend code. The station's own database server is the separately pinned postgres artifact, now 17.12-1 (fixed for this CVE).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-120141/",
+        "security/native-bundled-components.json",
+        "native-windows-runtime-dependencies.lock.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-120142",
+      "reviewed": "2026-11-19",
+      "review_by": "2026-12-19",
+      "reason": "PostgreSQL server-backend defect (Type confusion in PostgreSQL anonymous RECORD types allows an object creator to execute arbitrary code as the operating system user running the databa\u2026). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) and its OpenSSL; it contains no server backend code. The station's own database server is the separately pinned postgres artifact, now 17.12-1 (fixed for this CVE).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-120142/",
+        "security/native-bundled-components.json",
+        "native-windows-runtime-dependencies.lock.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-120143",
+      "reviewed": "2026-11-19",
+      "review_by": "2026-12-19",
+      "reason": "PostgreSQL server-backend defect (Use after free in PostgreSQL trigger functions allows an object creator to execute arbitrary code as the operating system user running the database, v\u2026). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) and its OpenSSL; it contains no server backend code. The station's own database server is the separately pinned postgres artifact, now 17.12-1 (fixed for this CVE).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-120143/",
+        "security/native-bundled-components.json",
+        "native-windows-runtime-dependencies.lock.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-120144",
+      "reviewed": "2026-11-19",
+      "review_by": "2026-12-19",
+      "reason": "PostgreSQL server-backend defect (Type confusion from incomplete PostgreSQL type-cache invalidation allows an object creator to execute arbitrary code as the operating system user runn\u2026). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) and its OpenSSL; it contains no server backend code. The station's own database server is the separately pinned postgres artifact, now 17.12-1 (fixed for this CVE).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-120144/",
+        "security/native-bundled-components.json",
+        "native-windows-runtime-dependencies.lock.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-120145",
+      "reviewed": "2026-11-19",
+      "review_by": "2026-12-19",
+      "reason": "PostgreSQL server-backend defect (Missing authorization in PostgreSQL logical replication allows a compromised publisher to execute arbitrary code as the operating system user running \u2026). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) and its OpenSSL; it contains no server backend code. The station's own database server is the separately pinned postgres artifact, now 17.12-1 (fixed for this CVE).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-120145/",
+        "security/native-bundled-components.json",
+        "native-windows-runtime-dependencies.lock.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-120146",
+      "reviewed": "2026-11-19",
+      "review_by": "2026-12-19",
+      "reason": "PostgreSQL server-backend defect (Missing authorization in PostgreSQL REASSIGN OWNED allows a role granted INHERIT but not SET to transfer objects to the granted role). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) and its OpenSSL; it contains no server backend code. The station's own database server is the separately pinned postgres artifact, now 17.12-1 (fixed for this CVE).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-120146/",
+        "security/native-bundled-components.json",
+        "native-windows-runtime-dependencies.lock.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-120147",
+      "reviewed": "2026-11-19",
+      "review_by": "2026-12-19",
+      "reason": "PostgreSQL server-backend defect (Use after free in the PostgreSQL dblink extension allows an object creator to execute arbitrary code as the operating system user running the database\u2026). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) and its OpenSSL; it contains no server backend code. The station's own database server is the separately pinned postgres artifact, now 17.12-1 (fixed for this CVE).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-120147/",
+        "security/native-bundled-components.json",
+        "native-windows-runtime-dependencies.lock.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-120148",
+      "reviewed": "2026-11-19",
+      "review_by": "2026-12-19",
+      "reason": "PostgreSQL server-backend defect (Type confusion in PostgreSQL extended statistics allows an object creator to execute arbitrary code as the operating system user running the database,\u2026). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) and its OpenSSL; it contains no server backend code. The station's own database server is the separately pinned postgres artifact, now 17.12-1 (fixed for this CVE).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-120148/",
+        "security/native-bundled-components.json",
+        "native-windows-runtime-dependencies.lock.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-120149",
+      "reviewed": "2026-11-19",
+      "review_by": "2026-12-19",
+      "reason": "PostgreSQL server-backend defect (Heap-based buffer overflow in PostgreSQL foreign batch inserts allows a foreign server to execute arbitrary code, via reporting that it inserted more \u2026). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) and its OpenSSL; it contains no server backend code. The station's own database server is the separately pinned postgres artifact, now 17.12-1 (fixed for this CVE).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-120149/",
+        "security/native-bundled-components.json",
+        "native-windows-runtime-dependencies.lock.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-120150",
+      "reviewed": "2026-11-19",
+      "review_by": "2026-12-19",
+      "reason": "PostgreSQL server-backend defect (Use after free in PostgreSQL expanded-record domain checks allows an object creator to execute arbitrary code as the operating system user running the\u2026). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) and its OpenSSL; it contains no server backend code. The station's own database server is the separately pinned postgres artifact, now 17.12-1 (fixed for this CVE).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-120150/",
+        "security/native-bundled-components.json",
+        "native-windows-runtime-dependencies.lock.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-120151",
+      "reviewed": "2026-11-19",
+      "review_by": "2026-12-19",
+      "reason": "PostgreSQL server-backend defect (Type confusion in PostgreSQL plpgsql record-field assignment allows an object creator to execute arbitrary code as the operating system user running t\u2026). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) and its OpenSSL; it contains no server backend code. The station's own database server is the separately pinned postgres artifact, now 17.12-1 (fixed for this CVE).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-120151/",
+        "security/native-bundled-components.json",
+        "native-windows-runtime-dependencies.lock.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-120152",
+      "reviewed": "2026-11-19",
+      "review_by": "2026-12-19",
+      "reason": "PostgreSQL server-backend defect (Use after free in PostgreSQL pg_show_all_settings() allows a database user to retrieve memory contents, via loading a module while the function is sca\u2026). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) and its OpenSSL; it contains no server backend code. The station's own database server is the separately pinned postgres artifact, now 17.12-1 (fixed for this CVE).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-120152/",
+        "security/native-bundled-components.json",
+        "native-windows-runtime-dependencies.lock.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-120153",
+      "reviewed": "2026-11-19",
+      "review_by": "2026-12-19",
+      "reason": "PostgreSQL server-backend defect (SQL injection in PostgreSQL extension-script substitutions allows an attacker with database-level CREATE privilege to execute arbitrary code as the bo\u2026). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) and its OpenSSL; it contains no server backend code. The station's own database server is the separately pinned postgres artifact, now 17.12-1 (fixed for this CVE).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-120153/",
+        "security/native-bundled-components.json",
+        "native-windows-runtime-dependencies.lock.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-120154",
+      "reviewed": "2026-11-19",
+      "review_by": "2026-12-19",
+      "reason": "PostgreSQL server-backend defect (Improper protection in PostgreSQL INSERT ... ON CONFLICT allows an attacker having INSERT, UPDATE, and applicable SELECT privileges on the table to re\u2026). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) and its OpenSSL; it contains no server backend code. The station's own database server is the separately pinned postgres artifact, now 17.12-1 (fixed for this CVE).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-120154/",
+        "security/native-bundled-components.json",
+        "native-windows-runtime-dependencies.lock.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-14661",
+      "reviewed": "2026-11-19",
+      "review_by": "2026-12-19",
+      "reason": "Requires the PostgreSQL server to open a dblink or logical-subscription connection whose sslkeylogfile connection parameter an attacker set. The psycopg-binary wheel ships only libpq and creates no subscriptions or dblink connections; CivicCast's libpq use comes from its own configured connection settings, and the station server artifact is now postgres 17.12-1 (fixed for this CVE).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-14661/",
+        "security/native-bundled-components.json",
+        "native-windows-runtime-dependencies.lock.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-16237",
+      "reviewed": "2026-11-19",
+      "review_by": "2026-12-19",
+      "reason": "PostgreSQL server-backend defect (Improper protection in PostgreSQL INSERT ... ON CONFLICT on auto-updatable views allows an attacker having INSERT and UPDATE privileges on the view to\u2026). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) and its OpenSSL; it contains no server backend code. The station's own database server is the separately pinned postgres artifact, now 17.12-1 (fixed for this CVE).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-16237/",
+        "security/native-bundled-components.json",
+        "native-windows-runtime-dependencies.lock.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-16240",
+      "reviewed": "2026-11-19",
+      "review_by": "2026-12-19",
+      "reason": "PostgreSQL client-utility defect (Use of externally-controlled format string in PostgreSQL pg_basebackup allows an attacker having already compromised a server to achieve disclosure fr\u2026). The psycopg-binary wheel ships only the libpq client library and its OpenSSL, not the pg_basebackup executable. CivicCast ships no pg_basebackup.",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-16240/",
+        "security/native-bundled-components.json",
+        "native-windows-runtime-dependencies.lock.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-18447",
+      "reviewed": "2026-11-19",
+      "review_by": "2026-12-19",
+      "reason": "PostgreSQL server-backend defect (Type confusion in PostgreSQL SQL-language functions allows an object creator to execute arbitrary code as the operating system user running the databa\u2026). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) and its OpenSSL; it contains no server backend code. The station's own database server is the separately pinned postgres artifact, now 17.12-1 (fixed for this CVE).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-18447/",
+        "security/native-bundled-components.json",
+        "native-windows-runtime-dependencies.lock.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-6460",
+      "reviewed": "2026-11-19",
+      "review_by": "2026-12-19",
+      "reason": "PostgreSQL server-backend defect (Type confusion in PostgreSQL allows an object creator to execute arbitrary code as the operating system user running the database, via ALTER ... SET D\u2026). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) and its OpenSSL; it contains no server backend code. The station's own database server is the separately pinned postgres artifact, now 17.12-1 (fixed for this CVE).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-6460/",
+        "security/native-bundled-components.json",
+        "native-windows-runtime-dependencies.lock.json"
+      ]
+    },
+    {
+      "package": "psycopg-binary-libpq",
+      "version": "18.4",
+      "id": "CVE-2026-6467",
+      "reviewed": "2026-11-19",
+      "review_by": "2026-12-19",
+      "reason": "PostgreSQL server-backend defect (Uncontrolled search path element in PostgreSQL CREATE EXTENSION allows an attacker with database-level CREATE privilege to execute arbitrary code as t\u2026). The psycopg-binary wheel ships only the libpq client library (psycopg_binary.libs/libpq-*.dll) and its OpenSSL; it contains no server backend code. The station's own database server is the separately pinned postgres artifact, now 17.12-1 (fixed for this CVE).",
+      "evidence": [
+        "https://www.postgresql.org/support/security/CVE-2026-6467/",
+        "security/native-bundled-components.json",
+        "native-windows-runtime-dependencies.lock.json"
       ]
     }
   ]
