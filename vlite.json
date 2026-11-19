@@ -53,6 +53,21 @@
       ]
     },
     {
+      "name": "scripts",
+      "paths": [
+        "scripts/**/*.py",
+        "tools/**/*.py"
+      ],
+      "cwd": ".",
+      "checks": [
+        {
+          "name": "lint",
+          "run": "uv run --no-sync ruff check scripts tools && uv run --no-sync ruff format --check scripts tools",
+          "timeoutSec": 120
+        }
+      ]
+    },
+    {
       "name": "backend:{name}",
       "paths": [
         "civiccast/{name}/**",
