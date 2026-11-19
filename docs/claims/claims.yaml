@@ -1156,7 +1156,11 @@ entries:
           # This source-tripwire rebind is not installed or release proof.
           blob: b5115d53a2767f38b488831aacdbc16dbcb10d6a
         - path: civiccast/egress/gst/audio_tap.py
-          blob: cb9dbb8990d481dceed523adb6f148e01dadf9d4
+          # 2026-11-16 (rc.6.1, PR 352): reviewed the caption-boundary file
+          # safe write (temp file + flush + fsync + replace); source tests in
+          # tests/egress/test_caption_boundary_power_loss.py. Source-tripwire
+          # rebind only, not installed/release proof.
+          blob: d60470288c67ebcf5526f4fe75c577cc176f555e
       test:
         path: tests/egress/test_gst_engine_wsl.py
         blob: 6dcc17000e49f28131e6358bccf3e079f5cd708c
@@ -2107,7 +2111,11 @@ entries:
           # This source-tripwire rebind is not boot/pre-login acceptance.
           blob: b5115d53a2767f38b488831aacdbc16dbcb10d6a
         - path: civiccast/egress/gst/audio_tap.py
-          blob: cb9dbb8990d481dceed523adb6f148e01dadf9d4
+          # 2026-11-16 (rc.6.1, PR 352): reviewed the caption-boundary file
+          # safe write (temp file + flush + fsync + replace); source tests in
+          # tests/egress/test_caption_boundary_power_loss.py. Source-tripwire
+          # rebind only, not installed/release proof.
+          blob: d60470288c67ebcf5526f4fe75c577cc176f555e
       test:
         path: tests/egress/test_gst_engine_wsl.py
         blob: 6dcc17000e49f28131e6358bccf3e079f5cd708c

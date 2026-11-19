@@ -59,6 +59,7 @@ the caption side-channel to take the channel off air.
 from __future__ import annotations
 
 import json
+import logging
 import math
 import os
 import queue
@@ -95,6 +96,18 @@ _MAX_SEGMENT_INDEX: Final[int] = 999_999
 #: engine main loop, so the whole budget stays at 0.2 s.
 SHARING_RETRY_ATTEMPTS: Final[int] = 20
 SHARING_RETRY_DELAY_S: Final[float] = 0.01
+
+_LOG = logging.getLogger(__name__)
+
+#: rc.6.1 (R7 power loss, 2026-11-15): the box lost power right after a
+#: boundary publish and came back with an EMPTY ``program-boundary.json``; every
+#: caption scan then raised on it (14 control-plane errors after the reboot).
+#: The publish now flushes and fsyncs before the atomic replace, and the reader
+#: treats an empty or broken file as "no boundary" with ONE warning per file
+#: until a good read clears it.
+_BOUNDARY_FILENAME: Final[str] = "program-boundary.json"
+_broken_boundary_warned: set[str] = set()
+_broken_boundary_lock = threading.Lock()
 
 
 def _retry_sharing_denial[T](operation: Callable[[], T]) -> T:
@@ -161,16 +174,58 @@ def read_segment_start_seconds(path: Path) -> float | None:
 
 
 def read_program_boundary(tap_dir: Path) -> tuple[str, int]:
-    """Read the selected-audio writer's atomic program fence (legacy: no fence)."""
+    """Read the selected-audio writer's atomic program fence (legacy: no fence).
+
+    A missing file, and an empty or broken one (a power loss mid-publish on an
+    older build), both read as "no boundary" -- ``("", 0)``. A broken file is
+    logged ONCE (one warning per file until a good read), never raised: the
+    engine replaces it with a fresh boundary when the channel next starts or
+    changes programme.
+    """
+    boundary = tap_dir / _BOUNDARY_FILENAME
+    key = str(boundary)
+    text = ""
     try:
-        boundary = tap_dir / "program-boundary.json"
-        payload = json.loads(_retry_sharing_denial(boundary.read_text))
-    except FileNotFoundError:
+        try:
+            text = _retry_sharing_denial(lambda: boundary.read_text(encoding="utf-8"))
+        except FileNotFoundError:
+            return "", 0
+        payload = json.loads(text)
+        token, first_segment = payload["token"], payload["first_segment"]
+        if not isinstance(token, str) or not token or not isinstance(first_segment, int):
+            raise ValueError("invalid caption program boundary")
+    except (ValueError, KeyError, TypeError) as exc:
+        with _broken_boundary_lock:
+            first_time = key not in _broken_boundary_warned
+            _broken_boundary_warned.add(key)
+        if first_time:
+            _LOG.warning(
+                "caption program boundary %s is empty or broken (%s); "
+                "treating it as no boundary until the engine publishes a new one",
+                boundary,
+                "empty file" if not text.strip() else type(exc).__name__,
+            )
         return "", 0
-    token, first_segment = payload["token"], payload["first_segment"]
-    if not isinstance(token, str) or not token or not isinstance(first_segment, int):
-        raise ValueError("invalid caption program boundary")
+    with _broken_boundary_lock:
+        _broken_boundary_warned.discard(key)
     return token, first_segment
+
+
+def _write_boundary_durably(target: Path, text: str) -> None:
+    """Temp file, flush + fsync, then atomic replace (power-loss safe)."""
+    temporary = target.with_suffix(".tmp")
+    with temporary.open("w", encoding="utf-8") as handle:
+        handle.write(text)
+        handle.flush()
+        os.fsync(handle.fileno())
+    _retry_sharing_denial(lambda: temporary.replace(target))
+    if os.name != "nt":
+        # POSIX: also persist the directory entry the replace changed.
+        directory = os.open(target.parent, os.O_RDONLY)
+        try:
+            os.fsync(directory)
+        finally:
+            os.close(directory)
 
 
 class SegmentWriterThread(threading.Thread):
@@ -471,10 +526,10 @@ class RollingWavSegmentWriter:
 
     def publish_program_boundary(self, token: str, first_segment: int) -> None:
         """Publish a previously fenced boundary from the engine main loop."""
-        target = self.tap_dir / "program-boundary.json"
-        temporary = target.with_suffix(".tmp")
-        temporary.write_text(json.dumps({"token": token, "first_segment": first_segment}))
-        _retry_sharing_denial(lambda: temporary.replace(target))
+        _write_boundary_durably(
+            self.tap_dir / _BOUNDARY_FILENAME,
+            json.dumps({"token": token, "first_segment": first_segment}),
+        )
 
     def write_pcm_s16le(
         self,
