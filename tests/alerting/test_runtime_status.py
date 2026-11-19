@@ -20,6 +20,7 @@ from civiccast.alerting.runtime_status import (
 from civiccast.egress.models import (
     EgressConfig,
     EgressHealthSample,
+    EgressProofEvent,
     EgressSinkSpec,
     EgressStateRow,
 )
@@ -216,6 +217,82 @@ def test_recently_completed_audio_is_caught_up_and_readiness_healthy(tmp_path: P
         )
         == "healthy"
     )
+
+
+def _idle_snapshot(*, state: str = "within-capacity") -> dict[str, object]:
+    """A live, idle caption worker: fresh heartbeat, empty backlog, no input.
+
+    This is exactly the public channel's snapshot on the Dell after 21:42
+    (rc.6.1 bug 1): the tap stopped receiving audio at the slate switch, so the
+    last input/processing timestamps aged out while the heartbeat kept ticking.
+    """
+
+    return {
+        "state": state,
+        "worker_heartbeat_at": _NOW.isoformat(),
+        "updated_at": _NOW.isoformat(),
+        "last_input_at": (_NOW - timedelta(seconds=600)).isoformat(),
+        "last_processed_at": (_NOW - timedelta(seconds=600)).isoformat(),
+        "audio_signal": "audio-present",
+        "provider_state": "whistle-primary",
+        "inference_inflight": False,
+        "inference_started_at": None,
+        "backlog_segments": 0,
+        "pending_since_at": None,
+        "max_backlog_segments": 2,
+    }
+
+
+def _proof(channel_id: str, state: str) -> EgressProofEvent:
+    return EgressProofEvent(
+        event_id=f"source-{channel_id}",
+        observed_at=_NOW,
+        channel_id=channel_id,
+        state=state,
+        source_label="CivicCast slate" if state == "FALLBACK_SLATE" else "A programme",
+        source_path="selected-output",
+        proof_boundary="civiccast-egress-selected-source-output",
+        machine_summary="Source observed at selected output.",
+    )
+
+
+def _readiness_with_snapshot(tmp_path: Path, snapshot: dict[str, object], proof: str) -> str:
+    status_path = tmp_path / "public" / "captions" / "runtime-status.json"
+    status_path.parent.mkdir(parents=True)
+    status_path.write_text(json.dumps(snapshot), encoding="utf-8")
+    store = _FakeStore(
+        [_config("public")],
+        {"public": _state("public", "ON_AIR").model_copy(update={"updated_at": _NOW})},
+        {},
+        {"public": [_proof("public", proof)]},
+    )
+    return live_caption_readiness(store, captions_expected=True, work_dir=tmp_path, now=_NOW)
+
+
+def test_idle_caption_worker_on_slate_is_not_a_readiness_failure(tmp_path: Path) -> None:
+    """rc.6.1 Dell bug 1: an idle channel on its slate pinned /health degraded."""
+
+    snapshot = _idle_snapshot()
+    assert (
+        derive_live_caption_processing_status(
+            snapshot, egress_state="ON_AIR", captions_expected=True, now=_NOW
+        ).processing_state
+        == "waiting"
+    )
+    assert _readiness_with_snapshot(tmp_path, snapshot, "FALLBACK_SLATE") == "healthy"
+
+
+def test_idle_caption_worker_on_a_program_still_reads_unknown(tmp_path: Path) -> None:
+    """The same snapshot on a programme has a dead audio feed; keep it unknown."""
+
+    assert _readiness_with_snapshot(tmp_path, _idle_snapshot(), "ON_AIR") == "unknown"
+
+
+def test_slate_does_not_hide_a_real_caption_failure(tmp_path: Path) -> None:
+    """A capacity failure on a slate channel is still degraded, not idle."""
+
+    snapshot = _idle_snapshot(state="overloaded")
+    assert _readiness_with_snapshot(tmp_path, snapshot, "FALLBACK_SLATE") == "degraded"
 
 
 @pytest.mark.parametrize(
@@ -491,10 +568,11 @@ def _alert(severity: str, condition: str = "off-air") -> AlertEvent:
 
 
 class _FakeStore:
-    def __init__(self, configs, states, samples):
+    def __init__(self, configs, states, samples, proof_events=None):
         self._configs = configs
         self._states = states
         self._samples = samples
+        self._proof_events = proof_events or {}
 
     def list_configs(self):
         return self._configs
@@ -505,6 +583,10 @@ class _FakeStore:
     def recent_health(self, channel_id, limit):
         s = self._samples.get(channel_id)
         return [s] if s is not None else []
+
+    def recent_proof_events(self, channel_id, limit):
+        events = self._proof_events.get(channel_id, [])
+        return list(reversed(events))[:limit]
 
 
 # ---------------------------------------------------------------------------
