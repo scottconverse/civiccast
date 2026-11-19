@@ -247,10 +247,17 @@ provision_media_from_image() {
   echo "multiarch dir: ${multiarch}"
   for missing_lib in $(ldd /usr/bin/ffmpeg /usr/bin/ffprobe /usr/bin/tsp 2>/dev/null \
       | awk '$3 == "not" && $4 == "found" {print $1}' | sort -u); do
-    # Skip anything already sitting in the multiarch dir (including a link a
-    # previous loop iteration created) so we always resolve a real file.
-    found=$(find /usr/lib -name "$missing_lib" -not -path "${multiarch}/*" -print -quit 2>/dev/null || true)
-    real=$(readlink -f "$found" 2>/dev/null || true)
+    # Match the SONAME as a PREFIX, not as the whole name: the package ships
+    # the versioned real file (libblas.so.3.12.0), and the unversioned
+    # libblas.so.3 the loader asks for is an update-alternatives link made in
+    # postinst. Run 44451338188 showed the exact-name lookup finding nothing
+    # while the libraries were plainly there ("libblas.so.3 is missing and no
+    # real file exists after extraction"), i.e. the tar had the versioned
+    # file. -type f only, so a stale link cannot be picked; the multiarch dir
+    # itself is excluded so a link we created cannot resolve to itself.
+    found=$(find /usr/lib -type f -not -path "${multiarch}/*" \
+              -name "${missing_lib}*" -print 2>/dev/null | sort -V | tail -n 1 || true)
+    real="$found"
     if [ -z "$real" ] || [ ! -e "$real" ]; then
       echo "::warning::${missing_lib} is missing and no real file exists after extraction"
       continue
