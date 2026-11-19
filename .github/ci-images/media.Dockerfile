@@ -49,8 +49,12 @@ RUN curl -fsSL -o /tmp/tsduck.deb "${TSDUCK_DEB_URL}" \
 RUN dpkg-query -W -f='${Package}\n' | sort -u > /tmp/pkgs-after \
  && comm -13 /tmp/pkgs-before /tmp/pkgs-after > /tmp/pkgs-new \
  && mkdir -p /opt/ci-media \
- && tar -cpf /opt/ci-media/rootfs.tar --numeric-owner --no-recursion -C / \
-      $(dpkg-query -L $(cat /tmp/pkgs-new) | sed -e 's|^/||' -e 's|/$||' | grep -v '^$') \
+ && dpkg-query -L $(cat /tmp/pkgs-new) \
+      | sed -e 's|^/||' -e 's|/$||' | grep -v '^$' | sort -u \
+      | while IFS= read -r path; do \
+          if [ -e "/$path" ] || [ -L "/$path" ]; then printf '%s\0' "$path"; fi; \
+        done > /tmp/files.list \
+ && tar -cpf /opt/ci-media/rootfs.tar --numeric-owner --no-recursion --null -C / -T /tmp/files.list \
  && tar -tf /opt/ci-media/rootfs.tar | sort > /tmp/tar-contents.txt \
  && grep -qx usr/bin/ffmpeg /tmp/tar-contents.txt \
  && grep -qx usr/bin/ffprobe /tmp/tar-contents.txt \
