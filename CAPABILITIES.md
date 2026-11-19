@@ -6,8 +6,8 @@ encrypted station backup and restore, staff and network administration,
 local-time scheduling, bounded operational storage, automatic output recovery,
 RTMP output, coordinated HLS retention, and configurable recorded captions.
 
-The current public package is signed `v1.0.0-rc.6`; the
-[RC6 verification record](docs/releases/v1.0.0-rc.6-verification.md)
+The current public package is signed `v1.0.0-rc.7`; the
+[RC7 verification record](docs/releases/v1.0.0-rc.7-verification.md)
 tracks its package identity and scoped checks. Beta 20 and Beta 19 remain
 historical packages.
 

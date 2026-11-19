@@ -1,6 +1,6 @@
 # Historical in-app help audit: beta.10 snapshot
 
-This is the archived documentation-sprint index from 2026-10-03. It describes beta.10 screens and proposed copy from before the Beta.11 audit. The 62 linked per-screen audit files are retained for traceability and each is marked as a historical snapshot. Do not apply their proposed strings as current guidance. The [Beta.11 source inventory](help.md) is also a historical audit; use the [current source User Manual](../USER-MANUAL.md) and [published RC6 verification record](../releases/v1.0.0-rc.6-verification.md) for current guidance and package scope.
+This is the archived documentation-sprint index from 2026-10-03. It describes beta.10 screens and proposed copy from before the Beta.11 audit. The 62 linked per-screen audit files are retained for traceability and each is marked as a historical snapshot. Do not apply their proposed strings as current guidance. The [Beta.11 source inventory](help.md) is also a historical audit; use the [current source User Manual](../USER-MANUAL.md) and [published RC7 verification record](../releases/v1.0.0-rc.7-verification.md) for current guidance and package scope.
 
 ## How to use these files
 

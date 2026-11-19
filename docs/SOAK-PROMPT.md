@@ -3,7 +3,7 @@
 > **Historical prompt:** This is for the Beta 5 kit and its former ports and
 > interface. Do not use it as a current test procedure for the published
 > release. Follow the current owner-authorized handoff, [tester start page](tester/START-HERE.md),
-> and [RC6 verification record](releases/v1.0.0-rc.6-verification.md).
+> and [RC7 verification record](releases/v1.0.0-rc.7-verification.md).
 > The old run duration and instructions below are preserved as a dated artifact.
 
 

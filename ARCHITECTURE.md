@@ -2,11 +2,11 @@
 
 CivicCast combines native Windows playout, local AI captions, station backup,
 staff administration, and resident publication in one installation. This
-architecture describes current source as of the published RC6 release. Later source changes do not replace RC6's signed assets; its known issues are in the release notes.
+architecture describes current source as of the published RC7 release. Later source changes do not replace RC7's signed assets; its known issues are in the release notes.
 
-The current published download is signed `v1.0.0-rc.6` ([release
-page](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-rc.6)).
-The [RC6 release notes](docs/releases/v1.0.0-rc.6-release-notes.md)
+The current published download is signed `v1.0.0-rc.7` ([release
+page](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-rc.7)).
+The [RC7 release notes](docs/releases/v1.0.0-rc.7-release-notes.md)
 identify exact package provenance, verification and known issues.
 
 This document orients engineers and integrators to the current CivicCast
@@ -267,7 +267,7 @@ supersedes ADR 0001's NATS JetStream choice).
 
 ## Current Source Contracts
 
-These describe current source behavior and test coverage. The [RC6 release notes](docs/releases/v1.0.0-rc.6-release-notes.md) identify the signed artifacts and scoped verification:
+These describe current source behavior and test coverage. The [RC7 release notes](docs/releases/v1.0.0-rc.7-release-notes.md) identify the signed artifacts and scoped verification:
 
 Sprint 6 source adds trusted-station catalog browsing and central channel controls
 through `civiccast.federation`. Administrators provision separate public/staff HTTPS
@@ -297,9 +297,10 @@ TownLight: Station, to 2.0; see the
 
 ## Release evidence and history
 
-RC6 is the published download. Its package-specific checks are in the
-[RC6 release notes](docs/releases/v1.0.0-rc.6-release-notes.md), which identify exact
+RC7 is the published download. Its package-specific checks are in the
+[RC7 release notes](docs/releases/v1.0.0-rc.7-release-notes.md), which identify exact
 package provenance, verification and known issues. The previous release's
+[RC6 release notes](docs/releases/v1.0.0-rc.6-release-notes.md), the
 [RC5 release notes](docs/releases/v1.0.0-rc.5-release-notes.md) and the earlier
 [RC4 record](docs/releases/v1.0.0-rc.4-verification.md) are retained as history. Historical package results are retained
 in the [Beta 19 record](docs/releases/v1.0.0-beta.19-verification.md) and the

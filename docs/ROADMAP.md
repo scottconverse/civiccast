@@ -3,9 +3,9 @@
 CivicCast brings station scheduling, channel playout, meeting recording,
 caption review, and resident publication into one native Windows system.
 
-## Current release state (November 14, 2026)
+## Current release state (November 19, 2026)
 
-- Published: [v1.0.0-rc.6](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-rc.6) (November 15, 2026). Its [verification record](releases/v1.0.0-rc.6-verification.md) documents the package. Its signed kit soaked on five test PCs for about 28 hours (2026-11-14 to 2026-11-15); two PCs keep running it. See the [soak report](evidence/rc6-soak-2026-11-15/SOAK-REPORT.md). Release candidates rc.1 to rc.5 came out between October 30 and November 7, 2026.
+- Published: [v1.0.0-rc.7](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-rc.7) (November 19, 2026). Its [verification record](releases/v1.0.0-rc.7-verification.md) documents the package and its [release notes](releases/v1.0.0-rc.7-release-notes.md) list the changes. No station soak of this exact installer exists yet; its predecessor rc.6 soaked on five test PCs for about 28 hours (see the [soak report](evidence/rc6-soak-2026-11-15/SOAK-REPORT.md)). Release candidates rc.1 to rc.6 came out between October 30 and November 15, 2026.
 - The Beta releases below are history.
 
 ## Sprint 6 source work shipped in Beta 20
@@ -73,8 +73,8 @@ is not a Beta 15 field result or Beta 16 package qualification.
 
 ## Roadmap ownership and evidence
 
-The owner sets implementation and release scope. The [v1.0.0-rc.6 verification
-record](releases/v1.0.0-rc.6-verification.md) documents the current package. The [Beta 20 verification
+The owner sets implementation and release scope. The [v1.0.0-rc.7 verification
+record](releases/v1.0.0-rc.7-verification.md) documents the current package. The [Beta 20 verification
 record](releases/v1.0.0-beta.20-verification.md) documents the last Beta package. The [Beta 15 verification record](releases/v1.0.0-beta.15-verification.md) documents that older package's exact
 identity and installation observations. The [Beta 17 deferred
 backlog](ops/beta17-deferred.md) cites the separate Beta 15 R9 field report and

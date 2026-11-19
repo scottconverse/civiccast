@@ -52,13 +52,13 @@ not scratch.
 
 ## Release identity
 
-v1.0.0-rc.6 is the current public release, published 2026-11-15 as a
-GitHub pre-release (not a production release). Its signed installer was built from source
-d74a8c31; the tag target is 830b53df. See the [RC6 verification
-record](docs/releases/v1.0.0-rc.6-verification.md) for the exact package and
+v1.0.0-rc.7 is the current public release, published 2026-11-19 as a
+GitHub pre-release (not a production release). Its signed installer was built from
+source 93bb148c; the tag target is 93bb148c. See the [RC7 verification
+record](docs/releases/v1.0.0-rc.7-verification.md) for the exact package and
 its scoped checks.
 
-RC5, Beta 20 and earlier releases are superseded; Beta 8 and Beta 9 were never
+RC6, RC5, Beta 20 and earlier releases are superseded; Beta 8 and Beta 9 were never
 published, and Beta 2 exists only as an internal upgrade-baseline kit. See
 [`docs/releases/release-truth.yaml`](docs/releases/release-truth.yaml) for the
 authored state of each tag and [`docs/releases/`](docs/releases/) for

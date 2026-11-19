@@ -1,6 +1,6 @@
 # CivicCast CI And Proof Matrix
 
-Status: HISTORICAL claim-to-evidence map for the retired WSL2-line v3.0.0-beta1 release. It is not the current release map; the current line is v1.0.0-rc.6 (see `docs/releases/v1.0.0-rc.6-verification.md`).
+Status: HISTORICAL claim-to-evidence map for the retired WSL2-line v3.0.0-beta1 release. It is not the current release map; the current line is v1.0.0-rc.7 (see `docs/releases/v1.0.0-rc.7-verification.md`).
 
 This matrix explains what kind of proof backs each release claim. It separates
 automated CI, local developer verification, release artifact proof, clean

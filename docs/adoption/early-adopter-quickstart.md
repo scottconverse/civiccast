@@ -38,8 +38,8 @@ This whole document is historical (retired WSL2 line). For the native line
 this repository ships, read [START-HERE](../tester/START-HERE.md),
 [INSTALL-WINDOWS.md](../../INSTALL-WINDOWS.md), and
 [Windows Release Trust And Verification](../install/windows-release-trust.md)
-instead -- they carry the latest published `v1.0.0-rc.6` release guidance.
-The [RC6 verification record](../releases/v1.0.0-rc.6-verification.md)
+instead -- they carry the latest published `v1.0.0-rc.7` release guidance.
+The [RC7 verification record](../releases/v1.0.0-rc.7-verification.md)
 is the current package record for this native line. The historical native
 release identities below remain background only.
 
