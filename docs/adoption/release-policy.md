@@ -1,8 +1,8 @@
 # CivicCast Release Policy
 
-> **Release state:** [v1.0.0-rc.6](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-rc.6)
+> **Release state:** [v1.0.0-rc.7](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-rc.7)
 > is the current published GitHub pre-release. Its
-> [verification record](../releases/v1.0.0-rc.6-verification.md) describes
+> [verification record](../releases/v1.0.0-rc.7-verification.md) describes
 > the exact public package and its evidence limitations; an owner-held
 > corrected candidate does not replace the published package until publication.
 >

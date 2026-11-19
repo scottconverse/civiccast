@@ -7,7 +7,7 @@ exact filename, SHA-256, and signature status in the active handoff first.
 see `docs/tester/START-HERE.md` if you don't have one.)
 
 This walkthrough explains how to handle that screen and check the actual file
-before running it. v1.0.0-rc.6 is the current published native release.
+before running it. v1.0.0-rc.7 is the current published native release.
 
 ---
 
@@ -96,7 +96,7 @@ for the signing posture, and verify the actual downloaded executable.
 
 ## Release context
 
-The current published native installer is `v1.0.0-rc.6`, a signed GitHub
+The current published native installer is `v1.0.0-rc.7`, a signed GitHub
 pre-release. Follow the [current User Manual](../USER-MANUAL.md),
 [Windows install guide](../../INSTALL-WINDOWS.md), [Windows release-trust guide](../install/windows-release-trust.md),
 and exact owner-authorized handoff. The Beta 10 details below are historical

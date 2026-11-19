@@ -31,7 +31,7 @@ For a historical release, specify `-Tag`; `-Version`, if supplied, must match fo
 [CmdletBinding()]
 param(
   [string]$Repository = "scottconverse/civiccast",
-  [string]$Tag = "v1.0.0-rc.6",
+  [string]$Tag = "v1.0.0-rc.7",
   [string]$Version = "",
   [ValidateSet("", "NativeCandidate", "ProofKit", "TesterPackage", "All")]
   [string]$AssetSet = "",

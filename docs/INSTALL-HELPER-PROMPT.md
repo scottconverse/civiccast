@@ -2,9 +2,9 @@
 
 Use this guide only for an owner-authorized Windows beta field test. It is
 candidate-neutral: the tester handoff and release verification record identify
-the approved installer and procedure. v1.0.0-rc.6 is the current public
-pre-release, published 2026-11-15 from signed source d74a8c31 (tag target
-830b53df). See the [RC6 verification record](releases/v1.0.0-rc.6-verification.md)
+the approved installer and procedure. v1.0.0-rc.7 is the current public
+pre-release, published 2026-11-19 from signed source 93bb148c009e39015eb7f7d893be41927bec0c05 (tag target
+93bb148c009e39015eb7f7d893be41927bec0c05). See the [RC7 verification record](releases/v1.0.0-rc.7-verification.md)
 for its exact package identity and scoped checks. This guide does not itself
 authorize an installation, upgrade, release or station cutover.
 

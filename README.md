@@ -19,34 +19,23 @@ system. Staff use one operator console; residents watch through a separate
 portal. Optional cloud services may charge their own usage fees, while CivicCast
 has no per-minute software fee.
 
-## Unpublished source candidate
-
-`v1.0.0-rc.7` is an unpublished candidate and is not available as a public release.
-It turns live captions on by default for a new station, shows the station's own
-time on the on-air clock, survives a power cut without breaking caption scans,
-and keeps a slate channel from making `/health` say `degraded`. Its CHANGELOG
-entry lists the rest. Source changes do not update an installed station or
-replace the published downloads below.
-
 ## Current published package
 
-[`v1.0.0-rc.6`](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-rc.6)
-is the current published native Windows pre-release (published November 15, 2026).
-Its source tag is commit `830b53df`; the signed artifacts were built from
-`d74a8c31` in build run 43576185174. The signed `setup.exe` has SHA-256
-`9d3d0b8247a233b184de24fe7a2fdf56b8f7d955bc8e8806d52b646118d351de`
+[`v1.0.0-rc.7`](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-rc.7)
+is the current published native Windows pre-release (published November 19, 2026).
+Its source tag and the signed artifacts are commit `93bb148c`; the build run was
+44583617980. The signed `setup.exe` has SHA-256
+`58c89376362af339848a408aba1d052512065b42815fe5cab53c1d89c1b8bb18`
 and a valid Authenticode signature. The
-[RC6 release notes](docs/releases/v1.0.0-rc.6-release-notes.md) identify the package and its known issues; the
-[RC6 verification record](docs/releases/v1.0.0-rc.6-verification.md) lists the checks behind it.
-It puts AC-3 sound and a constant bit rate on a cable output while the web output stays
-AAC, and it repairs a station that saved a cable preset on an earlier release. It ran for
-about 28 hours on five Windows 11 test PCs, with no service restart: see the
-[rc.6 soak report](docs/evidence/rc6-soak-2026-11-15/SOAK-REPORT.md). That soak
-also recorded the MSI health result: 1,612 of 9,923 health checks (16.2 %) got no
-answer in time on the 16 GB laptop, which was healthy in 75.4 % of minutes.
-It replaces [`v1.0.0-rc.5`](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-rc.5)
-(published November 7, 2026), whose [release notes](docs/releases/v1.0.0-rc.5-release-notes.md)
-and [verification record](docs/releases/v1.0.0-rc.5-verification.md) are retained as history.
+[RC7 release notes](docs/releases/v1.0.0-rc.7-release-notes.md) identify the package and its known issues; the
+[RC7 verification record](docs/releases/v1.0.0-rc.7-verification.md) lists the checks behind it.
+It turns live captions on by default for a new station, shows the station's own
+time on the on-air clock, survives a power cut without breaking caption scans,
+and keeps a slate channel from making `/health` say `degraded`; its release notes
+list the rest. No station soak of this exact installer exists yet.
+It replaces [`v1.0.0-rc.6`](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-rc.6)
+(published November 15, 2026), whose [release notes](docs/releases/v1.0.0-rc.6-release-notes.md)
+and [verification record](docs/releases/v1.0.0-rc.6-verification.md) are retained as history.
 Windows 11 is the verified platform. Source changes after publication do not
 update an installed station.
 
@@ -81,12 +70,12 @@ identities are recorded in
 
 ## Install and run
 
-Download the signed RC6 station with the Windows helper. It obtains the installer, runtime packs and required station models, verifies them, and installs without separately installed development tools. Use Windows 11 x64 and a Windows administrator account. Allow about **100 GB free** when preparation and installation share a drive (including roughly **22 GB of model downloads**), plus recording space. Keep the complete kit for offline installation:
+Download the signed RC7 station with the Windows helper. It obtains the installer, runtime packs and required station models, verifies them, and installs without separately installed development tools. Use Windows 11 x64 and a Windows administrator account. Allow about **100 GB free** when preparation and installation share a drive (including roughly **22 GB of model downloads**), plus recording space. Keep the complete kit for offline installation:
 
 ```powershell
-$installerScript = Join-Path $env:TEMP 'CivicCast-Install-RC6.ps1'
-Invoke-WebRequest -UseBasicParsing -Uri 'https://github.com/scottconverse/civiccast/releases/download/v1.0.0-rc.6/download_windows_release_artifacts.ps1' -OutFile $installerScript
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installerScript -Tag v1.0.0-rc.6 -Version 1.0.0-rc.6 -Install -Destination "$env:USERPROFILE\Downloads\CivicCast-RC6"
+$installerScript = Join-Path $env:TEMP 'CivicCast-Install-RC7.ps1'
+Invoke-WebRequest -UseBasicParsing -Uri 'https://github.com/scottconverse/civiccast/releases/download/v1.0.0-rc.7/download_windows_release_artifacts.ps1' -OutFile $installerScript
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installerScript -Tag v1.0.0-rc.7 -Version 1.0.0-rc.7 -Install -Destination "$env:USERPROFILE\Downloads\CivicCast-RC7"
 ```
 
 Keep the PowerShell window open until it reports **Done**. During silent setup,
@@ -96,14 +85,14 @@ names the step in progress. If a download is interrupted, rerun the same command
 
 See [Install CivicCast on Windows](INSTALL-WINDOWS.md) for first setup, existing installations, offline copies and password recovery. Open **CivicCast Operator Console** after setup finishes.
 
-The [source manual](docs/USER-MANUAL.md) describes the current controls. The published RC6 manual ([PDF](https://github.com/scottconverse/civiccast/releases/download/v1.0.0-rc.6/USER-MANUAL.pdf), [Word](https://github.com/scottconverse/civiccast/releases/download/v1.0.0-rc.6/USER-MANUAL.docx)) covers that package's operation, installation and architecture. Online manual revisions reach installed copies with a replacement application package. Additional guides: [Admin](docs/admin-guide.md), [Meeting Operator](docs/meeting-operator-guide.md), [Records Clerk](docs/records-clerk-guide.md) and [Tester Start Here](docs/tester/START-HERE.md).
+The [source manual](docs/USER-MANUAL.md) describes the current controls. The published RC7 manual ([PDF](https://github.com/scottconverse/civiccast/releases/download/v1.0.0-rc.7/USER-MANUAL.pdf), [Word](https://github.com/scottconverse/civiccast/releases/download/v1.0.0-rc.7/USER-MANUAL.docx)) covers that package's operation, installation and architecture. Online manual revisions reach installed copies with a replacement application package. Additional guides: [Admin](docs/admin-guide.md), [Meeting Operator](docs/meeting-operator-guide.md), [Records Clerk](docs/records-clerk-guide.md) and [Tester Start Here](docs/tester/START-HERE.md).
 
 ### Developer — run from source, contribute
 
 Source contributors can inspect the [station operations record](docs/ops/station-operations-goal.md),
 [Sprint 2](docs/ops/sprint2-unattended.md), and
 [Sprint 3](docs/ops/sprint3-output-completion.md) for the implementation scope
-and focused evidence behind Beta 16. Use the current published RC6
+and focused evidence behind Beta 16. Use the current published RC7
 release page for installation.
 
 ```bash
@@ -175,7 +164,7 @@ apps. The [Roadmap Status Manifest](docs/spec/3.0/ROADMAP.status.yaml) is a
 repo-verified, fail-closed manifest that checks each spec item's claimed
 status against evidence that actually exists on disk; treat "Built" there
 as "the code and its tests exist," not as a field-proven claim for this
-release. The [RC6 release notes](docs/releases/v1.0.0-rc.6-release-notes.md)
+release. The [RC7 release notes](docs/releases/v1.0.0-rc.7-release-notes.md)
 describe the current published package boundary, verification and known issues, and the Beta 11
 host report is separately scoped historical runtime evidence.
 

@@ -59,7 +59,7 @@ CivicCast is open-source, self-hostable civic meeting recording and publication
 software. The application wires a production live-source probe into live
 pre-flight, in addition to the recorded-media and Portal workflows. A working
 probe is not proof that a particular station's source, hardware, output,
-archive, CDN or headend works end to end. The RC6 verification record
+archive, CDN or headend works end to end. The RC7 verification record
 identifies the current package's scoped checks and limitations;
 station-specific external services still require their own checks.
 
@@ -263,7 +263,7 @@ together. A standalone `setup.exe` download is not the complete install kit.
 Before running the helper, verify its own SHA-256 against the same release's
 `SHA256SUMS.txt`. See the [Windows Release Trust And Verification](install/windows-release-trust.md)
 checklist and the [operator quick start](tester/START-HERE.md). The
-[RC6 verification record](releases/v1.0.0-rc.6-verification.md) is the
+[RC7 verification record](releases/v1.0.0-rc.7-verification.md) is the
 source for the current package's identity, installation evidence and limits.
 
 For a direct setup-app hash check when the handoff calls for one, compare it to
@@ -1349,8 +1349,8 @@ This reference is maintained in `docs/technical-ops-reference.md`. The user-faci
 
 ## Published package evidence and historical release identity
 
-This reference follows the published `CivicCast 1.0.0-rc.6`. The
-[RC6 verification record](releases/v1.0.0-rc.6-verification.md)
+This reference follows the published `CivicCast 1.0.0-rc.7`. The
+[RC7 verification record](releases/v1.0.0-rc.7-verification.md)
 identifies the signed package and its scoped checks. The [Beta 20 verification record](releases/v1.0.0-beta.20-verification.md)
 and the [Beta 19 verification record](releases/v1.0.0-beta.19-verification.md)
 remain historical. Earlier results remain tied to their own release records.
@@ -1361,7 +1361,7 @@ The `v1.0.0-rc11` through `v1.0.0-rc18` line this document used to describe is
 the retired WSL2/Linux deployment, published from the archived repository. Its
 release and verification artifacts are not in this repository and its rc
 numbering does not continue here. This repository publishes the native
-`v1.0.0-rc.1` through `v1.0.0-rc.6` line; their records are under
+`v1.0.0-rc.1` through `v1.0.0-rc.7` line; their records are under
 `docs/releases/`.
 
 

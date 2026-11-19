@@ -1,7 +1,7 @@
 # Known Limitations For Early-Adopter Builds
 
 > **Historical Beta 10 limitation record.** This page records evidence and
-> limits for Beta 10 only. v1.0.0-rc.6 is the current published release; Beta 20
+> limits for Beta 10 only. v1.0.0-rc.7 is the current published release; Beta 20
 > is history. For current operating guidance, use the
 > [current User Manual](../USER-MANUAL.md), [Windows install guide](../../INSTALL-WINDOWS.md),
 > [tester start page](START-HERE.md), and [Beta 20 verification

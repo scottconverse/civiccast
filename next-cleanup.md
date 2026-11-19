@@ -3,7 +3,7 @@
 # Next Cleanup
 
 > Carried-forward engineering notes, not the Beta 17 release-completion list.
-> Current release status and recorded checks are in the [RC6 verification record](docs/releases/v1.0.0-rc.6-verification.md); the Beta 19 record is history.
+> Current release status and recorded checks are in the [RC7 verification record](docs/releases/v1.0.0-rc.7-verification.md); the Beta 19 record is history.
 
 Deferred, non-blocking work stays out of `civiccast/` source per
 `scripts/policy/check_no_todos.py` (no TODO/FIXME/HACK markers are allowed in
