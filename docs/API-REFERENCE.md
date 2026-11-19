@@ -2745,6 +2745,15 @@ Read egress channel config, state, and latest health.
 - Request body: none
 - Responses: 200 `StaffEgressChannelDetail`; 401 Missing, invalid, revoked, or misconfigured CivicCast staff bearer token.; 404 Egress config not found; 429 The observed peer exceeded the failed staff authentication budget. Wait for Retry-After before another invalid attempt; valid staff tokens remain accepted.; 503 Durable storage not ready -- run Setup storage or set DATABASE_URL
 
+### `POST /api/staff/egress/channels/{channel_id}/apply-captions`
+
+Apply the live-caption switch to this channel now (restarts its playout).
+
+- Access: staff bearer token required; keep loopback or reverse-proxy network protection enabled
+- Parameters: `channel_id` (path, required): `string`
+- Request body: none
+- Responses: 202 `EgressCommandResponse`; 401 Missing, invalid, revoked, or misconfigured CivicCast staff bearer token.; 409 The channel is not configured and enabled, or it is not on air or on its fallback slate; the switch applies at its next start; 429 The observed peer exceeded the failed staff authentication budget. Wait for Retry-After before another invalid attempt; valid staff tokens remain accepted.; 503 Durable storage not ready -- run Setup storage or set DATABASE_URL
+
 ### `GET /api/staff/egress/channels/{channel_id}/caption-proofs`
 
 Recent CEA-608/708 caption decode-back proof samples (S11a).
@@ -4633,7 +4642,7 @@ Edit the mutable station identity profile fields (including the live-caption swi
 - Access: staff bearer token required; keep loopback or reverse-proxy network protection enabled
 - Parameters: none
 - Request body: `StationProfileUpdateRequest`
-- Responses: 200 `StationProfile`; 401 Missing, invalid, revoked, or misconfigured CivicCast staff bearer token.; 422 `HTTPValidationError`; 429 The observed peer exceeded the failed staff authentication budget. Wait for Retry-After before another invalid attempt; valid staff tokens remain accepted.
+- Responses: 200 `StationProfileUpdateResponse`; 401 Missing, invalid, revoked, or misconfigured CivicCast staff bearer token.; 422 `HTTPValidationError`; 429 The observed peer exceeded the failed staff authentication budget. Wait for Retry-After before another invalid attempt; valid staff tokens remain accepted.
 
 ### `GET /api/staff/station/timezone`
 
@@ -9807,6 +9816,29 @@ rule (S13 §5.1).
 - `station_name` (optional): `string | null`
 - `station_timezone` (optional): `string | null`
 - `storage_locations` (optional): `StationStorageLocations | null`
+
+### `StationProfileUpdateResponse`
+
+- `admin_display_name` (required): `string`
+- `admin_username` (required): `string`
+- `channel_count` (optional): `number`
+- `channel_profiles` (optional): `Array<StationChannelProfile>`
+- `dashboard_ready_state` (optional): `'ready' | 'not_ready'`
+- `default_channel_id` (optional): `string`
+- `default_roles` (optional): `Array<string>`
+- `initial_schedule_enabled` (optional): `boolean`
+- `live_captions_enabled` (optional): `boolean` -- Operator switch for LIVE captions: the real-time ASR tap on the broadcast audio of every ON_AIR channel AND the CEA-708 caption embed leg on the video path. OFF by default in beta.5 (temporary): with the embed leg built, the 2026-09-09 sandbox soak measured a recurring 25-30 s video hold followed by a burst of frames every 1-2 minutes on every channel, and twice the 10 s stall watchdog restarted a channel. Turn it ON from the operator console (Setup > Station Profile > Show live captions on air) on a station that can keep up. Turning it off does NOT affect captions on published recordings (the offline caption job), which is the legal requirement; this is the live one.
+- `live_captions_notice` (optional): `string | null`
+- `live_captions_restart_required` (optional): `boolean`
+- `operation_mode` (optional): `'test' | 'on_air'`
+- `public_base_url` (optional): `string | null`
+- `recovery_kit_generated_at` (required): `string`
+- `recovery_kit_id` (required): `string`
+- `runtime_paths` (optional): `StationRuntimePaths | null`
+- `sample_content_enabled` (optional): `boolean`
+- `station_name` (required): `string`
+- `station_timezone` (optional): `string`
+- `storage_locations` (required): `StationStorageLocations`
 
 ### `StationRecoveryRequest`
 

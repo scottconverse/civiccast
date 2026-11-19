@@ -556,6 +556,18 @@ class EgressCommand(BaseModel):
 SLATE_RESTART_COMMAND_PREFIX = "headend-profile-restart-"
 SCHEDULED_SLATE_START_COMMAND_PREFIX = "auto-slate-start-"
 
+# rc.6.1 item 3, "Apply captions now": a ``reload`` whose id carries this prefix
+# restarts ONE running channel's playout worker so a changed live-caption
+# switch takes effect now (the caption legs are built only when the worker
+# starts). It rides on the command id, like the prefixes above, so it needs no
+# new action and no change to the ``egress_commands`` action CHECK. It never
+# restarts the service.
+APPLY_CAPTIONS_COMMAND_PREFIX = "apply-captions-"
+#: Channel states in which "Apply captions now" restarts the worker. In every
+#: other state (stopped, starting, transitioning, draining) it is refused: the
+#: switch already lands at that channel's next start.
+APPLY_CAPTIONS_STATES: frozenset[str] = frozenset({"ON_AIR", "FALLBACK_SLATE"})
+
 
 def slate_restart_guard_state(command: EgressCommand) -> EgressState | None:
     """The persisted state a slate-restart half requires, or ``None`` if unguarded.
