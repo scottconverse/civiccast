@@ -189,7 +189,14 @@ def test_ci_lint_is_standard_main_only_without_release_reuse() -> None:
     text, workflow = _workflow(LINT)
     triggers = _triggers(workflow)
 
-    assert triggers == {"pull_request": {"branches": ["main"]}}
+    # PR #369: agent-tooling-only changes (.claude/, vlite.json) start no lint
+    # run. The filter must stay exactly this narrow; docs still run here.
+    assert triggers == {
+        "pull_request": {
+            "paths-ignore": [".claude/**", "**/.claude/**", "vlite.json"],
+            "branches": ["main"],
+        }
+    }
     assert "workflow_call" not in text
     assert "lint_scope" not in text
     assert "source_sha" not in text
