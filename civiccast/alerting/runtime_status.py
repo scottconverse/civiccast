@@ -20,7 +20,7 @@ import json
 import logging
 import time
 from collections.abc import Mapping
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypedDict, cast
 
@@ -58,6 +58,13 @@ _CAPTION_STARTUP_GRACE_SECONDS = 180
 # Bounded retry for the worker's atomic status replace (see the reader below).
 _STATUS_READ_ATTEMPTS = 4
 _STATUS_READ_BACKOFF_SECONDS = 0.02
+# #327: a channel whose worker the daemon relaunched this many times inside
+# the window, and that has not since stayed up for the recovery time, is in a
+# restart loop. Each relaunch appends exactly one STARTING health sample.
+RESTART_LOOP_WINDOW_SECONDS = 600
+RESTART_LOOP_THRESHOLD = 3
+RESTART_LOOP_RECOVERED_SECONDS = 300
+_RUNNING_SAMPLE_STATES = {"ON_AIR", "FALLBACK_SLATE", "TRANSITIONING"}
 _CAPTION_FAILURE_CAPACITY_STATES = {"overloaded", "storage-refused", "paused", "disabled"}
 _CAPTION_PROVIDER_STATES = {
     "whistle-primary",
@@ -253,6 +260,39 @@ def read_live_caption_processing_status(
     )
 
 
+def _fresh_caption_failure(work_dir: Path, channel_id: str, now: datetime) -> bool:
+    """True when the channel's caption worker reported a failure state recently.
+
+    Used for channels on the fallback slate. Only a snapshot written within the
+    heartbeat window counts, so an old failure from before the slate does not
+    keep the station degraded after the worker has stopped writing.
+    """
+
+    from civiccast.captions.live_sidecar import caption_runtime_status_path
+
+    path = caption_runtime_status_path(work_dir, channel_id)
+    loaded: object = None
+    for attempt in range(_STATUS_READ_ATTEMPTS):
+        try:
+            loaded = json.loads(path.read_text(encoding="utf-8"))
+        except FileNotFoundError:
+            return False
+        except (OSError, json.JSONDecodeError):
+            if attempt + 1 < _STATUS_READ_ATTEMPTS:
+                time.sleep(_STATUS_READ_BACKOFF_SECONDS)
+            continue
+        break
+    if not isinstance(loaded, dict):
+        return False
+    if loaded.get("state") not in _CAPTION_FAILURE_CAPACITY_STATES:
+        return False
+    written = _timestamp(loaded.get("updated_at")) or _timestamp(loaded.get("worker_heartbeat_at"))
+    if written is None:
+        return False
+    current = _as_utc(now) or datetime.now(UTC)
+    return (current - written).total_seconds() <= _CAPTION_HEARTBEAT_STALE_SECONDS
+
+
 def live_caption_readiness(
     store: EgressStore | None,
     *,
@@ -269,14 +309,25 @@ def live_caption_readiness(
     now = now or datetime.now(tz=UTC)
     try:
         active = []
+        slate: list[str] = []
         for config in store.list_configs():
             if not config.enabled:
                 continue
             state_row = store.read_state(config.channel_id)
             if state_row is not None and state_row.state == "ON_AIR":
                 active.append((config, state_row))
+            elif state_row is not None and state_row.state == "FALLBACK_SLATE":
+                slate.append(config.channel_id)
+        # rc.6.1 item 6: a slate channel has no program audio, so its caption
+        # status is not judged as "caught up" or "waiting". A fresh failure
+        # snapshot from its caption worker is still a real pipeline failure.
+        slate_failed = any(
+            _fresh_caption_failure(work_dir, channel_id, now) for channel_id in slate
+        )
         if not active:
-            return "idle"
+            if slate_failed:
+                return "degraded"
+            return "slate-no-program" if slate else "idle"
         statuses = [
             read_live_caption_processing_status(
                 work_dir,
@@ -291,7 +342,7 @@ def live_caption_readiness(
     except Exception:
         _LOG.debug("Could not aggregate live-caption readiness", exc_info=True)
         return "unknown"
-    if any(
+    if slate_failed or any(
         status.processing_state in {"failed", "stalled", "overloaded", "delayed"}
         for status in statuses
     ):
@@ -343,6 +394,54 @@ def slate_web_hls_readiness(store: EgressStore | None) -> str:
     return "healthy" if all(verdicts) else "degraded"
 
 
+def channel_restart_count(store: EgressStore, channel_id: str, now: datetime) -> int:
+    """Worker relaunches for ``channel_id`` in the last restart-loop window."""
+
+    since = (_as_utc(now) or datetime.now(UTC)) - timedelta(seconds=RESTART_LOOP_WINDOW_SECONDS)
+    counter = getattr(store, "count_health_states_since", None)
+    if counter is None:
+        return 0
+    return int(counter(channel_id, "STARTING", since))
+
+
+def is_restart_loop(restarts: int, latest_sample: EgressHealthSample | None) -> bool:
+    """True when restarts reached the threshold and the worker has not stayed up since."""
+
+    if restarts < RESTART_LOOP_THRESHOLD:
+        return False
+    return not (
+        latest_sample is not None
+        and latest_sample.state in _RUNNING_SAMPLE_STATES
+        and latest_sample.seconds_on_air >= RESTART_LOOP_RECOVERED_SECONDS
+    )
+
+
+def channel_worker_readiness(store: EgressStore | None, *, now: datetime | None = None) -> str:
+    """Detail-free verdict on channel workers for the unauthenticated probe (#327).
+
+    ``restart-loop`` when any enabled channel's worker is in a restart loop,
+    ``healthy`` otherwise, ``unknown`` when the store cannot be read.
+    """
+
+    if store is None:
+        return "unknown"
+    now = now or datetime.now(tz=UTC)
+    try:
+        for config in store.list_configs():
+            if not config.enabled:
+                continue
+            restarts = channel_restart_count(store, config.channel_id, now)
+            if restarts < RESTART_LOOP_THRESHOLD:
+                continue
+            recent = store.recent_health(config.channel_id, 1)
+            if is_restart_loop(restarts, recent[0] if recent else None):
+                return "restart-loop"
+    except Exception:
+        _LOG.debug("Could not aggregate channel worker readiness", exc_info=True)
+        return "unknown"
+    return "healthy"
+
+
 def _worst(colors: list[SafeToAirColor]) -> SafeToAirColor:
     worst: SafeToAirColor = "green"
     for c in colors:
@@ -374,8 +473,13 @@ def compute_channel_runtime_status(
     now: datetime,
     expect_captions: bool = True,
     live_caption_status: ChannelCaptionProcessingStatus | None = None,
+    recent_restarts: int = 0,
 ) -> ChannelRuntimeStatus:
     """Build the runtime status for one channel from its state + latest sample.
+
+    ``recent_restarts`` is the count from ``channel_restart_count``. A restart
+    loop (#327) makes a green channel yellow (degraded): a slate that airs
+    between crashes must not read as healthy.
 
     ``expect_captions`` is the operator's live-captions switch
     (``StationProfile.live_captions_enabled`` via
@@ -442,6 +546,10 @@ def compute_channel_runtime_status(
     ):
         color = "red"
 
+    restart_loop = is_restart_loop(recent_restarts, latest_sample)
+    if restart_loop and color == "green":
+        color = "yellow"
+
     return ChannelRuntimeStatus(
         channel_id=config.channel_id,
         egress_state=state,
@@ -456,6 +564,8 @@ def compute_channel_runtime_status(
         captions_expected=expect_captions,
         captions_verified=captions_verified,
         live_captions=live_caption_status,
+        recent_restarts=recent_restarts,
+        restart_loop=restart_loop,
         color=color,
     )
 
@@ -518,6 +628,7 @@ def compute_runtime_safe_to_air(
                 now=now,
                 expect_captions=expect_captions,
                 live_caption_status=live_caption_status,
+                recent_restarts=channel_restart_count(store, config.channel_id, now),
             )
         )
 
@@ -601,6 +712,14 @@ def _summarize(
         # Red only because a critical alert is firing (channels themselves not red).
         return ("OFF AIR", f"{active_critical} critical alert(s) firing.")
     # yellow
+    looping = [c for c in channels if c.color == "yellow" and c.restart_loop]
+    if looping:
+        first = looping[0]
+        return (
+            "Degraded",
+            f"Degraded — the {first.channel_id} worker restarted {first.recent_restarts} "
+            f"times in {RESTART_LOOP_WINDOW_SECONDS // 60} minutes; see its worker logs.",
+        )
     degraded = [c.channel_id for c in channels if c.color == "yellow"]
     suffix = f" ({active_warning} warning alert(s))" if active_warning else ""
     return ("Degraded", f"Degraded — {', '.join(degraded)} not fully healthy.{suffix}")

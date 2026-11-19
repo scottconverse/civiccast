@@ -346,6 +346,11 @@ class ChannelRuntimeStatus(BaseModel):
     # decode-back proof above. They report input/worker progress, not speech
     # completeness or caption latency.
     live_captions: ChannelCaptionProcessingStatus | None = None
+    # #327: worker relaunches inside the recent window (the daemon appends one
+    # STARTING health sample per relaunch). ``restart_loop`` is True when the
+    # count reached the loop threshold and the channel has not since stayed up.
+    recent_restarts: Annotated[int, Field(ge=0)] = 0
+    restart_loop: bool = False
     color: SafeToAirColor
 
 

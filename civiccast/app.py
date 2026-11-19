@@ -2608,7 +2608,10 @@ def create_app() -> FastAPI:
         * **``status`` is readiness.** ``healthy`` only when the schema matches
           the running code, live-caption readiness is neither ``degraded``
           nor ``unknown``, and no fallback-slate channel reports its web
-          ``hls`` sink down (``slate_web_hls``); otherwise ``degraded``.
+          ``hls`` sink down (``slate_web_hls``), and no channel worker is in
+          a restart loop (``channel_workers``); otherwise ``degraded``.
+          ``live_captions`` reads ``slate-no-program`` when channels air only
+          the slate (no program to caption); that alone is not degraded.
           Uptime monitors should alert on this field, not on the status
           code -- a station with no database
           cannot serve a recording, and reporting "healthy" for it told an
@@ -2653,6 +2656,14 @@ def create_app() -> FastAPI:
         slate_web_hls = slate_web_hls_readiness(egress_store)
         if slate_web_hls == "degraded":
             readiness = "degraded"
+        # #327: a worker the daemon relaunches again and again kept this probe
+        # "healthy" on R9. A restart loop degrades readiness; "unknown" (the
+        # store could not be read) does not add a second verdict here.
+        from civiccast.alerting.runtime_status import channel_worker_readiness
+
+        channel_workers = channel_worker_readiness(egress_store)
+        if channel_workers == "restart-loop":
+            readiness = "degraded"
         # Annotated to match the declared return type. Inferred from this
         # literal alone it is dict[str, str], which then rejects the bool and
         # int fields the maintenance branch adds below -- and dict is
@@ -2664,6 +2675,7 @@ def create_app() -> FastAPI:
             "schema": schema_status.state,
             "live_captions": live_captions,
             "slate_web_hls": slate_web_hls,
+            "channel_workers": channel_workers,
         }
         bootstrap_instance_id = os.environ.get("CIVICCAST_BOOTSTRAP_INSTANCE_ID")
         if bootstrap_instance_id:
@@ -3759,8 +3771,37 @@ def _refresh_schema_status(app: FastAPI) -> None:
         return
     from civiccast.schema_check import check_schema_currency
 
-    app.state.schema_status = check_schema_currency(os.environ.get("DATABASE_URL"))
+    database_url = os.environ.get("DATABASE_URL")
+    app.state.schema_status = check_schema_currency(
+        database_url, engine=_pooled_engine_for_schema_check(database_url)
+    )
     app.state.schema_status_checked_monotonic = time.monotonic()
+
+
+def _pooled_engine_for_schema_check(database_url: str | None) -> Engine | None:
+    """The app's pooled engine, lent to the schema read (rc.6.1 item 13).
+
+    ``schema_check.read_db_revision`` used to build a throwaway
+    ``poolclass=None`` engine per refresh, so every
+    ``SCHEMA_STATUS_TTL_SECONDS`` tick opened a NEW Postgres backend. On the
+    MSI station that fresh backend stalls inside Postgres ("could not reserve
+    shared memory region ... error code 487") and ``/health`` measured 10-14 s
+    against 0.2 s on a warm connection. The engine bound by
+    ``_install_durable_store_wiring`` already keeps its connections open, so
+    lending it here turns the refresh into a pool checkout.
+
+    ``None`` when no database is configured -- there is nothing to read, and
+    building an engine for an unset URL would only fail.
+    """
+
+    if not database_url:
+        return None
+    from civiccast.db import get_engine
+
+    try:
+        return get_engine()
+    except Exception:  # fall back to the standalone read
+        return None
 
 
 #: <installer-path-audit MA-13> How long ``/health`` may serve a cached schema

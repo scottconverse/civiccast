@@ -23,6 +23,7 @@ from civiccast.egress.models import (
     EgressSinkSpec,
     EgressStateRow,
 )
+from civiccast.egress.store import InMemoryEgressStore
 
 _NOW = datetime(2026, 6, 15, 12, 0, 0, tzinfo=UTC)
 
@@ -348,6 +349,85 @@ def test_readiness_ignores_stopped_channels_and_reads_each_state_once(
         == "idle"
     )
     assert store.state_reads == 1
+
+
+def _write_caption_status(work_dir: Path, channel_id: str, payload: dict[str, object]) -> None:
+    path = work_dir / channel_id / "captions" / "runtime-status.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+
+def test_slate_only_station_reports_slate_no_program_not_idle(tmp_path: Path) -> None:
+    """rc.6.1 item 6: a slate channel is not "idle"; it has no program to caption."""
+    store = _FakeStore([_config("public")], {"public": _state("public", "FALLBACK_SLATE")}, {})
+    assert (
+        live_caption_readiness(store, captions_expected=True, work_dir=tmp_path, now=_NOW)
+        == "slate-no-program"
+    )
+
+
+@pytest.mark.parametrize("failure", ["storage-refused", "paused", "overloaded"])
+def test_slate_channel_with_fresh_caption_failure_is_degraded(tmp_path: Path, failure: str) -> None:
+    """A real caption-pipeline failure is not hidden behind the slate."""
+    _write_caption_status(
+        tmp_path,
+        "public",
+        {"state": failure, "updated_at": (_NOW - timedelta(seconds=5)).isoformat()},
+    )
+    store = _FakeStore([_config("public")], {"public": _state("public", "FALLBACK_SLATE")}, {})
+    assert (
+        live_caption_readiness(store, captions_expected=True, work_dir=tmp_path, now=_NOW)
+        == "degraded"
+    )
+
+
+def test_slate_channel_old_failure_snapshot_does_not_degrade(tmp_path: Path) -> None:
+    _write_caption_status(
+        tmp_path,
+        "public",
+        {
+            "state": "storage-refused",
+            "updated_at": (_NOW - timedelta(seconds=3600)).isoformat(),
+        },
+    )
+    store = _FakeStore([_config("public")], {"public": _state("public", "FALLBACK_SLATE")}, {})
+    assert (
+        live_caption_readiness(store, captions_expected=True, work_dir=tmp_path, now=_NOW)
+        == "slate-no-program"
+    )
+
+
+def test_slate_failure_degrades_even_when_another_channel_is_caught_up(
+    tmp_path: Path,
+) -> None:
+    _write_caption_status(
+        tmp_path,
+        "public",
+        {
+            "state": "within-capacity",
+            "worker_heartbeat_at": _NOW.isoformat(),
+            "last_input_at": (_NOW - timedelta(seconds=5)).isoformat(),
+            "last_processed_at": (_NOW - timedelta(seconds=1)).isoformat(),
+            "audio_signal": "audio-present",
+        },
+    )
+    _write_caption_status(
+        tmp_path,
+        "education",
+        {"state": "storage-refused", "updated_at": _NOW.isoformat()},
+    )
+    store = _FakeStore(
+        [_config("public"), _config("education")],
+        {
+            "public": _state("public", "ON_AIR"),
+            "education": _state("education", "FALLBACK_SLATE"),
+        },
+        {},
+    )
+    assert (
+        live_caption_readiness(store, captions_expected=True, work_dir=tmp_path, now=_NOW)
+        == "degraded"
+    )
 
 
 def _config(
@@ -859,3 +939,87 @@ def test_slate_web_hls_ignores_a_slate_channel_without_an_hls_sink() -> None:
 
     assert slate_web_hls_readiness(store) == "idle"  # type: ignore[arg-type]
     assert slate_web_hls_readiness(None) == "unknown"
+
+
+# ---------------------------------------------------------------------------
+# #327: a worker restart loop is degraded, not healthy
+# ---------------------------------------------------------------------------
+
+
+def _loop_store(restarts: int, *, latest_seconds_on_air: int = 20) -> InMemoryEgressStore:
+    store = InMemoryEgressStore()
+    store.upsert_config(_config("public"))
+    store.write_state(_state("public", "FALLBACK_SLATE"))
+    for i in range(restarts):
+        store.append_health(
+            EgressHealthSample(
+                channel_id="public",
+                sampled_at=_NOW - timedelta(seconds=500 - i * 60),
+                state="STARTING",
+                sink_connected={"Cable headend": True},
+            )
+        )
+    store.append_health(
+        _sample("public", "FALLBACK_SLATE", fps=0.0, bitrate=0.0).model_copy(
+            update={"seconds_on_air": latest_seconds_on_air}
+        )
+    )
+    return store
+
+
+def test_restart_loop_turns_a_green_slate_yellow_with_a_clear_message() -> None:
+    from civiccast.alerting.runtime_status import channel_worker_readiness
+
+    store = _loop_store(3)
+
+    result = compute_runtime_safe_to_air(store, [], now=_NOW)
+
+    assert channel_worker_readiness(store, now=_NOW) == "restart-loop"
+    channel = result.channels[0]
+    assert channel.recent_restarts == 3
+    assert channel.restart_loop is True
+    assert channel.color == "yellow"
+    assert result.color == "yellow"
+    assert "restarted 3 times in 10 minutes" in result.operator_message
+
+
+def test_fewer_restarts_than_the_threshold_stay_healthy() -> None:
+    from civiccast.alerting.runtime_status import channel_worker_readiness
+
+    store = _loop_store(2)
+
+    result = compute_runtime_safe_to_air(store, [], now=_NOW)
+
+    assert channel_worker_readiness(store, now=_NOW) == "healthy"
+    assert result.channels[0].restart_loop is False
+    assert result.channels[0].color == "green"
+
+
+def test_restarts_outside_the_window_do_not_count() -> None:
+    from civiccast.alerting.runtime_status import channel_worker_readiness
+
+    store = _loop_store(3)
+
+    later = _NOW + timedelta(minutes=10)
+    assert channel_worker_readiness(store, now=later) == "healthy"
+
+
+def test_worker_that_stayed_up_after_the_restarts_is_not_a_loop() -> None:
+    from civiccast.alerting.runtime_status import channel_worker_readiness, is_restart_loop
+
+    store = _loop_store(4, latest_seconds_on_air=301)
+
+    assert channel_worker_readiness(store, now=_NOW) == "healthy"
+    assert is_restart_loop(4, None) is True
+    assert compute_runtime_safe_to_air(store, [], now=_NOW).channels[0].restart_loop is False
+
+
+def test_worker_readiness_is_unknown_without_a_readable_store() -> None:
+    from civiccast.alerting.runtime_status import channel_worker_readiness
+
+    class _Broken(InMemoryEgressStore):
+        def list_configs(self) -> list[EgressConfig]:
+            raise RuntimeError("db down")
+
+    assert channel_worker_readiness(None) == "unknown"
+    assert channel_worker_readiness(_Broken(), now=_NOW) == "unknown"

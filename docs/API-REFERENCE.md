@@ -6216,6 +6216,8 @@ Read CivicCast local federation metadata.
 - `live_captions` (optional): `ChannelCaptionProcessingStatus | null`
 - `on_air` (required): `boolean`
 - `on_healthy_slate` (required): `boolean`
+- `recent_restarts` (optional): `number`
+- `restart_loop` (optional): `boolean`
 - `seconds_in_state` (optional): `number`
 - `sink_health` (optional): `Record<string, boolean>`
 
