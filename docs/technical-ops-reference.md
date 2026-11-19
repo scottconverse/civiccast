@@ -459,7 +459,7 @@ CivicCast ships a hardware probe that reports the operator-relevant facts about 
 
 ```text
 $ civiccast doctor
-CivicCast 1.0.0-rc.6 - hardware probe
+CivicCast 1.0.0-rc.7 - hardware probe
   hostname: station-1
   os:       windows (Windows 11 26100, x86_64)
 
@@ -1232,7 +1232,7 @@ version from the station you are monitoring.
 
 ```bash
 curl -s http://127.0.0.1:8000/health
-{"status":"degraded","version":"1.0.0-rc.6","schema":"not-configured"}
+{"status":"degraded","version":"1.0.0-rc.7","schema":"not-configured"}
 ```
 
 **The HTTP status code is liveness.** `/health` returns `200` whenever the

@@ -19,6 +19,15 @@ system. Staff use one operator console; residents watch through a separate
 portal. Optional cloud services may charge their own usage fees, while CivicCast
 has no per-minute software fee.
 
+## Unpublished source candidate
+
+`v1.0.0-rc.7` is an unpublished candidate and is not available as a public release.
+It turns live captions on by default for a new station, shows the station's own
+time on the on-air clock, survives a power cut without breaking caption scans,
+and keeps a slate channel from making `/health` say `degraded`. Its CHANGELOG
+entry lists the rest. Source changes do not update an installed station or
+replace the published downloads below.
+
 ## Current published package
 
 [`v1.0.0-rc.6`](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-rc.6)
