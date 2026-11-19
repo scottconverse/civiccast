@@ -1,6 +1,8 @@
 # Changelog
 
-## [1.0.0-rc.6.1]
+## [Unreleased]
+
+Release candidate **v1.0.0-rc.7** (unpublished candidate).
 
 - The on-air CG board clock shows the station's time (issue #347). Before: it showed UTC, so on R9 (Mountain time) it read 04:04 at 21:04. Now: a named station time zone wins; the `local` default, or an unknown zone name, uses the station PC's own time zone. It never falls back to UTC.
 - A power cut no longer leaves the caption program boundary file empty and every caption scan raising. Before: the file was written in place, so a station that lost power came back with an empty file and 14 control-plane errors after the reboot. Now: the file is written to a temp copy, flushed to disk and then put in place, and an empty, broken or non-text file reads as "no boundary" with one warning per file instead of an error on every scan.
