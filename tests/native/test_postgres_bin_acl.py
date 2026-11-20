@@ -25,6 +25,7 @@ from civiccast.native.postgres_bin_acl import (
     has_rx_ace,
     merge_dacl_ace,
     normalize_postgres_bin_acl,
+    postgres_prefix_dir,
     server_bin_traversal_chain,
 )
 
@@ -105,6 +106,42 @@ def test_merge_adds_the_ace_first_and_keeps_everything_else() -> None:
     assert "(A;OICI;FA;;;BA)" in merged
 
 
+def test_merge_places_the_allow_after_the_last_leading_explicit_deny() -> None:
+    """Windows stops at the first matching ACE, so the new allow must not
+    jump ahead of an explicit deny and defeat it."""
+
+    ace = bin_rx_ace(_SID, inheritable=True)
+    deny = f"(D;;0x1200a9;;;{_SID})"
+
+    merged = merge_dacl_ace("D:" + deny + "(A;OICI;FA;;;SY)", ace)
+
+    assert merged == "D:" + deny + ace + "(A;OICI;FA;;;SY)"
+
+
+def test_merge_stops_at_the_first_non_deny_ace() -> None:
+    ace = bin_rx_ace(_SID, inheritable=True)
+    deny = "(D;;0x1200a9;;;S-1-5-21-1)"
+    other_deny = "(D;;0x1200a9;;;S-1-5-21-2)"
+
+    merged = merge_dacl_ace(
+        "D:" + deny + other_deny + "(A;OICI;FA;;;SY)" + "(D;;GA;;;S-1-5-21-3)", ace
+    )
+
+    assert merged == "D:" + deny + other_deny + ace + "(A;OICI;FA;;;SY)(D;;GA;;;S-1-5-21-3)"
+
+
+def test_merge_leaves_inherited_aces_after_the_new_allow() -> None:
+    """An inherited deny (``ID`` flag) is not explicit: it stays after the
+    explicit allows, exactly as canonical order requires."""
+
+    ace = bin_rx_ace(_SID, inheritable=True)
+    inherited_deny = "(D;ID;0x1200a9;;;S-1-5-21-4)"
+
+    merged = merge_dacl_ace("D:AI" + inherited_deny + "(A;OICI;FA;;;SY)", ace)
+
+    assert merged == "D:AI" + ace + inherited_deny + "(A;OICI;FA;;;SY)"
+
+
 @pytest.mark.parametrize("header", ["D:P", "D:AI", "D:PAI", "D:"])
 def test_merge_keeps_the_dacl_header_flags_verbatim(header: str) -> None:
     ace = bin_rx_ace(_SID, inheritable=False)
@@ -126,30 +163,42 @@ def test_merge_refuses_a_non_dacl_string() -> None:
 # --- which folders get the ACE ------------------------------------------------
 
 
-def test_traversal_chain_covers_bin_through_the_install_root(tmp_path: Path) -> None:
+def test_traversal_chain_starts_at_the_payload_prefix_and_ends_at_the_install_root(
+    tmp_path: Path,
+) -> None:
     bin_dir = _server_bin(tmp_path)
     install_root = tmp_path / "install"
 
     chain = server_bin_traversal_chain(bin_dir)
 
-    assert chain[0] == bin_dir, "the binary folder itself is handled first"
+    assert chain[0] == bin_dir.parent, (
+        "the inheritable ACE goes on bin's PARENT (payload) so lib and share inherit it too"
+    )
+    assert chain[0].name == "payload"
     assert chain[-1] == install_root, "nothing above the install root may be touched"
     assert [p.name for p in chain] == [
-        "bin",
         "payload",
         "native-server-binaries",
         "packs",
         "install",
     ]
+    assert bin_dir not in chain, "bin is covered by inheritance from payload"
 
 
-def test_traversal_chain_without_a_packs_ancestor_is_the_bin_folder_only(
-    tmp_path: Path,
-) -> None:
+def test_prefix_dir_falls_back_to_bin_when_it_is_not_inside_packs(tmp_path: Path) -> None:
     bin_dir = tmp_path / "elsewhere" / "bin"
     bin_dir.mkdir(parents=True)
 
+    assert postgres_prefix_dir(bin_dir) == bin_dir
     assert server_bin_traversal_chain(bin_dir) == [bin_dir]
+
+
+def test_prefix_dir_is_bin_when_bin_sits_directly_under_packs(tmp_path: Path) -> None:
+    bin_dir = tmp_path / "install" / "packs" / "bin"
+    bin_dir.mkdir(parents=True)
+
+    assert postgres_prefix_dir(bin_dir) == bin_dir
+    assert [p.name for p in server_bin_traversal_chain(bin_dir)] == ["bin", "packs", "install"]
 
 
 # --- the read-back check ------------------------------------------------------
@@ -188,10 +237,11 @@ def test_has_rx_ace_ignores_a_write_only_or_other_sid_ace() -> None:
 
 @pytest.mark.windows_only
 @_WINDOWS_PATH_TEST
-def test_normalize_grants_the_bin_folder_inheritably_and_ancestors_for_traverse(
+def test_normalize_grants_the_payload_prefix_inheritably_and_ancestors_for_traverse(
     tmp_path: Path, on_windows: None
 ) -> None:
     bin_dir = _server_bin(tmp_path)
+    payload = bin_dir.parent
     dacl = _FakeDacl()
 
     applied = normalize_postgres_bin_acl(
@@ -199,9 +249,10 @@ def test_normalize_grants_the_bin_folder_inheritably_and_ancestors_for_traverse(
     )
 
     assert applied is not None
-    assert next(path for path, _sddl in applied) == str(bin_dir)
+    assert next(path for path, _sddl in applied) == str(payload)
     written = dict(applied)
-    assert bin_rx_ace(_SID, inheritable=True) in written[str(bin_dir)]
+    assert bin_rx_ace(_SID, inheritable=True) in written[str(payload)]
+    assert str(bin_dir) not in written, "bin inherits from payload; it needs no ACE of its own"
     for ancestor in server_bin_traversal_chain(bin_dir)[1:]:
         assert bin_rx_ace(_SID, inheritable=False) in written[str(ancestor)]
         assert bin_rx_ace(_SID, inheritable=True) not in written[str(ancestor)]
@@ -220,6 +271,26 @@ def test_normalize_is_idempotent(tmp_path: Path, on_windows: None) -> None:
 
     assert applied == []
     assert dacl.writes == []
+
+
+@pytest.mark.windows_only
+@_WINDOWS_PATH_TEST
+def test_normalize_falls_back_to_an_inheritable_ace_on_bin_outside_a_packs_tree(
+    tmp_path: Path, on_windows: None
+) -> None:
+    bin_dir = tmp_path / "elsewhere" / "bin"
+    bin_dir.mkdir(parents=True)
+    dacl = _FakeDacl()
+
+    applied = normalize_postgres_bin_acl(
+        bin_dir / "pg_ctl.exe", sid_reader=lambda: _SID, read_dacl=dacl.read, apply_dacl=dacl.apply
+    )
+
+    assert applied is not None
+    assert len(applied) == 1
+    path, sddl = applied[0]
+    assert path == str(bin_dir)
+    assert bin_rx_ace(_SID, inheritable=True) in sddl
 
 
 def test_normalize_is_a_noop_off_windows(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -305,7 +376,7 @@ def test_normalize_fails_loud_when_windows_refuses_the_dacl(
 
     assert FAILURE_STEP in str(excinfo.value)
     assert "access denied writing the DACL" in str(excinfo.value)
-    assert repr(str(bin_dir)) in str(excinfo.value)
+    assert repr(str(bin_dir.parent)) in str(excinfo.value)
 
 
 @pytest.mark.windows_only

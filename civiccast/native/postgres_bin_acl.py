@@ -35,10 +35,16 @@ THE FIX
 calling process's own user SID -- ``RX`` (``0x1200A9``:
 ``FILE_GENERIC_READ | FILE_GENERIC_EXECUTE``) -- to:
 
-* the ``bin`` folder that holds ``pg_ctl.exe``/``postgres.exe``, inheritable
-  (``OI``/``CI``) so Windows' propagation engine covers every existing
-  binary and DLL and every future one;
-* each ancestor from that folder up to (and including) the install root,
+* the PostgreSQL PREFIX folder -- the PARENT of ``bin`` (the ``payload``
+  folder, which also holds ``lib`` and ``share``), inheritable (``OI``/
+  ``CI``). It is not enough to grant ``bin`` alone: the restricted-token
+  postmaster also loads DLLs from ``lib`` and reads ``share`` (timezone sets
+  and friends) at startup, so the whole sibling set those folders hang off
+  must carry the inheritable ACE. Windows' propagation engine then covers
+  ``bin``, ``lib``, ``share`` and every existing and future file in them.
+  When ``bin``'s parent is not inside a ``packs`` tree, the inheritable ACE
+  goes on ``bin`` itself;
+* each ancestor above the prefix up to (and including) the install root,
   NON-inheritable: a directory only needs ``FILE_LIST_DIRECTORY``/
   ``FILE_TRAVERSE`` to be walked through, and granting nothing above the
   install root keeps every change inside the product's own tree.
@@ -89,6 +95,10 @@ DaclApplier = Callable[[str, str], None]
 
 #: One allow ACE in an SDDL DACL: ``(A;<flags>;<mask>;<object>;<inherit>;<sid>)``.
 _ACE_RE = re.compile(r"\(A;([^;]*);([^;]*);[^;]*;[^;]*;([^)]*)\)")
+
+#: The head of ANY ACE, ``(<type>;<flags>;`` -- enough to tell an explicit
+#: deny (``D``/``OD`` without the inherited ``ID`` flag) from everything else.
+_ACE_HEAD_RE = re.compile(r"\(([A-Z]{1,2});([^;()]*);")
 
 
 def _mask_covers_rx(mask: str) -> bool:
@@ -146,14 +156,20 @@ def bin_rx_ace(caller_sid: str, *, inheritable: bool) -> str:
 
 
 def merge_dacl_ace(current_dacl_sddl: str, ace: str) -> str:
-    """Return ``current_dacl_sddl`` with ``ace`` inserted as its first ACE.
+    """Return ``current_dacl_sddl`` with ``ace`` inserted in canonical order.
 
     Pure. The DACL header (``D:`` plus any ``P``/``AI``/``AR`` flags) is kept
     verbatim, so an object's protected/inherited state and every existing ACE
-    survive; only the new entry is added. Deny ACEs normally sort before
-    allow ACEs and are left where they are -- if an explicit deny for this
-    account exists, it still wins and the install fails loud at the next
-    ``pg_ctl``, exactly as the security descriptor says it should.
+    survive; only the new entry is added.
+
+    Windows evaluates ACEs top to bottom and stops at the first match, so
+    order is the security decision, not a cosmetic one. ``ace`` is a new
+    ALLOW, so it must land AFTER every leading explicit (non-inherited) deny
+    ACE ``(D;...)``: inserting it first would let this allow beat an explicit
+    deny and hand out access the descriptor forbids. It is placed immediately
+    after the last leading explicit deny -- i.e. canonical order, explicit
+    deny, explicit allow, inherited -- and therefore leaves inherited ACEs
+    (``ID`` flag) after it, where Windows expects them.
     """
 
     if not current_dacl_sddl.startswith("D:"):
@@ -164,13 +180,66 @@ def merge_dacl_ace(current_dacl_sddl: str, ace: str) -> str:
     first_ace = current_dacl_sddl.find("(")
     if first_ace < 0:
         return current_dacl_sddl + ace
-    return current_dacl_sddl[:first_ace] + ace + current_dacl_sddl[first_ace:]
+
+    # Each ACE's start offset, in order. SDDL ACE fields (type, flags, mask,
+    # object, inherit, SID) never contain a "(", so the parenthesised list is
+    # unambiguous.
+    starts = [m.start() for m in re.finditer(r"\(", current_dacl_sddl)]
+    insert_at = first_ace
+    for index, start in enumerate(starts):
+        head = _ACE_HEAD_RE.match(current_dacl_sddl, start)
+        if head is None:
+            break
+        ace_type = head.group(1).upper()
+        flags = head.group(2).upper()
+        explicit_deny = ace_type in ("D", "OD") and "ID" not in flags
+        if not explicit_deny:
+            break
+        insert_at = starts[index + 1] if index + 1 < len(starts) else len(current_dacl_sddl)
+    return current_dacl_sddl[:insert_at] + ace + current_dacl_sddl[insert_at:]
+
+
+def postgres_prefix_dir(bin_dir: str | Path) -> Path:
+    """The folder whose CHILDREN need inherited RX: ``bin_dir``'s parent when
+    ``bin_dir`` sits inside a ``packs`` tree (the ``payload`` folder, which
+    also holds ``lib`` and ``share``), else ``bin_dir`` itself.
+
+    Pure. ``payload`` is the only folder whose inheritance reaches both
+    ``bin`` and its siblings in one ACE, which is why the inheritable grant
+    moves up from ``bin`` to it.
+    """
+
+    path = Path(bin_dir)
+    for parent in path.parents:
+        if parent.name.lower() == "packs":
+            if parent == path.parent:
+                # bin sits directly under packs: there is no intermediate
+                # prefix folder, so bin is its own prefix.
+                return path
+            return path.parent
+    return path
+
+
+def _packs_install_root(bin_dir: str | Path) -> Path | None:
+    """The install root -- the PARENT of the ``packs`` directory -- or
+    ``None`` when ``bin_dir`` is not inside a ``packs`` tree."""
+
+    for parent in Path(bin_dir).parents:
+        if parent.name.lower() == "packs":
+            return parent.parent
+    return None
 
 
 def server_bin_traversal_chain(bin_dir: str | Path) -> list[Path]:
-    """``bin_dir`` and each ancestor up to (and including) the install root,
-    deepest first; ``[bin_dir]`` alone when the folder is not inside a
-    ``packs`` tree.
+    """Every folder :func:`normalize_postgres_bin_acl` grants, deepest first:
+    the PostgreSQL prefix (see :func:`postgres_prefix_dir`) then each
+    ancestor up to (and including) the install root; ``[bin_dir]`` alone when
+    the folder is not inside a ``packs`` tree.
+
+    The FIRST element is the one that gets the inheritable (``OI``/``CI``)
+    ACE; the rest get a non-inheritable traverse ACE. In a ``packs`` tree
+    that first element is ``bin``'s parent (``payload``), and ``bin``,
+    ``lib`` and ``share`` are covered by inheritance from it.
 
     The install root is recognised the way the product itself lays the tree
     out (``<install_root>\\packs\\native-server-binaries\\payload\\bin`` --
@@ -180,16 +249,18 @@ def server_bin_traversal_chain(bin_dir: str | Path) -> list[Path]:
     touched. Pure, so the exact set of folders is unit-testable anywhere.
     """
 
-    start = Path(bin_dir)
-    chain = [start]
-    for parent in start.parents:
+    bin_path = Path(bin_dir)
+    install_root = _packs_install_root(bin_path)
+    if install_root is None:
+        return [bin_path]
+
+    prefix = postgres_prefix_dir(bin_path)
+    chain = [prefix]
+    for parent in prefix.parents:
         chain.append(parent)
-        if parent.name.lower() == "packs":
-            install_root = parent.parent
-            if install_root != parent:
-                chain.append(install_root)
+        if parent == install_root:
             return chain
-    return [start]
+    return [bin_path]
 
 
 def _read_dacl_sddl(path: str) -> str:
@@ -248,8 +319,10 @@ def normalize_postgres_bin_acl(
     read_dacl: DaclReader | None = None,
     apply_dacl: DaclApplier | None = None,
 ) -> list[tuple[str, str]] | None:
-    """Grant the calling account ``RX`` on ``pg_ctl_path``'s folder and its
-    ancestors up to the install root (module docstring).
+    """Grant the calling account ``RX`` on the PostgreSQL prefix folder --
+    the parent of ``pg_ctl_path``'s ``bin`` folder, so ``bin``, ``lib`` and
+    ``share`` all inherit it -- and on each ancestor up to the install root
+    (module docstring).
 
     Returns the ``(path, merged SDDL)`` pairs actually written -- an empty
     list when every ACE was already present, ``None`` on a non-Windows host.
@@ -298,8 +371,9 @@ def normalize_postgres_bin_acl(
         ) from exc
 
     applied: list[tuple[str, str]] = []
-    for target in server_bin_traversal_chain(bin_dir):
-        inheritable = target == bin_dir
+    chain = server_bin_traversal_chain(bin_dir)
+    for index, target in enumerate(chain):
+        inheritable = index == 0
         ace = bin_rx_ace(caller_sid, inheritable=inheritable)
         try:
             current = read(str(target))
@@ -330,5 +404,6 @@ __all__ = [
     "has_rx_ace",
     "merge_dacl_ace",
     "normalize_postgres_bin_acl",
+    "postgres_prefix_dir",
     "server_bin_traversal_chain",
 ]

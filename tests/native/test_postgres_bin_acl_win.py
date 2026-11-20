@@ -16,10 +16,13 @@ operate (``READ_CONTROL``, ``FILE_READ_ATTRIBUTES``, ``FILE_TRAVERSE`` --
 which deliberately does NOT count as RX), so the module has to do the work.
 It asserts what the fix depends on:
 
-1. the calling account ends up with an inheritable RX ACE on the ``bin``
-   folder and a plain RX ACE on each ancestor up to the install root,
-2. that ACE PROPAGATES onto an existing binary inside ``bin`` (the whole
-   point -- ``postgres.exe`` already exists when this runs),
+1. the calling account ends up with an inheritable RX ACE on the PostgreSQL
+   PREFIX folder (``payload``, the parent of ``bin``) and a plain RX ACE on
+   each ancestor up to the install root,
+2. that ACE PROPAGATES onto an existing binary inside ``bin`` AND onto files
+   inside the sibling ``lib`` and ``share`` folders (the whole point --
+   ``postgres.exe``, the DLLs and the timezone data already exist when this
+   runs, and the restricted-token postmaster reads all three),
 3. every pre-existing ACE survives the merge (SYSTEM's and Administrators'
    full control in particular), and
 4. the pass is idempotent -- a second call writes nothing.
@@ -93,78 +96,123 @@ def _grant_full_control(path: Path, sid: str, *, directory: bool) -> None:
     )
 
 
-def _dell_shaped_tree(tmp_path: Path) -> tuple[Path, Path, str]:
-    """``<root>\\packs\\native-server-binaries\\payload\\bin`` with a
-    ``postgres.exe`` inside, carrying the Dell's SYSTEM+Administrators-only
-    access and no RX for the calling account."""
+def _dell_shaped_tree(tmp_path: Path) -> tuple[Path, list[Path], list[Path], str]:
+    """The real payload layout -- ``bin``, ``lib`` and ``share`` under
+    ``payload`` -- carrying the Dell's SYSTEM+Administrators-only access and
+    no RX for the calling account.
+
+    The PROTECTED Dell DACL goes on the install root and its ``packs``
+    subtree down to ``payload``; ``bin``/``lib``/``share`` and their files
+    stay unprotected so Windows' own propagation (the mechanism this fix
+    relies on) can deliver the new inheritable ACE to them.
+    """
 
     sid = _current_process_sid()
-    bin_dir = tmp_path / "install" / "packs" / "native-server-binaries" / "payload" / "bin"
-    bin_dir.mkdir(parents=True)
-    binary = bin_dir / "postgres.exe"
-    binary.write_bytes(b"MZ")
+    payload = tmp_path / "install" / "packs" / "native-server-binaries" / "payload"
+    bin_dir = payload / "bin"
+    lib_dir = payload / "lib"
+    share_dir = payload / "share" / "timezonesets"
+    for directory in (bin_dir, lib_dir, share_dir):
+        directory.mkdir(parents=True)
+    files = {
+        "bin": bin_dir / "postgres.exe",
+        "lib": lib_dir / "icuuc77.dll",
+        "share": share_dir / "Default",
+    }
+    for path in files.values():
+        path.write_bytes(b"MZ")
+
     shape = f"D:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;;{_OPERATE_MASK};;;{sid})"
-    for directory in [tmp_path / "install", *bin_dir.parents[:3], bin_dir]:
+    protected = [
+        tmp_path / "install",
+        tmp_path / "install" / "packs",
+        tmp_path / "install" / "packs" / "native-server-binaries",
+        payload,
+    ]
+    for directory in protected:
         _apply_sddl(directory, shape, protect=True)
-    # The file stays unprotected so Windows' own propagation (the mechanism
-    # pgdata_acl's measured test relies on) can reach it.
-    _apply_sddl(binary, f"D:(A;;FA;;;SY)(A;;FA;;;BA)(A;;{_OPERATE_MASK};;;{sid})", protect=False)
-    return bin_dir, binary, sid
+    # The prefix's children stay unprotected so Windows' propagation delivers
+    # the new ACE to them, but each keeps a non-RX operate ACE for this
+    # process so the test can stat and delete the tree.
+    child_shape = f"D:(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;;{_OPERATE_MASK};;;{sid})"
+    for directory in (payload / "share", share_dir, lib_dir, bin_dir):
+        _apply_sddl(directory, child_shape, protect=False)
+    for path in files.values():
+        _apply_sddl(
+            path,
+            f"D:(A;;FA;;;SY)(A;;FA;;;BA)(A;;{_OPERATE_MASK};;;{sid})",
+            protect=False,
+        )
+    return bin_dir, list(files.values()), protected, sid
+
+
+def _every_dir(bin_dir: Path, protected: list[Path]) -> list[Path]:
+    payload = bin_dir.parent
+    return [
+        bin_dir,
+        payload / "lib",
+        payload / "share",
+        payload / "share" / "timezonesets",
+        *protected,
+    ]
 
 
 @pytest.fixture
-def dell_tree(tmp_path: Path) -> Iterator[tuple[Path, Path, str]]:
+def dell_tree(tmp_path: Path) -> Iterator[tuple[Path, list[Path], list[Path], str]]:
     """The Dell-shaped tree, with the calling account's full control restored
     afterwards so pytest can delete the temporary tree."""
 
-    bin_dir, binary, sid = _dell_shaped_tree(tmp_path)
-    yield bin_dir, binary, sid
-    for directory in [tmp_path / "install", *bin_dir.parents[:3], bin_dir]:
+    bin_dir, files, protected, sid = _dell_shaped_tree(tmp_path)
+    yield bin_dir, files, protected, sid
+    for directory in _every_dir(bin_dir, protected):
         _grant_full_control(directory, sid, directory=True)
-    _grant_full_control(binary, sid, directory=False)
+    for path in files:
+        _grant_full_control(path, sid, directory=False)
 
 
-def test_normalize_grants_the_calling_account_and_propagates_to_the_binary(
-    tmp_path: Path, dell_tree: tuple[Path, Path, str]
+def test_normalize_grants_the_calling_account_and_reaches_bin_lib_and_share(
+    tmp_path: Path, dell_tree: tuple[Path, list[Path], list[Path], str]
 ) -> None:
-    bin_dir, binary, sid = dell_tree
+    bin_dir, files, _protected, sid = dell_tree
+    payload = bin_dir.parent
 
     applied = normalize_postgres_bin_acl(bin_dir / "pg_ctl.exe")
 
     assert applied, (
         "the Dell shape has no RX ACE for the calling account, so something must be written"
     )
-    bin_dacl = _dacl_sddl(bin_dir)
-    assert has_rx_ace(bin_dacl, sid, inheritable=True), bin_dacl
-    assert has_rx_ace(_dacl_sddl(binary), sid, inheritable=False), (
-        "the existing postgres.exe must carry the ACE -- a directory-only change "
-        "would not let the restricted-token postmaster load it"
-    )
+    payload_dacl = _dacl_sddl(payload)
+    assert has_rx_ace(payload_dacl, sid, inheritable=True), payload_dacl
     assert has_rx_ace(_dacl_sddl(tmp_path / "install"), sid, inheritable=False)
+    for path in files:
+        assert has_rx_ace(_dacl_sddl(path), sid, inheritable=False), (
+            f"{path} must carry the ACE -- a payload-only directory change would "
+            f"not let the restricted-token postmaster read {path.parent.name}"
+        )
     # Nothing the Dell already had may be lost.
-    for directory in [bin_dir, tmp_path / "install"]:
+    for directory in [payload, tmp_path / "install"]:
         dacl = _dacl_sddl(directory)
         assert "(A;OICI;FA;;;SY)" in dacl, dacl
         assert "(A;OICI;FA;;;BA)" in dacl, dacl
 
 
 def test_normalize_does_not_widen_to_users_or_everyone(
-    tmp_path: Path, dell_tree: tuple[Path, Path, str]
+    tmp_path: Path, dell_tree: tuple[Path, list[Path], list[Path], str]
 ) -> None:
-    bin_dir, _binary, _sid = dell_tree
+    bin_dir, _files, protected, _sid = dell_tree
 
     normalize_postgres_bin_acl(bin_dir / "pg_ctl.exe")
 
-    for directory in [bin_dir, tmp_path / "install"]:
+    for directory in [bin_dir, *protected]:
         dacl = _dacl_sddl(directory)
         for broad in (";;;BU)", ";;;WD)", ";;;AU)"):
             assert broad not in dacl, f"must never grant {broad}: {dacl}"
 
 
 def test_normalize_is_idempotent_against_the_real_api(
-    tmp_path: Path, dell_tree: tuple[Path, Path, str]
+    tmp_path: Path, dell_tree: tuple[Path, list[Path], list[Path], str]
 ) -> None:
-    bin_dir, _binary, _sid = dell_tree
+    bin_dir, _files, _protected, _sid = dell_tree
 
     first = normalize_postgres_bin_acl(bin_dir / "pg_ctl.exe")
     before = {path: _dacl_sddl(Path(path)) for path, _sddl in first or []}
