@@ -1144,3 +1144,78 @@ def test_output_health_reports_measured_rates_and_zero_on_stall(engine_module, c
     stalled = parse_ffmpeg_encoder_metrics_line(capsys.readouterr().err)
     assert stalled.encoder_fps == 0
     assert stalled.encoder_bitrate_kbps == 0
+
+
+# --- U37 lag half vs the graph's own declared audio latency ---------------------
+
+
+class _FakeCaps:
+    def __init__(self, text: str) -> None:
+        self._text = text
+
+    def to_string(self) -> str:
+        return self._text
+
+
+class _FakeMuxPad:
+    def __init__(self, caps: str) -> None:
+        self._caps = _FakeCaps(caps)
+
+    def get_current_caps(self) -> _FakeCaps:
+        return self._caps
+
+
+def _stream_judge_engine(module: types.ModuleType, *, audio_latency_ns: int) -> Any:
+    """A bare engine whose only populated judge inputs are the two mux streams."""
+    engine = _bare_engine(module, first_output_timeout_s=45.0, stall_timeout_s=10.0)
+    engine._mux_input_pads = {
+        "sink_65": _FakeMuxPad("video/x-h264"),
+        "sink_66": _FakeMuxPad("audio/x-ac3"),
+    }
+    engine.audio_selector = object()
+    engine.output_audio_latency_ns = audio_latency_ns
+    engine.fired: list[str] = []
+    engine._act_on_stream_stall = lambda **kwargs: engine.fired.append(kwargs["headline"]) or False
+    return engine
+
+
+def _drive_audio_lag(engine: Any, *, behind_s: float, ticks: int = 14) -> None:
+    """Both streams advance at 1s/s; audio airs ``behind_s`` behind video."""
+    for tick in range(ticks):
+        now = float(tick)
+        video_rt = int(now * 1_000_000_000)
+        engine._mux_pad_airing_rt["sink_65"] = video_rt
+        engine._mux_pad_airing_rt["sink_66"] = video_rt - int(behind_s * 1_000_000_000)
+        engine._check_stream_stalls(now)
+
+
+def test_stream_lag_judge_does_not_fire_at_the_declared_audio_latency(
+    engine_module,
+) -> None:
+    """The loudnorm branch declares 3.0s of audio latency; a 2.9s lag is by design.
+
+    Measured on the 5060 Ti station (2026-11-19): every ``audio running time
+    ... behind video`` exit named 2.1-3.0s -- the declared latency -- and they
+    stopped when the cable sink whose atsc-a85 target builds that branch was
+    removed from the channel.
+    """
+    engine = _stream_judge_engine(engine_module, audio_latency_ns=3_000_000_000)
+    _drive_audio_lag(engine, behind_s=2.9)
+    assert engine.fired == []
+
+
+def test_stream_lag_judge_still_fires_past_declared_latency_plus_bound(
+    engine_module,
+) -> None:
+    engine = _stream_judge_engine(engine_module, audio_latency_ns=3_000_000_000)
+    _drive_audio_lag(engine, behind_s=6.0)
+    assert engine.fired, "a 6.0s lag is past 2.0s + the 3.0s the graph declares"
+    assert "audio running time" in engine.fired[0]
+
+
+def test_stream_lag_judge_keeps_the_fixed_bound_without_declared_latency(
+    engine_module,
+) -> None:
+    engine = _stream_judge_engine(engine_module, audio_latency_ns=0)
+    _drive_audio_lag(engine, behind_s=2.9)
+    assert engine.fired, "no declared latency: 2.9s is still past the 2.0s bound"
