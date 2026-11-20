@@ -23,3 +23,22 @@ those three tests plus three new ones added alongside them
 (`test_an_older_build_saved_off_is_turned_on_once`,
 `test_off_saved_after_the_upgrade_stays_off`,
 `test_env_off_still_wins_over_a_migrated_on`).
+
+## 2026-11-20 — U63: the audio PES PTS step is fixed, so its acceptance is gone
+
+Owner acceptance of 2026-10-29 let exactly one media failure pass required CI:
+one backward audio PID 66 PES PTS step (`{66: 1}`) in
+`test_immediate_finite_playlist_reload_holds_rebases_and_stays_on_air`, and only
+for `1.0.0-rc.1`. The product now holds the rebased changeover segment at the
+audio mux sink pad until that pad has given up the retiring leg's queued
+buffers, so no stale audio is re-dated into the incoming timeline and the step
+cannot be emitted. With the defect gone, the acceptance had to go with it: the
+verifier accepts no media failure at all.
+
+| Old test | Replaced by | Why | Run |
+|---|---|---|---|
+| `tests/policy/test_native_caption_workflow_policy.py::test_windows_media_owner_acceptance_keeps_the_failed_junit` | `test_windows_media_junit_rejects_every_failure` | The rc.1-only acceptance branch is deleted from `scripts/verify_windows_media_junit.py`; the exact former accepted JUnit is now asserted to raise. | `pytest tests/policy/test_native_caption_workflow_policy.py` |
+| `tests/policy/test_native_caption_workflow_policy.py::test_windows_media_owner_acceptance_rejects_other_outcomes` | `test_windows_media_junit_rejects_every_failure` | Same rejection matrix (identities, observed result, source assertion, skips, errors, duplicates, incomplete execution, every nonstandard exit) kept in one test, with the workflow's acceptance wording asserted absent. | `pytest tests/policy/test_native_caption_workflow_policy.py` |
+
+Net effect: two policy tests became one. No `tests/native` case changed, so the
+`ci-test.yml` junit floors (2215 pure / 2487 Windows) still match.

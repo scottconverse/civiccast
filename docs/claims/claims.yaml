@@ -54,6 +54,12 @@
 # PR284 owner-accepted RC1 audioPTS limitation: preserve failed JUnit and
 # classify only the documented exact failure; renew these six workflow bindings.
 # Producer, contract, and claim requirements remain unchanged; see CURRENT.md.
+# U63 (2026-11-20): that acceptance is REMOVED -- the product fix (a bounded wait
+# for the changeover segment at the audio mux pad) ends the audio PES PTS step,
+# so scripts/verify_windows_media_junit.py accepts no media failure and the six
+# workflow blobs are re-bound for the workflow's changed step text only. This is
+# a source tripwire renewal, not installed/release proof, and no registered
+# claim, producer, control or floor input changes.
 # RC2 R9: renew engine/graph/test source tripwires for source-output observations.
 # Focused native three-source and prerolled replacement checks passed; historical
 # hardware/session-0 observations stay historical, not transferred to RC2.
@@ -186,6 +192,10 @@ entries:
       # resolves SDDL alias SIDs (``LA`` = RID 500), so the pure floor is 2215
       # and the Windows floor is 2487. Source-tripwire rebind only, not
       # installed/release proof.
+      # 2026-11-20: ci-test.yml re-bound after the U63 media-verifier change
+      # (the rc.1 audio PTS acceptance is gone; no tests/native count moved, so
+      # the pure and Windows floors above stand). Blob re-hashed with
+      # `git hash-object .github/workflows/ci-test.yml`.
       # 2026-11-20 (Transfer concurrency): ``stage-native-runtime-inputs``
       # moved off the shared ``sandbox-lab`` group onto a per-workflow,
       # per-ref group so concurrent PRs stop cancelling each other's
@@ -194,7 +204,7 @@ entries:
       # Blob re-hashed with `git hash-object .github/workflows/ci-test.yml`.
       workflow:
         path: .github/workflows/ci-test.yml
-        blob: 80eb95ba8d8c96e31c3a4503d329c3e94b131b50
+        blob: 2f3cf2fe5f88d49ee5a3fdee83b35f30fd2b8405
       workflow_contract:
         path: docs/claims/workflow-contract.yaml
         blob: 09ede0eb7db4b84a9ea50ef007b4451793f48000
@@ -278,6 +288,10 @@ entries:
       # resolves SDDL alias SIDs (``LA`` = RID 500), so the pure floor is 2215
       # and the Windows floor is 2487. Source-tripwire rebind only, not
       # installed/release proof.
+      # 2026-11-20: ci-test.yml re-bound after the U63 media-verifier change
+      # (the rc.1 audio PTS acceptance is gone; no tests/native count moved, so
+      # the pure and Windows floors above stand). Blob re-hashed with
+      # `git hash-object .github/workflows/ci-test.yml`.
       # 2026-11-20 (Transfer concurrency): ``stage-native-runtime-inputs``
       # moved off the shared ``sandbox-lab`` group onto a per-workflow,
       # per-ref group so concurrent PRs stop cancelling each other's
@@ -286,7 +300,7 @@ entries:
       # Blob re-hashed with `git hash-object .github/workflows/ci-test.yml`.
       workflow:
         path: .github/workflows/ci-test.yml
-        blob: 80eb95ba8d8c96e31c3a4503d329c3e94b131b50
+        blob: 2f3cf2fe5f88d49ee5a3fdee83b35f30fd2b8405
       workflow_contract:
         path: docs/claims/workflow-contract.yaml
         blob: 09ede0eb7db4b84a9ea50ef007b4451793f48000
@@ -347,6 +361,10 @@ entries:
       # resolves SDDL alias SIDs (``LA`` = RID 500), so the pure floor is 2215
       # and the Windows floor is 2487. Source-tripwire rebind only, not
       # installed/release proof.
+      # 2026-11-20: ci-test.yml re-bound after the U63 media-verifier change
+      # (the rc.1 audio PTS acceptance is gone; no tests/native count moved, so
+      # the pure and Windows floors above stand). Blob re-hashed with
+      # `git hash-object .github/workflows/ci-test.yml`.
       # 2026-11-20 (Transfer concurrency): ``stage-native-runtime-inputs``
       # moved off the shared ``sandbox-lab`` group onto a per-workflow,
       # per-ref group so concurrent PRs stop cancelling each other's
@@ -355,7 +373,7 @@ entries:
       # Blob re-hashed with `git hash-object .github/workflows/ci-test.yml`.
       workflow:
         path: .github/workflows/ci-test.yml
-        blob: 80eb95ba8d8c96e31c3a4503d329c3e94b131b50
+        blob: 2f3cf2fe5f88d49ee5a3fdee83b35f30fd2b8405
       workflow_contract:
         path: docs/claims/workflow-contract.yaml
         blob: 09ede0eb7db4b84a9ea50ef007b4451793f48000
@@ -424,6 +442,10 @@ entries:
       # resolves SDDL alias SIDs (``LA`` = RID 500), so the pure floor is 2215
       # and the Windows floor is 2487. Source-tripwire rebind only, not
       # installed/release proof.
+      # 2026-11-20: ci-test.yml re-bound after the U63 media-verifier change
+      # (the rc.1 audio PTS acceptance is gone; no tests/native count moved, so
+      # the pure and Windows floors above stand). Blob re-hashed with
+      # `git hash-object .github/workflows/ci-test.yml`.
       # 2026-11-20 (Transfer concurrency): ``stage-native-runtime-inputs``
       # moved off the shared ``sandbox-lab`` group onto a per-workflow,
       # per-ref group so concurrent PRs stop cancelling each other's
@@ -432,7 +454,7 @@ entries:
       # Blob re-hashed with `git hash-object .github/workflows/ci-test.yml`.
       workflow:
         path: .github/workflows/ci-test.yml
-        blob: 80eb95ba8d8c96e31c3a4503d329c3e94b131b50
+        blob: 2f3cf2fe5f88d49ee5a3fdee83b35f30fd2b8405
       workflow_contract:
         path: docs/claims/workflow-contract.yaml
         blob: 09ede0eb7db4b84a9ea50ef007b4451793f48000
@@ -1194,8 +1216,16 @@ entries:
         # test_gst_engine_first_output_timeout.py. Source-tripwire rebind only,
         # not installed/release proof. Blob IDs re-hashed with
         # `git hash-object <file>`.
+        # 2026-11-20 (reload changeover drain, engine.py drift): the mux
+        # tail probe now holds the changeover SEGMENT until each mux pad has
+        # drained (bounded by the rebase drain deadline), so an immediate
+        # finite reload never steps audio PTS back. Only engine.py changed.
+        # Current-source proof: tests/egress/
+        # test_gst_engine_reload_commit_ordering.py. Source-tripwire rebind
+        # only, not installed/release proof. Blob IDs re-hashed with
+        # `git hash-object <file>`.
         - path: civiccast/egress/gst/engine.py
-          blob: 094c8e3603954f2a9d0b184004372028a765b007
+          blob: d83f75a38028858dcc5e892bcaacf1f5d6a52b6e
         - path: civiccast/egress/gst/caption_flow.py
           blob: c0c981dfa050e8ca196533c791a99028302c5ca5
         - path: civiccast/egress/gst/decode_policy.py
@@ -1234,6 +1264,10 @@ entries:
       # resolves SDDL alias SIDs (``LA`` = RID 500), so the pure floor is 2215
       # and the Windows floor is 2487. Source-tripwire rebind only, not
       # installed/release proof.
+      # 2026-11-20: ci-test.yml re-bound after the U63 media-verifier change
+      # (the rc.1 audio PTS acceptance is gone; no tests/native count moved, so
+      # the pure and Windows floors above stand). Blob re-hashed with
+      # `git hash-object .github/workflows/ci-test.yml`.
       # 2026-11-20 (Transfer concurrency): ``stage-native-runtime-inputs``
       # moved off the shared ``sandbox-lab`` group onto a per-workflow,
       # per-ref group so concurrent PRs stop cancelling each other's
@@ -1242,7 +1276,7 @@ entries:
       # Blob re-hashed with `git hash-object .github/workflows/ci-test.yml`.
       workflow:
         path: .github/workflows/ci-test.yml
-        blob: 80eb95ba8d8c96e31c3a4503d329c3e94b131b50
+        blob: 2f3cf2fe5f88d49ee5a3fdee83b35f30fd2b8405
       workflow_contract:
         path: docs/claims/workflow-contract.yaml
         blob: 09ede0eb7db4b84a9ea50ef007b4451793f48000
@@ -2169,8 +2203,16 @@ entries:
         # test_gst_engine_first_output_timeout.py. Source-tripwire rebind only,
         # not installed/release proof. Blob IDs re-hashed with
         # `git hash-object <file>`.
+        # 2026-11-20 (reload changeover drain, engine.py drift): the mux
+        # tail probe now holds the changeover SEGMENT until each mux pad has
+        # drained (bounded by the rebase drain deadline), so an immediate
+        # finite reload never steps audio PTS back. Only engine.py changed.
+        # Current-source proof: tests/egress/
+        # test_gst_engine_reload_commit_ordering.py. Source-tripwire rebind
+        # only, not installed/release proof. Blob IDs re-hashed with
+        # `git hash-object <file>`.
         - path: civiccast/egress/gst/engine.py
-          blob: 094c8e3603954f2a9d0b184004372028a765b007
+          blob: d83f75a38028858dcc5e892bcaacf1f5d6a52b6e
         - path: civiccast/egress/gst/caption_flow.py
           blob: c0c981dfa050e8ca196533c791a99028302c5ca5
         - path: civiccast/egress/gst/decode_policy.py
@@ -2209,6 +2251,10 @@ entries:
       # resolves SDDL alias SIDs (``LA`` = RID 500), so the pure floor is 2215
       # and the Windows floor is 2487. Source-tripwire rebind only, not
       # installed/release proof.
+      # 2026-11-20: ci-test.yml re-bound after the U63 media-verifier change
+      # (the rc.1 audio PTS acceptance is gone; no tests/native count moved, so
+      # the pure and Windows floors above stand). Blob re-hashed with
+      # `git hash-object .github/workflows/ci-test.yml`.
       # 2026-11-20 (Transfer concurrency): ``stage-native-runtime-inputs``
       # moved off the shared ``sandbox-lab`` group onto a per-workflow,
       # per-ref group so concurrent PRs stop cancelling each other's
@@ -2217,7 +2263,7 @@ entries:
       # Blob re-hashed with `git hash-object .github/workflows/ci-test.yml`.
       workflow:
         path: .github/workflows/ci-test.yml
-        blob: 80eb95ba8d8c96e31c3a4503d329c3e94b131b50
+        blob: 2f3cf2fe5f88d49ee5a3fdee83b35f30fd2b8405
       workflow_contract:
         path: docs/claims/workflow-contract.yaml
         blob: 09ede0eb7db4b84a9ea50ef007b4451793f48000
