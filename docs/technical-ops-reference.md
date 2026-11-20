@@ -459,7 +459,7 @@ CivicCast ships a hardware probe that reports the operator-relevant facts about 
 
 ```text
 $ civiccast doctor
-CivicCast 1.0.0-rc.7 - hardware probe
+CivicCast 1.0.0-rc.8 - hardware probe
   hostname: station-1
   os:       windows (Windows 11 26100, x86_64)
 
@@ -1232,7 +1232,7 @@ version from the station you are monitoring.
 
 ```bash
 curl -s http://127.0.0.1:8000/health
-{"status":"degraded","version":"1.0.0-rc.7","schema":"not-configured"}
+{"status":"degraded","version":"1.0.0-rc.8","schema":"not-configured"}
 ```
 
 **The HTTP status code is liveness.** `/health` returns `200` whenever the
@@ -1349,7 +1349,8 @@ This reference is maintained in `docs/technical-ops-reference.md`. The user-faci
 
 ## Published package evidence and historical release identity
 
-This reference follows the published `CivicCast 1.0.0-rc.7`. The
+This reference describes CivicCast `1.0.0-rc.8`, an unpublished source
+candidate; the published package remains `1.0.0-rc.7`. The
 [RC7 verification record](releases/v1.0.0-rc.7-verification.md)
 identifies the signed package and its scoped checks. The [Beta 20 verification record](releases/v1.0.0-beta.20-verification.md)
 and the [Beta 19 verification record](releases/v1.0.0-beta.19-verification.md)
