@@ -180,9 +180,13 @@ entries:
           blob: 716ee9bf02bae2849adeb1223569b263458d80d0
       # Beta 15 updates collection floors; this workflow binding
       # remains a drift tripwire and does not renew unrelated claim evidence.
+      # 2026-11-20 (PR 377): the native junit floors were raised for the
+      # installer postgres bin ACL cases (2182 -> 2210 pure, 2437 -> 2480
+      # Windows). Source-tripwire rebind only, not installed/release proof.
+      # Blob re-hashed with `git hash-object .github/workflows/ci-test.yml`.
       workflow:
         path: .github/workflows/ci-test.yml
-        blob: 255386dd89997c816429950698ce75977524eddc
+        blob: 80ada0060b40b22338cbfc117ece0b97b68c4c5e
       workflow_contract:
         path: docs/claims/workflow-contract.yaml
         blob: 09ede0eb7db4b84a9ea50ef007b4451793f48000
@@ -260,9 +264,13 @@ entries:
           blob: 716ee9bf02bae2849adeb1223569b263458d80d0
       # Beta 15 updates collection floors; this workflow binding
       # remains a drift tripwire and does not renew unrelated claim evidence.
+      # 2026-11-20 (PR 377): the native junit floors were raised for the
+      # installer postgres bin ACL cases (2182 -> 2210 pure, 2437 -> 2480
+      # Windows). Source-tripwire rebind only, not installed/release proof.
+      # Blob re-hashed with `git hash-object .github/workflows/ci-test.yml`.
       workflow:
         path: .github/workflows/ci-test.yml
-        blob: 255386dd89997c816429950698ce75977524eddc
+        blob: 80ada0060b40b22338cbfc117ece0b97b68c4c5e
       workflow_contract:
         path: docs/claims/workflow-contract.yaml
         blob: 09ede0eb7db4b84a9ea50ef007b4451793f48000
@@ -317,9 +325,13 @@ entries:
           blob: 716ee9bf02bae2849adeb1223569b263458d80d0
       # Beta 15 updates collection floors; this workflow binding
       # remains a drift tripwire and does not renew unrelated claim evidence.
+      # 2026-11-20 (PR 377): the native junit floors were raised for the
+      # installer postgres bin ACL cases (2182 -> 2210 pure, 2437 -> 2480
+      # Windows). Source-tripwire rebind only, not installed/release proof.
+      # Blob re-hashed with `git hash-object .github/workflows/ci-test.yml`.
       workflow:
         path: .github/workflows/ci-test.yml
-        blob: 255386dd89997c816429950698ce75977524eddc
+        blob: 80ada0060b40b22338cbfc117ece0b97b68c4c5e
       workflow_contract:
         path: docs/claims/workflow-contract.yaml
         blob: 09ede0eb7db4b84a9ea50ef007b4451793f48000
@@ -382,9 +394,13 @@ entries:
           blob: 716ee9bf02bae2849adeb1223569b263458d80d0
       # Beta 15 updates collection floors; this workflow binding
       # remains a drift tripwire and does not renew unrelated claim evidence.
+      # 2026-11-20 (PR 377): the native junit floors were raised for the
+      # installer postgres bin ACL cases (2182 -> 2210 pure, 2437 -> 2480
+      # Windows). Source-tripwire rebind only, not installed/release proof.
+      # Blob re-hashed with `git hash-object .github/workflows/ci-test.yml`.
       workflow:
         path: .github/workflows/ci-test.yml
-        blob: 255386dd89997c816429950698ce75977524eddc
+        blob: 80ada0060b40b22338cbfc117ece0b97b68c4c5e
       workflow_contract:
         path: docs/claims/workflow-contract.yaml
         blob: 09ede0eb7db4b84a9ea50ef007b4451793f48000
@@ -1172,9 +1188,13 @@ entries:
           blob: 716ee9bf02bae2849adeb1223569b263458d80d0
       # Beta 15 updates collection floors; this workflow binding
       # remains a drift tripwire and does not renew unrelated claim evidence.
+      # 2026-11-20 (PR 377): the native junit floors were raised for the
+      # installer postgres bin ACL cases (2182 -> 2210 pure, 2437 -> 2480
+      # Windows). Source-tripwire rebind only, not installed/release proof.
+      # Blob re-hashed with `git hash-object .github/workflows/ci-test.yml`.
       workflow:
         path: .github/workflows/ci-test.yml
-        blob: 255386dd89997c816429950698ce75977524eddc
+        blob: 80ada0060b40b22338cbfc117ece0b97b68c4c5e
       workflow_contract:
         path: docs/claims/workflow-contract.yaml
         blob: 09ede0eb7db4b84a9ea50ef007b4451793f48000
@@ -2127,9 +2147,13 @@ entries:
           blob: 716ee9bf02bae2849adeb1223569b263458d80d0
       # Beta 15 updates collection floors; this workflow binding
       # remains a drift tripwire and does not renew unrelated claim evidence.
+      # 2026-11-20 (PR 377): the native junit floors were raised for the
+      # installer postgres bin ACL cases (2182 -> 2210 pure, 2437 -> 2480
+      # Windows). Source-tripwire rebind only, not installed/release proof.
+      # Blob re-hashed with `git hash-object .github/workflows/ci-test.yml`.
       workflow:
         path: .github/workflows/ci-test.yml
-        blob: 255386dd89997c816429950698ce75977524eddc
+        blob: 80ada0060b40b22338cbfc117ece0b97b68c4c5e
       workflow_contract:
         path: docs/claims/workflow-contract.yaml
         blob: 09ede0eb7db4b84a9ea50ef007b4451793f48000
