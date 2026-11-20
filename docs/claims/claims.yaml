@@ -1192,8 +1192,16 @@ entries:
         # test_gst_engine_first_output_timeout.py. Source-tripwire rebind only,
         # not installed/release proof. Blob IDs re-hashed with
         # `git hash-object <file>`.
+        # 2026-11-20 (reload changeover drain, engine.py drift): the mux
+        # tail probe now holds the changeover SEGMENT until each mux pad has
+        # drained (bounded by the rebase drain deadline), so an immediate
+        # finite reload never steps audio PTS back. Only engine.py changed.
+        # Current-source proof: tests/egress/
+        # test_gst_engine_reload_commit_ordering.py. Source-tripwire rebind
+        # only, not installed/release proof. Blob IDs re-hashed with
+        # `git hash-object <file>`.
         - path: civiccast/egress/gst/engine.py
-          blob: 094c8e3603954f2a9d0b184004372028a765b007
+          blob: d83f75a38028858dcc5e892bcaacf1f5d6a52b6e
         - path: civiccast/egress/gst/caption_flow.py
           blob: c0c981dfa050e8ca196533c791a99028302c5ca5
         - path: civiccast/egress/gst/decode_policy.py
@@ -2165,8 +2173,16 @@ entries:
         # test_gst_engine_first_output_timeout.py. Source-tripwire rebind only,
         # not installed/release proof. Blob IDs re-hashed with
         # `git hash-object <file>`.
+        # 2026-11-20 (reload changeover drain, engine.py drift): the mux
+        # tail probe now holds the changeover SEGMENT until each mux pad has
+        # drained (bounded by the rebase drain deadline), so an immediate
+        # finite reload never steps audio PTS back. Only engine.py changed.
+        # Current-source proof: tests/egress/
+        # test_gst_engine_reload_commit_ordering.py. Source-tripwire rebind
+        # only, not installed/release proof. Blob IDs re-hashed with
+        # `git hash-object <file>`.
         - path: civiccast/egress/gst/engine.py
-          blob: 094c8e3603954f2a9d0b184004372028a765b007
+          blob: d83f75a38028858dcc5e892bcaacf1f5d6a52b6e
         - path: civiccast/egress/gst/caption_flow.py
           blob: c0c981dfa050e8ca196533c791a99028302c5ca5
         - path: civiccast/egress/gst/decode_policy.py
