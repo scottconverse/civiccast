@@ -410,6 +410,9 @@ def acl_normalizer(monkeypatch):
     monkeypatch.setattr(
         pg_lifecycle, "normalize_pgdata_acl", lambda data_dir: seen.append(data_dir)
     )
+    # The binary-tree grant (rc.6 -> rc.7 Dell fix) runs from the same place
+    # and would fail-loud on these placeholder paths too.
+    monkeypatch.setattr(pg_lifecycle, "normalize_postgres_bin_acl", lambda pg_ctl_path: None)
     return seen
 
 
@@ -423,6 +426,11 @@ def test_real_start_postgres_normalizes_the_pgdata_acl_before_pg_ctl(monkeypatch
         pg_lifecycle, "normalize_pgdata_acl", lambda data_dir: order.append(f"acl:{data_dir}")
     )
     monkeypatch.setattr(
+        pg_lifecycle,
+        "normalize_postgres_bin_acl",
+        lambda pg_ctl_path: order.append(f"bin-acl:{pg_ctl_path}"),
+    )
+    monkeypatch.setattr(
         subprocess, "run", lambda *a, **k: (order.append("pg_ctl"), _FakeCompleted(0))[1]
     )
     paths = pg_lifecycle.PgLifecyclePaths(
@@ -431,7 +439,10 @@ def test_real_start_postgres_normalizes_the_pgdata_acl_before_pg_ctl(monkeypatch
 
     real_start_postgres(paths)
 
-    assert order == [r"acl:C:\data\pg", "pg_ctl"]
+    # rc.6 -> rc.7 Dell fix: the installing account must be granted on the
+    # PostgreSQL binary tree too, or the restricted-token postmaster cannot
+    # load postgres.exe and pg_ctl prints the bare "Access is denied."
+    assert order == [r"acl:C:\data\pg", r"bin-acl:C:\pg\bin\pg_ctl.exe", "pg_ctl"]
 
 
 def test_real_start_postgres_fails_loud_and_skips_pg_ctl_when_the_acl_cannot_be_fixed(
@@ -463,6 +474,36 @@ def test_real_start_postgres_fails_loud_and_skips_pg_ctl_when_the_acl_cannot_be_
     assert "pg_ctl start was not attempted" in message
     assert "pgdata-acl-normalize" in message
     assert repr(paths.data_dir) in message
+
+
+def test_real_start_postgres_fails_loud_and_skips_pg_ctl_when_the_bin_acl_cannot_be_fixed(
+    monkeypatch, acl_normalizer
+) -> None:
+    """rc.6 -> rc.7 Dell fix: a binary tree the installing account cannot be
+    granted on must stop the engine BEFORE pg_ctl, with a message naming the
+    step -- not the bare "Access is denied." the postmaster would produce."""
+
+    from civiccast.native.pgdata_acl import PgDataAclError
+
+    def _boom(pg_ctl_path: str) -> None:
+        raise PgDataAclError("postgres-bin-acl: access denied")
+
+    def _pg_ctl_must_not_run(*a, **k):  # pragma: no cover - asserted not to run
+        raise AssertionError("pg_ctl must not be attempted when the bin ACL failed")
+
+    monkeypatch.setattr(pg_lifecycle, "normalize_postgres_bin_acl", _boom)
+    monkeypatch.setattr(subprocess, "run", _pg_ctl_must_not_run)
+    paths = pg_lifecycle.PgLifecyclePaths(
+        pg_ctl_path=r"C:\pg\bin\pg_ctl.exe", data_dir=r"C:\data\pg", host="127.0.0.1", port=5432
+    )
+
+    with pytest.raises(PostgresLifecycleError) as excinfo:
+        real_start_postgres(paths)
+
+    message = str(excinfo.value)
+    assert "pg_ctl start was not attempted" in message
+    assert "postgres-bin-acl" in message
+    assert repr(paths.pg_ctl_path) in message
 
 
 def test_real_start_postgres_success_does_not_raise(monkeypatch, acl_normalizer) -> None:

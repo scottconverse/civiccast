@@ -152,6 +152,28 @@ def pgdata_acl_calls(monkeypatch: pytest.MonkeyPatch) -> list[str]:
     return seen
 
 
+@pytest.fixture(autouse=True)
+def bin_acl_calls(monkeypatch: pytest.MonkeyPatch) -> list[str]:
+    """rc.6 -> rc.7 Dell fix: the same INSTALL-TIME starts also grant the
+    installing account on the PostgreSQL binary tree
+    (:mod:`civiccast.native.postgres_bin_acl`).
+
+    These tests use a placeholder ``C:\\pg\\bin\\pg_ctl.exe`` that does not
+    exist on disk, so the production normalizer would fail loud; record the
+    call instead (the same reasoning as ``pgdata_acl_calls`` above).
+    """
+
+    import civiccast.native.provision.seams as seams_module
+
+    seen: list[str] = []
+    monkeypatch.setattr(
+        seams_module,
+        "normalize_postgres_bin_acl",
+        lambda pg_ctl_path: seen.append(pg_ctl_path),
+    )
+    return seen
+
+
 def test_default_write_postgres_conf_creates_parent_dirs_and_writes_exact_content(
     tmp_path: Path,
 ) -> None:
@@ -1133,6 +1155,41 @@ def test_ensure_database_normalizes_the_pgdata_acl_before_starting_postgres(
     assert order[0] == f"acl:{context.postgres_data_dir}"
     assert order[1] == "pg_ctl.exe start"
     assert pgdata_acl_calls == []  # the autouse recorder was overridden by this test
+
+
+def test_ensure_database_grants_the_bin_tree_before_starting_postgres(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, bin_acl_calls: list[str]
+) -> None:
+    """rc.6 -> rc.7 Dell fix, provisioning side: the PostgreSQL binary tree
+    (and its ancestors up to the install root) is granted to the installing
+    account before pg_ctl runs, alongside the pgdata ACL. Without it the
+    restricted-token postmaster cannot load postgres.exe on a station whose
+    install root has no entry for that account."""
+
+    import civiccast.native.provision.seams as seams_module
+
+    order: list[str] = []
+
+    def _record_bin_acl(pg_ctl_path: str) -> None:
+        order.append(f"bin-acl:{pg_ctl_path}")
+
+    fake_run, _calls = _fake_run_factory(database_present=True)
+
+    def _tracking_run(argv, **kwargs):  # type: ignore[no-untyped-def]
+        order.append(Path(argv[0]).name + " " + argv[1])
+        return fake_run(argv, **kwargs)
+
+    monkeypatch.setattr(seams_module, "normalize_postgres_bin_acl", _record_bin_acl)
+    monkeypatch.setattr(seams_module.subprocess, "run", _tracking_run)
+
+    context = _context(tmp_path)
+    default_ensure_database(
+        context, _plan(), pg_ctl_path=r"C:\pg\bin\pg_ctl.exe", psql_path=r"C:\pg\bin\psql.exe"
+    )()
+
+    assert order[0] == r"bin-acl:C:\pg\bin\pg_ctl.exe"
+    assert order[1] == "pg_ctl.exe start"
+    assert bin_acl_calls == []  # the autouse recorder was overridden by this test
 
 
 def test_ensure_database_acl_failure_is_loud_and_never_starts_postgres(

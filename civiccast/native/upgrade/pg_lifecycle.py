@@ -67,6 +67,7 @@ from civiccast.db.guarded_connect import classify_missing_database, run_bounded
 from civiccast.db.url import normalize_database_url
 from civiccast.native.pg_ctl_exec import run_pg_ctl_argv
 from civiccast.native.pgdata_acl import PgDataAclError, normalize_pgdata_acl
+from civiccast.native.postgres_bin_acl import normalize_postgres_bin_acl
 from civiccast.native.supervisor.children import (
     DEFAULT_GRACEFUL_STOP_DEADLINE_SECONDS,
     POSTGRES_READY_BUDGET_SECONDS,
@@ -378,13 +379,24 @@ def real_start_postgres(paths: PgLifecyclePaths) -> None:
     that a PREVIOUS install already left in that state -- provisioning has
     not run yet at this point in the NSIS chain, and on this path it may be
     a different administrator account running the reinstall. A normalization
-    failure is fail-loud and no ``pg_ctl`` is attempted."""
+    failure is fail-loud and no ``pg_ctl`` is attempted.
+
+    rc.6 -> rc.7 Dell fix (2026-11-19): the PostgreSQL BINARY tree is
+    normalized too
+    (:func:`civiccast.native.postgres_bin_acl.normalize_postgres_bin_acl`).
+    ``pgdata``'s ACL alone was not enough when
+    the install root had no entry for the installing account -- the
+    restricted-token postmaster could not traverse ``C:\\Program Files\\
+    CivicCast (Native)`` and Windows refused to load ``postgres.exe`` with
+    the bare ``Access is denied.`` this path reported."""
 
     try:
         normalize_pgdata_acl(paths.data_dir)
+        normalize_postgres_bin_acl(paths.pg_ctl_path)
     except PgDataAclError as exc:
         raise PostgresLifecycleError(
-            f"pg_ctl start was not attempted (data_dir={paths.data_dir!r}): {exc}"
+            f"pg_ctl start was not attempted (data_dir={paths.data_dir!r}, "
+            f"pg_ctl={paths.pg_ctl_path!r}): {exc}"
         ) from exc
 
     spec = _pg_ctl_spec(paths)
