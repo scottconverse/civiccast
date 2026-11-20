@@ -1166,8 +1166,16 @@ entries:
         # test_gst_engine_reload_commit_ordering.py. Source-tripwire rebind
         # only, not installed/release proof. Blob IDs re-hashed with
         # `git hash-object <file>`.
+        # 2026-11-20 (cable udp-ts stall-bound fix, engine.py drift):
+        # ``_stream_lag_bound_s`` now adds the declared output audio latency to
+        # the audio lag bound, so a cable udp-ts graph that legitimately sits a
+        # declared latency behind video is not judged stalled. Only engine.py
+        # changed. Current-source proof: tests/egress/
+        # test_gst_engine_first_output_timeout.py. Source-tripwire rebind only,
+        # not installed/release proof. Blob IDs re-hashed with
+        # `git hash-object <file>`.
         - path: civiccast/egress/gst/engine.py
-          blob: 78e64b7917e1eae96b5ecc3d696b53a6657d9476
+          blob: 094c8e3603954f2a9d0b184004372028a765b007
         - path: civiccast/egress/gst/caption_flow.py
           blob: c0c981dfa050e8ca196533c791a99028302c5ca5
         - path: civiccast/egress/gst/decode_policy.py
@@ -2128,8 +2136,16 @@ entries:
         # test_gst_engine_reload_commit_ordering.py. Source-tripwire rebind
         # only, not installed/release proof. Blob IDs re-hashed with
         # `git hash-object <file>`.
+        # 2026-11-20 (cable udp-ts stall-bound fix, engine.py drift):
+        # ``_stream_lag_bound_s`` now adds the declared output audio latency to
+        # the audio lag bound, so a cable udp-ts graph that legitimately sits a
+        # declared latency behind video is not judged stalled. Only engine.py
+        # changed. Current-source proof: tests/egress/
+        # test_gst_engine_first_output_timeout.py. Source-tripwire rebind only,
+        # not installed/release proof. Blob IDs re-hashed with
+        # `git hash-object <file>`.
         - path: civiccast/egress/gst/engine.py
-          blob: 78e64b7917e1eae96b5ecc3d696b53a6657d9476
+          blob: 094c8e3603954f2a9d0b184004372028a765b007
         - path: civiccast/egress/gst/caption_flow.py
           blob: c0c981dfa050e8ca196533c791a99028302c5ca5
         - path: civiccast/egress/gst/decode_policy.py

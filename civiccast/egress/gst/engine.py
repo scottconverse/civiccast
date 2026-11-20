@@ -918,6 +918,14 @@ _MUX_ARRIVAL_AHEAD_BOUND_NS = 1_000_000_000
 # at the switch boundary: an offset O lags the ending stream for about O of wall
 # clock, so it can only reach this judge when O alone exceeds ``stall_timeout_s``
 # and this bound together.
+#
+# Every measurement above was taken on a graph with NO declared output audio
+# latency. A graph that declares one -- the ``audioloudnorm`` branch a channel
+# with two different loudness targets (a cable sink at atsc-a85 next to a
+# streaming HLS sink) builds -- holds its audio back by that latency on purpose,
+# so audio sits that far behind video at the mux by design. ``_stream_lag_bound_s``
+# adds the declared latency to this fixed bound for the audio stream and leaves
+# this number as the floor for everything else.
 _STREAM_LAG_BOUND_S = 2.0
 
 # U41: the always-hot SLATE leg's selector index. It is the second leg the graph
@@ -5061,8 +5069,9 @@ class GstPlayoutEngine:
         Two predicates, one action (U37). A required stream is judged stalled if
         its airing running time does not advance with wall clock for
         ``stall_timeout_s`` (the flat rule, which owns the attribution), OR if it
-        keeps advancing but sits more than ``_STREAM_LAG_BOUND_S`` behind the
-        leading required stream's airing running time for that same budget (the
+        keeps advancing but sits more than its own lag bound (``_stream_lag_bound_s``
+        -- ``_STREAM_LAG_BOUND_S`` plus any declared output audio latency) behind
+        the leading required stream's airing running time for that same budget (the
         lag rule -- a stream the other has already passed cannot air in step).
         The flat rule is consulted first and the two are never combined: a frozen
         stream's lag grows without bound, so a lag-only judge would name the audio
@@ -5173,7 +5182,7 @@ class GstPlayoutEngine:
             if self._mux_pad_stream_label(pads[candidate]) not in required:
                 continue
             behind_s = (leader_rt - candidate_rt) / 1_000_000_000.0
-            if behind_s > _STREAM_LAG_BOUND_S:
+            if behind_s > self._stream_lag_bound_s(self._mux_pad_stream_label(pads[candidate])):
                 lag_since.setdefault(candidate, now)
             else:
                 # Back within the bound: whatever this pad was behind, it is not
@@ -5226,6 +5235,34 @@ class GstPlayoutEngine:
             ),
             error_reason=f"{label} stream lagging {leader_label}",
         )
+
+    def _stream_lag_bound_s(self, label: str) -> float:
+        """How far behind the leading stream ``label`` may air before it is a stall.
+
+        ``_STREAM_LAG_BOUND_S`` is the bound for a stream with no declared
+        processing latency. A graph that declares per-output audio latency --
+        ``OutputBranch.audio_latency_ns``, 3.0s on the ``audioloudnorm`` branch
+        that a channel with two different loudness targets gets -- holds its
+        audio back by exactly that much, so the audio's AIRING running time at
+        the mux sits that far behind the video's by design. Judging it against
+        the bare 2.0s bound names a healthy stream and takes the channel off
+        air: measured on the 5060 Ti station, every one of the twenty
+        ``audio running time ... behind video`` exits named 2.1-3.0s, i.e. the
+        declared latency and not a stall, and they stopped when the cable sink
+        (whose atsc-a85 target is what makes the graph build the loudnorm
+        branch) was removed.
+
+        So the bound for audio is the fixed bound PLUS the latency the graph
+        declares, the same way ``_rebase_drain_deadline_s`` already extends the
+        rebase drain by it. A stream that is genuinely falling behind still
+        crosses this bound, and a stream that has stopped is the flat rule's
+        (tighter) question, not this one's.
+        """
+        bound = float(_STREAM_LAG_BOUND_S)
+        if label == "audio":
+            latency_ns = max(0, int(getattr(self, "output_audio_latency_ns", 0) or 0))
+            bound += latency_ns / 1_000_000_000.0
+        return bound
 
     def _act_on_stream_stall(
         self, *, label: str, force_reason: str, headline: str, error_reason: str
