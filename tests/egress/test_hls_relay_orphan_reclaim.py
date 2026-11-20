@@ -40,6 +40,8 @@ duplicated here.
 from __future__ import annotations
 
 import logging
+import os
+import re
 import shutil
 import socket
 import subprocess
@@ -657,11 +659,33 @@ def test_a_free_port_has_no_owner_in_the_real_table() -> None:
     assert api.find_owner(port) is None
 
 
+def _put_real_ffmpeg_first_on_path(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Make PATH resolve to the real ffmpeg executable, not a launcher shim.
+
+    A Scoop install puts ``shims\\ffmpeg.exe`` on PATH. That shim is a separate
+    process that starts the real ``ffmpeg.exe`` as its child, so the UDP port
+    owner is the child while ``start_ffmpeg`` holds the shim's pid. The product
+    ships a real ``ffmpeg.exe`` on PATH, so put the real one first here too.
+    """
+    if _FFMPEG is None:
+        return
+    shim_file = Path(_FFMPEG).with_suffix(".shim")
+    if not shim_file.is_file():
+        return
+    match = re.search(r'^path\s*=\s*"?([^"\r\n]+)"?', shim_file.read_text("utf-8"), re.MULTILINE)
+    assert match is not None, f"unreadable launcher shim: {shim_file}"
+    real_dir = str(Path(match.group(1)).parent)
+    monkeypatch.setenv("PATH", real_dir + os.pathsep + os.environ.get("PATH", ""))
+
+
 @requires_ffmpeg
-def test_a_real_relay_shaped_ffmpeg_is_identified_and_reaped(tmp_path: Path) -> None:
+def test_a_real_relay_shaped_ffmpeg_is_identified_and_reaped(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """The mechanism, end to end against the real OS: a real ffmpeg bound to a
     real UDP port is found by pid through ``psutil``, accepted as this relay's
     orphan, and killed -- and the port comes free."""
+    _put_real_ffmpeg_first_on_path(monkeypatch)
     port = _free_udp_port()
     relay_uri = f"udp://127.0.0.1:{port}"
     api = PsutilPortOwnerApi()

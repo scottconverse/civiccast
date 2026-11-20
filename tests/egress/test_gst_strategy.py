@@ -70,6 +70,20 @@ _POSIX_FIFO_ONLY = pytest.mark.skipif(
 )
 
 
+@pytest.fixture(autouse=True)
+def _no_real_hardware_encoder_registry(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep these control-plane tests off the real GStreamer registry.
+
+    ``GstPlayoutStrategy`` defaults ``encoder_probe`` to ``probe_hardware_encoder``,
+    which imports ``gi``. Tests that do not inject a probe used to ask the real
+    registry: on a CI runner with no NVIDIA encoder that answers "no hardware",
+    and on a host without ``gi`` it raised ModuleNotFoundError. Pin the default
+    to the CI answer ("no hardware encoder") so the result is the same on every
+    host. Tests that need another answer still pass ``encoder_probe=`` directly.
+    """
+    monkeypatch.setattr(strategy_module, "probe_hardware_encoder", lambda name: False)
+
+
 class _FakePipeChannel:
     """Structural stand-in for the real D2 :class:`_WindowsPipeChannel` so the
     platform-agnostic graph-building assertions can exercise
