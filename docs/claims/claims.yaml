@@ -180,13 +180,13 @@ entries:
           blob: 716ee9bf02bae2849adeb1223569b263458d80d0
       # Beta 15 updates collection floors; this workflow binding
       # remains a drift tripwire and does not renew unrelated claim evidence.
-      # 2026-11-20 (PR 377): the native junit floors were raised for the
-      # installer postgres bin ACL cases (2182 -> 2210 pure, 2437 -> 2480
-      # Windows). Source-tripwire rebind only, not installed/release proof.
+      # 2026-11-20 (PR 377, follow-up): one new ACL seam case now carries
+      # windows_only, so the pure junit floor is 2209 (Windows 2480 unchanged).
+      # Source-tripwire rebind only, not installed/release proof.
       # Blob re-hashed with `git hash-object .github/workflows/ci-test.yml`.
       workflow:
         path: .github/workflows/ci-test.yml
-        blob: 80ada0060b40b22338cbfc117ece0b97b68c4c5e
+        blob: 3b8ed41cc4f4ab384943934049c5d5328738e709
       workflow_contract:
         path: docs/claims/workflow-contract.yaml
         blob: 09ede0eb7db4b84a9ea50ef007b4451793f48000
@@ -264,13 +264,13 @@ entries:
           blob: 716ee9bf02bae2849adeb1223569b263458d80d0
       # Beta 15 updates collection floors; this workflow binding
       # remains a drift tripwire and does not renew unrelated claim evidence.
-      # 2026-11-20 (PR 377): the native junit floors were raised for the
-      # installer postgres bin ACL cases (2182 -> 2210 pure, 2437 -> 2480
-      # Windows). Source-tripwire rebind only, not installed/release proof.
+      # 2026-11-20 (PR 377, follow-up): one new ACL seam case now carries
+      # windows_only, so the pure junit floor is 2209 (Windows 2480 unchanged).
+      # Source-tripwire rebind only, not installed/release proof.
       # Blob re-hashed with `git hash-object .github/workflows/ci-test.yml`.
       workflow:
         path: .github/workflows/ci-test.yml
-        blob: 80ada0060b40b22338cbfc117ece0b97b68c4c5e
+        blob: 3b8ed41cc4f4ab384943934049c5d5328738e709
       workflow_contract:
         path: docs/claims/workflow-contract.yaml
         blob: 09ede0eb7db4b84a9ea50ef007b4451793f48000
@@ -325,13 +325,13 @@ entries:
           blob: 716ee9bf02bae2849adeb1223569b263458d80d0
       # Beta 15 updates collection floors; this workflow binding
       # remains a drift tripwire and does not renew unrelated claim evidence.
-      # 2026-11-20 (PR 377): the native junit floors were raised for the
-      # installer postgres bin ACL cases (2182 -> 2210 pure, 2437 -> 2480
-      # Windows). Source-tripwire rebind only, not installed/release proof.
+      # 2026-11-20 (PR 377, follow-up): one new ACL seam case now carries
+      # windows_only, so the pure junit floor is 2209 (Windows 2480 unchanged).
+      # Source-tripwire rebind only, not installed/release proof.
       # Blob re-hashed with `git hash-object .github/workflows/ci-test.yml`.
       workflow:
         path: .github/workflows/ci-test.yml
-        blob: 80ada0060b40b22338cbfc117ece0b97b68c4c5e
+        blob: 3b8ed41cc4f4ab384943934049c5d5328738e709
       workflow_contract:
         path: docs/claims/workflow-contract.yaml
         blob: 09ede0eb7db4b84a9ea50ef007b4451793f48000
@@ -394,13 +394,13 @@ entries:
           blob: 716ee9bf02bae2849adeb1223569b263458d80d0
       # Beta 15 updates collection floors; this workflow binding
       # remains a drift tripwire and does not renew unrelated claim evidence.
-      # 2026-11-20 (PR 377): the native junit floors were raised for the
-      # installer postgres bin ACL cases (2182 -> 2210 pure, 2437 -> 2480
-      # Windows). Source-tripwire rebind only, not installed/release proof.
+      # 2026-11-20 (PR 377, follow-up): one new ACL seam case now carries
+      # windows_only, so the pure junit floor is 2209 (Windows 2480 unchanged).
+      # Source-tripwire rebind only, not installed/release proof.
       # Blob re-hashed with `git hash-object .github/workflows/ci-test.yml`.
       workflow:
         path: .github/workflows/ci-test.yml
-        blob: 80ada0060b40b22338cbfc117ece0b97b68c4c5e
+        blob: 3b8ed41cc4f4ab384943934049c5d5328738e709
       workflow_contract:
         path: docs/claims/workflow-contract.yaml
         blob: 09ede0eb7db4b84a9ea50ef007b4451793f48000
@@ -1188,13 +1188,13 @@ entries:
           blob: 716ee9bf02bae2849adeb1223569b263458d80d0
       # Beta 15 updates collection floors; this workflow binding
       # remains a drift tripwire and does not renew unrelated claim evidence.
-      # 2026-11-20 (PR 377): the native junit floors were raised for the
-      # installer postgres bin ACL cases (2182 -> 2210 pure, 2437 -> 2480
-      # Windows). Source-tripwire rebind only, not installed/release proof.
+      # 2026-11-20 (PR 377, follow-up): one new ACL seam case now carries
+      # windows_only, so the pure junit floor is 2209 (Windows 2480 unchanged).
+      # Source-tripwire rebind only, not installed/release proof.
       # Blob re-hashed with `git hash-object .github/workflows/ci-test.yml`.
       workflow:
         path: .github/workflows/ci-test.yml
-        blob: 80ada0060b40b22338cbfc117ece0b97b68c4c5e
+        blob: 3b8ed41cc4f4ab384943934049c5d5328738e709
       workflow_contract:
         path: docs/claims/workflow-contract.yaml
         blob: 09ede0eb7db4b84a9ea50ef007b4451793f48000
@@ -2147,13 +2147,13 @@ entries:
           blob: 716ee9bf02bae2849adeb1223569b263458d80d0
       # Beta 15 updates collection floors; this workflow binding
       # remains a drift tripwire and does not renew unrelated claim evidence.
-      # 2026-11-20 (PR 377): the native junit floors were raised for the
-      # installer postgres bin ACL cases (2182 -> 2210 pure, 2437 -> 2480
-      # Windows). Source-tripwire rebind only, not installed/release proof.
+      # 2026-11-20 (PR 377, follow-up): one new ACL seam case now carries
+      # windows_only, so the pure junit floor is 2209 (Windows 2480 unchanged).
+      # Source-tripwire rebind only, not installed/release proof.
       # Blob re-hashed with `git hash-object .github/workflows/ci-test.yml`.
       workflow:
         path: .github/workflows/ci-test.yml
-        blob: 80ada0060b40b22338cbfc117ece0b97b68c4c5e
+        blob: 3b8ed41cc4f4ab384943934049c5d5328738e709
       workflow_contract:
         path: docs/claims/workflow-contract.yaml
         blob: 09ede0eb7db4b84a9ea50ef007b4451793f48000

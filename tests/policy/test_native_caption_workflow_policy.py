@@ -1242,9 +1242,9 @@ def test_native_marker_collections_match_the_workflow_floors() -> None:
     # rc.6.1 item 7 (CTRL_BREAK to windowless children) adds four portable and
     # two Windows-only cases, and item 8 (station-state.json keeps its own
     # DACL) adds eight Windows-only cases: 2232 / 2491.
-    # The installer's postgres bin ACL grant (PR #377) adds twenty-two portable
-    # and thirty-two Windows-only cases: 2260 / 2530.
-    assert (collect("not windows_only"), collect()) == (2260, 2530)
+    # The installer's postgres bin ACL grant (PR #377) adds portable and
+    # Windows-only cases: 2259 / 2530.
+    assert (collect("not windows_only"), collect()) == (2259, 2530)
 
 
 def test_linux_unit_job_runs_native_tests_once_in_the_dedicated_pure_lane() -> None:

@@ -556,13 +556,14 @@ jobs:
         # 2224 pure tests; floor 2174 keeps the margin.
         # rc.6.1 item 7 CTRL_BREAK sender: four portable cases, 2232 pure
         # tests; floor 2182 keeps the margin.
-        # Installer postgres bin ACL grant (PR #377) adds twenty-two portable
-        # cases, 2260 pure tests; floor 2210 keeps the margin.
+        # Installer postgres bin ACL grant (PR #377) adds portable cases, 2259
+        # pure tests (one of the new cases carries windows_only); floor 2209
+        # keeps the margin.
         if: always()
         run: |
           python scripts/verify_native_junit_floor.py \
             --junit junit-native-pure.xml \
-            --floor 2210 \
+            --floor 2209 \
             --label "tests/native pure suite"
 
       - name: Upload junit (ws3 claims-evidence D3/D7)

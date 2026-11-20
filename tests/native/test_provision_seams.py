@@ -1157,6 +1157,8 @@ def test_ensure_database_normalizes_the_pgdata_acl_before_starting_postgres(
     assert pgdata_acl_calls == []  # the autouse recorder was overridden by this test
 
 
+@pytest.mark.windows_only
+@_WINDOWS_PATH_TEST
 def test_ensure_database_grants_the_bin_tree_before_starting_postgres(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, bin_acl_calls: list[str]
 ) -> None:
