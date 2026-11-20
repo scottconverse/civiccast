@@ -1484,57 +1484,16 @@ def test_nonrelease_artifacts_expire_after_one_day() -> None:
                     assert step["with"]["retention-days"] == "1", path.name
 
 
-def test_windows_media_owner_acceptance_keeps_the_failed_junit(tmp_path: Path) -> None:
-    import xml.etree.ElementTree as ET
-    from unittest.mock import patch
+def test_windows_media_junit_rejects_every_failure(tmp_path: Path) -> None:
+    """U63: the former rc.1 audio PTS acceptance is gone; no media failure passes.
 
-    import pytest
-
-    from scripts.verify_windows_media_junit import classify_media_junit
-
-    root = ET.Element("testsuite")
-    case = ET.SubElement(
-        root,
-        "testcase",
-        classname="tests.egress.test_gst_engine_wsl",
-        name="test_immediate_finite_playlist_reload_holds_rebases_and_stays_on_air",
-    )
-    failure = ET.SubElement(
-        case,
-        "failure",
-        message=(
-            "AssertionError: CTRL reload committed\n"
-            "WORKER_RESULT {'error': None, 'teardown_clean': True}\n"
-            "assert {66: 1} == {}"
-        ),
-    )
-    failure.text = ">       assert _pes_pts_backward_steps(out_ts) == {}, text"
-    junit = tmp_path / "media.xml"
-    ET.ElementTree(root).write(junit)
-    original = junit.read_bytes()
-    with patch("scripts.verify_windows_media_junit.__version__", "1.0.0-rc.1"):
-        assert classify_media_junit(junit, 1, 1) == (0, 1)
-    assert junit.read_bytes() == original
-    with (
-        patch("scripts.verify_windows_media_junit.__version__", "1.0.0-rc.2"),
-        pytest.raises(ValueError, match="Unaccepted media failure"),
-    ):
-        classify_media_junit(junit, 1, 1)
-    case.remove(failure)
-    ET.ElementTree(root).write(junit)
-    assert classify_media_junit(junit, 0, 1) == (1, 0)
-    workflow, _ = _workflow(WORKFLOWS[1])
-    assert (
-        'classify_media_junit(Path("junit-windows-media.xml"), int(code), len(nodes))' in workflow
-    )
-    assert "::warning::owner-accepted RC1 limitation" in workflow
-    assert "{passed} passed, {accepted} failed-owner-accepted, no skips" in workflow
-    assert "assert _pes_pts_backward_steps(out_ts) == {}, text" in (
-        ROOT / "tests/egress/test_gst_engine_wsl.py"
-    ).read_text(encoding="utf-8")
-
-
-def test_windows_media_owner_acceptance_rejects_other_outcomes(tmp_path: Path) -> None:
+    The product fix (engine.py's changeover-segment drain) removes the defect
+    that acceptance existed for, so the verifier recognises no accepted identity
+    any more. This keeps the full rejection matrix from the acceptance-era test
+    -- identity, observed result, source assertion, worker result, skips, errors,
+    duplicates, incomplete execution and every nonstandard pytest exit -- and
+    adds the case that used to be the ONE accepted outcome.
+    """
     import copy
     import xml.etree.ElementTree as ET
 
@@ -1560,6 +1519,12 @@ def test_windows_media_owner_acceptance_rejects_other_outcomes(tmp_path: Path) -
     )
     failure.text = ">       assert _pes_pts_backward_steps(out_ts) == {}, text"
     junit = tmp_path / "media.xml"
+    # The exact former acceptance identity/result is now an ordinary failure.
+    ET.ElementTree(root).write(junit)
+    original = junit.read_bytes()
+    with pytest.raises(ValueError, match="Unaccepted media failure"):
+        classify_media_junit(junit, 1, 1)
+    assert junit.read_bytes() == original
     for scenario in (
         "classname",
         "name",
@@ -1618,3 +1583,16 @@ def test_windows_media_owner_acceptance_rejects_other_outcomes(tmp_path: Path) -
         ET.ElementTree(changed).write(junit)
         with pytest.raises(ValueError):
             classify_media_junit(junit, code, minimum)
+    case.remove(failure)
+    ET.ElementTree(root).write(junit)
+    assert classify_media_junit(junit, 0, 1) == (1, 0)
+    workflow, _ = _workflow(WORKFLOWS[1])
+    assert (
+        'classify_media_junit(Path("junit-windows-media.xml"), int(code), len(nodes))' in workflow
+    )
+    assert "::warning::owner-accepted RC1 limitation" not in workflow
+    assert "failed-owner-accepted" not in workflow
+    assert "Required coverage executed: {passed} passed, no failures, no skips" in workflow
+    assert "assert _pes_pts_backward_steps(out_ts) == {}, text" in (
+        ROOT / "tests/egress/test_gst_engine_wsl.py"
+    ).read_text(encoding="utf-8")

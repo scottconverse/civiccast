@@ -389,6 +389,26 @@ _AUDIO_TAP_CLOSE_TIMEOUT_S = 2.0
 _LEG_NULL_ASYNC_WAIT_S = 2.0
 
 
+# U63: how the changeover SEGMENT is kept from overtaking the retiring audio.
+#
+# ``_rebase_drain_held`` empties the mux sink pad BEFORE the selector switches,
+# but the switch is what sends the rebased changeover segment down the shared
+# audio chain, and the retiring leg keeps feeding that chain until the selector
+# actually moves. A buffer that reaches the mux pad in that window is queued
+# behind the segment and is clipped at POP time under the NEW segment, so its
+# running time becomes its OWN time plus this transaction's rebase offset: it
+# airs seconds ahead of the incoming head, and the arriving head then steps the
+# audio PID BACKWARDS by exactly that stale buffer's own running time. That is
+# the emitted shape ``_pes_pts_backward_steps`` reports as one audio step.
+#
+# So the segment itself waits, in the streaming thread that is pushing it, until
+# the pad has handed over every buffer already queued. That is an atomicity
+# condition, not a sampled one: no buffer can be queued when the segment lands.
+# Bounded by the same window the drain uses, and the poll is fine enough that
+# the wait costs its own duration (a few buffers, ~tens of ms) and no more.
+_MUX_SEGMENT_DRAIN_POLL_S = 0.005
+
+
 def _drop_everything_probe(_pad: object, _info: object) -> object:
     """Round-2 finding 1: a pad probe that discards everything.
 
@@ -491,6 +511,96 @@ def _mux_tail_drop_decision(
     return Gst.PadProbeReturn.OK if end <= cutoff else Gst.PadProbeReturn.DROP
 
 
+def _drain_mux_pad_before_segment(
+    read_level: Callable[[], int | None],
+    bound_s: float,
+    *,
+    poll_s: float = _MUX_SEGMENT_DRAIN_POLL_S,
+    now: Callable[[], float] = time.monotonic,
+    sleep: Callable[[float], None] = time.sleep,
+) -> tuple[bool, int | None]:
+    """U63: wait, bounded, for an aggregator sink pad to hand over what it holds.
+
+    ``read_level`` returns the pad's queued-buffer count, or ``None`` when it
+    cannot be read. Returns ``(drained, last_level)``:
+
+    * ``(True, 0)`` -- the pad empty: the caller may let the changeover SEGMENT
+      cross, and nothing queued can be re-dated under it.
+    * ``(False, None)`` -- the level could not be read, so nothing is proven and
+      the caller must not wait forever on a pad it cannot see.
+    * ``(False, n)`` -- still ``n`` buffers queued at the bound.
+
+    Pure of GStreamer and of the clock: both are injected, so this is a portable
+    unit (see ``test_gst_engine_reload_commit_ordering.py``). It is a bounded
+    wait on purpose -- the caller runs on a streaming thread, and a pad that
+    never empties must cost a WARN, never a wedged channel.
+    """
+    deadline = now() + max(0.0, float(bound_s))
+    while True:
+        level = read_level()
+        if level is None:
+            return False, None
+        if level <= 0:
+            return True, level
+        if now() >= deadline:
+            return False, level
+        sleep(poll_s)
+
+
+def _hold_changeover_segment_until_pad_drained(pad: Gst.Pad, pending: dict[str, Any]) -> None:
+    """U63: do not let the rebased changeover SEGMENT overtake queued audio.
+
+    See ``_MUX_SEGMENT_DRAIN_POLL_S`` for the mechanism. Runs in the streaming
+    thread that is pushing the event, BEFORE the event reaches the mux: whatever
+    is queued on this pad meanwhile is popped under the RETIRING segment and
+    airs at its own time, which is what keeps the audio PID monotonic.
+
+    Guarded end to end: a diagnostic must never abort a commit, and a pad whose
+    level cannot be read degrades to the pre-U63 behaviour (the segment crosses
+    immediately) with a WARN naming it.
+    """
+
+    def _read_level() -> int | None:
+        try:
+            return int(pad.get_property("current-level-buffers"))
+        except Exception:
+            return None
+
+    try:
+        bound_s = float(pending.get("mux_segment_drain_bound_s") or 0.0)
+    except Exception:
+        bound_s = 0.0
+    started = time.monotonic()
+    drained, level = _drain_mux_pad_before_segment(_read_level, bound_s)
+    waited = time.monotonic() - started
+    with contextlib.suppress(Exception):
+        pad_name = pad.get_name()
+    if drained:
+        print(
+            f"CTRL reload diagnostic: stage=mux-segment-drained pad={pad_name} "
+            f"waited={waited:.3f}s reload_id={pending.get('txn_id')}",
+            file=sys.stderr,
+            flush=True,
+        )
+    elif level is None:
+        print(
+            f"WARN: mux pad {pad_name} queue level unreadable; the changeover segment "
+            f"crossed without waiting for the retiring audio tail (reload "
+            f"{pending.get('txn_id')}) -- a queued buffer may be re-dated by the segment",
+            file=sys.stderr,
+            flush=True,
+        )
+    else:
+        print(
+            f"WARN: {level} retiring audio buffer(s) still queued on mux pad {pad_name} "
+            f"after {waited:.3f}s; the changeover segment crossed anyway "
+            f"(reload {pending.get('txn_id')}) -- the mux will re-date them into the "
+            f"incoming timeline, which is an audio PTS step back",
+            file=sys.stderr,
+            flush=True,
+        )
+
+
 def _mux_tail_segment_probe(
     pad: Gst.Pad, info: Gst.PadProbeInfo, pending: dict[str, Any]
 ) -> Gst.PadProbeReturn:
@@ -538,9 +648,17 @@ def _mux_tail_segment_probe(
     re-sent sticky event is not a new origin -- so the release is keyed on the
     (start, base) pair actually changing. With no held segment to compare
     against, any segment releases: an unanchored fence may not claim an origin.
+
+    U63: this is also where the segment is DELAYED, not just recorded. The round-7
+    measurement above says it plainly -- buffers were already inside the mux
+    aggregator queue when the commit crossed, and holding the fence changed
+    nothing because "the decision was taken as the buffer crossed". A queued
+    buffer is clipped at POP time under the segment current THEN, so the only
+    place that can stop it being re-dated is the segment itself: it waits, in
+    this streaming thread and bounded, until the pad has given every queued
+    buffer up. Once the pad is empty the segment crosses and every later arrival
+    belongs to the incoming leg. See ``_MUX_SEGMENT_DRAIN_POLL_S``.
     """
-    if pending.get("mux_tail_released"):
-        return Gst.PadProbeReturn.OK
     event = info.get_event()
     if event is None or event.type != Gst.EventType.SEGMENT:
         return Gst.PadProbeReturn.OK
@@ -551,6 +669,20 @@ def _mux_tail_segment_probe(
         if held is None or (
             int(incoming.start) != int(held.start) or int(incoming.base) != int(held.base)
         ):
+            # U63: the changeover is exactly where a queued retiring buffer gets
+            # re-dated. Wait for the pad to hand them over BEFORE this event is
+            # allowed to reach the mux, once per pad. This runs even when the
+            # value fence was already disarmed (``mux_tail_released``): the fence
+            # and the segment are two different guards, and the early disarm --
+            # the retiring tail having ARRIVED -- is the common case, not the
+            # exception.
+            crossed = pending.setdefault("mux_tail_segment_crossed", set())
+            newly_crossed = pad not in crossed
+            if newly_crossed:
+                crossed.add(pad)
+                _hold_changeover_segment_until_pad_drained(pad, pending)
+            if pending.get("mux_tail_released"):
+                return Gst.PadProbeReturn.OK
             pending["mux_tail_released"] = True
             print(
                 f"CTRL reload diagnostic: stage=mux-tail-released-by-segment "
@@ -8388,6 +8520,9 @@ class GstPlayoutEngine:
         """
         if pending.get("old_tail_cutoff_ns") is None:
             return []
+        # U63: the changeover segment's own bounded wait uses the same window the
+        # drain does, extended by the graph's declared audio latency.
+        pending["mux_segment_drain_bound_s"] = self._rebase_drain_deadline_s()
         outgoing = pending.get("outgoing_end", {})
         armed: list[str] = []
         for stream, pad, pad_name in self._rebase_affected_mux_pads(pending):

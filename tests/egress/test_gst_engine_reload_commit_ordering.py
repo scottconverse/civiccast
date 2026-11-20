@@ -5928,3 +5928,135 @@ def test_u62b_the_measured_path_still_targets_its_own_measured_end(
         "mux_tail_target"
     )
     assert f"target={{'sink_66': {_U62B_MEASURED_AUDIO_END_NS}}}" in err, err
+
+
+# --- U63: the changeover segment may not overtake queued retiring audio -------
+
+
+class _FakeLevelPad:
+    """A mux sink pad whose queue level is a scripted sequence, then its last."""
+
+    def __init__(self, name: str, levels: list[int | None], recorder: _Recorder) -> None:
+        self.name = name
+        self.recorder = recorder
+        self.levels = list(levels)
+        self.reads = 0
+
+    def get_name(self) -> str:
+        return self.name
+
+    def get_property(self, name: str) -> Any:
+        assert name == "current-level-buffers"
+        self.recorder.calls.append(f"{self.name}.get_property:{name}")
+        level = self.levels[min(self.reads, len(self.levels) - 1)]
+        self.reads += 1
+        return level
+
+
+class _FakeSegmentEventInfo:
+    def __init__(self, event: Any) -> None:
+        self.type = _FakePadProbeType.EVENT_DOWNSTREAM
+        self._event = event
+
+    def get_event(self) -> Any:
+        return self._event
+
+
+def test_u63_segment_drain_waits_until_the_pad_hands_every_buffer_over(
+    engine_module: types.ModuleType,
+) -> None:
+    """The pure wait: bounded, polling, and honest about every outcome."""
+    clock = {"t": 0.0}
+    sleeps: list[float] = []
+
+    def _now() -> float:
+        return clock["t"]
+
+    def _sleep(seconds: float) -> None:
+        sleeps.append(seconds)
+        clock["t"] += seconds
+
+    levels = [2, 1, 0]
+    reads = iter(levels)
+    drained, level = engine_module._drain_mux_pad_before_segment(
+        lambda: next(reads), 1.0, poll_s=0.005, now=_now, sleep=_sleep
+    )
+    assert (drained, level) == (True, 0)
+    assert sleeps == [0.005, 0.005]
+
+    # A pad that never empties costs the bound and reports what is left.
+    clock["t"] = 0.0
+    sleeps.clear()
+    drained, level = engine_module._drain_mux_pad_before_segment(
+        lambda: 3, 0.02, poll_s=0.005, now=_now, sleep=_sleep
+    )
+    assert (drained, level) == (False, 3)
+    assert clock["t"] >= 0.02
+    assert 1 <= len(sleeps) <= 5
+
+    # An unreadable level proves nothing and must not be waited on.
+    clock["t"] = 0.0
+    sleeps.clear()
+    assert engine_module._drain_mux_pad_before_segment(
+        lambda: None, 1.0, poll_s=0.005, now=_now, sleep=_sleep
+    ) == (False, None)
+    assert sleeps == []
+
+
+def test_u63_changeover_segment_is_held_until_the_audio_pad_empties(
+    engine_module: types.ModuleType, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The probe that actually stops the re-dating.
+
+    A queued retiring buffer is clipped at POP time under the segment current
+    THEN. Blocking the changeover segment on the pad until its queue empties is
+    what makes that impossible; the diagnostic must say the wait happened.
+    """
+    recorder = _Recorder()
+    pad = _FakeLevelPad("sink_66", [2, 1, 0], recorder)
+    old_segment = types.SimpleNamespace(start=0, base=0)
+    pending: dict[str, Any] = {
+        "txn_id": 63,
+        "outgoing_end": {pad: {"end": 1_000, "segment": old_segment}},
+        "mux_segment_drain_bound_s": 1.0,
+    }
+    incoming = types.SimpleNamespace(start=900_000_000, base=900_000_000)
+    info = _FakeSegmentEventInfo(
+        types.SimpleNamespace(type=_FakeEventType.SEGMENT, parse_segment=lambda: incoming)
+    )
+
+    assert engine_module._mux_tail_segment_probe(pad, info, pending) == _FakePadProbeReturn.OK
+    err = capsys.readouterr().err
+    assert "stage=mux-segment-drained pad=sink_66" in err, err
+    assert pad.reads == 3, pad.reads
+    assert pending["mux_tail_segment_crossed"] == {pad}
+    assert pending["mux_tail_released"] is True
+    assert "stage=mux-tail-released-by-segment" in err, err
+
+    # A re-sent sticky segment is not a new origin: no second wait.
+    pad.reads = 0
+    assert engine_module._mux_tail_segment_probe(pad, info, pending) == _FakePadProbeReturn.OK
+    assert pad.reads == 0
+
+
+def test_u63_changeover_segment_still_crosses_when_the_pad_never_empties(
+    engine_module: types.ModuleType, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A bounded wait may NOT wedge the channel: it reports and passes the event."""
+    recorder = _Recorder()
+    pad = _FakeLevelPad("sink_66", [4], recorder)
+    pending: dict[str, Any] = {
+        "txn_id": 64,
+        "outgoing_end": {pad: {"end": 1_000, "segment": types.SimpleNamespace(start=0, base=0)}},
+        "mux_segment_drain_bound_s": 0.01,
+    }
+    info = _FakeSegmentEventInfo(
+        types.SimpleNamespace(
+            type=_FakeEventType.SEGMENT,
+            parse_segment=lambda: types.SimpleNamespace(start=5, base=5),
+        )
+    )
+    assert engine_module._mux_tail_segment_probe(pad, info, pending) == _FakePadProbeReturn.OK
+    err = capsys.readouterr().err
+    assert "retiring audio buffer(s) still queued on mux pad sink_66" in err, err
+    assert "audio PTS step back" in err, err

@@ -54,6 +54,12 @@
 # PR284 owner-accepted RC1 audioPTS limitation: preserve failed JUnit and
 # classify only the documented exact failure; renew these six workflow bindings.
 # Producer, contract, and claim requirements remain unchanged; see CURRENT.md.
+# U63 (2026-11-20): that acceptance is REMOVED -- the product fix (a bounded wait
+# for the changeover segment at the audio mux pad) ends the audio PES PTS step,
+# so scripts/verify_windows_media_junit.py accepts no media failure and the six
+# workflow blobs are re-bound for the workflow's changed step text only. This is
+# a source tripwire renewal, not installed/release proof, and no registered
+# claim, producer, control or floor input changes.
 # RC2 R9: renew engine/graph/test source tripwires for source-output observations.
 # Focused native three-source and prerolled replacement checks passed; historical
 # hardware/session-0 observations stay historical, not transferred to RC2.
@@ -186,10 +192,13 @@ entries:
       # resolves SDDL alias SIDs (``LA`` = RID 500), so the pure floor is 2215
       # and the Windows floor is 2487. Source-tripwire rebind only, not
       # installed/release proof.
-      # Blob re-hashed with `git hash-object .github/workflows/ci-test.yml`.
+      # 2026-11-20: ci-test.yml re-bound after the U63 media-verifier change
+      # (the rc.1 audio PTS acceptance is gone; no tests/native count moved, so
+      # the pure and Windows floors above stand). Blob re-hashed with
+      # `git hash-object .github/workflows/ci-test.yml`.
       workflow:
         path: .github/workflows/ci-test.yml
-        blob: bf677bfedcca827228e6668cd6d8bcafabd48dd3
+        blob: 9fc212e388efe04e4636029e4cd4cbdb3e92b472
       workflow_contract:
         path: docs/claims/workflow-contract.yaml
         blob: 09ede0eb7db4b84a9ea50ef007b4451793f48000
@@ -273,10 +282,13 @@ entries:
       # resolves SDDL alias SIDs (``LA`` = RID 500), so the pure floor is 2215
       # and the Windows floor is 2487. Source-tripwire rebind only, not
       # installed/release proof.
-      # Blob re-hashed with `git hash-object .github/workflows/ci-test.yml`.
+      # 2026-11-20: ci-test.yml re-bound after the U63 media-verifier change
+      # (the rc.1 audio PTS acceptance is gone; no tests/native count moved, so
+      # the pure and Windows floors above stand). Blob re-hashed with
+      # `git hash-object .github/workflows/ci-test.yml`.
       workflow:
         path: .github/workflows/ci-test.yml
-        blob: bf677bfedcca827228e6668cd6d8bcafabd48dd3
+        blob: 9fc212e388efe04e4636029e4cd4cbdb3e92b472
       workflow_contract:
         path: docs/claims/workflow-contract.yaml
         blob: 09ede0eb7db4b84a9ea50ef007b4451793f48000
@@ -337,10 +349,13 @@ entries:
       # resolves SDDL alias SIDs (``LA`` = RID 500), so the pure floor is 2215
       # and the Windows floor is 2487. Source-tripwire rebind only, not
       # installed/release proof.
-      # Blob re-hashed with `git hash-object .github/workflows/ci-test.yml`.
+      # 2026-11-20: ci-test.yml re-bound after the U63 media-verifier change
+      # (the rc.1 audio PTS acceptance is gone; no tests/native count moved, so
+      # the pure and Windows floors above stand). Blob re-hashed with
+      # `git hash-object .github/workflows/ci-test.yml`.
       workflow:
         path: .github/workflows/ci-test.yml
-        blob: bf677bfedcca827228e6668cd6d8bcafabd48dd3
+        blob: 9fc212e388efe04e4636029e4cd4cbdb3e92b472
       workflow_contract:
         path: docs/claims/workflow-contract.yaml
         blob: 09ede0eb7db4b84a9ea50ef007b4451793f48000
@@ -409,10 +424,13 @@ entries:
       # resolves SDDL alias SIDs (``LA`` = RID 500), so the pure floor is 2215
       # and the Windows floor is 2487. Source-tripwire rebind only, not
       # installed/release proof.
-      # Blob re-hashed with `git hash-object .github/workflows/ci-test.yml`.
+      # 2026-11-20: ci-test.yml re-bound after the U63 media-verifier change
+      # (the rc.1 audio PTS acceptance is gone; no tests/native count moved, so
+      # the pure and Windows floors above stand). Blob re-hashed with
+      # `git hash-object .github/workflows/ci-test.yml`.
       workflow:
         path: .github/workflows/ci-test.yml
-        blob: bf677bfedcca827228e6668cd6d8bcafabd48dd3
+        blob: 9fc212e388efe04e4636029e4cd4cbdb3e92b472
       workflow_contract:
         path: docs/claims/workflow-contract.yaml
         blob: 09ede0eb7db4b84a9ea50ef007b4451793f48000
@@ -1214,10 +1232,13 @@ entries:
       # resolves SDDL alias SIDs (``LA`` = RID 500), so the pure floor is 2215
       # and the Windows floor is 2487. Source-tripwire rebind only, not
       # installed/release proof.
-      # Blob re-hashed with `git hash-object .github/workflows/ci-test.yml`.
+      # 2026-11-20: ci-test.yml re-bound after the U63 media-verifier change
+      # (the rc.1 audio PTS acceptance is gone; no tests/native count moved, so
+      # the pure and Windows floors above stand). Blob re-hashed with
+      # `git hash-object .github/workflows/ci-test.yml`.
       workflow:
         path: .github/workflows/ci-test.yml
-        blob: bf677bfedcca827228e6668cd6d8bcafabd48dd3
+        blob: 9fc212e388efe04e4636029e4cd4cbdb3e92b472
       workflow_contract:
         path: docs/claims/workflow-contract.yaml
         blob: 09ede0eb7db4b84a9ea50ef007b4451793f48000
@@ -2184,10 +2205,13 @@ entries:
       # resolves SDDL alias SIDs (``LA`` = RID 500), so the pure floor is 2215
       # and the Windows floor is 2487. Source-tripwire rebind only, not
       # installed/release proof.
-      # Blob re-hashed with `git hash-object .github/workflows/ci-test.yml`.
+      # 2026-11-20: ci-test.yml re-bound after the U63 media-verifier change
+      # (the rc.1 audio PTS acceptance is gone; no tests/native count moved, so
+      # the pure and Windows floors above stand). Blob re-hashed with
+      # `git hash-object .github/workflows/ci-test.yml`.
       workflow:
         path: .github/workflows/ci-test.yml
-        blob: bf677bfedcca827228e6668cd6d8bcafabd48dd3
+        blob: 9fc212e388efe04e4636029e4cd4cbdb3e92b472
       workflow_contract:
         path: docs/claims/workflow-contract.yaml
         blob: 09ede0eb7db4b84a9ea50ef007b4451793f48000

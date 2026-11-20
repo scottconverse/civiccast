@@ -885,9 +885,9 @@ jobs:
           from pathlib import Path
           from scripts.verify_windows_media_junit import classify_media_junit
           passed, accepted = classify_media_junit(Path("junit-windows-media.xml"), int(code), len(nodes))
-          if accepted:
-              print("::warning::owner-accepted RC1 limitation: immediate finite reload emitted one audio PID66 backward PTS step; failed JUnit retained (Scott, 2026-10-29; CURRENT.md)")
-          print(f"Required coverage executed: {passed} passed, {accepted} failed-owner-accepted, no skips")
+          # U63: no media failure is owner-accepted any more; ``accepted`` is
+          # always 0 and exists only to keep this step's shape unchanged.
+          print(f"Required coverage executed: {passed} passed, no failures, no skips")
           '@ | uv run python -
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
