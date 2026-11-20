@@ -196,9 +196,15 @@ entries:
       # (the rc.1 audio PTS acceptance is gone; no tests/native count moved, so
       # the pure and Windows floors above stand). Blob re-hashed with
       # `git hash-object .github/workflows/ci-test.yml`.
+      # 2026-11-20 (Transfer concurrency): ``stage-native-runtime-inputs``
+      # moved off the shared ``sandbox-lab`` group onto a per-workflow,
+      # per-ref group so concurrent PRs stop cancelling each other's
+      # Transfer job. No job, floor or test changed. Source-tripwire rebind
+      # only, not installed/release proof.
+      # Blob re-hashed with `git hash-object .github/workflows/ci-test.yml`.
       workflow:
         path: .github/workflows/ci-test.yml
-        blob: 9fc212e388efe04e4636029e4cd4cbdb3e92b472
+        blob: 2f3cf2fe5f88d49ee5a3fdee83b35f30fd2b8405
       workflow_contract:
         path: docs/claims/workflow-contract.yaml
         blob: 09ede0eb7db4b84a9ea50ef007b4451793f48000
@@ -286,9 +292,15 @@ entries:
       # (the rc.1 audio PTS acceptance is gone; no tests/native count moved, so
       # the pure and Windows floors above stand). Blob re-hashed with
       # `git hash-object .github/workflows/ci-test.yml`.
+      # 2026-11-20 (Transfer concurrency): ``stage-native-runtime-inputs``
+      # moved off the shared ``sandbox-lab`` group onto a per-workflow,
+      # per-ref group so concurrent PRs stop cancelling each other's
+      # Transfer job. No job, floor or test changed. Source-tripwire rebind
+      # only, not installed/release proof.
+      # Blob re-hashed with `git hash-object .github/workflows/ci-test.yml`.
       workflow:
         path: .github/workflows/ci-test.yml
-        blob: 9fc212e388efe04e4636029e4cd4cbdb3e92b472
+        blob: 2f3cf2fe5f88d49ee5a3fdee83b35f30fd2b8405
       workflow_contract:
         path: docs/claims/workflow-contract.yaml
         blob: 09ede0eb7db4b84a9ea50ef007b4451793f48000
@@ -353,9 +365,15 @@ entries:
       # (the rc.1 audio PTS acceptance is gone; no tests/native count moved, so
       # the pure and Windows floors above stand). Blob re-hashed with
       # `git hash-object .github/workflows/ci-test.yml`.
+      # 2026-11-20 (Transfer concurrency): ``stage-native-runtime-inputs``
+      # moved off the shared ``sandbox-lab`` group onto a per-workflow,
+      # per-ref group so concurrent PRs stop cancelling each other's
+      # Transfer job. No job, floor or test changed. Source-tripwire rebind
+      # only, not installed/release proof.
+      # Blob re-hashed with `git hash-object .github/workflows/ci-test.yml`.
       workflow:
         path: .github/workflows/ci-test.yml
-        blob: 9fc212e388efe04e4636029e4cd4cbdb3e92b472
+        blob: 2f3cf2fe5f88d49ee5a3fdee83b35f30fd2b8405
       workflow_contract:
         path: docs/claims/workflow-contract.yaml
         blob: 09ede0eb7db4b84a9ea50ef007b4451793f48000
@@ -428,9 +446,15 @@ entries:
       # (the rc.1 audio PTS acceptance is gone; no tests/native count moved, so
       # the pure and Windows floors above stand). Blob re-hashed with
       # `git hash-object .github/workflows/ci-test.yml`.
+      # 2026-11-20 (Transfer concurrency): ``stage-native-runtime-inputs``
+      # moved off the shared ``sandbox-lab`` group onto a per-workflow,
+      # per-ref group so concurrent PRs stop cancelling each other's
+      # Transfer job. No job, floor or test changed. Source-tripwire rebind
+      # only, not installed/release proof.
+      # Blob re-hashed with `git hash-object .github/workflows/ci-test.yml`.
       workflow:
         path: .github/workflows/ci-test.yml
-        blob: 9fc212e388efe04e4636029e4cd4cbdb3e92b472
+        blob: 2f3cf2fe5f88d49ee5a3fdee83b35f30fd2b8405
       workflow_contract:
         path: docs/claims/workflow-contract.yaml
         blob: 09ede0eb7db4b84a9ea50ef007b4451793f48000
@@ -1244,9 +1268,15 @@ entries:
       # (the rc.1 audio PTS acceptance is gone; no tests/native count moved, so
       # the pure and Windows floors above stand). Blob re-hashed with
       # `git hash-object .github/workflows/ci-test.yml`.
+      # 2026-11-20 (Transfer concurrency): ``stage-native-runtime-inputs``
+      # moved off the shared ``sandbox-lab`` group onto a per-workflow,
+      # per-ref group so concurrent PRs stop cancelling each other's
+      # Transfer job. No job, floor or test changed. Source-tripwire rebind
+      # only, not installed/release proof.
+      # Blob re-hashed with `git hash-object .github/workflows/ci-test.yml`.
       workflow:
         path: .github/workflows/ci-test.yml
-        blob: 9fc212e388efe04e4636029e4cd4cbdb3e92b472
+        blob: 2f3cf2fe5f88d49ee5a3fdee83b35f30fd2b8405
       workflow_contract:
         path: docs/claims/workflow-contract.yaml
         blob: 09ede0eb7db4b84a9ea50ef007b4451793f48000
@@ -2225,9 +2255,15 @@ entries:
       # (the rc.1 audio PTS acceptance is gone; no tests/native count moved, so
       # the pure and Windows floors above stand). Blob re-hashed with
       # `git hash-object .github/workflows/ci-test.yml`.
+      # 2026-11-20 (Transfer concurrency): ``stage-native-runtime-inputs``
+      # moved off the shared ``sandbox-lab`` group onto a per-workflow,
+      # per-ref group so concurrent PRs stop cancelling each other's
+      # Transfer job. No job, floor or test changed. Source-tripwire rebind
+      # only, not installed/release proof.
+      # Blob re-hashed with `git hash-object .github/workflows/ci-test.yml`.
       workflow:
         path: .github/workflows/ci-test.yml
-        blob: 9fc212e388efe04e4636029e4cd4cbdb3e92b472
+        blob: 2f3cf2fe5f88d49ee5a3fdee83b35f30fd2b8405
       workflow_contract:
         path: docs/claims/workflow-contract.yaml
         blob: 09ede0eb7db4b84a9ea50ef007b4451793f48000

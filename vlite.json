@@ -81,6 +81,7 @@
         {
           "name": "tests",
           "run": "uv run --no-sync pytest tests/{name} -m \"not integration and not slow\" -q -x -p no:cacheprovider",
+          "runFiles": "uv run --no-sync pytest {files} -m \"not integration and not slow\" -q -x -p no:cacheprovider",
           "timeoutSec": 900
         }
       ]
