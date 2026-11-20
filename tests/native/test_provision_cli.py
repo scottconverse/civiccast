@@ -1698,6 +1698,13 @@ def _wire_fresh_install_run_path(monkeypatch, scratch_url: str):
         # normalization, which is deliberately fail-loud on a missing data
         # dir) runs for real here, so the fake must leave the same postcondition.
         Path(context.postgres_data_dir).mkdir(parents=True, exist_ok=True)
+        # rc.6 -> rc.7 Dell fix: the same "code after the engine runs for
+        # real" rule now covers postgres_bin_acl too, so the staged server
+        # binaries folder the real install root would carry must exist.
+        install_root = Path(context.server_pack_path).parent.parent
+        (install_root / "packs" / "native-server-binaries" / "payload" / "bin").mkdir(
+            parents=True, exist_ok=True
+        )
         journal = ProvisionJournal(plan=plan, context=context, phase=ProvisionPhase.COMPLETE)
         return ProvisionOutcome(phase=ProvisionPhase.COMPLETE, journal=journal)
 

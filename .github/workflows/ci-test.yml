@@ -556,11 +556,16 @@ jobs:
         # 2224 pure tests; floor 2174 keeps the margin.
         # rc.6.1 item 7 CTRL_BREAK sender: four portable cases, 2232 pure
         # tests; floor 2182 keeps the margin.
+        # Installer postgres bin ACL grant (PR #377) adds portable cases, 2259
+        # pure tests (one of the new cases carries windows_only); floor 2209
+        # keeps the margin.
+        # SDDL alias SID resolution (PR #377 follow-up) adds six portable
+        # cases, 2265 pure tests; floor 2215 keeps the standard 50-test margin.
         if: always()
         run: |
           python scripts/verify_native_junit_floor.py \
             --junit junit-native-pure.xml \
-            --floor 2182 \
+            --floor 2215 \
             --label "tests/native pure suite"
 
       - name: Upload junit (ws3 claims-evidence D3/D7)
@@ -974,12 +979,18 @@ jobs:
         # rc.6.1 item 7 CTRL_BREAK sender (six cases) and item 8 state-file
         # DACL (eight Windows cases): fourteen cases, 2487 Windows
         # non-integration tests; floor 2437 keeps the margin.
+        # Installer postgres bin ACL grant (PR #377) adds thirty-two
+        # Windows-only cases, 2530 Windows non-integration tests; floor 2480
+        # keeps the margin.
+        # SDDL alias SID resolution (PR #377 follow-up) adds seven Windows
+        # cases, 2537 Windows non-integration tests; floor 2487 keeps the
+        # standard 50-test margin.
         if: always()
         shell: bash
         run: |
           python scripts/verify_native_junit_floor.py \
             --junit junit-native-win.xml \
-            --floor 2437 \
+            --floor 2487 \
             --label "tests/native Windows suite"
 
       - name: Upload Windows native junit

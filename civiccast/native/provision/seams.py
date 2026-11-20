@@ -61,6 +61,7 @@ from typing import TYPE_CHECKING
 
 from civiccast.native.pg_ctl_exec import CapturedProcess, run_captured_argv, run_pg_ctl_argv
 from civiccast.native.pgdata_acl import _current_process_sid, normalize_pgdata_acl
+from civiccast.native.postgres_bin_acl import normalize_postgres_bin_acl
 from civiccast.native.provision.conf import render_pg_hba_conf, render_pg_hba_trust_conf
 from civiccast.native.provision.models import (
     DatabaseDecision,
@@ -441,6 +442,9 @@ def _start_provisioned_cluster(pg_ctl_path: str, context: ProvisionContext) -> N
     """
 
     normalize_pgdata_acl(context.postgres_data_dir)
+    # rc.6 -> rc.7 Dell fix: the binary tree needs the installing account
+    # too -- see postgres_bin_acl's module docstring.
+    normalize_postgres_bin_acl(pg_ctl_path)
     _run_pg_ctl(_pg_ctl_argv_start(pg_ctl_path, context), action="start")
 
 
