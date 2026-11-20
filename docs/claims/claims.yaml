@@ -186,10 +186,15 @@ entries:
       # resolves SDDL alias SIDs (``LA`` = RID 500), so the pure floor is 2215
       # and the Windows floor is 2487. Source-tripwire rebind only, not
       # installed/release proof.
+      # 2026-11-20 (Transfer concurrency): ``stage-native-runtime-inputs``
+      # moved off the shared ``sandbox-lab`` group onto a per-workflow,
+      # per-ref group so concurrent PRs stop cancelling each other's
+      # Transfer job. No job, floor or test changed. Source-tripwire rebind
+      # only, not installed/release proof.
       # Blob re-hashed with `git hash-object .github/workflows/ci-test.yml`.
       workflow:
         path: .github/workflows/ci-test.yml
-        blob: bf677bfedcca827228e6668cd6d8bcafabd48dd3
+        blob: 80eb95ba8d8c96e31c3a4503d329c3e94b131b50
       workflow_contract:
         path: docs/claims/workflow-contract.yaml
         blob: 09ede0eb7db4b84a9ea50ef007b4451793f48000
@@ -273,10 +278,15 @@ entries:
       # resolves SDDL alias SIDs (``LA`` = RID 500), so the pure floor is 2215
       # and the Windows floor is 2487. Source-tripwire rebind only, not
       # installed/release proof.
+      # 2026-11-20 (Transfer concurrency): ``stage-native-runtime-inputs``
+      # moved off the shared ``sandbox-lab`` group onto a per-workflow,
+      # per-ref group so concurrent PRs stop cancelling each other's
+      # Transfer job. No job, floor or test changed. Source-tripwire rebind
+      # only, not installed/release proof.
       # Blob re-hashed with `git hash-object .github/workflows/ci-test.yml`.
       workflow:
         path: .github/workflows/ci-test.yml
-        blob: bf677bfedcca827228e6668cd6d8bcafabd48dd3
+        blob: 80eb95ba8d8c96e31c3a4503d329c3e94b131b50
       workflow_contract:
         path: docs/claims/workflow-contract.yaml
         blob: 09ede0eb7db4b84a9ea50ef007b4451793f48000
@@ -337,10 +347,15 @@ entries:
       # resolves SDDL alias SIDs (``LA`` = RID 500), so the pure floor is 2215
       # and the Windows floor is 2487. Source-tripwire rebind only, not
       # installed/release proof.
+      # 2026-11-20 (Transfer concurrency): ``stage-native-runtime-inputs``
+      # moved off the shared ``sandbox-lab`` group onto a per-workflow,
+      # per-ref group so concurrent PRs stop cancelling each other's
+      # Transfer job. No job, floor or test changed. Source-tripwire rebind
+      # only, not installed/release proof.
       # Blob re-hashed with `git hash-object .github/workflows/ci-test.yml`.
       workflow:
         path: .github/workflows/ci-test.yml
-        blob: bf677bfedcca827228e6668cd6d8bcafabd48dd3
+        blob: 80eb95ba8d8c96e31c3a4503d329c3e94b131b50
       workflow_contract:
         path: docs/claims/workflow-contract.yaml
         blob: 09ede0eb7db4b84a9ea50ef007b4451793f48000
@@ -409,10 +424,15 @@ entries:
       # resolves SDDL alias SIDs (``LA`` = RID 500), so the pure floor is 2215
       # and the Windows floor is 2487. Source-tripwire rebind only, not
       # installed/release proof.
+      # 2026-11-20 (Transfer concurrency): ``stage-native-runtime-inputs``
+      # moved off the shared ``sandbox-lab`` group onto a per-workflow,
+      # per-ref group so concurrent PRs stop cancelling each other's
+      # Transfer job. No job, floor or test changed. Source-tripwire rebind
+      # only, not installed/release proof.
       # Blob re-hashed with `git hash-object .github/workflows/ci-test.yml`.
       workflow:
         path: .github/workflows/ci-test.yml
-        blob: bf677bfedcca827228e6668cd6d8bcafabd48dd3
+        blob: 80eb95ba8d8c96e31c3a4503d329c3e94b131b50
       workflow_contract:
         path: docs/claims/workflow-contract.yaml
         blob: 09ede0eb7db4b84a9ea50ef007b4451793f48000
@@ -1214,10 +1234,15 @@ entries:
       # resolves SDDL alias SIDs (``LA`` = RID 500), so the pure floor is 2215
       # and the Windows floor is 2487. Source-tripwire rebind only, not
       # installed/release proof.
+      # 2026-11-20 (Transfer concurrency): ``stage-native-runtime-inputs``
+      # moved off the shared ``sandbox-lab`` group onto a per-workflow,
+      # per-ref group so concurrent PRs stop cancelling each other's
+      # Transfer job. No job, floor or test changed. Source-tripwire rebind
+      # only, not installed/release proof.
       # Blob re-hashed with `git hash-object .github/workflows/ci-test.yml`.
       workflow:
         path: .github/workflows/ci-test.yml
-        blob: bf677bfedcca827228e6668cd6d8bcafabd48dd3
+        blob: 80eb95ba8d8c96e31c3a4503d329c3e94b131b50
       workflow_contract:
         path: docs/claims/workflow-contract.yaml
         blob: 09ede0eb7db4b84a9ea50ef007b4451793f48000
@@ -2184,10 +2209,15 @@ entries:
       # resolves SDDL alias SIDs (``LA`` = RID 500), so the pure floor is 2215
       # and the Windows floor is 2487. Source-tripwire rebind only, not
       # installed/release proof.
+      # 2026-11-20 (Transfer concurrency): ``stage-native-runtime-inputs``
+      # moved off the shared ``sandbox-lab`` group onto a per-workflow,
+      # per-ref group so concurrent PRs stop cancelling each other's
+      # Transfer job. No job, floor or test changed. Source-tripwire rebind
+      # only, not installed/release proof.
       # Blob re-hashed with `git hash-object .github/workflows/ci-test.yml`.
       workflow:
         path: .github/workflows/ci-test.yml
-        blob: bf677bfedcca827228e6668cd6d8bcafabd48dd3
+        blob: 80eb95ba8d8c96e31c3a4503d329c3e94b131b50
       workflow_contract:
         path: docs/claims/workflow-contract.yaml
         blob: 09ede0eb7db4b84a9ea50ef007b4451793f48000

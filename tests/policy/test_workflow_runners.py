@@ -147,7 +147,13 @@ def test_reviewed_input_transfer_is_source_free_internal_and_bounded() -> None:
         "(github.event_name == 'pull_request' && "
         "github.event.pull_request.head.repo.full_name == github.repository)"
     )
-    assert stage["concurrency"] == {"group": "sandbox-lab", "cancel-in-progress": "false"}
+    # Transfer jobs must NOT join the shared `sandbox-lab` group: GitHub keeps
+    # only one pending job per group, so two PRs would cancel each other's
+    # transfer (PRs #378/#379, 2026-11-20). Per-workflow, per-ref instead.
+    assert stage["concurrency"] == {
+        "group": "sandbox-lab-transfer-${{ github.workflow }}-${{ github.ref }}",
+        "cancel-in-progress": "true",
+    }
     assert stage["timeout-minutes"] == "10"
     assert len(stage["steps"]) == 2
     copy, upload = stage["steps"]
@@ -216,7 +222,13 @@ def test_ci_native_runtime_transfer_is_source_free_internal_and_locked() -> None
         "github.event.pull_request.head.repo.full_name == github.repository"
     )
     assert stage["timeout-minutes"] == "10"
-    assert stage["concurrency"] == {"group": "sandbox-lab", "cancel-in-progress": "false"}
+    # Same rule as native-app-reproducibility.yml's Transfer job: never the
+    # shared `sandbox-lab` group, which lets concurrent PRs cancel each
+    # other's pending transfer (PRs #378/#379, 2026-11-20).
+    assert stage["concurrency"] == {
+        "group": "sandbox-lab-transfer-${{ github.workflow }}-${{ github.ref }}",
+        "cancel-in-progress": "true",
+    }
     copy, upload = stage["steps"]
     assert "uses" not in copy
     assert "python" not in copy["run"] and "checkout" not in copy["run"]
@@ -274,3 +286,42 @@ def test_ci_hosted_archive_verification_rejects_tampering_before_export(
     with pytest.raises(AssertionError, match="identity mismatch"):
         exec(compile(code, "ci-hosted-reviewed-input-verification", "exec"), {})
     assert not rejected.exists()
+
+
+# Transfer jobs copy a handful of megabytes from the local mirror and must not
+# contend for the shared `sandbox-lab` group the heavy builds use. GitHub keeps
+# only ONE pending job per concurrency group; with a shared group, two PRs
+# pushing close together cancel each other's pending Transfer job and every
+# downstream Windows job is skipped (observed on PRs #378/#379, 2026-11-20).
+_TRANSFER_JOBS = (
+    ("ci-test.yml", "stage-native-runtime-inputs"),
+    ("native-app-reproducibility.yml", "stage-reviewed-inputs"),
+)
+
+
+@pytest.mark.parametrize(("filename", "job"), _TRANSFER_JOBS)
+def test_transfer_jobs_do_not_join_the_shared_sandbox_lab_group(filename: str, job: str) -> None:
+    workflow = yaml.load(
+        Path(".github", "workflows", filename).read_text(encoding="utf-8"),
+        Loader=yaml.BaseLoader,
+    )
+    concurrency = workflow["jobs"][job]["concurrency"]
+    assert concurrency["group"] != "sandbox-lab", (
+        f"{filename}:{job} must not share the heavy builds' `sandbox-lab` "
+        "concurrency group -- a newer pending job would cancel another PR's transfer"
+    )
+    assert concurrency["group"].startswith("sandbox-lab-transfer-")
+    assert "${{ github.workflow }}" in concurrency["group"]
+    assert "${{ github.ref }}" in concurrency["group"]
+    assert concurrency["cancel-in-progress"] == "true"
+
+
+def test_heavy_sandbox_lab_jobs_keep_the_shared_group() -> None:
+    gate_a = yaml.load(
+        Path(".github", "workflows", "gate-a-station-acceptance.yml").read_text(encoding="utf-8"),
+        Loader=yaml.BaseLoader,
+    )
+    assert gate_a["concurrency"] == {
+        "group": "sandbox-lab",
+        "cancel-in-progress": "false",
+    }

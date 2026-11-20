@@ -47,9 +47,18 @@ jobs:
       (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ${{ fromJSON('["self-hosted","windows","sandbox-lab"]') }}
     timeout-minutes: 10
+    # Per-workflow, per-ref group -- deliberately NOT the shared `sandbox-lab`
+    # group the heavy Gate A / candidate builds use. This job only copies and
+    # hash-checks two mirror files and does not need the box lock: a runner
+    # already executes one job at a time and GitHub's runner queue does not
+    # cancel waiting jobs. Sharing `sandbox-lab` here was actively harmful:
+    # GitHub keeps only one PENDING job per group, so two PRs pushing close
+    # together cancelled each other's Transfer job (PRs #378/#379,
+    # 2026-11-20) and every downstream Windows job was skipped. Per-ref keeps
+    # cancel-in-progress scoped to a PR replacing its own older transfer.
     concurrency:
-      group: sandbox-lab
-      cancel-in-progress: false
+      group: sandbox-lab-transfer-${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: true
     steps:
       - name: Copy and independently verify immutable mirror inputs
         shell: pwsh
