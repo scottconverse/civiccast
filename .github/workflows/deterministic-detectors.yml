@@ -6,9 +6,10 @@
 # ---------------------------------------------------------------------------
 # ENFORCEMENT STATUS — READ BEFORE TOUCHING BRANCH PROTECTION
 #
-# randomized-suite runs nightly (schedule) and on demand (workflow_dispatch),
-#   NOT on pull requests: ci-test.yml's "Unit tests" job already runs the full
-#   suite on every PR push, so a PR-triggered randomized run duplicated it.
+# randomized-suite runs ONLY when started by hand (workflow_dispatch), for
+#   example before each release build. Not on pull requests and not on a
+#   schedule: ci-test.yml's "Unit tests" job already runs the full suite on
+#   every PR push, so a PR-triggered randomized run duplicated it.
 #
 # randomized-suite: starts INFORMATIONAL. It is flipped to a REQUIRED status
 #   check ONLY by the repo owner, and ONLY after burn-in (five green runs
@@ -48,11 +49,6 @@ on:
       - '**/NOTICE'
     branches: [main, 'program/**']
   workflow_dispatch:
-  schedule:
-    # Nightly randomized-order sweep. Not on pull_request: ci-test.yml's
-    # "Unit tests" job already runs the full suite on every PR push, and this
-    # job is informational, so a second ~27-minute full run per push is waste.
-    - cron: "17 9 * * *"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -76,13 +72,11 @@ jobs:
     # ci-test.yml's "Unit tests" job.
     runs-on: ubuntu-24.04
     timeout-minutes: 75
-    # Nightly (schedule) and on demand (workflow_dispatch) only -- never on a
-    # pull_request push, where ci-test.yml's "Unit tests" already runs the full
-    # suite. On schedule github.event.pull_request is empty, so the checkout's
-    # `github.event.pull_request.head.sha || github.sha` falls back to
-    # github.sha (the default branch's commit).
+    # On demand (workflow_dispatch) only -- never on a pull_request push, where
+    # ci-test.yml's "Unit tests" already runs the full suite, and never on a
+    # schedule. Started by hand, for example before each release build.
     if: |
-      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') &&
+      github.event_name == 'workflow_dispatch' &&
       (github.event_name != 'pull_request' ||
        github.event.pull_request.head.repo.full_name == github.repository)
     env:
