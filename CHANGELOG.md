@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+Release candidate **v1.0.0-rc.8** (unpublished candidate).
+
+- Playout source reload: a preparation step that overruns its window no longer leaves the channel dark (#379).
+- Cable udp-ts output branch no longer takes the public output off the air on Blackwell (#378).
+- Egress audio PTS never steps back on an immediate finite reload (#381).
+- Native install grants the installing account RX on the Postgres bin, so setup no longer fails with "Access is denied" on a Dell (#377).
+
 ## [1.0.0-rc.7] - 2026-11-19
 
 Release candidate **v1.0.0-rc.7**, published November 19, 2026. Full notes, verification and known issues:

@@ -19,6 +19,17 @@ system. Staff use one operator console; residents watch through a separate
 portal. Optional cloud services may charge their own usage fees, while CivicCast
 has no per-minute software fee.
 
+## Unpublished source candidate
+
+`v1.0.0-rc.8` is an unpublished candidate and is not available as a public
+release. It carries the playout fixes since rc.7: a source reload that overran its
+preparation window no longer leaves the channel dark, the cable udp-ts branch
+no longer takes the public output off the air, audio PTS no longer steps back on
+an immediate finite reload, and installing on a Dell no longer fails with
+"Access is denied" on the Postgres bin. Its CHANGELOG entry lists the rest.
+Source changes do not update an installed station or replace the published
+downloads below.
+
 ## Current published package
 
 [`v1.0.0-rc.7`](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-rc.7)
