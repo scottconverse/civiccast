@@ -573,6 +573,7 @@ def _hold_changeover_segment_until_pad_drained(pad: Gst.Pad, pending: dict[str, 
     started = time.monotonic()
     drained, level = _drain_mux_pad_before_segment(_read_level, bound_s)
     waited = time.monotonic() - started
+    pad_name = "<unknown>"
     with contextlib.suppress(Exception):
         pad_name = pad.get_name()
     if drained:
