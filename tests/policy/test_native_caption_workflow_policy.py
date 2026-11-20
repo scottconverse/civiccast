@@ -120,9 +120,28 @@ def test_expensive_python_jobs_keep_setup_uv_caching() -> None:
         assert all(step["with"].get("enable-cache") == "true" for step in setup_uv_steps)
 
 
+# Owner-approved on 2026-11-20: randomized-suite moves OFF every pull-request
+# push (where it duplicated ci-test.yml's full "Unit tests" run) to a nightly
+# schedule. That is an explicit exception to check_actions_budget's
+# "weekly is the maximum" daily-cron default, so this exact violation is the
+# only one tolerated, and only for this workflow. Remove this entry if the
+# schedule ever returns to weekly-or-sparser.
+_APPROVED_NIGHTLY_CRON_VIOLATION = (
+    "daily cron `17 9 * * *` is forbidden; weekly is the maximum default"
+)
+
+
 def test_global_gates_remain_valid_under_the_actions_budget_policy() -> None:
     for workflow_path in WORKFLOWS[1:]:
-        assert validate_workflow(workflow_path, workflow_path.read_text(encoding="utf-8")) == []
+        violations = validate_workflow(
+            workflow_path, workflow_path.read_text(encoding="utf-8")
+        )
+        if workflow_path.name == "deterministic-detectors.yml":
+            assert violations.count(_APPROVED_NIGHTLY_CRON_VIOLATION) == 1
+            violations = [
+                v for v in violations if v != _APPROVED_NIGHTLY_CRON_VIOLATION
+            ]
+        assert violations == []
 
 
 def test_native_junit_workflow_floors_match_current_exact_collections() -> None:
@@ -1434,12 +1453,29 @@ jobs:
     )
 
 
-def test_native_workflows_cancel_superseded_candidate_runs_without_schedules() -> None:
+def test_native_workflows_cancel_superseded_candidate_runs_without_pr_schedules() -> None:
+    """Only deterministic-detectors.yml may be scheduled, and never on pull_request.
+
+    randomized-suite is the sole scheduled job: an informational nightly
+    randomized-order sweep. Every other trigger in these native workflows stays
+    pull-request driven, and the scheduled job must not also run on a PR push
+    (ci-test.yml's "Unit tests" already runs the full suite there).
+    """
     for path in WORKFLOWS:
         _text, workflow = _workflow(path)
         triggers = workflow.get("on", workflow.get(True))
 
-        assert "schedule" not in triggers, path.name
+        if path.name == "deterministic-detectors.yml":
+            assert [entry["cron"] for entry in triggers["schedule"]] == ["17 9 * * *"]
+            randomized = workflow["jobs"]["randomized-suite"]
+            condition = " ".join(str(randomized["if"]).split())
+            assert (
+                "(github.event_name == 'schedule' || "
+                "github.event_name == 'workflow_dispatch')" in condition
+            )
+            assert "github.event_name != 'pull_request'" in condition
+        else:
+            assert "schedule" not in triggers, path.name
         assert workflow["concurrency"] == {
             "group": "${{ github.workflow }}-${{ github.ref }}",
             "cancel-in-progress": "true",
