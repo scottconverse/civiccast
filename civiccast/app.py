@@ -2664,6 +2664,16 @@ def create_app() -> FastAPI:
         channel_workers = channel_worker_readiness(egress_store)
         if channel_workers == "restart-loop":
             readiness = "degraded"
+        # MSI reload-preparation overrun (2026-11-20): a channel meant to be on
+        # air but pinned off it (slate / TRANSITIONING) reported nothing here --
+        # this probe said "healthy" for a 12-minute outage and was still saying
+        # it 30 minutes later. A channel with no ON_AIR sample for its grace
+        # window degrades readiness.
+        from civiccast.alerting.runtime_status import channel_air_readiness
+
+        channel_air = channel_air_readiness(egress_store)
+        if channel_air == "dark":
+            readiness = "degraded"
         # Annotated to match the declared return type. Inferred from this
         # literal alone it is dict[str, str], which then rejects the bool and
         # int fields the maintenance branch adds below -- and dict is
@@ -2676,6 +2686,7 @@ def create_app() -> FastAPI:
             "live_captions": live_captions,
             "slate_web_hls": slate_web_hls,
             "channel_workers": channel_workers,
+            "channel_air": channel_air,
         }
         bootstrap_instance_id = os.environ.get("CIVICCAST_BOOTSTRAP_INSTANCE_ID")
         if bootstrap_instance_id:

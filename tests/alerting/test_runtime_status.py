@@ -1105,3 +1105,90 @@ def test_worker_readiness_is_unknown_without_a_readable_store() -> None:
 
     assert channel_worker_readiness(None) == "unknown"
     assert channel_worker_readiness(_Broken(), now=_NOW) == "unknown"
+
+
+# ---------------------------------------------------------------------------
+# MSI reload-preparation overrun (2026-11-20): a channel meant to be on air
+# that has not been ON_AIR for minutes is degraded, not healthy.
+# ---------------------------------------------------------------------------
+
+
+def _air_store(
+    state: str,
+    *,
+    minutes_without_on_air: int,
+    auto_start: bool = True,
+    on_air_in_window: bool = False,
+) -> InMemoryEgressStore:
+    store = InMemoryEgressStore()
+    store.upsert_config(_config("public", auto_start=auto_start))
+    store.write_state(_state("public", state, age_s=2))
+    for minute in range(minutes_without_on_air, -1, -1):
+        store.append_health(
+            EgressHealthSample(
+                channel_id="public",
+                sampled_at=_NOW - timedelta(minutes=minute),
+                state=state,  # type: ignore[arg-type]
+                sink_connected={"Cable headend": True},
+            )
+        )
+    if on_air_in_window:
+        store.append_health(
+            EgressHealthSample(
+                channel_id="public",
+                sampled_at=_NOW - timedelta(minutes=1),
+                state="ON_AIR",
+                sink_connected={"Cable headend": True},
+            )
+        )
+    return store
+
+
+def test_channel_pinned_on_slate_past_the_grace_window_is_dark() -> None:
+    """The MSI's exact shape: public was TRANSITIONING on its slate for over
+    half an hour while ``/health`` read ``healthy``. The state row is rewritten
+    every ~2 s while pinned, so its ``updated_at`` proves nothing; the health
+    samples are what show no ``ON_AIR`` in the window."""
+
+    from civiccast.alerting.runtime_status import channel_air_readiness
+
+    store = _air_store("TRANSITIONING", minutes_without_on_air=30)
+
+    assert channel_air_readiness(store, now=_NOW) == "dark"
+
+
+def test_channel_on_air_is_healthy() -> None:
+    from civiccast.alerting.runtime_status import channel_air_readiness
+
+    store = _air_store("ON_AIR", minutes_without_on_air=30, on_air_in_window=True)
+
+    assert channel_air_readiness(store, now=_NOW) == "healthy"
+
+
+def test_channel_inside_the_grace_window_is_not_dark_when_it_just_rolled_over() -> None:
+    from civiccast.alerting.runtime_status import channel_air_readiness
+
+    # A rollover in progress: TRANSITIONING now, but ON_AIR a minute ago, i.e.
+    # inside the grace window. A hand-off must never read as an outage.
+    store = _air_store("TRANSITIONING", minutes_without_on_air=2, on_air_in_window=True)
+
+    assert channel_air_readiness(store, now=_NOW) == "healthy"
+
+
+def test_channel_not_meant_to_be_on_air_is_out_of_scope() -> None:
+    from civiccast.alerting.runtime_status import channel_air_readiness
+
+    store = _air_store("STOPPED", minutes_without_on_air=30, auto_start=False)
+
+    assert channel_air_readiness(store, now=_NOW) == "idle"
+
+
+def test_channel_air_readiness_is_unknown_without_a_readable_store() -> None:
+    from civiccast.alerting.runtime_status import channel_air_readiness
+
+    class _Broken(InMemoryEgressStore):
+        def list_configs(self) -> list[EgressConfig]:
+            raise RuntimeError("db down")
+
+    assert channel_air_readiness(None) == "unknown"
+    assert channel_air_readiness(_Broken(), now=_NOW) == "unknown"

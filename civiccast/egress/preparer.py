@@ -106,7 +106,10 @@ _DEFAULT_PREPARATION_TIMEOUT_SECONDS = 300.0
 #: scales with the asset, from a de-rated design speed rather than the best
 #: measurement, and keeps the flat bound as a floor for short assets -- see
 #: ``warm_preparation_timeout_seconds``. The on-demand/air-path timeout is
-#: deliberately NOT rescaled: a segment's airing must still fail closed fast.
+#: rescaled separately and far more conservatively, from a pessimistic 2x
+#: design speed -- see ``air_preparation_timeout_seconds``. It is no longer
+#: left flat: on the MSI (2026-11-20) a flat 300s killed every stage of a
+#: 1800s slot's conform and the channel never came back on air.
 #:
 #: 8.0x is the design speed: the measured 16.3x alone and 10.4x against a
 #: concurrent foreground conform are both faster, so this is a worst case that
@@ -127,6 +130,30 @@ _WARM_CONFORM_TIMEOUT_CEILING_SECONDS = 7200.0
 #: Failed warms retry on later scheduling passes after 60s, doubling up to
 #: 30 minutes. Cancellation does not consume a retry; success resets the delay.
 _WARM_FAILURE_BACKOFF_SECONDS = 60.0
+
+#: MSI reload-preparation overrun (2026-11-20): the AIR path kept the flat
+#: 300s per-ffmpeg-call bound (see ``_DEFAULT_PREPARATION_TIMEOUT_SECONDS``).
+#: On a station PC whose conform runs at ~2-3x realtime, a 1800s schedule slot
+#: cannot be conformed inside 300s, so the speech-leveling mux was killed, the
+#: loudnorm fallback measured and conformed and was killed too, and the whole
+#: sequence (300s mux + 300s measure + 300s conform) overran the content-reload
+#: preparation bound (746s, measured). Every attempt was killed mid-encode, so
+#: nothing was ever written and the channel stayed on its slate. This scales
+#: the air path's per-call bound with the media actually being conformed,
+#: exactly as U29 already does for warms, and keeps the flat bound as a floor.
+#:
+#: 2.0x is a deliberately pessimistic speed: the live station measured 16.3x
+#: for a warm at one thread, and the MSI measured ~2.3-2.5x for a 2h asset at
+#: one thread with captions running. A duration-scaled bound can never be the
+#: thing that kills a healthy conform on slow hardware; the reload's own
+#: preparation bound (``_content_reload_preparation_bound_seconds``) and the
+#: watchdog remain the outer protection against a genuinely stuck job.
+_AIR_CONFORM_DESIGN_SPEED_RPS = 2.0
+#: Ceiling on the scaled air-path bound. The air path has a deadline, so unlike
+#: a warm it must not scale without limit: one pathological asset must not hold
+#: a first-ever ON_AIR for hours. 1800s covers a 60-minute slot at the 2x design
+#: speed; anything longer is abandoned by the caller's own bound.
+_AIR_CONFORM_TIMEOUT_CEILING_SECONDS = 1800.0
 _WARM_FAILURE_MAX_BACKOFF_SECONDS = 30 * 60.0
 
 #: F3 fix (hostile-review follow-up, 2026-09-06): the age-only GC this replaced
@@ -504,6 +531,45 @@ def warm_preparation_timeout_seconds(
     return max(
         base_timeout_seconds,
         min(estimate, _WARM_CONFORM_TIMEOUT_CEILING_SECONDS),
+    )
+
+
+def air_preparation_timeout_seconds(
+    media_seconds: float | None,
+    base_timeout_seconds: float,
+) -> float:
+    """MSI reload-preparation overrun: the per-ffmpeg-call bound the AIR path
+    may use to conform one segment's window.
+
+    A content reload's preparation is a SEQUENCE of bounded ffmpeg calls
+    (speech-levelling ride, program mux, then -- when those degrade -- the
+    loudnorm measurement and conform). Each used to carry the same flat 300s
+    bound regardless of how much media it had to encode. On the MSI
+    (2026-11-20, live captions on, one channel) a 1800s schedule slot could not
+    be conformed inside 300s, so every call in that sequence was killed
+    part-way: the mux at 300s, the measurement at 300s, the fallback conform at
+    300s. Together they overran the reload's own 746s preparation bound, every
+    partial output was unlinked by the kill path, nothing was ever written, and
+    the channel fell to its slate and stayed there.
+
+    So: scale the air path's per-call budget with the media it must encode,
+    from a pessimistic design speed, with the configured flat bound kept as a
+    floor (short segments are unchanged) and a wall-clock ceiling so a
+    pathological asset cannot hold a first-ever ON_AIR indefinitely. The
+    caller's own preparation bound still decides how long the WHOLE sequence
+    may run, so this widens one call, never the deadline.
+
+    ``media_seconds`` is the segment's own duration (the plan slot, which is
+    exactly the window a bounded conform encodes); ``None`` or non-positive
+    leaves the configured base in force.
+    """
+
+    if media_seconds is None or media_seconds <= 0:
+        return base_timeout_seconds
+    estimate = media_seconds / _AIR_CONFORM_DESIGN_SPEED_RPS
+    return max(
+        base_timeout_seconds,
+        min(estimate, _AIR_CONFORM_TIMEOUT_CEILING_SECONDS),
     )
 
 
@@ -2836,6 +2902,19 @@ class SourcePreparer:
         # down (a single thread) because it is the only whole-asset encode
         # that is allowed to run for many minutes beside a live channel.
         conform_threads = 1 if lower_priority else _foreground_thread_cap()
+        # MSI reload-preparation overrun (2026-11-20): the AIR path's per-call
+        # conform budget scales with the window it must encode, instead of the
+        # flat 300s that killed every stage of a long slot's preparation and
+        # cascaded into the loudnorm fallback (see
+        # ``air_preparation_timeout_seconds``). A warm already passes its own
+        # duration-scaled value explicitly, so it is never affected.
+        effective_timeout = (
+            timeout_seconds
+            if timeout_seconds is not None
+            else air_preparation_timeout_seconds(
+                segment.duration_seconds, self._preparation_timeout_seconds
+            )
+        )
 
         # Cache HIT: the full-asset conform already exists — no re-encode, no
         # probing (#156: an aired-before program starts within seconds). Trim is
@@ -3236,7 +3315,7 @@ class SourcePreparer:
                 threads=conform_threads,
                 media_duration_seconds=media_duration,
                 cancel_event=cancel_event,
-                timeout_seconds=timeout_seconds,
+                timeout_seconds=effective_timeout,
                 lower_priority=lower_priority,
             )
             if full_asset_cached_ts is not None:
@@ -3319,7 +3398,7 @@ class SourcePreparer:
                 segment=segment,
                 threads=conform_threads,
                 cancel_event=cancel_event,
-                timeout_seconds=timeout_seconds,
+                timeout_seconds=effective_timeout,
                 lower_priority=lower_priority,
             )
             if loudness_method != _LOUDNESS_METHOD_RIDE:
@@ -3329,7 +3408,7 @@ class SourcePreparer:
                     loudness_target_lufs=config.loudness_target_lufs,
                     threads=conform_threads,
                     cancel_event=cancel_event,
-                    timeout_seconds=timeout_seconds,
+                    timeout_seconds=effective_timeout,
                     lower_priority=lower_priority,
                 )
 
@@ -3348,7 +3427,7 @@ class SourcePreparer:
                 result = self._run_ffmpeg(
                     args,
                     cancel_event,
-                    timeout_seconds=timeout_seconds,
+                    timeout_seconds=effective_timeout,
                     lower_priority=lower_priority,
                 )
             except SourcePreparationCancelledError:

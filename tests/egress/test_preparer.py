@@ -468,7 +468,10 @@ def test_source_preparer_conform_timeout_fails_closed_and_cleans_partial_output(
         preparation_timeout_seconds=3.0,
     )
 
-    with pytest.raises(SourcePrepareError, match="timed out after 3s"):
+    # The configured value is a FLOOR: a long window scales its per-call budget
+    # above it (see ``air_preparation_timeout_seconds``). What this test pins is
+    # the fail-closed behaviour and the cleanup, not the number.
+    with pytest.raises(SourcePrepareError, match=r"timed out after \d+"):
         preparer.prepare(_source_plan(tmp_path), _config())
 
     prepared_root = tmp_path / "work" / "gov" / "prepared"
@@ -4113,14 +4116,60 @@ def test_long_asset_warm_uses_the_scaled_timeout_at_lower_priority(
     assert conforms[0]["half_cores"] is False
 
 
-def test_on_demand_preparation_keeps_the_base_timeout_and_normal_priority(
+def test_air_preparation_timeout_scales_with_the_window_and_keeps_a_floor_and_ceiling() -> None:
+    """MSI reload-preparation overrun (2026-11-20): the arithmetic of the air
+    path's per-call budget.
+
+    A 1800 s schedule slot (the measured public rollover on the MSI) must be
+    able to finish in ONE ffmpeg call; at the flat 300 s it never could, and
+    every stage of the sequence -- mux, loudnorm measurement, loudnorm conform
+    -- was killed part-way, so nothing was ever written and the channel stayed
+    on its slate. Short segments must be unchanged (base as a floor), and a
+    pathological asset must not scale without limit."""
+
+    scaled = preparer_module.air_preparation_timeout_seconds
+    base = 300.0
+
+    assert scaled(None, base) == base
+    assert scaled(0.0, base) == base
+    assert scaled(-5.0, base) == base
+    assert scaled(60.0, base) == base
+
+    # The MSI's 1800 s slot: 2x design speed -> 900 s, wider than the flat base
+    # (and wider than the 300 s that killed the mux) but inside a reload's
+    # ~746 s..748 s preparation bound only when the box beats 2x -- which is
+    # exactly the point: the bound, not the per-call cap, decides.
+    assert scaled(1800.0, base) == pytest.approx(900.0)
+    assert scaled(1800.0, base) > base
+
+    previous = 0.0
+    for duration in (300.0, 900.0, 1800.0, 3600.0):
+        value = scaled(duration, base)
+        assert value >= base
+        assert value >= previous
+        previous = value
+
+    ceiling = preparer_module._AIR_CONFORM_TIMEOUT_CEILING_SECONDS
+    assert scaled(24 * 3600.0, base) == ceiling
+    # The two scalings are independent: a warm has no airing deadline, so on a
+    # very long asset its budget keeps growing past the air path's ceiling.
+    assert preparer_module.warm_preparation_timeout_seconds(
+        20_000.0, base
+    ) > preparer_module.air_preparation_timeout_seconds(20_000.0, base)
+
+
+def test_on_demand_preparation_uses_the_duration_scaled_timeout_at_normal_priority(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """U29 3a/3b's guard rail: the AIR path must not inherit either change.
-    An untrimmed-miss airing of a 3600 s asset -- a duration that WOULD scale
-    a warm's budget -- still runs both passes at the base timeout and at
-    normal process priority, because a late segment is a channel outage and a
-    busy box is not."""
+    """MSI reload-preparation overrun (2026-11-20), superseding U29's guard rail.
+
+    U29 kept the AIR path on the flat base timeout, reasoning that "a late
+    segment is a channel outage and a busy box is not." The MSI measured the
+    other half of that trade: a flat 300 s is SHORTER than one long slot's
+    conform, so the air path could never finish at all and the outage was
+    permanent. The air path now scales its per-call budget with the window it
+    must encode (``air_preparation_timeout_seconds``), at normal process
+    priority -- the caller's own preparation bound remains the outer limit."""
 
     calls: list[dict[str, object]] = []
     runner = _warm_kwargs_capturing_runner(calls)
@@ -4140,14 +4189,18 @@ def test_on_demand_preparation_keeps_the_base_timeout_and_normal_priority(
 
     assert preparer._preparation_timeout_seconds == 300.0
     assert len(calls) == 2, "the air path measured and conformed"
+    expected = preparer_module.air_preparation_timeout_seconds(3600.0, 300.0)
+    assert expected > 300.0
     for call in calls:
-        # The BASE timeout -- the air path's own budget, exactly as before U29.
-        assert call["timeout"] == 300.0
+        # The duration-scaled air-path budget, not the flat base.
+        assert call["timeout"] == pytest.approx(expected)
+        # Still NORMAL priority: only the budget widened, not the scheduling.
         assert call["lower_priority"] is False
         # FT-7: normal priority, but held to half the cores on Windows.
         assert call["half_cores"] is True
-    # The same duration WOULD have been scaled had this asset gone to a warm.
-    assert preparer_module.warm_preparation_timeout_seconds(3600.0, 300.0) > 300.0
+    # The 3600 s asset keeps its window's scaled budget, well under the 1800 s
+    # ceiling that exists so a pathological asset cannot hold a first ON_AIR.
+    assert expected <= preparer_module._AIR_CONFORM_TIMEOUT_CEILING_SECONDS
     assert warm_jobs == []  # an untrimmed airing that populated the cache warms nothing
 
 
