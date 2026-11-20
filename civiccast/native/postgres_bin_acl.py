@@ -60,6 +60,11 @@ files through ``BUILTIN\\Administrators``; the ACE only makes that access
 reachable from a token in which Administrators is deny-only. Not a
 privilege-escalation path.
 
+The "ACE already present" check compares SIDs with SDDL aliases resolved
+(Windows prints the built-in Administrator, RID 500, as ``LA``), so an ACE
+this module wrote as ``S-1-5-21-...-500`` is still recognised in the form
+Windows reads back -- otherwise every run re-writes the ACL.
+
 It is idempotent (an ACE already present is not re-added) and fail-loud:
 a folder that cannot be read or written raises
 :class:`civiccast.native.pgdata_acl.PgDataAclError` naming this step, so the
@@ -92,9 +97,55 @@ RX_MASK_SDDL = "0x1200a9"
 SidReader = Callable[[], str]
 DaclReader = Callable[[str], str]
 DaclApplier = Callable[[str, str], None]
+SidResolver = Callable[[str], str]
 
 #: One allow ACE in an SDDL DACL: ``(A;<flags>;<mask>;<object>;<inherit>;<sid>)``.
 _ACE_RE = re.compile(r"\(A;([^;]*);([^;]*);[^;]*;[^;]*;([^)]*)\)")
+
+#: An SDDL well-known SID ALIAS such as ``LA``, ``SY``, ``BA``, ``LS``, ``NS``.
+#: Windows re-renders a SID it knows an alias for as that alias when it prints
+#: a security descriptor, so a DACL read back through
+#: ``ConvertSecurityDescriptorToStringSecurityDescriptor`` may name the caller
+#: as ``LA`` (the built-in Administrator, RID 500 -- exactly the account a
+#: GitHub Actions Windows runner uses) instead of its ``S-1-5-21-...-500``
+#: text form. Comparing the raw text alone therefore misses an ACE that IS
+#: there and re-writes the ACL on every run (CI run 44717954166).
+_ALIAS_RE = re.compile(r"^[A-Z]{2}$")
+
+
+def _resolve_sid_alias(alias: str) -> str:
+    """Resolve an SDDL SID alias to its ``S-1-...`` text form (``pywin32``).
+
+    ``ConvertStringSidToSid`` accepts the SDDL aliases, so ``LA`` resolves to
+    this machine's built-in Administrator SID -- the right answer, because the
+    alias names whoever RID 500 is ON THIS HOST. Raises on a non-Windows host,
+    without ``pywin32``, or for an alias this Windows does not know; the caller
+    then falls back to comparing the literal text (never a false positive).
+    """
+
+    import win32security
+
+    return str(win32security.ConvertSidToStringSid(win32security.ConvertStringSidToSid(alias)))
+
+
+def _default_sid_resolver() -> SidResolver | None:
+    return _resolve_sid_alias if os.name == "nt" else None
+
+
+def _comparable_sid(value: str, resolver: SidResolver | None) -> str:
+    """``value`` normalized for SID comparison: an SDDL alias is resolved to
+    its text SID when a resolver is supplied and can resolve it; everything
+    else is compared as case-insensitive, trimmed text."""
+
+    text = (value or "").strip().upper()
+    if resolver is None or not _ALIAS_RE.match(text):
+        return text
+    try:
+        resolved = (resolver(text) or "").strip().upper()
+    except Exception:
+        return text
+    return resolved or text
+
 
 #: The head of ANY ACE, ``(<type>;<flags>;`` -- enough to tell an explicit
 #: deny (``D``/``OD`` without the inherited ``ID`` flag) from everything else.
@@ -116,18 +167,33 @@ def _mask_covers_rx(mask: str) -> bool:
     return False
 
 
-def has_rx_ace(dacl_sddl: str, caller_sid: str, *, inheritable: bool) -> bool:
+def has_rx_ace(
+    dacl_sddl: str,
+    caller_sid: str,
+    *,
+    inheritable: bool,
+    resolve_sid: SidResolver | None = None,
+) -> bool:
     """Does ``dacl_sddl`` already grant ``caller_sid`` RX?
 
-    Pure, and tolerant of how Windows re-renders a mask on read-back
-    (``0x1200a9`` vs an alias like ``GA``). ``inheritable`` additionally
-    requires ``OI`` AND ``CI``, so a stale non-inheritable ACE on the binary
-    folder is upgraded rather than mistaken for the one this module wants.
+    No filesystem or DACL write, and tolerant of how Windows re-renders a
+    mask on read-back (``0x1200a9`` vs an alias like ``GA``).
+    ``inheritable`` additionally requires ``OI`` AND ``CI``, so a stale
+    non-inheritable ACE on the binary folder is upgraded rather than mistaken
+    for the one this module wants.
+
+    ``resolve_sid`` maps an SDDL SID alias (``LA``, ``BA``, ``LS``, ...) to
+    the ``S-1-...`` text it stands for, so an ACE Windows printed as ``LA``
+    still matches the caller's own (textual) SID. Default on Windows is
+    :func:`_resolve_sid_alias`; injectable so the alias path is testable on
+    any host. When it is ``None``, or raises, or the alias is unknown, only
+    the literal text is compared.
     """
 
-    wanted = caller_sid.strip().upper()
+    resolver = resolve_sid if resolve_sid is not None else _default_sid_resolver()
+    wanted = _comparable_sid(caller_sid, resolver)
     for flags, mask, sid in _ACE_RE.findall(dacl_sddl):
-        if sid.strip().upper() != wanted or not _mask_covers_rx(mask):
+        if _comparable_sid(sid, resolver) != wanted or not _mask_covers_rx(mask):
             continue
         upper_flags = flags.upper()
         if inheritable and not ("OI" in upper_flags and "CI" in upper_flags):
@@ -318,6 +384,7 @@ def normalize_postgres_bin_acl(
     sid_reader: SidReader | None = None,
     read_dacl: DaclReader | None = None,
     apply_dacl: DaclApplier | None = None,
+    resolve_sid: SidResolver | None = None,
 ) -> list[tuple[str, str]] | None:
     """Grant the calling account ``RX`` on the PostgreSQL prefix folder --
     the parent of ``pg_ctl_path``'s ``bin`` folder, so ``bin``, ``lib`` and
@@ -329,10 +396,11 @@ def normalize_postgres_bin_acl(
     Idempotent: an ACE already in a folder's DACL is not re-added, so N calls
     leave the same descriptors as one.
 
-    ``sid_reader``/``read_dacl``/``apply_dacl`` are the injectable seams
-    (production defaults: :func:`civiccast.native.pgdata_acl.
-    _current_process_sid` / :func:`_read_dacl_sddl` / :func:`_apply_dacl`),
-    so the decision logic is fully unit-testable without Windows.
+    ``sid_reader``/``read_dacl``/``apply_dacl``/``resolve_sid`` are the
+    injectable seams (production defaults: :func:`civiccast.native.pgdata_acl.
+    _current_process_sid` / :func:`_read_dacl_sddl` / :func:`_apply_dacl` /
+    :func:`_resolve_sid_alias` on Windows), so the decision logic is fully
+    unit-testable without Windows.
 
     Every failure -- missing binary folder, unreadable token, refused DACL
     read or write -- raises :class:`PgDataAclError`; the caller does not run
@@ -383,7 +451,7 @@ def normalize_postgres_bin_acl(
             raise PgDataAclError(
                 f"{FAILURE_STEP}: could not read the DACL of {str(target)!r}: {exc}"
             ) from exc
-        if has_rx_ace(current, caller_sid, inheritable=inheritable):
+        if has_rx_ace(current, caller_sid, inheritable=inheritable, resolve_sid=resolve_sid):
             continue
         merged = merge_dacl_ace(current, ace)
         try:
@@ -400,6 +468,7 @@ def normalize_postgres_bin_acl(
 __all__ = [
     "FAILURE_STEP",
     "RX_MASK_SDDL",
+    "SidResolver",
     "bin_rx_ace",
     "has_rx_ace",
     "merge_dacl_ace",

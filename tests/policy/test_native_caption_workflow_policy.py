@@ -1244,7 +1244,10 @@ def test_native_marker_collections_match_the_workflow_floors() -> None:
     # DACL) adds eight Windows-only cases: 2232 / 2491.
     # The installer's postgres bin ACL grant (PR #377) adds portable and
     # Windows-only cases: 2259 / 2530.
-    assert (collect("not windows_only"), collect()) == (2259, 2530)
+    # Resolving SDDL alias SIDs in the bin-ACL read-back check (PR #377
+    # follow-up) adds six portable cases and one Windows-only seam case,
+    # measured by this test's own collection: 2265 / 2537.
+    assert (collect("not windows_only"), collect()) == (2265, 2537)
 
 
 def test_linux_unit_job_runs_native_tests_once_in_the_dedicated_pure_lane() -> None:

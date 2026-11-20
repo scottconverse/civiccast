@@ -182,11 +182,14 @@ entries:
       # remains a drift tripwire and does not renew unrelated claim evidence.
       # 2026-11-20 (PR 377, follow-up): one new ACL seam case now carries
       # windows_only, so the pure junit floor is 2209 (Windows 2480 unchanged).
-      # Source-tripwire rebind only, not installed/release proof.
+      # 2026-11-20 (PR 377, follow-up 2): the bin-ACL read-back check now
+      # resolves SDDL alias SIDs (``LA`` = RID 500), so the pure floor is 2215
+      # and the Windows floor is 2487. Source-tripwire rebind only, not
+      # installed/release proof.
       # Blob re-hashed with `git hash-object .github/workflows/ci-test.yml`.
       workflow:
         path: .github/workflows/ci-test.yml
-        blob: 3b8ed41cc4f4ab384943934049c5d5328738e709
+        blob: bf677bfedcca827228e6668cd6d8bcafabd48dd3
       workflow_contract:
         path: docs/claims/workflow-contract.yaml
         blob: 09ede0eb7db4b84a9ea50ef007b4451793f48000
@@ -266,11 +269,14 @@ entries:
       # remains a drift tripwire and does not renew unrelated claim evidence.
       # 2026-11-20 (PR 377, follow-up): one new ACL seam case now carries
       # windows_only, so the pure junit floor is 2209 (Windows 2480 unchanged).
-      # Source-tripwire rebind only, not installed/release proof.
+      # 2026-11-20 (PR 377, follow-up 2): the bin-ACL read-back check now
+      # resolves SDDL alias SIDs (``LA`` = RID 500), so the pure floor is 2215
+      # and the Windows floor is 2487. Source-tripwire rebind only, not
+      # installed/release proof.
       # Blob re-hashed with `git hash-object .github/workflows/ci-test.yml`.
       workflow:
         path: .github/workflows/ci-test.yml
-        blob: 3b8ed41cc4f4ab384943934049c5d5328738e709
+        blob: bf677bfedcca827228e6668cd6d8bcafabd48dd3
       workflow_contract:
         path: docs/claims/workflow-contract.yaml
         blob: 09ede0eb7db4b84a9ea50ef007b4451793f48000
@@ -327,11 +333,14 @@ entries:
       # remains a drift tripwire and does not renew unrelated claim evidence.
       # 2026-11-20 (PR 377, follow-up): one new ACL seam case now carries
       # windows_only, so the pure junit floor is 2209 (Windows 2480 unchanged).
-      # Source-tripwire rebind only, not installed/release proof.
+      # 2026-11-20 (PR 377, follow-up 2): the bin-ACL read-back check now
+      # resolves SDDL alias SIDs (``LA`` = RID 500), so the pure floor is 2215
+      # and the Windows floor is 2487. Source-tripwire rebind only, not
+      # installed/release proof.
       # Blob re-hashed with `git hash-object .github/workflows/ci-test.yml`.
       workflow:
         path: .github/workflows/ci-test.yml
-        blob: 3b8ed41cc4f4ab384943934049c5d5328738e709
+        blob: bf677bfedcca827228e6668cd6d8bcafabd48dd3
       workflow_contract:
         path: docs/claims/workflow-contract.yaml
         blob: 09ede0eb7db4b84a9ea50ef007b4451793f48000
@@ -396,11 +405,14 @@ entries:
       # remains a drift tripwire and does not renew unrelated claim evidence.
       # 2026-11-20 (PR 377, follow-up): one new ACL seam case now carries
       # windows_only, so the pure junit floor is 2209 (Windows 2480 unchanged).
-      # Source-tripwire rebind only, not installed/release proof.
+      # 2026-11-20 (PR 377, follow-up 2): the bin-ACL read-back check now
+      # resolves SDDL alias SIDs (``LA`` = RID 500), so the pure floor is 2215
+      # and the Windows floor is 2487. Source-tripwire rebind only, not
+      # installed/release proof.
       # Blob re-hashed with `git hash-object .github/workflows/ci-test.yml`.
       workflow:
         path: .github/workflows/ci-test.yml
-        blob: 3b8ed41cc4f4ab384943934049c5d5328738e709
+        blob: bf677bfedcca827228e6668cd6d8bcafabd48dd3
       workflow_contract:
         path: docs/claims/workflow-contract.yaml
         blob: 09ede0eb7db4b84a9ea50ef007b4451793f48000
@@ -1190,11 +1202,14 @@ entries:
       # remains a drift tripwire and does not renew unrelated claim evidence.
       # 2026-11-20 (PR 377, follow-up): one new ACL seam case now carries
       # windows_only, so the pure junit floor is 2209 (Windows 2480 unchanged).
-      # Source-tripwire rebind only, not installed/release proof.
+      # 2026-11-20 (PR 377, follow-up 2): the bin-ACL read-back check now
+      # resolves SDDL alias SIDs (``LA`` = RID 500), so the pure floor is 2215
+      # and the Windows floor is 2487. Source-tripwire rebind only, not
+      # installed/release proof.
       # Blob re-hashed with `git hash-object .github/workflows/ci-test.yml`.
       workflow:
         path: .github/workflows/ci-test.yml
-        blob: 3b8ed41cc4f4ab384943934049c5d5328738e709
+        blob: bf677bfedcca827228e6668cd6d8bcafabd48dd3
       workflow_contract:
         path: docs/claims/workflow-contract.yaml
         blob: 09ede0eb7db4b84a9ea50ef007b4451793f48000
@@ -2149,11 +2164,14 @@ entries:
       # remains a drift tripwire and does not renew unrelated claim evidence.
       # 2026-11-20 (PR 377, follow-up): one new ACL seam case now carries
       # windows_only, so the pure junit floor is 2209 (Windows 2480 unchanged).
-      # Source-tripwire rebind only, not installed/release proof.
+      # 2026-11-20 (PR 377, follow-up 2): the bin-ACL read-back check now
+      # resolves SDDL alias SIDs (``LA`` = RID 500), so the pure floor is 2215
+      # and the Windows floor is 2487. Source-tripwire rebind only, not
+      # installed/release proof.
       # Blob re-hashed with `git hash-object .github/workflows/ci-test.yml`.
       workflow:
         path: .github/workflows/ci-test.yml
-        blob: 3b8ed41cc4f4ab384943934049c5d5328738e709
+        blob: bf677bfedcca827228e6668cd6d8bcafabd48dd3
       workflow_contract:
         path: docs/claims/workflow-contract.yaml
         blob: 09ede0eb7db4b84a9ea50ef007b4451793f48000

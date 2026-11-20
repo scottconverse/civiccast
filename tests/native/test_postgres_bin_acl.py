@@ -232,6 +232,69 @@ def test_has_rx_ace_ignores_a_write_only_or_other_sid_ace() -> None:
     assert not has_rx_ace(other, _SID, inheritable=True)
 
 
+# --- SDDL aliases (CI run 44717954166: RID 500 prints as ``LA``) --------------
+
+
+#: The built-in Administrator's SID on a machine where Windows renders it as
+#: the SDDL alias ``LA``. The VALUE is arbitrary here; only the mapping the
+#: injected resolver states matters.
+_RID_500_SID = "S-1-5-21-3289802278-1561746829-1498425070-500"
+_OTHER_SID = "S-1-5-21-3289802278-1561746829-1498425070-1001"
+
+
+def _la_resolver(alias: str) -> str:
+    assert alias == "LA", f"only the RID-500 alias is mapped in this test, got {alias!r}"
+    return _RID_500_SID
+
+
+def test_has_rx_ace_matches_an_ace_windows_printed_as_the_la_alias() -> None:
+    dacl = f"D:PAI(A;OICI;{RX_MASK_SDDL};;;LA)(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)"
+
+    assert has_rx_ace(dacl, _RID_500_SID, inheritable=True, resolve_sid=_la_resolver)
+
+
+def test_has_rx_ace_does_not_match_the_la_alias_for_a_different_account() -> None:
+    dacl = f"D:(A;OICI;{RX_MASK_SDDL};;;LA)"
+
+    assert not has_rx_ace(dacl, _OTHER_SID, inheritable=True, resolve_sid=_la_resolver)
+
+
+def test_has_rx_ace_still_matches_the_full_sid_text() -> None:
+    dacl = f"D:(A;OICI;{RX_MASK_SDDL};;;{_RID_500_SID})"
+
+    assert has_rx_ace(dacl, _RID_500_SID, inheritable=True, resolve_sid=_la_resolver)
+
+
+def test_has_rx_ace_resolves_the_alias_on_either_side() -> None:
+    """The caller's SID is normally textual, but resolving both sides keeps
+    the comparison honest if a caller ever hands in an alias."""
+
+    dacl = f"D:(A;OICI;{RX_MASK_SDDL};;;{_RID_500_SID})"
+
+    assert has_rx_ace(dacl, "LA", inheritable=True, resolve_sid=_la_resolver)
+
+
+def test_has_rx_ace_falls_back_to_text_when_the_alias_cannot_be_resolved() -> None:
+    """An unknown alias, a resolver that raises, or no resolver at all must
+    never turn an unrelated ACE into a match."""
+
+    dacl = f"D:(A;OICI;{RX_MASK_SDDL};;;LA)"
+
+    def _boom(alias: str) -> str:
+        raise OSError(f"cannot resolve {alias}")
+
+    assert not has_rx_ace(dacl, _RID_500_SID, inheritable=True, resolve_sid=_boom)
+    assert not has_rx_ace(dacl, _RID_500_SID, inheritable=True)
+    assert not has_rx_ace(dacl, _RID_500_SID, inheritable=True, resolve_sid=lambda a: "")
+
+
+def test_has_rx_ace_still_requires_inheritance_when_the_ace_is_an_alias() -> None:
+    dacl = f"D:(A;;{RX_MASK_SDDL};;;LA)"
+
+    assert has_rx_ace(dacl, _RID_500_SID, inheritable=False, resolve_sid=_la_resolver)
+    assert not has_rx_ace(dacl, _RID_500_SID, inheritable=True, resolve_sid=_la_resolver)
+
+
 # --- normalize_postgres_bin_acl (decision logic over injected seams) ----------
 
 
@@ -267,6 +330,32 @@ def test_normalize_is_idempotent(tmp_path: Path, on_windows: None) -> None:
 
     applied = normalize_postgres_bin_acl(
         bin_dir / "pg_ctl.exe", sid_reader=lambda: _SID, read_dacl=dacl.read, apply_dacl=dacl.apply
+    )
+
+    assert applied == []
+    assert dacl.writes == []
+
+
+@pytest.mark.windows_only
+@_WINDOWS_PATH_TEST
+def test_normalize_is_idempotent_when_windows_reads_the_caller_back_as_la(
+    tmp_path: Path, on_windows: None
+) -> None:
+    """CI run 44717954166: RID 500 is printed ``LA``, so the ACE this module
+    wrote as a full SID must still be recognised and the second pass must
+    write nothing."""
+
+    bin_dir = _server_bin(tmp_path)
+    ace = f"(A;OICI;{RX_MASK_SDDL};;;LA)"
+    already = f"D:PAI{ace}(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)"
+    dacl = _FakeDacl(current=already)
+
+    applied = normalize_postgres_bin_acl(
+        bin_dir / "pg_ctl.exe",
+        sid_reader=lambda: _RID_500_SID,
+        read_dacl=dacl.read,
+        apply_dacl=dacl.apply,
+        resolve_sid=_la_resolver,
     )
 
     assert applied == []
