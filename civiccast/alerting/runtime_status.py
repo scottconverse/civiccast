@@ -412,6 +412,67 @@ def live_caption_readiness(
     return "healthy"
 
 
+#: MSI reload-preparation overrun (2026-11-20): how long a channel that is meant
+#: to be on air may sit in any non-ON_AIR state before ``/health`` calls it out.
+#: Five minutes: long enough to cover a rollover's own hand-off, short enough
+#: that a pinned channel is flagged while an operator is still watching.
+_CHANNEL_AIR_GRACE_SECONDS = 300
+
+
+def channel_air_readiness(
+    store: EgressStore | None,
+    *,
+    now: datetime | None = None,
+    grace_seconds: int = _CHANNEL_AIR_GRACE_SECONDS,
+) -> str:
+    """Detail-free "a channel meant to be on air is dark" verdict for ``/health``.
+
+    MSI reload-preparation overrun (2026-11-20): ``/health`` reported ``healthy``
+    for the whole 12-minute public outage and was still reporting it 30 minutes
+    later. ``slate_web_hls_readiness`` only judges a channel already IN
+    ``FALLBACK_SLATE`` and only its web HLS sink, and the pinned channel here was
+    in ``TRANSITIONING`` with a live worker the whole time -- so nothing looked
+    at "this channel is supposed to be on air and is not".
+
+    A channel is in scope when it is enabled and ``auto_start`` (the operator has
+    promised it airs 24/7). It is judged ``dark`` when, for the whole grace
+    window, it produced no ``ON_AIR`` health sample. Using the samples rather
+    than the state row's ``updated_at`` is deliberate: the daemon rewrites that
+    row every ~2s while pinned, so it never reads as "in this state for long".
+
+    ``healthy`` when every in-scope channel has a recent ``ON_AIR`` sample,
+    ``idle`` when no channel is in scope, ``unknown`` when the store cannot be
+    read or a channel has stopped reporting entirely (that is a store problem,
+    not an air problem -- ``channel_worker_readiness`` judges the worker).
+    """
+
+    if store is None:
+        return "unknown"
+    now = now or datetime.now(tz=UTC)
+    since = now - timedelta(seconds=max(0, grace_seconds))
+    try:
+        in_scope = False
+        for config in store.list_configs():
+            if not config.enabled or not config.auto_start:
+                continue
+            in_scope = True
+            state_row = store.read_state(config.channel_id)
+            if state_row is not None and state_row.state == "ON_AIR":
+                continue
+            recent = store.recent_health(config.channel_id, 1)
+            if not recent or recent[0].sampled_at < since:
+                # Not reporting at all inside the window: no evidence either way
+                # from here. A dead worker is ``channel_worker_readiness``'s call.
+                continue
+            if store.count_health_states_since(config.channel_id, "ON_AIR", since) > 0:
+                continue
+            return "dark"
+    except Exception:
+        _LOG.debug("Could not aggregate channel air readiness", exc_info=True)
+        return "unknown"
+    return "healthy" if in_scope else "idle"
+
+
 def slate_web_hls_readiness(store: EgressStore | None) -> str:
     """Detail-free web-HLS verdict for channels on their fallback slate.
 

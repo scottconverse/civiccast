@@ -209,6 +209,35 @@ def test_ft8_failed_rollover_preparation_is_reissued_a_minute_after_plan_end(tmp
     assert len(strategy.reload_requests) == 1
 
 
+def test_ft8_reissued_rollover_failure_is_not_left_on_the_flat_bound(tmp_path):
+    """MSI reload-preparation overrun (2026-11-20): the FT-8 re-issue carries no
+    rollover horizon, so when IT failed the failure record was skipped and the
+    pin fell back to the flat 1650 s bound -- the very 27.5-minute slate FT-8
+    exists to prevent. Measured on the MSI: public's re-issue failed at 00:45:19
+    and the channel was still TRANSITIONING on its slate, with no restart, more
+    than 20 minutes later.
+
+    A dark channel's failed preparation has nothing left to wait for. It must
+    arm the 60 s re-issue margin again, whatever the horizon says."""
+
+    store, daemon, strategy, clock, calls = _harness(tmp_path)
+    _fail_rollover(store, daemon, calls, timedelta(seconds=86))
+    assert daemon._reload_stall_bound_s[_CHANNEL] > _MARGIN, "the first pin waits out the plan"
+
+    # The watchdog's re-issue fires, and THIS one fails too -- it carries no
+    # horizon, exactly as automation's re-issue does on the station.
+    clock.advance(86.0 + _MARGIN + 20.0)
+    daemon.process_once(_CHANNEL)
+    assert calls["prepare"] >= 3, "the re-issue ran and failed"
+
+    assert _CHANNEL in daemon._pending_reloads
+    assert daemon._reload_stall_bound_s[_CHANNEL] == _MARGIN, (
+        "a failed re-issue on a dark channel must be retried on the 60 s FT-8 "
+        "margin, not the 1650 s flat reload-stall bound"
+    )
+    assert strategy.process.terminate_requests == 0
+
+
 def test_ft8_failed_preparation_never_cuts_a_programme_still_airing(tmp_path):
     store, daemon, strategy, clock, calls = _harness(tmp_path)
     _fail_rollover(store, daemon, calls, timedelta(hours=2))

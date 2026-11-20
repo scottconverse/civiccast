@@ -6500,13 +6500,36 @@ class EgressDaemon:
                     time.monotonic() - prepare_started,
                     exc,
                 )
-                if rollover_plan_end_at is not None:
-                    # FT-8: nothing is in flight now, so the pin this failure
-                    # arms is bounded by the outgoing plan's end, not U67's
-                    # flat bound. See ``_arm_pending_reload``.
+                # FT-8: nothing is in flight now, so the pin this failure arms
+                # is bounded by the outgoing plan's end, not U67's flat bound.
+                # See ``_arm_pending_reload``.
+                #
+                # MSI reload-preparation overrun (2026-11-20): this used to be
+                # recorded ONLY when the reload carried a rollover horizon. The
+                # FT-8 re-issue that a horizon-bound failure arms carries NO
+                # horizon, so when IT failed too the record was skipped and the
+                # pin fell back to the flat 1650s (27.5 min) bound -- exactly the
+                # window FT-8's own comment says it exists to close. Measured on
+                # the MSI: the re-issue failed at 00:45:19 and the channel was
+                # still TRANSITIONING on its slate, with no restart, past 01:05.
+                #
+                # A horizon-less OPERATOR reload that failed while the channel is
+                # still ON_AIR keeps the flat bound: nothing is dark, the old
+                # worker is still airing, and re-running a failed conform every
+                # 60s would only burn the box. "The outgoing plan's end" is
+                # unknowable there and is not this failure's problem.
+                dark = state is None or state.state != "ON_AIR"
+                if rollover_plan_end_at is not None or dark:
+                    # The channel is already dark (or the horizon is known):
+                    # waiting can only make the outage longer, so the 60s FT-8
+                    # re-issue margin stands.
                     self._failed_reload_preparations[channel_id] = (
                         self._monotonic(),
-                        rollover_plan_end_at,
+                        (
+                            rollover_plan_end_at
+                            if rollover_plan_end_at is not None
+                            else datetime.now(UTC)
+                        ),
                     )
                 return False
             _LOG.info(
