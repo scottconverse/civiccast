@@ -202,9 +202,14 @@ entries:
       # Transfer job. No job, floor or test changed. Source-tripwire rebind
       # only, not installed/release proof.
       # Blob re-hashed with `git hash-object .github/workflows/ci-test.yml`.
+      # 2026-11-20 (PR 385, WebView2 offline installer pin): five new portable
+      # tests/native cases raise the collected counts to 2270 pure / 2542
+      # Windows non-integration, so the pure junit floor is now 2220 and the
+      # Windows floor 2492 (standard 50-test margin). Workflow-binding
+      # source-tripwire rebind only, not installed/release proof.
       workflow:
         path: .github/workflows/ci-test.yml
-        blob: 2f3cf2fe5f88d49ee5a3fdee83b35f30fd2b8405
+        blob: 7a2f1ed1d7f981712c5fed9fc51bae4e55407448
       workflow_contract:
         path: docs/claims/workflow-contract.yaml
         blob: 09ede0eb7db4b84a9ea50ef007b4451793f48000
@@ -298,9 +303,14 @@ entries:
       # Transfer job. No job, floor or test changed. Source-tripwire rebind
       # only, not installed/release proof.
       # Blob re-hashed with `git hash-object .github/workflows/ci-test.yml`.
+      # 2026-11-20 (PR 385, WebView2 offline installer pin): five new portable
+      # tests/native cases raise the collected counts to 2270 pure / 2542
+      # Windows non-integration, so the pure junit floor is now 2220 and the
+      # Windows floor 2492 (standard 50-test margin). Workflow-binding
+      # source-tripwire rebind only, not installed/release proof.
       workflow:
         path: .github/workflows/ci-test.yml
-        blob: 2f3cf2fe5f88d49ee5a3fdee83b35f30fd2b8405
+        blob: 7a2f1ed1d7f981712c5fed9fc51bae4e55407448
       workflow_contract:
         path: docs/claims/workflow-contract.yaml
         blob: 09ede0eb7db4b84a9ea50ef007b4451793f48000
@@ -371,9 +381,14 @@ entries:
       # Transfer job. No job, floor or test changed. Source-tripwire rebind
       # only, not installed/release proof.
       # Blob re-hashed with `git hash-object .github/workflows/ci-test.yml`.
+      # 2026-11-20 (PR 385, WebView2 offline installer pin): five new portable
+      # tests/native cases raise the collected counts to 2270 pure / 2542
+      # Windows non-integration, so the pure junit floor is now 2220 and the
+      # Windows floor 2492 (standard 50-test margin). Workflow-binding
+      # source-tripwire rebind only, not installed/release proof.
       workflow:
         path: .github/workflows/ci-test.yml
-        blob: 2f3cf2fe5f88d49ee5a3fdee83b35f30fd2b8405
+        blob: 7a2f1ed1d7f981712c5fed9fc51bae4e55407448
       workflow_contract:
         path: docs/claims/workflow-contract.yaml
         blob: 09ede0eb7db4b84a9ea50ef007b4451793f48000
@@ -452,9 +467,14 @@ entries:
       # Transfer job. No job, floor or test changed. Source-tripwire rebind
       # only, not installed/release proof.
       # Blob re-hashed with `git hash-object .github/workflows/ci-test.yml`.
+      # 2026-11-20 (PR 385, WebView2 offline installer pin): five new portable
+      # tests/native cases raise the collected counts to 2270 pure / 2542
+      # Windows non-integration, so the pure junit floor is now 2220 and the
+      # Windows floor 2492 (standard 50-test margin). Workflow-binding
+      # source-tripwire rebind only, not installed/release proof.
       workflow:
         path: .github/workflows/ci-test.yml
-        blob: 2f3cf2fe5f88d49ee5a3fdee83b35f30fd2b8405
+        blob: 7a2f1ed1d7f981712c5fed9fc51bae4e55407448
       workflow_contract:
         path: docs/claims/workflow-contract.yaml
         blob: 09ede0eb7db4b84a9ea50ef007b4451793f48000
@@ -1274,9 +1294,14 @@ entries:
       # Transfer job. No job, floor or test changed. Source-tripwire rebind
       # only, not installed/release proof.
       # Blob re-hashed with `git hash-object .github/workflows/ci-test.yml`.
+      # 2026-11-20 (PR 385, WebView2 offline installer pin): five new portable
+      # tests/native cases raise the collected counts to 2270 pure / 2542
+      # Windows non-integration, so the pure junit floor is now 2220 and the
+      # Windows floor 2492 (standard 50-test margin). Workflow-binding
+      # source-tripwire rebind only, not installed/release proof.
       workflow:
         path: .github/workflows/ci-test.yml
-        blob: 2f3cf2fe5f88d49ee5a3fdee83b35f30fd2b8405
+        blob: 7a2f1ed1d7f981712c5fed9fc51bae4e55407448
       workflow_contract:
         path: docs/claims/workflow-contract.yaml
         blob: 09ede0eb7db4b84a9ea50ef007b4451793f48000
@@ -2261,9 +2286,14 @@ entries:
       # Transfer job. No job, floor or test changed. Source-tripwire rebind
       # only, not installed/release proof.
       # Blob re-hashed with `git hash-object .github/workflows/ci-test.yml`.
+      # 2026-11-20 (PR 385, WebView2 offline installer pin): five new portable
+      # tests/native cases raise the collected counts to 2270 pure / 2542
+      # Windows non-integration, so the pure junit floor is now 2220 and the
+      # Windows floor 2492 (standard 50-test margin). Workflow-binding
+      # source-tripwire rebind only, not installed/release proof.
       workflow:
         path: .github/workflows/ci-test.yml
-        blob: 2f3cf2fe5f88d49ee5a3fdee83b35f30fd2b8405
+        blob: 7a2f1ed1d7f981712c5fed9fc51bae4e55407448
       workflow_contract:
         path: docs/claims/workflow-contract.yaml
         blob: 09ede0eb7db4b84a9ea50ef007b4451793f48000

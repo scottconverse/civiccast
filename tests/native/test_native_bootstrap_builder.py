@@ -92,6 +92,111 @@ def test_vc_redist_input_is_exactly_pinned(tmp_path: Path) -> None:
         )
 
 
+def test_webview2_offline_installer_input_is_exactly_pinned(tmp_path: Path) -> None:
+    source = tmp_path / "MicrosoftEdgeWebView2RuntimeInstallerX64.exe"
+    source.write_bytes(b"reviewed webview2 offline installer")
+    expected_sha256 = hashlib.sha256(source.read_bytes()).hexdigest()
+
+    assert (
+        builder.validate_webview2_offline_installer(
+            source,
+            expected_bytes=source.stat().st_size,
+            expected_sha256=expected_sha256,
+        )
+        == source.resolve()
+    )
+    with pytest.raises(ValueError, match="byte length"):
+        builder.validate_webview2_offline_installer(
+            source,
+            expected_bytes=source.stat().st_size + 1,
+            expected_sha256=expected_sha256,
+        )
+    with pytest.raises(ValueError, match="SHA-256"):
+        builder.validate_webview2_offline_installer(
+            source,
+            expected_bytes=source.stat().st_size,
+            expected_sha256="0" * 64,
+        )
+
+
+def test_seed_webview2_offline_installer_lands_in_tauris_cache_entry(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "reviewed.exe"
+    source.write_bytes(b"reviewed webview2 offline installer")
+    sha256 = hashlib.sha256(source.read_bytes()).hexdigest()
+    monkeypatch.setattr(
+        builder,
+        "WEBVIEW2_OFFLINE_INSTALLER_EXPECTED_BYTES",
+        len(b"reviewed webview2 offline installer"),
+    )
+    monkeypatch.setattr(builder, "WEBVIEW2_OFFLINE_INSTALLER_EXPECTED_SHA256", sha256)
+    tools = tmp_path / "tauri"
+    stale = tools / "x64" / "stale-guid" / builder.WEBVIEW2_INSTALLER_FILENAME
+
+    seeded = builder.seed_webview2_offline_installer(
+        source,
+        tools_dir=tools,
+        resolve=lambda _url: ("current-guid", builder.WEBVIEW2_INSTALLER_FILENAME),
+    )
+
+    assert seeded == tools / "x64" / "current-guid" / builder.WEBVIEW2_INSTALLER_FILENAME
+    assert seeded.read_bytes() == source.read_bytes()
+    assert seeded.stat().st_mtime == builder.SOURCE_DATE_EPOCH
+    assert not stale.exists()
+
+
+def test_seed_webview2_offline_installer_replaces_a_drifted_cache_entry(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "reviewed.exe"
+    source.write_bytes(b"reviewed webview2 offline installer")
+    sha256 = hashlib.sha256(source.read_bytes()).hexdigest()
+    monkeypatch.setattr(
+        builder,
+        "WEBVIEW2_OFFLINE_INSTALLER_EXPECTED_BYTES",
+        len(b"reviewed webview2 offline installer"),
+    )
+    monkeypatch.setattr(builder, "WEBVIEW2_OFFLINE_INSTALLER_EXPECTED_SHA256", sha256)
+    tools = tmp_path / "tauri"
+    drifted = tools / "x64" / "current-guid" / builder.WEBVIEW2_INSTALLER_FILENAME
+    drifted.parent.mkdir(parents=True)
+    drifted.write_bytes(b"today's much larger download")
+
+    seeded = builder.seed_webview2_offline_installer(
+        source,
+        tools_dir=tools,
+        resolve=lambda _url: ("current-guid", builder.WEBVIEW2_INSTALLER_FILENAME),
+    )
+
+    assert seeded.read_bytes() == source.read_bytes()
+
+
+def test_webview2_download_during_the_build_fails_the_gate(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    tools = tmp_path / "tauri"
+    entry = tools / "x64" / "guid" / builder.WEBVIEW2_INSTALLER_FILENAME
+    entry.parent.mkdir(parents=True)
+    entry.write_bytes(b"pinned")
+    monkeypatch.setattr(
+        builder,
+        "WEBVIEW2_OFFLINE_INSTALLER_EXPECTED_SHA256",
+        hashlib.sha256(b"pinned").hexdigest(),
+    )
+    before = builder.webview2_installer_snapshot(tools)
+
+    builder.verify_webview2_was_not_downloaded(before, tools, entry)
+
+    entry.unlink()
+    entry.write_bytes(b"downloaded today")
+    with pytest.raises(ValueError, match="downloaded the WebView2 offline installer"):
+        builder.verify_webview2_was_not_downloaded(before, tools, entry)
+
+
 def test_native_bootstrap_installs_pinned_vc_runtime_offline() -> None:
     hook = (
         Path(builder.__file__).resolve().parents[1]
@@ -333,6 +438,9 @@ def test_build_controls_tauri_features_and_trust_environment(
     normalized: list[bool] = []
     vc_redist = tmp_path / "vc_redist.x64.exe"
     vc_redist.write_bytes(b"reviewed")
+    webview2 = tmp_path / builder.WEBVIEW2_INSTALLER_FILENAME
+    webview2.write_bytes(b"reviewed webview2")
+    tools_dir = tmp_path / "tauri-tools"
     monkeypatch.setattr(builder, "INSTALLER_DIR", installer)
     monkeypatch.setattr(
         builder,
@@ -340,6 +448,16 @@ def test_build_controls_tauri_features_and_trust_environment(
         installer / "src-tauri" / "resources" / "vc_redist.x64.exe",
     )
     monkeypatch.setattr(builder, "validate_vc_redist", lambda path: path.resolve())
+    monkeypatch.setattr(builder, "validate_webview2_offline_installer", lambda path: path.resolve())
+    monkeypatch.setattr(builder, "tauri_tools_directory", lambda: tools_dir)
+    seeded: list[Path] = []
+
+    def fake_seed(source: Path, *, tools_dir: Path) -> Path:
+        seeded.append(source)
+        return tools_dir / "x64" / "guid" / builder.WEBVIEW2_INSTALLER_FILENAME
+
+    monkeypatch.setattr(builder, "seed_webview2_offline_installer", fake_seed)
+    monkeypatch.setattr(builder, "verify_webview2_was_not_downloaded", lambda *args: None)
     # The three embedded station resources are staged into the source tree by
     # CI before this script runs; _build only pins their mtimes for
     # reproducibility. Point them at real fixture files so that pin is
@@ -366,7 +484,7 @@ def test_build_controls_tauri_features_and_trust_environment(
         lambda **kwargs: normalized.append(True),
     )
 
-    builder._build("public-key", key_id, vc_redist)
+    builder._build("public-key", key_id, vc_redist, webview2)
 
     assert calls[0][0] == [("npm.cmd" if os.name == "nt" else "npm"), "ci"]
     command, environment = calls[1]
@@ -388,6 +506,7 @@ def test_build_controls_tauri_features_and_trust_environment(
     assert environment.get("CIVICCAST_ALLOW_DEVELOPMENT_PACK_KEY") == expected_development_switch
     assert environment["SOURCE_DATE_EPOCH"] == str(builder.SOURCE_DATE_EPOCH)
     assert normalized == [True]
+    assert seeded == [webview2.resolve()]
     assert not builder.VC_REDIST_RESOURCE.exists()
     # Reproducibility: the CI-staged station resources carry the runner's
     # clock into the NSIS archive unless pinned to SOURCE_DATE_EPOCH.
@@ -404,9 +523,12 @@ def test_build_removes_partial_vc_resource_when_staging_copy_fails(
 ) -> None:
     source = tmp_path / "vc_redist.x64.exe"
     source.write_bytes(b"reviewed")
+    webview2 = tmp_path / builder.WEBVIEW2_INSTALLER_FILENAME
+    webview2.write_bytes(b"reviewed webview2")
     destination = tmp_path / "resources" / "vc_redist.x64.exe"
     monkeypatch.setattr(builder, "VC_REDIST_RESOURCE", destination)
     monkeypatch.setattr(builder, "validate_vc_redist", lambda path: path.resolve())
+    monkeypatch.setattr(builder, "validate_webview2_offline_installer", lambda path: path.resolve())
 
     def fail_after_partial_copy(_source: Path, target: Path) -> None:
         target.write_bytes(b"partial")
@@ -415,7 +537,7 @@ def test_build_removes_partial_vc_resource_when_staging_copy_fails(
     monkeypatch.setattr(builder.shutil, "copyfile", fail_after_partial_copy)
 
     with pytest.raises(OSError, match="simulated copy failure"):
-        builder._build("public-key", "production-test", source)
+        builder._build("public-key", "production-test", source, webview2)
 
     assert not destination.exists()
 
@@ -534,6 +656,8 @@ def _stub_successful_main(
             "production-test",
             "--vc-redist-x64",
             str(report.parent / "vc_redist.x64.exe"),
+            "--webview2-offline-installer-x64",
+            str(report.parent / builder.WEBVIEW2_INSTALLER_FILENAME),
             "--report",
             str(report),
         ],
@@ -550,7 +674,7 @@ def _stub_successful_main(
     monkeypatch.setattr(
         builder,
         "_build",
-        lambda public_key, key_id, vc_redist, **kwargs: None,
+        lambda *args, **kwargs: None,
     )
     monkeypatch.setattr(
         builder,
@@ -593,6 +717,7 @@ def test_main_writes_a_deterministic_report_and_returns_success(
         "--pack-public-key-base64",
         "--pack-signing-key-id",
         "--vc-redist-x64",
+        "--webview2-offline-installer-x64",
         "--report",
     ],
 )
@@ -608,6 +733,8 @@ def test_main_requires_every_identity_and_report_argument(
         "production-test",
         "--vc-redist-x64",
         str(tmp_path / "vc_redist.x64.exe"),
+        "--webview2-offline-installer-x64",
+        str(tmp_path / builder.WEBVIEW2_INSTALLER_FILENAME),
         "--report",
         str(tmp_path / "report.json"),
     ]
@@ -624,7 +751,7 @@ def test_main_requires_every_identity_and_report_argument(
     monkeypatch.setattr(
         builder,
         "_build",
-        lambda public_key, key_id, vc_redist, **kwargs: None,
+        lambda *args, **kwargs: None,
     )
     monkeypatch.setattr(
         builder,
@@ -648,7 +775,7 @@ def test_main_converts_expected_build_failures_to_actionable_exit(
     monkeypatch.setattr(
         builder,
         "_build",
-        lambda public_key, key_id, vc_redist, **kwargs: (_ for _ in ()).throw(failure),
+        lambda *args, **kwargs: (_ for _ in ()).throw(failure),
     )
 
     with pytest.raises(SystemExit, match=str(failure)):

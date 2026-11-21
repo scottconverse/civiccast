@@ -560,12 +560,14 @@ jobs:
         # pure tests (one of the new cases carries windows_only); floor 2209
         # keeps the margin.
         # SDDL alias SID resolution (PR #377 follow-up) adds six portable
-        # cases, 2265 pure tests; floor 2215 keeps the standard 50-test margin.
+        # cases: 2265 pure tests.
+        # WebView2 offline installer pin (PR #385) adds five portable cases,
+        # 2270 pure tests; floor 2220 keeps the standard 50-test margin.
         if: always()
         run: |
           python scripts/verify_native_junit_floor.py \
             --junit junit-native-pure.xml \
-            --floor 2215 \
+            --floor 2220 \
             --label "tests/native pure suite"
 
       - name: Upload junit (ws3 claims-evidence D3/D7)
@@ -992,14 +994,16 @@ jobs:
         # Windows-only cases, 2530 Windows non-integration tests; floor 2480
         # keeps the margin.
         # SDDL alias SID resolution (PR #377 follow-up) adds seven Windows
-        # cases, 2537 Windows non-integration tests; floor 2487 keeps the
-        # standard 50-test margin.
+        # cases: 2537 Windows non-integration tests.
+        # WebView2 offline installer pin (PR #385) adds five portable cases,
+        # 2542 Windows non-integration tests; floor 2492 keeps the standard
+        # 50-test margin.
         if: always()
         shell: bash
         run: |
           python scripts/verify_native_junit_floor.py \
             --junit junit-native-win.xml \
-            --floor 2487 \
+            --floor 2492 \
             --label "tests/native Windows suite"
 
       - name: Upload Windows native junit
