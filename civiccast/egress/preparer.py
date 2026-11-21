@@ -111,10 +111,24 @@ _DEFAULT_PREPARATION_TIMEOUT_SECONDS = 300.0
 #: left flat: on the MSI (2026-11-20) a flat 300s killed every stage of a
 #: 1800s slot's conform and the channel never came back on air.
 #:
-#: 8.0x is the design speed: the measured 16.3x alone and 10.4x against a
-#: concurrent foreground conform are both faster, so this is a worst case that
-#: still terminates rather than a target.
-_WARM_CONFORM_DESIGN_SPEED_RPS = 8.0
+#: 8.0x was the original design speed: the measured 16.3x alone and 10.4x
+#: against a concurrent foreground conform on the live station, both faster, so
+#: it was a worst case there rather than a target.
+#:
+#: That station is not the slowest box this ships on. rc.8 MSI field test
+#: (2026-11-21, i7-13620H, 16 GB, no GPU use, live captions on): the warm's
+#: speech-leveling program mux was killed at 1398.51 s on a 7458.74 s asset --
+#: exactly ``7458.74 / 8.0 * 1.5`` -- because at ONE thread on the background
+#: cores that mux runs at the 2.3-2.5x realtime measured for this machine
+#: class (see ``_AIR_CONFORM_DESIGN_SPEED_RPS``), i.e. ~3243 s of work, so it
+#: was stopped at 43 % of it, its ridden audio was discarded, and the loudnorm
+#: fallback then started over on the same asset inside the same budget. A
+#: design speed faster than the slowest shape the warm actually runs makes
+#: every long warm unwarmable and burns the whole budget on each attempt.
+#: 2.0x is the same pessimistic rate the AIR path budgets from, for the same
+#: reason: it is below every measured rate on any supported box, so the bound
+#: is never the thing that kills a healthy warm.
+_WARM_CONFORM_DESIGN_SPEED_RPS = 2.0
 #: Headroom over the design-speed estimate. The warm has no interactive
 #: deadline -- its only cost of over-running is a longer-lived child -- so the
 #: bound is set to tolerate a machine materially slower than the one the design
@@ -123,9 +137,10 @@ _WARM_CONFORM_TIMEOUT_FACTOR = 1.5
 #: Ceiling on the scaled bound. There is ONE warm worker thread, so a bound
 #: that scales without limit would let a single pathological asset (or a
 #: misreported duration) hold the warm queue for the rest of the day. This is a
-#: cap on WALL CLOCK, not on asset duration: at the measured 16.3x, 2h still
-#: covers an asset longer than a day. No asset the station has recorded comes
-#: anywhere near it (the longest observed, 9154s, designs to ~29 min).
+#: cap on WALL CLOCK, not on asset duration: at the 2.0x design speed and 1.5x
+#: factor it covers an asset up to 9600 s (2 h 40 min) of media. No asset the
+#: station has recorded comes near it (the longest observed, 9154 s, designs
+#: to ~1.9 h, and the rc.8 field log's 7458.74 s to ~1.5 h).
 _WARM_CONFORM_TIMEOUT_CEILING_SECONDS = 7200.0
 #: Failed warms retry on later scheduling passes after 60s, doubling up to
 #: 30 minutes. Cancellation does not consume a retry; success resets the delay.
@@ -3165,6 +3180,14 @@ class SourcePreparer:
                 probe_start_seconds=probe_start_seconds,
                 probe_duration_seconds=probe_duration_seconds,
                 threads=conform_threads,
+                # rc.8 MSI (2026-11-21): this probe is preparation work, so it
+                # takes the preparation's own rung -- BELOW_NORMAL plus the
+                # air-path half on the air path, IDLE plus the background
+                # quarter on a warm. Left at the caller's NORMAL class it
+                # competed with the live caption child on every logical
+                # processor, beside the ride and the mux.
+                lower_priority=lower_priority,
+                half_cores=not lower_priority,
             )
             if (
                 single_sample_is_conclusive
@@ -3249,6 +3272,9 @@ class SourcePreparer:
                         probe_start_seconds=second_probe_start,
                         probe_duration_seconds=_UNTRIMMED_LOUDNESS_PROBE_CAP_S,
                         threads=conform_threads,
+                        # Same rung as the first sample: it is the same probe.
+                        lower_priority=lower_priority,
+                        half_cores=not lower_priority,
                     )
                     if second_loudness.measured_lufs is not None:
                         # Item 66 round-6 (point 4): only replace the first

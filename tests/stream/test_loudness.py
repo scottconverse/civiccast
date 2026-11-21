@@ -320,3 +320,63 @@ class TestCheckLoudnessGeneralized:
         # The remediation names the actual target (no hardcoded -16 / "stream").
         assert "-24 LUFS" in result.operator_action
         assert "stream" not in result.operator_action.lower()
+
+
+def test_the_preparer_loudness_probe_takes_the_preparation_cpu_rung(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    """rc.8 MSI defect 1 (2026-11-21): a preparation probe is preparation work.
+
+    The source preparer's loudness probe used to call ``run_ffmpeg`` with no
+    priority and no affinity at all, so it decoded its window on every logical
+    processor at the live caption child's own NORMAL class -- beside the ride's
+    decoder and sink and the program mux. It now takes the rung its caller
+    names: ``half_cores`` on the air path (BELOW_NORMAL plus the air-path half,
+    exactly what ``run_ffmpeg(half_cores=True)`` gives the conform and the mux)
+    and ``lower_priority`` for a background warm. Anything the caller did not
+    ask for is not forwarded, so every other caller is byte-for-byte unchanged.
+    """
+
+    loudness_module = import_module("civiccast.stream.loudness")
+    media = tmp_path / "meeting.wav"
+    media.write_bytes(b"RIFFplaceholder")
+    forwarded: list[dict[str, object]] = []
+
+    def _fake_run_ffmpeg(_args: list[str], **kwargs: object):
+        forwarded.append(kwargs)
+        return type(
+            "Result",
+            (),
+            {
+                "returncode": 0,
+                "stdout": "",
+                "stderr": "Integrated loudness:\n    I:         -16.2 LUFS\n",
+            },
+        )()
+
+    monkeypatch.setattr(loudness_module, "check_ffmpeg", lambda: ("7.0", True))
+    monkeypatch.setattr(loudness_module, "run_ffmpeg", _fake_run_ffmpeg)
+
+    loudness_module.check_streaming_loudness(
+        media_path=media,
+        target_lufs=-16.0,
+        tolerance_lufs=1.0,
+        half_cores=True,
+    )
+    loudness_module.check_streaming_loudness(
+        media_path=media,
+        target_lufs=-16.0,
+        tolerance_lufs=1.0,
+        lower_priority=True,
+    )
+    loudness_module.check_streaming_loudness(
+        media_path=media,
+        target_lufs=-16.0,
+        tolerance_lufs=1.0,
+    )
+
+    assert forwarded[0] == {"half_cores": True}
+    assert forwarded[1] == {"lower_priority": True}
+    # No rung named -> the one-argument call every other caller always made.
+    assert forwarded[2] == {}

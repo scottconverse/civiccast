@@ -436,7 +436,10 @@ def test_run_reencode_reports_the_wall_time_and_raises_on_a_bad_pcm(
         out.write_bytes(b"ts")
         return subprocess.CompletedProcess(argv, 0, b"", b"")
 
-    monkeypatch.setattr(lr.subprocess, "run", fake_run)
+    # rc.8 MSI: the re-encode spawns through the same pinned seam as the
+    # ride's own children, so the seam -- not subprocess.run -- is what a test
+    # stands in for.
+    monkeypatch.setattr(lr, "_run_child", fake_run)
     rendered = lr.run_reencode(
         pcm_path=pcm,
         output_path=out,
@@ -467,7 +470,10 @@ def test_run_reencode_raises_the_module_error_on_a_non_zero_exit(
         argv = list(args[0])  # type: ignore[arg-type]
         return subprocess.CompletedProcess(argv, 1, b"", b"Invalid data found")
 
-    monkeypatch.setattr(lr.subprocess, "run", fake_run)
+    # rc.8 MSI: the re-encode spawns through the same pinned seam as the
+    # ride's own children, so the seam -- not subprocess.run -- is what a test
+    # stands in for.
+    monkeypatch.setattr(lr, "_run_child", fake_run)
     with pytest.raises(lr.LoudnessRideError) as caught:
         lr.run_reencode(
             pcm_path=pcm,
@@ -477,3 +483,122 @@ def test_run_reencode_raises_the_module_error_on_a_non_zero_exit(
             profile=CanonicalProfile(video_codec="h264_mf"),
         )
     assert "Invalid data found" in str(caught.value)
+
+
+# ---------------------------------------------------------------------------
+# rc.8 MSI (2026-11-21): every ride child sits inside the air path's CPU limit
+# ---------------------------------------------------------------------------
+
+
+class _SeamChild:
+    """The minimum of a child process the four ride entry points touch."""
+
+    def __init__(self, argv: list[str], *, readable: bytes = b"", rc: int = 0) -> None:
+        self.argv = argv
+        self.pid = 4242
+        self.returncode = rc
+
+        class _Stream:
+            def __init__(self, data: bytes) -> None:
+                self._data = data
+                self.written = bytearray()
+
+            def read(self, _n: int) -> bytes:
+                return self._data
+
+            def write(self, data: bytes) -> int:
+                self.written.extend(data)
+                return len(data)
+
+            def close(self) -> None:
+                return None
+
+        self.stdout = _Stream(readable)
+        self.stdin = _Stream(b"")
+        self.stderr = _Stream(b"")
+
+    def communicate(self, timeout: float | None = None) -> tuple[bytes, bytes]:
+        return b"", b""
+
+    def poll(self) -> int:
+        return self.returncode
+
+    def wait(self) -> int:
+        return self.returncode
+
+    def kill(self) -> None:
+        return None
+
+
+def test_a_ride_child_is_spawned_below_normal_and_pinned_to_the_air_path_cores(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Priority alone is not the ladder: ``BELOW_NORMAL`` orders a child's
+    threads against the caption child's, but it does not stop two concurrent
+    multi-threaded children (the ride's decoder and sink) from occupying every
+    logical processor on the box. MSI rc.8: below-normal preparation ffmpeg
+    children were observed with affinity on all 16 logical processors -- the
+    ride's own children, the ones ``run_ffmpeg`` never started and so never
+    pinned."""
+
+    pinned: list[int] = []
+    spawns: list[tuple[list[str], dict[str, object]]] = []
+
+    def fake_popen(argv: list[str], **kwargs: object) -> _SeamChild:
+        spawns.append((argv, kwargs))
+        return _SeamChild(argv)
+
+    monkeypatch.setattr(lr.subprocess, "Popen", fake_popen)
+    monkeypatch.setattr(lr, "pin_air_path_child", pinned.append)
+
+    child = lr._spawn_child(["ffmpeg", "-version"], stdout=lr.subprocess.PIPE)
+
+    assert child.pid == 4242
+    assert pinned == [4242], "the child was started and never pinned"
+    argv, kwargs = spawns[0]
+    assert argv == ["ffmpeg", "-version"]
+    assert kwargs["stdout"] is lr.subprocess.PIPE
+    assert kwargs["creationflags"] == lr._CREATE_NO_WINDOW | lr._BELOW_NORMAL_PRIORITY_CLASS
+
+
+def test_every_ride_process_goes_through_the_pinned_seam(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """No ride child may bypass the seam.
+
+    ``run_ride`` starts its decoder and sink concurrently, the leveler runs a
+    measurement pass and (for a hot artifact) a re-encode; each of the four is
+    preparation work and each must be spawned through ``_spawn_child``. Before
+    the seam, all four went straight to ``subprocess`` with the priority flags
+    alone -- the observed "affinity on all 16 logical processors"."""
+
+    spawned: list[list[str]] = []
+
+    def fake_spawn(argv: list[str], **_kwargs: object) -> _SeamChild:
+        spawned.append(argv)
+        return _SeamChild(argv)
+
+    monkeypatch.setattr(lr, "_spawn_child", fake_spawn)
+    monkeypatch.setattr(lr, "_ffmpeg_binary", lambda: "ffmpeg")
+    params = lr.RideParams(target_lufs=-16.0)
+
+    lr.run_ride(
+        decoder_args=["-decoder"],
+        sink_args=["-sink"],
+        curve=[(0.0, 0.0)],
+        params=params,
+    )
+    lr.run_capture(["-measure"])
+    lr.run_reencode(
+        pcm_path=tmp_path / "ride.pcm",
+        output_path=tmp_path / "guard.ts",
+        trim_db=0.0,
+        params=params,
+        profile=CanonicalProfile(video_codec="h264_mf"),
+    )
+
+    # decoder, sink, measurement and re-encode -- all four through the seam.
+    assert len(spawned) == 4
+    assert spawned[0][1] == "-decoder"
+    assert spawned[1][1] == "-sink"
+    assert spawned[2][1] == "-measure"

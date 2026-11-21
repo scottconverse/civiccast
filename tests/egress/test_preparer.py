@@ -4204,6 +4204,74 @@ def test_on_demand_preparation_uses_the_duration_scaled_timeout_at_normal_priori
     assert warm_jobs == []  # an untrimmed airing that populated the cache warms nothing
 
 
+#: The rc.8 field log's long programme: the warm's speech-leveling program mux
+#: was killed at 1398.51 s on an asset of exactly this length.
+_RC8_LONG_PROGRAM_SECONDS = 7458.74
+
+
+def test_warm_budget_covers_the_slowest_measured_one_thread_encode() -> None:
+    """rc.8 MSI defect 2 (2026-11-21): the warm's budget must cover the shape
+    the warm actually runs, not the fastest shape ever measured.
+
+    The failure in the field log was arithmetic, not luck:
+    ``7458.74 / 8.0 * 1.5 = 1398.51`` -- the exact bound printed when the
+    program mux was killed. The same one-thread background encode measures
+    2.3-2.5x realtime on this machine class (``_AIR_CONFORM_DESIGN_SPEED_RPS``'s
+    docstring: "the MSI measured ~2.3-2.5x for a 2h asset at one thread with
+    captions running"), so the mux needed ~3243 s and was stopped at 43 % of
+    its work. Its ridden audio was thrown away, the loudnorm fallback then
+    started the same asset over inside the same budget, and the cache entry
+    never populated -- every attempt burning the whole budget for nothing.
+    """
+
+    budget = preparer_module.warm_preparation_timeout_seconds(_RC8_LONG_PROGRAM_SECONDS, 300.0)
+    # The slowest measured one-thread rate on this class of box (2.3x).
+    assert budget >= _RC8_LONG_PROGRAM_SECONDS / 2.3
+    # Still a bounded, terminating warm: the wall-clock ceiling still applies.
+    assert budget <= preparer_module._WARM_CONFORM_TIMEOUT_CEILING_SECONDS
+    # And it is still the warm's budget, not the air path's: a warm has no
+    # airing deadline, so it may exceed the air path's own ceiling.
+    assert budget > preparer_module._AIR_CONFORM_TIMEOUT_CEILING_SECONDS
+
+
+def test_air_path_loudness_probe_runs_inside_the_air_path_cpu_rung(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """rc.8 MSI defect 1 (2026-11-21): preparation's loudness probe is
+    preparation work, so it must run where every other air-path ffmpeg child
+    runs.
+
+    ``check_streaming_loudness`` was the one preparation child that bypassed
+    the FT-7 ladder: it called ``run_ffmpeg`` with no priority and no affinity
+    at all, so it decoded its window on every logical processor at the live
+    caption child's own NORMAL class -- while the ride's decoder and sink and
+    the program mux were also running. At the measured reading four preparation
+    ffmpeg children were alive at once and the caption tap had 19 settled
+    segments queued against a limit of 2.
+    """
+
+    probes: list[dict[str, object]] = []
+    calls: list[dict[str, object]] = []
+    runner = _warm_kwargs_capturing_runner(calls)
+    monkeypatch.setattr(preparer_module, "run_ffmpeg", runner)
+    preparer = SourcePreparer(
+        work_dir=tmp_path / "work",
+        ffmpeg_runner=runner,
+        loudness_checker=lambda **kwargs: probes.append(kwargs) or _loudness(),
+        warm_scheduler=lambda _job: None,
+        playout_trim_supported=True,
+    )
+
+    preparer.prepare(_untrimmed_plan(tmp_path), _config())
+
+    assert probes, "the untrimmed air path samples loudness"
+    for probe in probes:
+        # BELOW_NORMAL plus the air-path half of the cores -- the same rung
+        # run_ffmpeg(half_cores=True) applies to the conform and the mux.
+        assert probe["half_cores"] is True
+        assert probe["lower_priority"] is False
+
+
 def test_a_failed_warm_backs_off_and_warns_once(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:

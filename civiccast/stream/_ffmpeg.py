@@ -44,6 +44,7 @@ __all__ = [
     "FfmpegResult",
     "H264EncoderUnavailableError",
     "check_ffmpeg",
+    "pin_air_path_child",
     "probe_ffmpeg_encoders",
     "probe_media_duration_seconds",
     "probe_video_dimensions",
@@ -760,6 +761,34 @@ def _pin_cores(pid: int, choose: Callable[[list[int]], list[int] | None]) -> Non
             psutil.Process(pid).cpu_affinity(cores)
     except Exception:  # any failure leaves ffmpeg unpinned; it never fails the job
         _LOG.warning("Could not pin ffmpeg pid %s to its cores.", pid)
+
+
+def pin_air_path_child(pid: int) -> None:
+    """Hold a just-started AIR-PATH preparation child to the air-path cores.
+
+    :func:`run_ffmpeg`'s ``half_cores`` path applies the ladder's affinity
+    itself, but only to the children it starts. The speech-leveling ride
+    (``civiccast.egress.loudness_ride``) starts its own children, and it starts
+    TWO of them CONCURRENTLY (decoder and sink, by construction) plus a
+    measurement and a re-encode pass -- so without this they run on every
+    logical processor on the box while the live caption child has to share
+    them. MSI rc.8 field test (2026-11-21): below-normal preparation ffmpeg
+    children were observed with affinity on all 16 logical processors, i.e.
+    never pinned, exactly the ones :func:`run_ffmpeg` had not started.
+
+    Priority alone is not the ladder. ``BELOW_NORMAL`` orders these threads
+    against the caption child's NORMAL ones, but it leaves a multi-threaded
+    decode and encode free to occupy every core -- including the half that
+    :func:`_half_cores` reserves on the ladder's own terms ("live captions
+    always have cores neither kind of preparation can take").
+
+    Windows only, like the rest of the affinity ladder; elsewhere the child
+    stays where the OS put it, exactly as before. Best effort throughout: a
+    hint that cannot be applied never fails the job.
+    """
+    if os.name != "nt":
+        return
+    _pin_cores(pid, _half_cores)
 
 
 class FfmpegCancelledError(RuntimeError):

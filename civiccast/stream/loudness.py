@@ -8,6 +8,7 @@ import re
 import threading
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from civiccast.stream._ffmpeg import check_ffmpeg, ffmpeg_seconds, run_ffmpeg
 
@@ -52,6 +53,8 @@ def check_loudness(
     probe_duration_seconds: float | None = None,
     threads: int | None = None,
     cancel_event: threading.Event | None = None,
+    lower_priority: bool = False,
+    half_cores: bool = False,
 ) -> LoudnessGateResult:
     """Measure a media asset's integrated loudness and gate it against a target.
 
@@ -88,6 +91,18 @@ def check_loudness(
     resample alike (item 66 round-6, point 6: this correction was itself
     prompted by finding that no production caller had ever exercised the
     round-5 arg-order fix until then).
+
+    ``lower_priority``/``half_cores`` (rc.8 MSI, 2026-11-21): the probe is
+    PREPARATION work when the source preparer takes it, so it belongs on the
+    same rung of the FT-7 ladder as the rest of that preparation -- not, as it
+    ran before, at the caller's own NORMAL priority with no affinity limit at
+    all, on every logical processor, at the same class as the live caption
+    child. The preparer passes ``half_cores=True`` on the air path (BELOW_NORMAL
+    plus the air-path half, exactly as ``run_ffmpeg`` applies to the conform and
+    the program mux) and ``lower_priority=True`` for a background warm (IDLE
+    plus the background quarter). Both default to False: every other caller --
+    the continuity proofs, the CLI, a whole-file gate -- keeps exactly the
+    process priority it had.
     """
 
     if not media_path.exists():
@@ -131,10 +146,17 @@ def check_loudness(
     if probe_duration_seconds is not None:
         args.extend(["-t", ffmpeg_seconds(probe_duration_seconds)])
     args.extend(["-filter_complex", "ebur128=peak=true", "-f", "null", "-"])
+    # Only the knobs that were actually asked for are forwarded, so a caller
+    # that asked for neither keeps the one-argument call it always made.
+    runner_kwargs: dict[str, Any] = {}
+    if lower_priority:
+        runner_kwargs["lower_priority"] = True
+    elif half_cores:
+        runner_kwargs["half_cores"] = True
     if cancel_event is None:
-        result = run_ffmpeg(args)
+        result = run_ffmpeg(args, **runner_kwargs)
     else:
-        result = run_ffmpeg(args, cancel_event=cancel_event)
+        result = run_ffmpeg(args, cancel_event=cancel_event, **runner_kwargs)
     if result.returncode != 0:
         return _loudness_failure(
             standard=standard_label,
@@ -170,6 +192,8 @@ def check_streaming_loudness(
     probe_duration_seconds: float | None = None,
     threads: int | None = None,
     cancel_event: threading.Event | None = None,
+    lower_priority: bool = False,
+    half_cores: bool = False,
 ) -> LoudnessGateResult:
     """Back-compat wrapper: gate streaming audio against its -16 LUFS target.
 
@@ -192,6 +216,8 @@ def check_streaming_loudness(
         probe_duration_seconds=probe_duration_seconds,
         threads=threads,
         cancel_event=cancel_event,
+        lower_priority=lower_priority,
+        half_cores=half_cores,
     )
 
 

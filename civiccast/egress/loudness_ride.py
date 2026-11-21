@@ -183,7 +183,7 @@ from pathlib import Path
 from typing import Any, BinaryIO, Protocol
 
 from civiccast.egress.models import CanonicalProfile, EgressSourceSegment
-from civiccast.stream._ffmpeg import ffmpeg_seconds
+from civiccast.stream._ffmpeg import ffmpeg_seconds, pin_air_path_child
 
 __all__ = [
     "DIGITAL_SILENCE",
@@ -1305,6 +1305,45 @@ class RideRender:
     stderr: str
 
 
+def _spawn_child(argv: list[str], **kwargs: Any) -> subprocess.Popen[bytes]:
+    """Start one ride ffmpeg child inside the air path's CPU limit.
+
+    Priority and affinity are one ladder, and this is the ride's half of it:
+    ``BELOW_NORMAL`` puts every ride child one class under the live caption
+    child (see :data:`_BELOW_NORMAL_PRIORITY_CLASS`), and
+    :func:`~civiccast.stream._ffmpeg.pin_air_path_child` holds it to the
+    air-path cores. ``run_ffmpeg(half_cores=True)`` does both for the conform
+    and the program mux; before this seam the ride's own children got the
+    priority and never the affinity, so a preparation could occupy every
+    logical processor on the box (MSI rc.8, 2026-11-21).
+    """
+    process = subprocess.Popen(  # noqa: S603 - explicit list, resolved binary, shell=False
+        argv,
+        creationflags=_CREATE_NO_WINDOW | _BELOW_NORMAL_PRIORITY_CLASS,
+        **kwargs,
+    )
+    pin_air_path_child(process.pid)
+    return process
+
+
+def _run_child(argv: list[str], *, timeout_s: float | None) -> subprocess.CompletedProcess[bytes]:
+    """Run one ride ffmpeg child to completion, as :func:`subprocess.run` does.
+
+    Same spawning seam as :func:`_spawn_child` (so the re-encode is pinned like
+    every other air-path child), with ``run``'s timeout semantics: on expiry the
+    child is killed and waited for before the :class:`subprocess.TimeoutExpired`
+    propagates, so no partial output is left behind a running process.
+    """
+    process = _spawn_child(argv, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+    try:
+        out, err = process.communicate(timeout=timeout_s)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        process.communicate()
+        raise
+    return subprocess.CompletedProcess(argv, process.returncode, out, err)
+
+
 def run_ride(
     *,
     decoder_args: list[str],
@@ -1349,11 +1388,10 @@ def run_ride(
     pcm_file: BinaryIO | None = pcm_path.open("wb") if pcm_path is not None else None
 
     t_start = time.perf_counter()
-    decoder = subprocess.Popen(  # noqa: S603 - explicit list, resolved binary, shell=False
+    decoder = _spawn_child(
         [ffmpeg, *decoder_args],
         stdout=subprocess.PIPE,
         stderr=subprocess.DEVNULL,
-        creationflags=_CREATE_NO_WINDOW | _BELOW_NORMAL_PRIORITY_CLASS,
     )
     err_file = tempfile.NamedTemporaryFile(  # noqa: SIM115 - held open for the child
         prefix="civiccast-ride-", suffix=".log", delete=False
@@ -1364,12 +1402,11 @@ def run_ride(
     cancelled = False
     timed_out = False
     try:
-        sink = subprocess.Popen(  # noqa: S603 - explicit list, resolved binary, shell=False
+        sink = _spawn_child(
             [ffmpeg, *sink_args],
             stdin=subprocess.PIPE,
             stdout=subprocess.DEVNULL,
             stderr=err_file,
-            creationflags=_CREATE_NO_WINDOW | _BELOW_NORMAL_PRIORITY_CLASS,
         )
         assert decoder.stdout is not None
         assert sink.stdin is not None
@@ -1488,14 +1525,7 @@ def run_reencode(
     ]
     t_start = time.perf_counter()
     try:
-        proc = subprocess.run(  # noqa: S603 - explicit list, resolved binary, shell=False
-            argv,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.PIPE,
-            timeout=timeout_s,
-            check=False,
-            creationflags=_CREATE_NO_WINDOW | _BELOW_NORMAL_PRIORITY_CLASS,
-        )
+        proc = _run_child(argv, timeout_s=timeout_s)
     except subprocess.TimeoutExpired as exc:
         raise LoudnessRideError(f"the guard's re-encode timed out after {timeout_s:g}s") from exc
     wall_s = round(time.perf_counter() - t_start, 2)
@@ -1536,11 +1566,10 @@ def run_capture(
     timed_out = False
     proc: subprocess.Popen[bytes] | None = None
     try:
-        proc = subprocess.Popen(  # noqa: S603 - explicit list, resolved binary, shell=False
+        proc = _spawn_child(
             [ffmpeg, *args],
             stdout=subprocess.DEVNULL,
             stderr=err_file,
-            creationflags=_CREATE_NO_WINDOW | _BELOW_NORMAL_PRIORITY_CLASS,
         )
         while proc.poll() is None:
             if cancel_event is not None and cancel_event.is_set():
@@ -1600,14 +1629,13 @@ def scan_peak_dbfs(
     cancelled = False
     timed_out = False
     carry = b""
-    proc = subprocess.Popen(  # noqa: S603 - explicit list, resolved binary, shell=False
+    proc = _spawn_child(
         [
             ffmpeg,
             *build_peak_scan_args(artifact_path=artifact_path, params=params, threads=threads),
         ],
         stdout=subprocess.PIPE,
         stderr=subprocess.DEVNULL,
-        creationflags=_CREATE_NO_WINDOW | _BELOW_NORMAL_PRIORITY_CLASS,
     )
     try:
         assert proc.stdout is not None
