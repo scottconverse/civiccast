@@ -6,6 +6,11 @@
 # ---------------------------------------------------------------------------
 # ENFORCEMENT STATUS — READ BEFORE TOUCHING BRANCH PROTECTION
 #
+# randomized-suite runs ONLY when started by hand (workflow_dispatch), for
+#   example before each release build. Not on pull requests and not on a
+#   schedule: ci-test.yml's "Unit tests" job already runs the full suite on
+#   every PR push, so a PR-triggered randomized run duplicated it.
+#
 # randomized-suite: starts INFORMATIONAL. It is flipped to a REQUIRED status
 #   check ONLY by the repo owner, and ONLY after burn-in (five green runs
 #   across different seeds, or one deliberate pollution-hunt pass). This
@@ -67,9 +72,13 @@ jobs:
     # ci-test.yml's "Unit tests" job.
     runs-on: ubuntu-24.04
     timeout-minutes: 75
+    # On demand (workflow_dispatch) only -- never on a pull_request push, where
+    # ci-test.yml's "Unit tests" already runs the full suite, and never on a
+    # schedule. Started by hand, for example before each release build.
     if: |
-      github.event_name != 'pull_request' ||
-      github.event.pull_request.head.repo.full_name == github.repository
+      github.event_name == 'workflow_dispatch' &&
+      (github.event_name != 'pull_request' ||
+       github.event.pull_request.head.repo.full_name == github.repository)
     env:
       CIVICCAST_RUN_POSTGRES_TESTS: "1"
     steps:
