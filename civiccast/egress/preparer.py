@@ -177,6 +177,10 @@ _WARM_FAILURE_BACKOFF_SECONDS = 60.0
 #: preparation bound (``_content_reload_preparation_bound_seconds``) and the
 #: watchdog remain the outer protection against a genuinely stuck job.
 _AIR_CONFORM_DESIGN_SPEED_RPS = 2.0
+#: Public alias: the automation sizes a cold rollover lead from the same
+#: pessimistic speed this module budgets both the air path and the warm with,
+#: so the lead and the budget cannot describe the same asset differently.
+AIR_CONFORM_DESIGN_SPEED_RPS = _AIR_CONFORM_DESIGN_SPEED_RPS
 #: Ceiling on the scaled air-path bound. The air path has a deadline, so unlike
 #: a warm it must not scale without limit: one pathological asset must not hold
 #: a first-ever ON_AIR for hours. 1800s covers a 60-minute slot at the 2x design
@@ -333,6 +337,66 @@ _WARM_PRIORITY_BEHIND = 1 << 62
 #: recorded occurrence start). Still ahead of opportunistic work, because an
 #: airing may be coming.
 _WARM_PRIORITY_UNKNOWN = _WARM_PRIORITY_BEHIND - 1
+#: How many times the scheduler may cancel one running warm for a programme
+#: that airs sooner before that warm becomes non-preemptible for the rest of
+#: its life. A long whole-asset conform is preempted at its own airing's price:
+#: it restarts from zero on the next turn, so an unbounded stream of sooner
+#: airings (a 30-minute schedule emits one every 30 minutes) would keep it
+#: from ever finishing. After this many cancellations the job runs to its own
+#: timeout and either populates its cache entry or fails and takes the normal
+#: backoff -- both terminal, neither repeating forever. The air path's own
+#: promotion (``_promote_queued_warm``) is NOT bounded by this: an asset a
+#: reload is about to need now always outranks a background warm.
+_WARM_MAX_PREEMPTIONS = 3
+
+
+def _warm_priority_for_start(start: datetime | None, *, now: datetime | None = None) -> int:
+    """Priority for a warm whose programme airs at ``start``. See
+    :func:`plan_warm_priority`."""
+
+    if start is None:
+        return _WARM_PRIORITY_UNKNOWN
+    if start.tzinfo is None:
+        start = start.replace(tzinfo=UTC)
+    current = datetime.now(UTC) if now is None else now
+    if start <= current:
+        return _WARM_PRIORITY_BEHIND
+    return int(start.timestamp())
+
+
+def _warm_effective_priority(job: Callable[[], None], *, now: datetime | None = None) -> int:
+    """A queued/running warm's priority as of NOW, not as of when it was queued.
+
+    rc.8 MSI round 2 (item 4): a job's priority used to be frozen at enqueue
+    time. Once its programme's airing passed, that frozen timestamp was in the
+    past and therefore sorted AHEAD of every future airing, and a running job
+    carrying it could not be preempted by any newer work. Recomputing from the
+    airing instant makes a passed airing sort at the bottom
+    (``_WARM_PRIORITY_BEHIND``) -- it is opportunistic work now -- while a
+    still-upcoming airing keeps its own instant. A job promoted by the air path
+    carries priority 0 (``_promote_queued_warm``)."""
+
+    if getattr(job, "_warm_promoted", False):
+        return 0
+    start = getattr(job, "_warm_airing_start", None)
+    if start is None:
+        return getattr(job, "_warm_priority", _WARM_PRIORITY_BEHIND)
+    return _warm_priority_for_start(start, now=now)
+
+
+def _warm_preemptible(job: Callable[[], None]) -> bool:
+    """False once a warm has been cancelled for a sooner airing
+    ``_WARM_MAX_PREEMPTIONS`` times -- it must be allowed to finish."""
+
+    return int(getattr(job, "_warm_preemptions", 0) or 0) < _WARM_MAX_PREEMPTIONS
+
+
+def _preempt_warm(job: Callable[[], None], cancel_event: threading.Event) -> None:
+    """Cancel a running warm for a sooner airing, counting the cancellation."""
+
+    job.__dict__["_warm_preemptions"] = int(getattr(job, "_warm_preemptions", 0) or 0) + 1
+    job.__dict__["_warm_preempted"] = True
+    cancel_event.set()
 
 
 def plan_warm_priority(segment: EgressSourceSegment, *, now: datetime | None = None) -> int:
@@ -356,32 +420,7 @@ def plan_warm_priority(segment: EgressSourceSegment, *, now: datetime | None = N
     start = segment.schedule_occurrence_start
     if start is None:
         return _WARM_PRIORITY_UNKNOWN
-    if start.tzinfo is None:
-        start = start.replace(tzinfo=UTC)
-    current = datetime.now(UTC) if now is None else now
-    if start <= current:
-        return _WARM_PRIORITY_BEHIND
-    return int(start.timestamp())
-
-
-def _plan_warm_runway_seconds(
-    segment: EgressSourceSegment, *, now: datetime | None = None
-) -> float | None:
-    """Seconds until ``segment`` is due to air, or ``None`` when unknown.
-
-    Negative or zero means the airing has already started. Used to refuse a
-    warm that cannot possibly be resident in time, rather than starting it and
-    holding the single warm worker for hours against a deadline that has
-    already passed.
-    """
-
-    start = segment.schedule_occurrence_start
-    if start is None:
-        return None
-    if start.tzinfo is None:
-        start = start.replace(tzinfo=UTC)
-    current = datetime.now(UTC) if now is None else now
-    return (start - current).total_seconds()
+    return _warm_priority_for_start(start, now=now)
 
 
 def _warm_worker() -> None:
@@ -405,7 +444,21 @@ def _warm_worker() -> None:
     global _warm_running
     while True:
         _, _, job = _warm_queue.get()
-        priority = getattr(job, "_warm_priority", _WARM_PRIORITY_BEHIND)
+        priority = _warm_effective_priority(job)
+        # Item 4: the queue orders by the priority a job was queued WITH. If
+        # this job's airing has since passed, that stored number is in the
+        # past and would otherwise keep it at the front of every future
+        # airing. Re-evaluate it (and the head it is about to overtake) and
+        # let the sooner work go first.
+        with _warm_queue.mutex:
+            try:
+                queued_ahead = _warm_effective_priority(_warm_queue.queue[0][2])
+            except IndexError:
+                queued_ahead = None
+        if queued_ahead is not None and queued_ahead < priority:
+            _warm_queue.put((priority, next(_warm_sequence), job))
+            _warm_queue.task_done()
+            continue
         cancel_event = threading.Event()
         job.__dict__["_warm_cancel_event"] = cancel_event
         job.__dict__["_warm_preempted"] = False
@@ -413,12 +466,11 @@ def _warm_worker() -> None:
             _warm_running = (priority, job, cancel_event)
         with _warm_queue.mutex:
             try:
-                queued_ahead = _warm_queue.queue[0][0]
+                queued_ahead = _warm_effective_priority(_warm_queue.queue[0][2])
             except IndexError:
                 queued_ahead = None
-        if queued_ahead is not None and queued_ahead < priority:
-            job.__dict__["_warm_preempted"] = True
-            cancel_event.set()
+        if queued_ahead is not None and queued_ahead < priority and _warm_preemptible(job):
+            _preempt_warm(job, cancel_event)
         try:
             job()
         except Exception:
@@ -457,24 +509,55 @@ def _default_warm_scheduler(job: Callable[[], None]) -> None:
         if not _warm_worker_started:
             threading.Thread(target=_warm_worker, name="conform-cache-warm", daemon=True).start()
             _warm_worker_started = True
-    priority = getattr(job, "_warm_priority", _WARM_PRIORITY_BEHIND)
+    priority = _warm_effective_priority(job)
     with _warm_running_lock:
         running = _warm_running
-        if running is not None and priority < running[0]:
+        if running is not None:
             running_job = running[1]
-            running_job.__dict__["_warm_preempted"] = True
-            running[2].set()
+            # Item 4: compare against what the running warm is worth NOW. Its
+            # frozen number would otherwise be a past timestamp that no future
+            # airing can beat, so nothing could ever preempt it.
+            if priority < _warm_effective_priority(running_job) and _warm_preemptible(running_job):
+                _preempt_warm(running_job, running[2])
     _warm_queue.put((priority, next(_warm_sequence), job))
 
 
 def _promote_queued_warm(key: str) -> None:
-    """Promote queued work under the queue lock; a dequeued job is untouched."""
+    """Promote the queued warm for ``key`` to the front, and get a running
+    later warm out of its way.
+
+    rc.8 MSI round 2 (item 4): promoting the queued job alone is not enough --
+    the air path promotes because a reload is about to need this asset NOW,
+    and a later warm already on the single worker would still hold it for its
+    full duration. The running job is cancelled and re-queued exactly as a
+    sooner airing cancels it, and the cancellation is not counted against the
+    ``_WARM_MAX_PREEMPTIONS`` cap: an asset the air path needs now always
+    outranks a background warm.
+    """
+
+    promoted = False
     with _warm_queue.mutex:
         for index, (priority, sequence, job) in enumerate(_warm_queue.queue):
             if priority > 0 and getattr(job, "_warm_key", None) == key:
+                job.__dict__["_warm_promoted"] = True
                 _warm_queue.queue[index] = (0, sequence, job)
                 heapq.heapify(_warm_queue.queue)
+                promoted = True
                 break
+    if not promoted:
+        return
+    with _warm_running_lock:
+        running = _warm_running
+        if running is None:
+            return
+        running_job = running[1]
+        # The same asset already conforming is the warm this promotion wants;
+        # let it finish rather than restarting it from zero.
+        if getattr(running_job, "_warm_key", None) == key:
+            return
+        if _warm_effective_priority(running_job) > 0:
+            running_job.__dict__["_warm_preempted"] = True
+            running[2].set()
 
 
 #: Room left on the cache volume that a conform is never allowed to spend.
@@ -1053,6 +1136,25 @@ class SourcePreparer:
         except (OSError, ValueError):
             return None
         return data if isinstance(data, dict) else None
+
+    def full_asset_cache_hit(self, source_path: Path, config: EgressConfig) -> bool:
+        """True when the conform cache already holds this whole asset.
+
+        The same predicate the warm-behind, plan-warm and air-path jobs use to
+        skip a redundant conform: the media file exists AND its sidecar says
+        ``full_asset_conform`` (a flagless sidecar is a probe-only artifact,
+        not a whole-asset entry -- see ``_write_cache_meta``). The automation
+        asks it before sizing a rollover lead: a cached item needs only the
+        short preparation lead, not a cold whole-asset conform's.
+        """
+
+        key = self._cache_key(source_path, config)
+        if key is None:
+            return False
+        if not (self._cache_dir() / f"{key}.ts").is_file():
+            return False
+        meta = self._read_cache_meta(key)
+        return meta is not None and meta.get("full_asset_conform") is True
 
     def _write_cache_meta(
         self,
@@ -2451,43 +2553,16 @@ class SourcePreparer:
                 warm_timeout_seconds = warm_preparation_timeout_seconds(
                     warm_duration_seconds, self._preparation_timeout_seconds
                 )
-                # rc.8 MSI round 2 (2026-11-21): a warm that cannot be
-                # resident before the programme airs must not be started at
-                # all. The 19,254 s programme's warm needed ~9,627 s at the
-                # 2.0x design speed against a runway of a few hundred
-                # seconds; starting it could only take the one worker away
-                # from a programme that airs sooner, and the cache entry it
-                # was building would not exist when the air path asked for
-                # it. One line, then nothing -- the same estimate the
-                # budget itself uses, so the two cannot disagree.
-                runway = _plan_warm_runway_seconds(segment)
-                if runway is not None:
-                    needed = warm_duration_seconds / _WARM_CONFORM_DESIGN_SPEED_RPS
-                    if runway <= 0:
-                        _LOG.warning(
-                            "U60 plan look-ahead warm skipped for %r (%gs of media): "
-                            "its airing has already started, so a whole-asset conform "
-                            "cannot be resident for it. The air path prepares it "
-                            "synchronously; the full-asset cache entry stays cold.",
-                            segment.label,
-                            warm_duration_seconds,
-                        )
-                        return
-                    if needed > runway:
-                        _LOG.warning(
-                            "U60 plan look-ahead warm skipped for %r (%gs of media): "
-                            "a whole-asset conform needs about %.0fs at the %.1fx "
-                            "design speed and the programme airs in %.0fs, so it "
-                            "cannot be resident before airtime. The air path prepares "
-                            "it synchronously; the full-asset cache entry stays cold "
-                            "for this airing.",
-                            segment.label,
-                            warm_duration_seconds,
-                            needed,
-                            _WARM_CONFORM_DESIGN_SPEED_RPS,
-                            runway,
-                        )
-                        return
+                # rc.8 MSI round 2 fix, round 3 (2026-11-21): round 2 refused
+                # a warm whose airing had already started, or whose design
+                # cost exceeded the runway to its airing. That made every
+                # window of a long programme cold: a programme airs in 1800 s
+                # windows, so the whole-asset cache entry this warm builds is
+                # still there for the LATER windows even though it cannot be
+                # ready for the airing that queued it. The job is queued
+                # anyway; ``plan_warm_priority`` / ``_warm_effective_priority``
+                # already sort a started airing behind every future one, so it
+                # cannot delay a programme that airs sooner.
                 scratch.mkdir(parents=True, exist_ok=True)
                 # The synthetic whole-asset segment: the REAL source path (so
                 # the cache key is the air path's own), no in/out points, and
@@ -2582,6 +2657,9 @@ class SourcePreparer:
 
         try:
             _job.__dict__["_warm_priority"] = plan_warm_priority(segment)
+            # The airing instant itself, so the queue can re-evaluate this
+            # job's worth after it has waited (``_warm_effective_priority``).
+            _job.__dict__["_warm_airing_start"] = segment.schedule_occurrence_start
             self._warm_scheduler(_job)
         except Exception:
             with self._warming_guard:

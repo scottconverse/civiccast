@@ -586,6 +586,14 @@ class _PendingReloadSettlement(NamedTuple):
     chained_program_end_at: datetime | None = None
     switch_at_unix: float | None = None
     scheduled_wait_seconds: float = 0.0
+    #: True only for the slate-first pre-arm (``scheduled_start_at`` was given:
+    #: the channel is on the slate and the worker holds the next programme's
+    #: preroll until its due instant). ``switch_at_unix`` is also carried by an
+    #: ordinary deferred ON_AIR rollover (so a lead longer than the engine's
+    #: watchdog cannot cut the live programme), and the settlement logic must
+    #: not treat THAT as a scheduled hand-off -- see
+    #: ``has_pending_scheduled_start`` and ``_poll_reload_settlement``.
+    scheduled_start: bool = False
 
 
 class _TailFloorOutcome(NamedTuple):
@@ -836,6 +844,12 @@ class EgressDaemon:
         fallback_source_provider: FallbackSourceProvider | None = None,
         source_preparer: SourcePreparerFunc | None = None,
         async_source_preparer: AsyncSourcePreparerFunc | None = None,
+        # rc.8 MSI round 3: answers "does the conform cache already hold this
+        # whole asset?" so a rollover lead can stay short for an item whose
+        # preparation will be a cache hit. Wired from ``SourcePreparer`` in
+        # ``build_channel_automation``; None (every other caller) means every
+        # boundary is treated as cold, which is the safe direction.
+        source_cache_probe: Callable[[Path, EgressConfig], bool] | None = None,
         branding_plan_provider: BrandingPlanProvider | None = None,
         cg_overlay_provider: BoardOverlayProvider | None = None,
         board_live_video_provider: BoardLiveVideoProvider | None = None,
@@ -913,6 +927,7 @@ class EgressDaemon:
         self._fallback_source_provider = fallback_source_provider
         self._source_preparer = source_preparer
         self._async_source_preparer = async_source_preparer
+        self._source_cache_probe = source_cache_probe
         self._preparation_executor: ThreadPoolExecutor | None = None
         self._preparations: dict[str, _PendingPreparation] = {}
         self._preparation_guard = RLock()
@@ -2116,7 +2131,7 @@ class EgressDaemon:
 
     def has_pending_scheduled_start(self, channel_id: str) -> bool:
         pending = self._pending_reload_settle.get(channel_id)
-        return pending is not None and pending.switch_at_unix is not None
+        return pending is not None and pending.scheduled_start
 
     def can_prearm_slate_program(self, channel_id: str) -> bool:
         return bool(
@@ -5522,6 +5537,31 @@ class EgressDaemon:
             if plan_dir is not None
         )
 
+    def rollover_asset_cached(self, channel_id: str, source_path: Path) -> bool:
+        """Public capability ``ChannelAutomationService`` getattr-probes: does
+        the conform cache already hold this whole asset?
+
+        Read on the automation's ~2s poll tick while it sizes a rollover lead.
+        A cache hit means the reload's preparation costs seconds, so the lead
+        stays at the preparation-timeout floor instead of growing to a cold
+        whole-asset conform's cost. False whenever the probe or the live
+        config is unavailable: the cold lead is the safe direction.
+        """
+
+        probe = self._source_cache_probe
+        config = self._built_configs.get(channel_id)
+        if probe is None or config is None:
+            return False
+        try:
+            return bool(probe(source_path, config))
+        except Exception:
+            _LOG.exception(
+                "channel %s: conform-cache probe failed for %s; treating the boundary as cold.",
+                channel_id,
+                source_path,
+            )
+            return False
+
     def record_rollover_plan_end(
         self,
         channel_id: str,
@@ -6556,6 +6596,27 @@ class EgressDaemon:
             # the ordinary due-item path will resolve a fresh recovery offset.
             self._release_prepared_plan_dir(prepared_plan_dir)
             return False
+        defer_switch = should_defer_switch(
+            previous_state=state.state if state else None,
+            manual_override_active=self.has_manual_override(channel_id),
+            plan_end_at=rollover_plan_end_at,
+            now=datetime.now(UTC),
+        )
+        # rc.8 MSI round 3 (2026-11-21): a deferred switch waits for the
+        # outgoing leg's own EOS, and the engine bounds that wait with its
+        # ``defer_switch_timeout_s`` (900s) measured from the new leg becoming
+        # ready. A rollover lead longer than that watchdog (now possible: a
+        # cold 1800s window needs ~1020s at the 2s-per-second design speed)
+        # would have the new leg ready ~1020s early, and the watchdog would
+        # FORCE the switch 900s in -- cutting the live programme ~120s short.
+        # Hand the engine the boundary it is actually waiting for. With it,
+        # ``_force_deferred_boundary`` refuses before ``switch_at_unix`` and
+        # ``_on_scheduled_start`` waits for it. The scheduled-slate path
+        # already supplied its own boundary; a deferred rollover is the other
+        # case that has one (``rollover_plan_end_at``).
+        switch_boundary_at = scheduled_start_at
+        if defer_switch and switch_boundary_at is None:
+            switch_boundary_at = rollover_plan_end_at
         request = EncoderStartRequest(
             channel_id=channel_id,
             source_plan=source_plan,
@@ -6612,13 +6673,8 @@ class EgressDaemon:
             # to the reload command now being processed -- never handed down
             # from a mismatched command. See ``_rollover_plan_end_at`` and
             # ``_request_reload``'s docstrings for the exact matching rule.
-            switch_at_end_of_current=should_defer_switch(
-                previous_state=state.state if state else None,
-                manual_override_active=self.has_manual_override(channel_id),
-                plan_end_at=rollover_plan_end_at,
-                now=datetime.now(UTC),
-            ),
-            switch_at_unix=scheduled_start_at.timestamp() if scheduled_start_at else None,
+            switch_at_end_of_current=defer_switch,
+            switch_at_unix=switch_boundary_at.timestamp() if switch_boundary_at else None,
         )
         # F3(b), owner-authorized 2026-09-24: an IMMEDIATE (non-deferred) reload
         # out of FALLBACK_SLATE must not attempt the in-place selector swap.
@@ -6785,6 +6841,7 @@ class EgressDaemon:
                 if request.switch_at_unix is not None
                 else 0.0
             ),
+            scheduled_start=scheduled_start_at is not None,
         )
         _LOG.info(
             "Seamless content-reload accepted for %s (reload_id=%s, switch_at_end_of_current=%s); "
@@ -7031,7 +7088,11 @@ class EgressDaemon:
                 self._commit_reload_settlement(channel_id, pending)
                 return
             if isinstance(result, str) and result.startswith("aborted:"):
-                if pending.switch_at_unix is not None and time.time() < pending.switch_at_unix:
+                if (
+                    pending.scheduled_start
+                    and pending.switch_at_unix is not None
+                    and time.time() < pending.switch_at_unix
+                ):
                     self._discard_pending_reload_settlement(channel_id, reason=result)
                     self._keep_slate_after_failed_hand_off(channel_id)
                     return

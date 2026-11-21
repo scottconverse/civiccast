@@ -1690,6 +1690,37 @@ def test_schedule_warm_job_skips_when_cache_already_populated_before_it_runs(
     assert calls == []  # skipped the redundant re-conform
 
 
+def test_full_asset_cache_hit_requires_the_media_and_the_flag(tmp_path: Path) -> None:
+    """rc.8 MSI round 3: the automation asks this before sizing a rollover lead.
+
+    Only a real entry counts: the ``.ts`` file AND a sidecar marked
+    ``full_asset_conform``. A probe-only sidecar (flagless) must not be
+    reported as a hit -- that is the "permanent miss self-heal" shape the warm
+    paths already guard against -- and neither must a file with no sidecar.
+    """
+
+    source = tmp_path / "council.mp4"
+    source.write_text("media", encoding="utf-8")
+    config = _config()
+    preparer = SourcePreparer(work_dir=tmp_path / "work", warm_scheduler=lambda _job: None)
+    key = preparer._cache_key(source, config)
+    assert key is not None
+    cache_dir = preparer._cache_dir()
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    loudness = _loudness()
+
+    assert preparer.full_asset_cache_hit(source, config) is False
+
+    preparer._write_cache_meta(key, loudness, False)
+    (cache_dir / f"{key}.ts").write_text("probe-only", encoding="utf-8")
+    assert preparer.full_asset_cache_hit(source, config) is False, (
+        "a flagless sidecar is a probe-only artifact, not a whole-asset entry"
+    )
+
+    preparer._write_cache_meta(key, loudness, False, full_asset_conform=True)
+    assert preparer.full_asset_cache_hit(source, config) is True
+
+
 def test_cache_disabled_by_nonpositive_budget(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("CIVICCAST_CONFORM_CACHE_GB", "0")
     calls: list[list[str]] = []
@@ -4270,32 +4301,63 @@ def test_every_program_in_the_msi_library_fits_the_warm_budget() -> None:
         )
 
 
-def test_a_plan_warm_that_cannot_finish_before_airtime_fails_once_quickly(
+def test_a_long_programme_already_airing_is_still_warmed_for_its_later_windows(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """rc.8 MSI round 2 (2026-11-21): a warm that cannot be resident before
-    its programme airs must say so once and take nothing else.
+    """rc.8 MSI round 3 (2026-11-21): a warm is still worth running when its
+    airing has already started.
 
-    On the MSI a 19,254 s programme was still sitting in the warm queue when
-    its own airing arrived; the air path then conformed it synchronously and
-    the channel sat on its slate for 87 s. Warming it would have needed
-    ~9,627 s at the 2.0x design speed against a runway of a few hundred
-    seconds. Starting it could only take the worker away from a programme
-    that airs sooner, so the honest outcome is one clear line and no work."""
+    Round 2 refused such a warm outright ("its airing has already started").
+    Programmes air in 1800 s windows, so the whole-asset cache entry a warm
+    builds is exactly what the programme's LATER windows need; refusing it
+    made every window of a five-hour meeting cold. The job must run, and it
+    must sort behind every future airing (it is opportunistic work now)."""
 
     monkeypatch.setattr(preparer_module, "probe_media_duration_seconds", lambda _p: 19_254.0)
     source = tmp_path / "long-meeting.mp4"
     source.write_bytes(b"long media")
     jobs: list[Callable[[], None]] = []
-    preparer = SourcePreparer(
-        work_dir=tmp_path / "work",
-        warm_scheduler=jobs.append,
+    preparer = SourcePreparer(work_dir=tmp_path / "work", warm_scheduler=jobs.append)
+    prepared: list[str] = []
+
+    def _record(*_args: object, **_kwargs: object) -> None:
+        prepared.append("conformed")
+
+    monkeypatch.setattr(preparer, "_prepare_segment", _record)
+    segment = EgressSourceSegment(
+        label="Long meeting",
+        path=str(source),
+        duration_seconds=19_254.0,
+        schedule_occurrence_start=datetime.now(UTC) - timedelta(seconds=600),
     )
 
-    def _must_not_prepare(*_args: object, **_kwargs: object) -> None:
-        raise AssertionError("a warm that cannot finish before airtime must not start")
+    preparer._schedule_plan_warm(_config(), segment)
+    assert len(jobs) == 1
+    assert getattr(jobs[0], "_warm_priority", None) == preparer_module._WARM_PRIORITY_BEHIND
+    with caplog.at_level(logging.WARNING, logger=preparer_module.__name__):
+        jobs[0]()
 
-    monkeypatch.setattr(preparer, "_prepare_segment", _must_not_prepare)
+    assert prepared == ["conformed"], "a programme already on air must still be warmed"
+    assert [r for r in caplog.records if r.levelno >= logging.WARNING] == []
+    assert preparer._warm_backoff_until == {}
+
+
+def test_a_warm_that_cannot_finish_before_airtime_still_runs_for_later_airings(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The same rule for a short runway: the design-cost estimate exceeding the
+    time to airtime is a reason to queue the warm LAST, not to skip a cache
+    entry every later airing of the programme could use."""
+
+    monkeypatch.setattr(preparer_module, "probe_media_duration_seconds", lambda _p: 19_254.0)
+    source = tmp_path / "long-meeting.mp4"
+    source.write_bytes(b"long media")
+    jobs: list[Callable[[], None]] = []
+    preparer = SourcePreparer(work_dir=tmp_path / "work", warm_scheduler=jobs.append)
+    prepared: list[str] = []
+    monkeypatch.setattr(
+        preparer, "_prepare_segment", lambda *_a, **_k: prepared.append("conformed")
+    )
     segment = EgressSourceSegment(
         label="Long meeting",
         path=str(source),
@@ -4305,18 +4367,8 @@ def test_a_plan_warm_that_cannot_finish_before_airtime_fails_once_quickly(
 
     preparer._schedule_plan_warm(_config(), segment)
     assert len(jobs) == 1
-    with caplog.at_level(logging.WARNING, logger=preparer_module.__name__):
-        jobs[0]()
-
-    lines = [record.getMessage() for record in caplog.records]
-    assert len(lines) == 1, f"one clear line, not a retry loop: {lines}"
-    assert "Long meeting" in lines[0]
-    assert "19,254" in lines[0] or "19254" in lines[0]
-    assert "airs in 600s" in lines[0] or "600s" in lines[0]
-    assert "cannot" in lines[0]
-    # No failure backoff: this asset has not been tried and failed; it simply
-    # has no runway. A later boundary may still warm it.
-    assert preparer._warm_backoff_until == {}
+    jobs[0]()
+    assert prepared == ["conformed"], "no runway is not a reason to leave every window cold"
 
 
 def test_a_warm_for_the_sooner_airing_sorts_ahead_of_a_later_one(
@@ -4441,6 +4493,197 @@ def test_a_preempted_plan_warm_goes_back_on_the_queue_instead_of_failing(
     assert len(jobs) == 2, "the preempted warm must go back on the queue"
     assert jobs[1] is job
     assert getattr(job, "_warm_preempted", False) is False
+
+
+def test_promoting_a_queued_warm_cancels_a_running_later_warm(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """rc.8 MSI round 3 (item 4): the air path's promotion must free the worker.
+
+    ``_promote_queued_warm`` used to move the queued job to priority 0 and
+    stop there. The job actually on the single worker was still a long warm
+    for a later airing, so the reload the air path was about to run still
+    waited behind it. Promotion now cancels that job exactly like a sooner
+    airing does (and the cancelled job re-queues itself)."""
+
+    import queue as queue_module
+
+    monkeypatch.setattr(preparer_module, "_warm_queue", queue_module.PriorityQueue())
+    running_cancel = threading.Event()
+
+    def running() -> None:
+        pass
+
+    running._warm_priority = 2_000_000_000  # type: ignore[attr-defined]
+    running._warm_key = "later-asset"  # type: ignore[attr-defined]
+    monkeypatch.setattr(preparer_module, "_warm_running", (2_000_000_000, running, running_cancel))
+
+    def wanted() -> None:
+        pass
+
+    wanted._warm_key = "air-path-asset"  # type: ignore[attr-defined]
+    wanted._warm_priority = 1_900_000_000  # type: ignore[attr-defined]
+    preparer_module._warm_queue.put((1_900_000_000, 0, wanted))
+
+    preparer_module._promote_queued_warm("air-path-asset")
+
+    assert running_cancel.is_set(), "the running later warm still holds the worker"
+    assert getattr(running, "_warm_preempted", False) is True
+    assert getattr(wanted, "_warm_promoted", False) is True
+    queued = preparer_module._warm_queue.get_nowait()
+    assert queued[2] is wanted
+    assert queued[0] == 0
+
+
+def test_a_job_whose_airing_passed_no_longer_sorts_ahead_of_a_future_airing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """rc.8 MSI round 3 (item 4): priority is re-evaluated, not frozen.
+
+    A job queued for 10:00 keeps the number "10:01:00" in Unix seconds after
+    10:00 has passed. That number is smaller than any future airing's, so the
+    stale job sorted AHEAD of every programme still to come -- and a running
+    job carrying that number could not be preempted by any newer work. Both
+    halves are the same defect; ``_warm_effective_priority`` fixes both by
+    computing the key as of now."""
+
+    past = datetime.now(UTC) - timedelta(minutes=5)
+    future = datetime.now(UTC) + timedelta(hours=1)
+
+    def stale() -> None:
+        pass
+
+    stale._warm_airing_start = past  # type: ignore[attr-defined]
+    stale._warm_priority = int(past.timestamp())  # type: ignore[attr-defined]
+
+    def upcoming() -> None:
+        pass
+
+    upcoming._warm_airing_start = future  # type: ignore[attr-defined]
+    upcoming._warm_priority = int(future.timestamp())  # type: ignore[attr-defined]
+
+    # The stored key really is the stale one (the defect's input)...
+    assert stale._warm_priority < upcoming._warm_priority  # type: ignore[attr-defined]
+    # ...but what the queue uses now puts the passed airing last.
+    assert preparer_module._warm_effective_priority(stale) == preparer_module._WARM_PRIORITY_BEHIND
+    assert preparer_module._warm_effective_priority(
+        stale
+    ) > preparer_module._warm_effective_priority(upcoming)
+
+
+def test_the_warm_worker_lets_a_future_airing_go_before_a_stale_queued_job(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The queue-order half of the same defect, at the worker.
+
+    A stale job sits at the front of the heap because it was queued with an
+    older timestamp. When the worker pops it, it must notice that a future
+    airing is queued behind it and put the stale job back, so the sooner
+    programme is conformed first."""
+
+    import queue as queue_module
+
+    class _StopLoop(Exception):
+        pass
+
+    monkeypatch.setattr(preparer_module, "_warm_worker_started", True)
+    monkeypatch.setattr(preparer_module, "_warm_queue", queue_module.PriorityQueue())
+    monkeypatch.setattr(preparer_module, "_warm_running", None)
+    monkeypatch.setattr(preparer_module, "_warm_running_lock", threading.Lock())
+
+    past = datetime.now(UTC) - timedelta(minutes=5)
+    future = datetime.now(UTC) + timedelta(hours=1)
+    ran: list[str] = []
+
+    def stale() -> None:
+        ran.append("stale")
+
+    stale._warm_airing_start = past  # type: ignore[attr-defined]
+    stale._warm_priority = int(past.timestamp())  # type: ignore[attr-defined]
+
+    def upcoming() -> None:
+        ran.append("upcoming")
+
+    upcoming._warm_airing_start = future  # type: ignore[attr-defined]
+    upcoming._warm_priority = int(future.timestamp())  # type: ignore[attr-defined]
+
+    preparer_module._warm_queue.put((stale._warm_priority, 0, stale))  # type: ignore[attr-defined]
+    preparer_module._warm_queue.put((upcoming._warm_priority, 1, upcoming))  # type: ignore[attr-defined]
+
+    real_get = preparer_module._warm_queue.get
+    calls = 0
+
+    def _get() -> object:
+        nonlocal calls
+        calls += 1
+        if calls > 2:
+            raise _StopLoop
+        return real_get()
+
+    monkeypatch.setattr(preparer_module._warm_queue, "get", _get)
+    with pytest.raises(_StopLoop):
+        preparer_module._warm_worker()
+
+    assert ran[0] == "upcoming", f"a passed airing jumped ahead of a future one: {ran}"
+
+
+def test_a_warm_preempted_repeatedly_is_allowed_to_finish(monkeypatch: pytest.MonkeyPatch) -> None:
+    """rc.8 MSI round 3 (item 4): preemption must not be forever.
+
+    A long whole-asset conform restarts from zero every time it is cancelled
+    for a sooner airing, and a 30-minute schedule emits a sooner airing every
+    30 minutes. After ``_WARM_MAX_PREEMPTIONS`` cancellations the scheduler
+    stops preempting that job, so it runs to its own timeout and either
+    populates its cache entry or fails and takes the normal backoff -- both
+    terminal. This is the property that proves it can always finish."""
+
+    import queue as queue_module
+
+    monkeypatch.setattr(preparer_module, "_warm_queue", queue_module.PriorityQueue())
+    running_cancel = threading.Event()
+
+    def running() -> None:
+        pass
+
+    running._warm_priority = 2_000_000_000  # type: ignore[attr-defined]
+    running._warm_preemptions = preparer_module._WARM_MAX_PREEMPTIONS  # type: ignore[attr-defined]
+    monkeypatch.setattr(preparer_module, "_warm_running", (2_000_000_000, running, running_cancel))
+
+    def sooner() -> None:
+        pass
+
+    sooner._warm_priority = 1_900_000_000  # type: ignore[attr-defined]
+    preparer_module._default_warm_scheduler(sooner)
+
+    assert not running_cancel.is_set(), "a warm that has been cancelled enough must finish"
+    assert running._warm_preemptions == preparer_module._WARM_MAX_PREEMPTIONS
+
+
+def test_a_scheduled_preemption_counts_toward_the_finish_guarantee(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The count is incremented by the scheduler itself, so the guarantee does
+    not depend on a job being preempted by any other path."""
+
+    import queue as queue_module
+
+    monkeypatch.setattr(preparer_module, "_warm_queue", queue_module.PriorityQueue())
+    running_cancel = threading.Event()
+
+    def running() -> None:
+        pass
+
+    running._warm_priority = 2_000_000_000  # type: ignore[attr-defined]
+    monkeypatch.setattr(preparer_module, "_warm_running", (2_000_000_000, running, running_cancel))
+
+    def sooner() -> None:
+        pass
+
+    sooner._warm_priority = 1_900_000_000  # type: ignore[attr-defined]
+    preparer_module._default_warm_scheduler(sooner)
+
+    assert running_cancel.is_set()
+    assert running._warm_preemptions == 1
 
 
 def test_a_warm_ride_receives_the_warm_cpu_rung(tmp_path: Path) -> None:

@@ -42,3 +42,14 @@ verifier accepts no media failure at all.
 
 Net effect: two policy tests became one. No `tests/native` case changed, so the
 `ci-test.yml` junit floors (2215 pure / 2487 Windows) still match.
+
+## 2026-11-21 — rc.8 MSI round 3: a warm is no longer refused for a short runway
+
+`tests/egress/test_preparer.py::test_a_plan_warm_that_cannot_finish_before_airtime_fails_once_quickly`
+asserted the round-2 refusal: a plan warm was skipped when its airing had
+started or the design-speed cost exceeded the runway to it. That rule made
+every window of a long programme cold, so it was removed.
+
+| Old test | Replaced by | Why | Run |
+|---|---|---|---|
+| `test_a_plan_warm_that_cannot_finish_before_airtime_fails_once_quickly` | `test_a_long_programme_already_airing_is_still_warmed_for_its_later_windows` and `test_a_warm_that_cannot_finish_before_airtime_still_runs_for_later_airings` | Both cases now assert the warm runs (a whole-asset cache entry serves the programme's later 1800 s windows) and that a started airing sorts behind every future one. | `pytest tests/egress/test_preparer.py` |

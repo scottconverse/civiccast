@@ -807,6 +807,45 @@ def test_outgoing_eos_cannot_commit_scheduled_program_early(engine_module, monke
     assert not pending.get("boundary_forced", False)
 
 
+def test_a_lead_longer_than_the_defer_watchdog_cannot_cut_the_program_early(
+    engine_module, monkeypatch
+):
+    """rc.8 MSI round 3 (item 2): the deferred-switch watchdog is a bound on
+    holding two legs, never a boundary.
+
+    The new leg can be ready a full rollover lead before the outgoing plan's
+    end -- now ~1020 s for a cold 1800 s window, longer than
+    ``defer_switch_timeout_s`` (900 s). Firing the watchdog at T-900 must not
+    switch while the recorded boundary (``switch_at_unix``, sent by the daemon
+    for every deferred rollover) is still ahead; at the boundary the
+    scheduled-start release may force."""
+
+    recorder = _Recorder()
+    engine = _bare_engine_for_commit(engine_module, recorder)
+    pending = _unready_reload(recorder)
+    pending.update(
+        switch_at_end_of_current=True,
+        new_leg_ready=True,
+        holds_awaited=0,
+        old_leg_eos=False,
+        switch_at_unix=3000.0,
+    )
+    engine._pending_reload = pending
+    engine.defer_switch_timeout_s = 900.0
+    clock = {"now": 2100.0}  # 900 s after readiness, 900 s before the boundary
+    monkeypatch.setattr(engine_module.time, "time", lambda: clock["now"])
+    commits: list[str] = []
+    engine._commit_reload = lambda: commits.append("commit")
+
+    assert engine._on_defer_switch_timeout(pending["txn_id"]) is False
+    assert commits == [], "the watchdog cut the programme 900 s before its boundary"
+    assert not pending.get("boundary_forced", False)
+
+    clock["now"] = 3000.0
+    engine._on_scheduled_start(pending["txn_id"])
+    assert commits == ["commit"], "at the recorded boundary the switch must happen"
+
+
 def test_f1_duplicate_hold_cannot_substitute_for_unprerolled_audio(engine_module) -> None:
     recorder = _Recorder()
     engine = _bare_engine_for_commit(engine_module, recorder)
