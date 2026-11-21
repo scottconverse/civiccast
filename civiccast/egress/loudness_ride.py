@@ -183,7 +183,11 @@ from pathlib import Path
 from typing import Any, BinaryIO, Protocol
 
 from civiccast.egress.models import CanonicalProfile, EgressSourceSegment
-from civiccast.stream._ffmpeg import ffmpeg_seconds, pin_air_path_child
+from civiccast.stream._ffmpeg import (
+    ffmpeg_seconds,
+    pin_air_path_child,
+    pin_background_child,
+)
 
 __all__ = [
     "DIGITAL_SILENCE",
@@ -282,9 +286,15 @@ LOUDNESS_WHOLE_TOL_LU = 0.5
 #: program and would fail for arithmetic reasons rather than for level.
 LOUDNESS_WINDOW_MIN_TAIL_S = 1.0
 
-#: The children are dropped below normal priority so a ride (foreground,
-#: background warm, or a second channel's) can never outrank an on-air encoder.
+#: An AIR-PATH ride's children are dropped below normal priority so a ride
+#: (foreground, background warm, or a second channel's) can never outrank an
+#: on-air encoder. That is the air-path rung of the FT-7 ladder.
 _BELOW_NORMAL_PRIORITY_CLASS = getattr(subprocess, "BELOW_NORMAL_PRIORITY_CLASS", 0)
+#: A BACKGROUND WARM's ride takes the ladder's bottom rung instead: IDLE, the
+#: same class the warm's own conform runs at, on the background cores. Round 1
+#: gave every ride child the air-path rung, so a warm's ride ran a class above
+#: the warm conform it belonged to, on cores reserved for air-path work.
+_IDLE_PRIORITY_CLASS = getattr(subprocess, "IDLE_PRIORITY_CLASS", 0)
 _CREATE_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
 _RE_I = re.compile(r"^\s*I:\s*(-?[\d.]+)\s*LUFS", re.M)
@@ -1305,36 +1315,57 @@ class RideRender:
     stderr: str
 
 
-def _spawn_child(argv: list[str], **kwargs: Any) -> subprocess.Popen[bytes]:
-    """Start one ride ffmpeg child inside the air path's CPU limit.
+def _spawn_child(
+    argv: list[str], *, lower_priority: bool = False, **kwargs: Any
+) -> subprocess.Popen[bytes]:
+    """Start one ride ffmpeg child inside the CPU limit of ITS OWN rung.
 
-    Priority and affinity are one ladder, and this is the ride's half of it:
-    ``BELOW_NORMAL`` puts every ride child one class under the live caption
-    child (see :data:`_BELOW_NORMAL_PRIORITY_CLASS`), and
-    :func:`~civiccast.stream._ffmpeg.pin_air_path_child` holds it to the
-    air-path cores. ``run_ffmpeg(half_cores=True)`` does both for the conform
-    and the program mux; before this seam the ride's own children got the
-    priority and never the affinity, so a preparation could occupy every
-    logical processor on the box (MSI rc.8, 2026-11-21).
+    Priority and affinity are one ladder, and this is the ride's half of it.
+    An AIR-PATH ride (the default: a preparation with an airing deadline) runs
+    ``BELOW_NORMAL``, one class under the live caption child (see
+    :data:`_BELOW_NORMAL_PRIORITY_CLASS`), held to the air-path cores by
+    :func:`~civiccast.stream._ffmpeg.pin_air_path_child`. A BACKGROUND WARM's
+    ride (``lower_priority``) takes the warm's own rung instead: IDLE
+    (:data:`_IDLE_PRIORITY_CLASS`), the class the warm conform itself runs at,
+    held to the background cores by
+    :func:`~civiccast.stream._ffmpeg.pin_background_child`.
+
+    ``run_ffmpeg`` does both for the conform and the program mux; before this
+    seam the ride's own children got the priority and never the affinity, so a
+    preparation could occupy every logical processor on the box (MSI rc.8,
+    2026-11-21). Before the rung was threaded through, a warm's ride also ran
+    a class ABOVE the warm conform it belonged to, on the air-path half.
     """
+    if lower_priority:
+        creationflags = _CREATE_NO_WINDOW | _IDLE_PRIORITY_CLASS
+    else:
+        creationflags = _CREATE_NO_WINDOW | _BELOW_NORMAL_PRIORITY_CLASS
     process = subprocess.Popen(  # noqa: S603 - explicit list, resolved binary, shell=False
         argv,
-        creationflags=_CREATE_NO_WINDOW | _BELOW_NORMAL_PRIORITY_CLASS,
+        creationflags=creationflags,
         **kwargs,
     )
-    pin_air_path_child(process.pid)
+    if lower_priority:
+        pin_background_child(process.pid)
+    else:
+        pin_air_path_child(process.pid)
     return process
 
 
-def _run_child(argv: list[str], *, timeout_s: float | None) -> subprocess.CompletedProcess[bytes]:
+def _run_child(
+    argv: list[str], *, timeout_s: float | None, lower_priority: bool = False
+) -> subprocess.CompletedProcess[bytes]:
     """Run one ride ffmpeg child to completion, as :func:`subprocess.run` does.
 
     Same spawning seam as :func:`_spawn_child` (so the re-encode is pinned like
-    every other air-path child), with ``run``'s timeout semantics: on expiry the
-    child is killed and waited for before the :class:`subprocess.TimeoutExpired`
-    propagates, so no partial output is left behind a running process.
+    every other child of its rung), with ``run``'s timeout semantics: on expiry
+    the child is killed and waited for before the
+    :class:`subprocess.TimeoutExpired` propagates, so no partial output is left
+    behind a running process.
     """
-    process = _spawn_child(argv, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+    process = _spawn_child(
+        argv, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, lower_priority=lower_priority
+    )
     try:
         out, err = process.communicate(timeout=timeout_s)
     except subprocess.TimeoutExpired:
@@ -1353,6 +1384,7 @@ def run_ride(
     pcm_path: Path | None = None,
     cancel_event: threading.Event | None = None,
     timeout_s: float | None = None,
+    lower_priority: bool = False,
 ) -> RideRender:
     """Feed decoded PCM through the gain curve into the sink, one chunk at a time.
 
@@ -1392,6 +1424,7 @@ def run_ride(
         [ffmpeg, *decoder_args],
         stdout=subprocess.PIPE,
         stderr=subprocess.DEVNULL,
+        lower_priority=lower_priority,
     )
     err_file = tempfile.NamedTemporaryFile(  # noqa: SIM115 - held open for the child
         prefix="civiccast-ride-", suffix=".log", delete=False
@@ -1407,6 +1440,7 @@ def run_ride(
             stdin=subprocess.PIPE,
             stdout=subprocess.DEVNULL,
             stderr=err_file,
+            lower_priority=lower_priority,
         )
         assert decoder.stdout is not None
         assert sink.stdin is not None
@@ -1492,6 +1526,7 @@ def run_reencode(
     timeout_s: float | None = None,
     variant: EncoderVariant | None = None,
     threads: int | None = None,
+    lower_priority: bool = False,
 ) -> RideRender:
     """Re-encode retained ride PCM once: limiter, codec, mux -- no ride, no curve.
 
@@ -1525,7 +1560,7 @@ def run_reencode(
     ]
     t_start = time.perf_counter()
     try:
-        proc = _run_child(argv, timeout_s=timeout_s)
+        proc = _run_child(argv, timeout_s=timeout_s, lower_priority=lower_priority)
     except subprocess.TimeoutExpired as exc:
         raise LoudnessRideError(f"the guard's re-encode timed out after {timeout_s:g}s") from exc
     wall_s = round(time.perf_counter() - t_start, 2)
@@ -1543,6 +1578,7 @@ def run_capture(
     *,
     timeout_s: float | None = None,
     cancel_event: threading.Event | None = None,
+    lower_priority: bool = False,
 ) -> str:
     """Run one read-only FFmpeg pass and return its stderr.
 
@@ -1570,6 +1606,7 @@ def run_capture(
             [ffmpeg, *args],
             stdout=subprocess.DEVNULL,
             stderr=err_file,
+            lower_priority=lower_priority,
         )
         while proc.poll() is None:
             if cancel_event is not None and cancel_event.is_set():
@@ -1609,6 +1646,7 @@ def scan_peak_dbfs(
     timeout_s: float | None = None,
     cancel_event: threading.Event | None = None,
     threads: int | None = None,
+    lower_priority: bool = False,
 ) -> float | None:
     """The hottest sample a decode of the artifact finds, in dBFS.
 
@@ -1636,6 +1674,7 @@ def scan_peak_dbfs(
         ],
         stdout=subprocess.PIPE,
         stderr=subprocess.DEVNULL,
+        lower_priority=lower_priority,
     )
     try:
         assert proc.stdout is not None
@@ -1702,6 +1741,7 @@ class ReencodeRunner(Protocol):
         timeout_s: float | None = None,
         variant: EncoderVariant | None = None,
         threads: int | None = None,
+        lower_priority: bool = False,
     ) -> RideRender: ...
 
 
@@ -1732,6 +1772,7 @@ class RideRunner(Protocol):
         pcm_path: Path | None = None,
         cancel_event: threading.Event | None = None,
         timeout_s: float | None = None,
+        lower_priority: bool = False,
     ) -> RideRender: ...
 
 
@@ -2338,6 +2379,7 @@ def measure_artifact(
     cancel_event: threading.Event | None = None,
     encoder: str = "",
     threads: int | None = None,
+    lower_priority: bool = False,
 ) -> LeveledAttempt:
     """Measure one emitted artifact: its loudness series, and its decoded peak.
 
@@ -2358,6 +2400,7 @@ def measure_artifact(
             build_artifact_measure_args(artifact_path=artifact_path, threads=threads),
             timeout_s=timeout_s,
             cancel_event=cancel_event,
+            lower_priority=lower_priority,
         )
     except LoudnessRideCancelledError:
         raise
@@ -2370,6 +2413,7 @@ def measure_artifact(
             timeout_s=timeout_s,
             cancel_event=cancel_event,
             **({"threads": threads} if threads is not None else {}),
+            lower_priority=lower_priority,
         )
     except LoudnessRideCancelledError:
         raise
@@ -2425,6 +2469,7 @@ def level_window(
     reencode_runner: ReencodeRunner | None = None,
     cancel_event: threading.Event | None = None,
     timeout_s: float | None = None,
+    lower_priority: bool = False,
 ) -> LeveledWindow:
     """Level one window end to end and leave the artifact that should air at
     ``audio_path``.
@@ -2480,6 +2525,7 @@ def level_window(
         ),
         timeout_s=timeout_s,
         cancel_event=cancel_event,
+        lower_priority=lower_priority,
     )
     source_series = parse_ebur128_series(source_stderr)
     if not source_series:
@@ -2515,6 +2561,7 @@ def level_window(
             params=pass_params,
             cancel_event=cancel_event,
             timeout_s=timeout_s,
+            lower_priority=lower_priority,
         )
 
     curve = converge(
@@ -2557,6 +2604,7 @@ def level_window(
             pcm_path=tee_path,
             cancel_event=cancel_event,
             timeout_s=timeout_s,
+            lower_priority=lower_priority,
         )
 
         attempts = [
@@ -2572,6 +2620,7 @@ def level_window(
                 cancel_event=cancel_event,
                 encoder=encoder_settings_label(profile),
                 threads=threads,
+                lower_priority=lower_priority,
             )
         ]
 
@@ -2631,6 +2680,7 @@ def level_window(
                     timeout_s=timeout_s,
                     variant=variant,
                     **({"threads": threads} if threads is not None else {}),
+                    lower_priority=lower_priority,
                 )
             except LoudnessRideCancelledError:
                 del round_paths[index]
@@ -2654,6 +2704,7 @@ def level_window(
                     cancel_event=cancel_event,
                     encoder=encoder_settings_label(profile, variant),
                     threads=threads,
+                    lower_priority=lower_priority,
                 )
             )
 

@@ -561,6 +561,84 @@ def test_a_ride_child_is_spawned_below_normal_and_pinned_to_the_air_path_cores(
     assert kwargs["creationflags"] == lr._CREATE_NO_WINDOW | lr._BELOW_NORMAL_PRIORITY_CLASS
 
 
+def test_a_warm_ride_child_is_spawned_at_idle_and_pinned_to_the_background_cores(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """rc.8 MSI round 2 (item 3): a ride run for a background warm uses the
+    WARM's rung, not the air path's.
+
+    The FT-7 ladder is playout > captions > air-path preparation
+    (BELOW_NORMAL on the air-path half) > background preparation (IDLE on the
+    background quarter). Round 1 gave every ride child the air-path rung, so a
+    warm's ride ran one class ABOVE its own warm conform and on the air-path
+    half -- cores the warm is supposed to leave to the live captions. A warm
+    ride must take IDLE and the background cores; an air-path ride keeps
+    BELOW_NORMAL and the air-path half."""
+
+    pinned_air: list[int] = []
+    pinned_background: list[int] = []
+    spawns: list[dict[str, object]] = []
+
+    def fake_popen(argv: list[str], **kwargs: object) -> _SeamChild:
+        spawns.append(kwargs)
+        return _SeamChild(argv)
+
+    monkeypatch.setattr(lr.subprocess, "Popen", fake_popen)
+    monkeypatch.setattr(lr, "pin_air_path_child", pinned_air.append)
+    monkeypatch.setattr(lr, "pin_background_child", pinned_background.append)
+
+    lr._spawn_child(["ffmpeg", "-version"], stdout=lr.subprocess.PIPE)
+    assert spawns[0]["creationflags"] == lr._CREATE_NO_WINDOW | lr._BELOW_NORMAL_PRIORITY_CLASS
+    assert pinned_air == [4242]
+    assert pinned_background == []
+
+    lr._spawn_child(["ffmpeg", "-version"], stdout=lr.subprocess.PIPE, lower_priority=True)
+    assert spawns[1]["creationflags"] == lr._CREATE_NO_WINDOW | lr._IDLE_PRIORITY_CLASS
+    assert pinned_background == [4242], "a warm ride child was not held to the background cores"
+    assert pinned_air == [4242], "a warm ride child was pinned to the air-path half"
+
+
+def test_every_ride_process_takes_the_rung_it_was_given(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Every ride entry point must carry the rung through to its child.
+
+    The rung is decided once, by the caller that knows whether this is an
+    air-path preparation or a background warm (``level_window``'s
+    ``lower_priority``); each of the four entry points must pass it on."""
+
+    spawns: list[dict[str, object]] = []
+
+    def fake_spawn(argv: list[str], **kwargs: object) -> _SeamChild:
+        spawns.append(kwargs)
+        return _SeamChild(argv)
+
+    monkeypatch.setattr(lr, "_spawn_child", fake_spawn)
+    monkeypatch.setattr(lr, "_ffmpeg_binary", lambda: "ffmpeg")
+    params = lr.RideParams(target_lufs=-16.0)
+
+    lr.run_ride(
+        decoder_args=["-decoder"],
+        sink_args=["-sink"],
+        curve=[(0.0, 0.0)],
+        params=params,
+        lower_priority=True,
+    )
+    lr.run_capture(["-measure"], lower_priority=True)
+    lr.run_reencode(
+        pcm_path=tmp_path / "ride.pcm",
+        output_path=tmp_path / "guard.ts",
+        trim_db=0.0,
+        params=params,
+        profile=CanonicalProfile(video_codec="h264_mf"),
+        lower_priority=True,
+    )
+    lr.scan_peak_dbfs(tmp_path / "guard.ts", params=params, lower_priority=True)
+
+    assert len(spawns) == 5  # decoder, sink, measurement, re-encode, peak scan
+    assert all(kwargs.get("lower_priority") is True for kwargs in spawns), spawns
+
+
 def test_every_ride_process_goes_through_the_pinned_seam(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

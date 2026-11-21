@@ -791,6 +791,26 @@ def pin_air_path_child(pid: int) -> None:
     _pin_cores(pid, _half_cores)
 
 
+def pin_background_child(pid: int) -> None:
+    """Hold a just-started BACKGROUND-PREPARATION child to the background cores.
+
+    The mirror of :func:`pin_air_path_child` for work that is not on the air
+    path: a conform-cache warm and every ffmpeg child it starts (the ride's
+    decoder, sink, measurement and re-encode) runs at IDLE
+    (:data:`_BACKGROUND_PRIORITY_CLASS`) and on the background quarter
+    (:func:`_background_cores`) -- the FT-7 ladder's bottom rung. A warm ride
+    pinned to the air-path half instead would take cores the ladder reserves
+    for a preparation that actually has a deadline, and BELOW_NORMAL is not
+    below the warm conform's own IDLE class (MSI rc.8 round 2, 2026-11-21).
+
+    Windows only, like the rest of the affinity ladder. Best effort
+    throughout: a hint that cannot be applied never fails the job.
+    """
+    if os.name != "nt":
+        return
+    _pin_cores(pid, _background_cores)
+
+
 class FfmpegCancelledError(RuntimeError):
     """Raised when an owned ffmpeg process is stopped by its caller."""
 

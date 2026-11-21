@@ -470,6 +470,7 @@ class _Recorder:
         pcm_path=None,
         cancel_event=None,
         timeout_s=None,
+        lower_priority=False,
     ):
         self.ride_calls.append(
             SimpleNamespace(
@@ -507,6 +508,7 @@ class _Recorder:
         timeout_s=None,
         variant=None,
         threads=None,
+        lower_priority=False,
     ):
         self.round_calls.append(
             SimpleNamespace(
@@ -526,7 +528,7 @@ class _Recorder:
         return lr.RideRender(frames=0, audio_seconds=0.0, wall_s=0.5, stderr="")
 
     # -- the probes -------------------------------------------------------
-    def capture(self, args, *, timeout_s=None, cancel_event=None):
+    def capture(self, args, *, timeout_s=None, cancel_event=None, lower_priority=False):
         self.capture_args.append(list(args))
         path = Path(args[args.index("-i") + 1])
         self.measured.append(path)
@@ -546,7 +548,16 @@ class _Recorder:
             return self.round_stderr
         return self.source_stderr
 
-    def scan(self, artifact_path, *, params, timeout_s=None, cancel_event=None, threads=None):
+    def scan(
+        self,
+        artifact_path,
+        *,
+        params,
+        timeout_s=None,
+        cancel_event=None,
+        threads=None,
+        lower_priority=False,
+    ):
         self.scan_threads.append(threads)
         path = Path(artifact_path)
         self.scanned.append(path)
@@ -710,7 +721,7 @@ def test_level_window_ships_the_artifact_when_its_measurement_fails(
     audio = tmp_path / "audio.ts"
     emitted = _stderr(_FLAT, integrated_lufs=-16.0)
 
-    def capture(args, *, timeout_s=None, cancel_event=None):
+    def capture(args, *, timeout_s=None, cancel_event=None, lower_priority=False):
         path = Path(args[args.index("-i") + 1])
         if path == source:
             return rec.source_stderr
@@ -759,7 +770,7 @@ def test_level_window_propagates_cancellation_instead_of_shipping(
     source = tmp_path / "x.capture"
     source.write_bytes(b"source")
 
-    def capture(args, *, timeout_s=None, cancel_event=None):
+    def capture(args, *, timeout_s=None, cancel_event=None, lower_priority=False):
         path = Path(args[args.index("-i") + 1])
         if path == source:
             return rec.source_stderr

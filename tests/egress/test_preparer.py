@@ -1063,6 +1063,7 @@ class _StubLeveler:
         reencode_runner: object = None,
         cancel_event: threading.Event | None = None,
         timeout_s: float | None = None,
+        lower_priority: bool = False,
     ) -> LeveledWindow:
         index = len(self.calls)
         self.calls.append(
@@ -1079,6 +1080,7 @@ class _StubLeveler:
                 "reencode_runner": reencode_runner,
                 "cancel_event": cancel_event,
                 "timeout_s": timeout_s,
+                "lower_priority": lower_priority,
             }
         )
         if self._write_audio:
@@ -4232,6 +4234,259 @@ def test_warm_budget_covers_the_slowest_measured_one_thread_encode() -> None:
     # And it is still the warm's budget, not the air path's: a warm has no
     # airing deadline, so it may exceed the air path's own ceiling.
     assert budget > preparer_module._AIR_CONFORM_TIMEOUT_CEILING_SECONDS
+
+
+#: Every programme length in the MSI library, by ffprobe (2026-11-21 field
+#: measurement), longest first.
+_MSI_LIBRARY_PROGRAM_SECONDS = (
+    19_254.0,
+    15_949.0,
+    7_459.0,
+    7_410.0,
+    5_344.0,
+    4_425.0,
+    4_398.0,
+)
+
+
+def test_every_program_in_the_msi_library_fits_the_warm_budget() -> None:
+    """rc.8 MSI round 2 (2026-11-21): the warm ceiling must cover every
+    programme the station actually holds, not only those up to 9,600 s.
+
+    The 7,200 s wall-clock ceiling was reached by the two longest programmes
+    (19,254 s and 15,949 s): each held the one warm worker thread for the full
+    two hours, was killed, and never populated its cache entry. At the 2.3x
+    realtime this machine class measures for a one-thread background encode,
+    the 19,254 s programme needs ~8,371 s and designs (at the 2.0x design
+    speed and 1.5x factor) to 14,440.5 s. A ceiling below that makes the
+    longest programmes permanently unwarmable on this box."""
+
+    base = 300.0
+    for seconds in _MSI_LIBRARY_PROGRAM_SECONDS:
+        budget = preparer_module.warm_preparation_timeout_seconds(seconds, base)
+        assert budget >= seconds / 2.3, (
+            f"a {seconds:g}s programme designs to only {budget:g}s, below the "
+            f"{seconds / 2.3:g}s the slowest measured one-thread encode needs"
+        )
+
+
+def test_a_plan_warm_that_cannot_finish_before_airtime_fails_once_quickly(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """rc.8 MSI round 2 (2026-11-21): a warm that cannot be resident before
+    its programme airs must say so once and take nothing else.
+
+    On the MSI a 19,254 s programme was still sitting in the warm queue when
+    its own airing arrived; the air path then conformed it synchronously and
+    the channel sat on its slate for 87 s. Warming it would have needed
+    ~9,627 s at the 2.0x design speed against a runway of a few hundred
+    seconds. Starting it could only take the worker away from a programme
+    that airs sooner, so the honest outcome is one clear line and no work."""
+
+    monkeypatch.setattr(preparer_module, "probe_media_duration_seconds", lambda _p: 19_254.0)
+    source = tmp_path / "long-meeting.mp4"
+    source.write_bytes(b"long media")
+    jobs: list[Callable[[], None]] = []
+    preparer = SourcePreparer(
+        work_dir=tmp_path / "work",
+        warm_scheduler=jobs.append,
+    )
+
+    def _must_not_prepare(*_args: object, **_kwargs: object) -> None:
+        raise AssertionError("a warm that cannot finish before airtime must not start")
+
+    monkeypatch.setattr(preparer, "_prepare_segment", _must_not_prepare)
+    segment = EgressSourceSegment(
+        label="Long meeting",
+        path=str(source),
+        duration_seconds=19_254.0,
+        schedule_occurrence_start=datetime.now(UTC) + timedelta(seconds=600),
+    )
+
+    preparer._schedule_plan_warm(_config(), segment)
+    assert len(jobs) == 1
+    with caplog.at_level(logging.WARNING, logger=preparer_module.__name__):
+        jobs[0]()
+
+    lines = [record.getMessage() for record in caplog.records]
+    assert len(lines) == 1, f"one clear line, not a retry loop: {lines}"
+    assert "Long meeting" in lines[0]
+    assert "19,254" in lines[0] or "19254" in lines[0]
+    assert "airs in 600s" in lines[0] or "600s" in lines[0]
+    assert "cannot" in lines[0]
+    # No failure backoff: this asset has not been tried and failed; it simply
+    # has no runway. A later boundary may still warm it.
+    assert preparer._warm_backoff_until == {}
+
+
+def test_a_warm_for_the_sooner_airing_sorts_ahead_of_a_later_one(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """rc.8 MSI round 2: two scheduled warms are ordered by when their
+    programmes air, not by when they were queued.
+
+    Plan warms used to share one priority (0), so FIFO decided: the warm for
+    the programme that aired later could sit ahead of the one that was due
+    next. On the MSI the two long programmes' warms were queued first and
+    program 06's warm never got a turn before its reload."""
+
+    monkeypatch.setattr(preparer_module, "probe_media_duration_seconds", lambda _p: 600.0)
+    sooner_path = tmp_path / "sooner.mp4"
+    later_path = tmp_path / "later.mp4"
+    sooner_path.write_bytes(b"a")
+    later_path.write_bytes(b"b")
+    jobs: list[Callable[[], None]] = []
+    preparer = SourcePreparer(work_dir=tmp_path / "work", warm_scheduler=jobs.append)
+    config = _config()
+    now = datetime.now(UTC)
+
+    later = EgressSourceSegment(
+        label="Later",
+        path=str(later_path),
+        duration_seconds=600.0,
+        schedule_occurrence_start=now + timedelta(hours=3),
+    )
+    sooner = EgressSourceSegment(
+        label="Sooner",
+        path=str(sooner_path),
+        duration_seconds=600.0,
+        schedule_occurrence_start=now + timedelta(hours=1),
+    )
+    preparer._schedule_plan_warm(config, later)
+    preparer._schedule_plan_warm(config, sooner)
+
+    assert len(jobs) == 2
+    later_priority = jobs[0]._warm_priority  # type: ignore[attr-defined]
+    sooner_priority = jobs[1]._warm_priority  # type: ignore[attr-defined]
+    assert sooner_priority < later_priority
+
+
+def test_a_sooner_warm_preempts_one_that_is_already_running(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """rc.8 MSI round 2: a running long warm must yield to a programme that
+    airs sooner.
+
+    Ordering the queue is not enough when the nearer programme's warm is
+    queued WHILE the longer one is already conforming -- exactly what the
+    field log shows (program 06's warm was queued during program 05's). The
+    single worker can only honour the ordering by cancelling the running job,
+    which is safe: a cancelled warm consumes no retry and its job re-queues."""
+
+    import queue as queue_module
+
+    monkeypatch.setattr(preparer_module, "_warm_worker_started", True)
+    monkeypatch.setattr(preparer_module, "_warm_queue", queue_module.PriorityQueue())
+    running_cancel = threading.Event()
+
+    def running() -> None:
+        pass
+
+    running._warm_priority = 2_000_000_000  # type: ignore[attr-defined]
+    monkeypatch.setattr(preparer_module, "_warm_running", (2_000_000_000, running, running_cancel))
+
+    def sooner() -> None:
+        pass
+
+    sooner._warm_priority = 1_900_000_000  # type: ignore[attr-defined]
+    preparer_module._default_warm_scheduler(sooner)
+
+    assert running_cancel.is_set(), "the running long warm was never asked to yield"
+    assert getattr(running, "_warm_preempted", False) is True
+    queued = preparer_module._warm_queue.get_nowait()
+    assert queued[2] is sooner
+    assert queued[0] == 1_900_000_000
+
+
+def test_a_preempted_plan_warm_goes_back_on_the_queue_instead_of_failing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """rc.8 MSI round 2: cancellation is not a property of the asset.
+
+    A warm preempted by a sooner programme must not be recorded as a failure
+    (that would start the failure backoff and suppress the retry the asset
+    still deserves); it goes back on the queue so it runs once the sooner
+    warm is done."""
+
+    monkeypatch.setattr(preparer_module, "probe_media_duration_seconds", lambda _p: 600.0)
+    source = tmp_path / "meeting.mp4"
+    source.write_bytes(b"media")
+    jobs: list[Callable[[], None]] = []
+    preparer = SourcePreparer(work_dir=tmp_path / "work", warm_scheduler=jobs.append)
+    segment = EgressSourceSegment(
+        label="Meeting",
+        path=str(source),
+        duration_seconds=600.0,
+        schedule_occurrence_start=datetime.now(UTC) + timedelta(hours=4),
+    )
+
+    preparer._schedule_plan_warm(_config(), segment)
+    assert len(jobs) == 1
+    job = jobs[0]
+
+    def _preempted(*_args: object, **_kwargs: object) -> None:
+        raise SourcePreparationCancelledError("preempted by a sooner programme")
+
+    monkeypatch.setattr(preparer, "_prepare_segment", _preempted)
+    job._warm_preempted = True  # type: ignore[attr-defined]
+    cancel_event = threading.Event()
+    cancel_event.set()
+    job._warm_cancel_event = cancel_event  # type: ignore[attr-defined]
+
+    with caplog.at_level(logging.WARNING, logger=preparer_module.__name__):
+        job()
+
+    assert preparer._warm_backoff_until == {}, "a preemption is not a warm failure"
+    assert preparer._warm_failure_counts == {}
+    assert len(jobs) == 2, "the preempted warm must go back on the queue"
+    assert jobs[1] is job
+    assert getattr(job, "_warm_preempted", False) is False
+
+
+def test_a_warm_ride_receives_the_warm_cpu_rung(tmp_path: Path) -> None:
+    """rc.8 MSI round 2 (item 3): a ride run for a background warm must take
+    the WARM's rung (IDLE on the background cores), not the air path's.
+
+    Round 1 put every ride child at BELOW_NORMAL on the air-path half, which
+    is right for an air-path preparation with a deadline and wrong for a warm:
+    BELOW_NORMAL is not below the warm conform's own IDLE class, so a warm
+    ride tied with the warm it belongs to and could take cores from the live
+    captions."""
+
+    leveler = _StubLeveler()
+    preparer = SourcePreparer(
+        work_dir=tmp_path / "work",
+        ffmpeg_runner=_counting_runner([]),
+        loudness_checker=lambda **_kwargs: _loudness(),
+        warm_scheduler=lambda _job: None,
+        window_leveler=leveler,
+    )
+    source = tmp_path / "meeting.mp4"
+    source.write_bytes(b"media")
+
+    method = preparer._ride_conform_tmp(
+        source_path=source,
+        tmp_path=tmp_path / "warm.ts",
+        config=_config(),
+        segment=None,
+        threads=1,
+        cancel_event=None,
+        lower_priority=True,
+    )
+
+    assert method == "ride"
+    assert leveler.calls[-1]["lower_priority"] is True
+
+    # The air path keeps the air-path rung it has always had.
+    preparer._ride_conform_tmp(
+        source_path=source,
+        tmp_path=tmp_path / "air.ts",
+        config=_config(),
+        segment=None,
+        threads=1,
+        cancel_event=None,
+    )
+    assert leveler.calls[-1]["lower_priority"] is False
 
 
 def test_air_path_loudness_probe_runs_inside_the_air_path_cpu_rung(
