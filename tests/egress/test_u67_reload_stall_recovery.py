@@ -33,6 +33,7 @@ stays pinned forever.
 from __future__ import annotations
 
 import json
+import threading
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -41,6 +42,7 @@ import pytest
 from civiccast.egress import daemon as daemon_module
 from civiccast.egress.daemon import EgressDaemon
 from civiccast.egress.encoder_strategy import EncoderStartRequest, EncoderStartResult
+from civiccast.egress.errors import SourcePrepareError
 from civiccast.egress.models import (
     CanonicalProfile,
     EgressCommand,
@@ -49,6 +51,7 @@ from civiccast.egress.models import (
     EgressSourcePlan,
     EgressSourceSegment,
 )
+from civiccast.egress.preparer import SourcePreparationReport
 from civiccast.egress.store import InMemoryEgressStore
 
 _CHANNEL = "education"
@@ -399,6 +402,257 @@ def test_u67_watchdog_reissues_then_restarts_a_pinned_channel(tmp_path: Path) ->
     assert store.read_state(_CHANNEL).state == "ON_AIR"
     assert store.read_state(_CHANNEL).current_source_label == _AIRING_LABEL
     assert len(strategy.start_requests) == 2
+
+
+def test_u67_rung_survives_a_failed_preparation_and_clears_on_air(tmp_path: Path) -> None:
+    """MSI reload-preparation overrun (2026-11-20): the watchdog's re-issue
+    declined again, this time because its preparation FAILED. Re-arming the pin
+    from that failure used to clear the rung, so the watchdog re-issued forever
+    at the full bound instead of reaching the restart rung, and the channel sat
+    on its slate. The rung belongs to the stall episode; only the pin clearing
+    (a real return to air) ends it."""
+
+    store = InMemoryEgressStore()
+    store.upsert_config(_config())
+    airing = _plan(tmp_path, _AIRING_LABEL)
+    strategy = _BoundaryStrategy(tmp_path)
+    clock = _Clock()
+    holder: dict[str, EgressDaemon] = {}
+
+    def wallclock_provider(channel_id: str):
+        if channel_id in holder["daemon"]._pending_reloads:
+            return None
+        return airing
+
+    def boundary_provider(channel_id: str, boundary_at: datetime, **kwargs: float):
+        return None
+
+    daemon = EgressDaemon(
+        store,
+        work_dir=tmp_path / "egress",
+        source_plan_provider=wallclock_provider,
+        boundary_source_plan_provider=boundary_provider,
+        encoder_strategy=strategy,
+        monotonic=clock,
+    )
+    holder["daemon"] = daemon
+
+    store.enqueue_command(_start_command())
+    daemon.process_once(_CHANNEL)
+    strategy.process.ignore_terminate = True
+    boundary = datetime.now(UTC)
+    command_id = "rollover-education-0325"
+    daemon.record_rollover_plan_end(_CHANNEL, boundary, command_id=command_id)
+    store.enqueue_command(_reload_command(command_id, boundary))
+    daemon.process_once(_CHANNEL)
+
+    # Reach rung 1: the watchdog re-issued once, the re-issue declined, and the
+    # pin was re-armed.
+    clock.advance(_WATCHDOG_SECONDS + 1.0)
+    daemon.process_once(_CHANNEL)
+    assert daemon._reload_stall_rungs.get(_CHANNEL) == 1
+    assert _CHANNEL in daemon._pending_reloads
+
+    # The re-issued reload's preparation now FAILS and falls back to restart,
+    # which re-arms the SAME pin through ``_arm_pending_reload``.
+    daemon._failed_reload_preparations[_CHANNEL] = (
+        daemon._monotonic(),
+        boundary,
+    )
+    daemon._arm_pending_reload(_CHANNEL, store.read_state(_CHANNEL), plan_end_at=None)
+    assert daemon._reload_stall_rungs.get(_CHANNEL) == 1, (
+        "a failed preparation is the same stall episode; it must not reset the rung"
+    )
+
+    # One grace past that re-arm: rung 2 -- the restart, not another re-issue.
+    strategy.process.ignore_terminate = False
+    clock.advance(_GRACE_SECONDS + 1.0)
+    daemon.process_once(_CHANNEL)
+    assert _CHANNEL not in daemon._pending_reloads, "the stalled channel must not re-issue forever"
+    assert strategy.process.returncode == 0
+
+    # Back on air: the pin and the episode's bookkeeping are gone.
+    clock.advance(2.0)
+    daemon.process_once(_CHANNEL)
+    assert store.read_state(_CHANNEL).state == "ON_AIR"
+    assert daemon._reload_stall_rungs == {}
+
+
+def test_u67_real_sequence_reaches_the_restart_after_a_failed_preparation(
+    tmp_path: Path,
+) -> None:
+    """MSI reload-preparation overrun (2026-11-20), the REAL flow.
+
+    Rung-1 expiry re-issues the reload; that re-issue starts an ASYNCHRONOUS
+    preparation, so ``has_pending_reload_settlement`` is true and the next
+    watchdog tick takes the settlement branch. That branch used to POP the
+    rung, so when the preparation then FAILED and re-armed the pin, the episode
+    was back on rung 0: the watchdog re-issued again at the full bound and the
+    channel sat on its slate instead of ever reaching the restart."""
+
+    store = InMemoryEgressStore()
+    store.upsert_config(_config())
+    airing = _plan(tmp_path, _AIRING_LABEL)
+    strategy = _BoundaryStrategy(tmp_path)
+    clock = _Clock()
+    gate = threading.Event()
+    holder: dict[str, EgressDaemon] = {}
+
+    prep_calls = {"count": 0}
+
+    def sync_preparer(plan, config):  # pragma: no cover - the async path must win
+        raise AssertionError("the async preparer must be used")
+
+    def async_preparer(plan, config, cancel, protected):
+        prep_calls["count"] += 1
+        if prep_calls["count"] == 1:
+            # The channel START's own preparation: let the worker come up.
+            return SourcePreparationReport(plan, ())
+        # Every later preparation is the re-issue's, and it FAILS.
+        gate.wait(timeout=10)
+        raise SourcePrepareError("prepared media failed")
+
+    def wallclock_provider(channel_id: str):
+        # The re-issue must reach preparation this time, so it resolves a plan.
+        return airing
+
+    def boundary_provider(channel_id: str, boundary_at: datetime, **kwargs: float):
+        return None
+
+    daemon = EgressDaemon(
+        store,
+        work_dir=tmp_path / "egress",
+        source_plan_provider=wallclock_provider,
+        boundary_source_plan_provider=boundary_provider,
+        encoder_strategy=strategy,
+        source_preparer=sync_preparer,
+        async_source_preparer=async_preparer,
+        monotonic=clock,
+    )
+    holder["daemon"] = daemon
+    daemon.enable_async_preparation()
+    try:
+        store.enqueue_command(_start_command())
+        # The start's own preparation runs on the executor. Wait for that
+        # FUTURE to finish (the real condition), then let the daemon settle it
+        # and launch the worker.
+        daemon.process_once(_CHANNEL)
+        pending_start = daemon._preparations.get(_CHANNEL)
+        if pending_start is not None:
+            pending_start.future.result(timeout=10)
+            daemon.process_once(_CHANNEL)
+        assert daemon._processes.get(_CHANNEL) is not None
+        strategy.process.ignore_terminate = True
+        boundary = datetime.now(UTC)
+        command_id = "rollover-education-0325"
+        daemon.record_rollover_plan_end(_CHANNEL, boundary, command_id=command_id)
+        store.enqueue_command(_reload_command(command_id, boundary))
+        daemon.process_once(_CHANNEL)
+        assert _CHANNEL in daemon._pending_reloads
+
+        # Rung 1: the expiry re-issues, and the re-issue's preparation is now
+        # running in the background.
+        clock.advance(_WATCHDOG_SECONDS + 1.0)
+        daemon.process_once(_CHANNEL)
+        assert daemon._reload_stall_rungs.get(_CHANNEL) == 1
+        assert _CHANNEL in daemon._preparations, "the re-issue's preparation must be in flight"
+        assert daemon.has_pending_reload_settlement(_CHANNEL)
+
+        # A tick WITH the preparation in flight takes the settlement branch. It
+        # resets the clock but must keep the rung: this is the same stall.
+        clock.advance(2.0)
+        daemon.process_once(_CHANNEL)
+        assert _CHANNEL in daemon._preparations
+        assert daemon._reload_stall_rungs.get(_CHANNEL) == 1, (
+            "a re-issue whose preparation is still in flight is the SAME stall"
+        )
+
+        # The preparation FAILS: ``_settle_preparation`` falls back to restart
+        # and re-arms the pin through ``_arm_pending_reload``. Rung 1 survives.
+        gate.set()
+        clock.advance(2.0)
+        daemon.process_once(_CHANNEL)
+        assert _CHANNEL not in daemon._preparations
+        assert _CHANNEL in daemon._pending_reloads
+        assert daemon._reload_stall_rungs.get(_CHANNEL) == 1, (
+            "a failed preparation after a re-issue is still the same stall"
+        )
+
+        # One re-issue grace past the re-arm: rung 2 -- the restart, not
+        # another re-issue at the full bound.
+        strategy.process.ignore_terminate = False
+        clock.advance(_GRACE_SECONDS + 1.0)
+        daemon.process_once(_CHANNEL)
+        assert _CHANNEL not in daemon._pending_reloads, (
+            "the channel must reach the restart instead of re-issuing forever"
+        )
+        assert strategy.process.returncode == 0, "the wedged worker must be terminated"
+    finally:
+        gate.set()
+        daemon.shutdown_preparation()
+
+
+def test_u67_a_new_stall_after_the_pin_cleared_starts_at_rung_zero(tmp_path: Path) -> None:
+    """The rung belongs to ONE stall episode. Once the pin is really gone the
+    watchdog clears the rung, so a stall that arms afterwards gets the full
+    bound and a fresh re-issue rather than an immediate restart."""
+
+    store = InMemoryEgressStore()
+    store.upsert_config(_config())
+    airing = _plan(tmp_path, _AIRING_LABEL)
+    strategy = _BoundaryStrategy(tmp_path)
+    clock = _Clock()
+    reissue_asks = {"count": 0}
+    holder: dict[str, EgressDaemon] = {}
+
+    def wallclock_provider(channel_id: str):
+        if channel_id in holder["daemon"]._pending_reloads:
+            reissue_asks["count"] += 1
+            return None
+        return airing
+
+    def boundary_provider(channel_id: str, boundary_at: datetime, **kwargs: float):
+        return None
+
+    daemon = EgressDaemon(
+        store,
+        work_dir=tmp_path / "egress",
+        source_plan_provider=wallclock_provider,
+        boundary_source_plan_provider=boundary_provider,
+        encoder_strategy=strategy,
+        monotonic=clock,
+    )
+    holder["daemon"] = daemon
+
+    store.enqueue_command(_start_command())
+    daemon.process_once(_CHANNEL)
+    strategy.process.ignore_terminate = True
+    boundary = datetime.now(UTC)
+    command_id = "rollover-education-0325"
+    daemon.record_rollover_plan_end(_CHANNEL, boundary, command_id=command_id)
+    store.enqueue_command(_reload_command(command_id, boundary))
+    daemon.process_once(_CHANNEL)
+
+    # Reach rung 1.
+    clock.advance(_WATCHDOG_SECONDS + 1.0)
+    daemon.process_once(_CHANNEL)
+    assert daemon._reload_stall_rungs.get(_CHANNEL) == 1
+
+    # The episode ends: the pin is gone by the time the watchdog next looks.
+    daemon._pending_reloads.pop(_CHANNEL, None)
+    clock.advance(2.0)
+    daemon.process_once(_CHANNEL)
+    assert daemon._reload_stall_rungs == {}, "the rung must not outlive its stall episode"
+
+    # A NEW stall now arms. At its expiry it must be treated as rung 0: the
+    # full bound, then one re-issue -- not an immediate restart.
+    asks_before = reissue_asks["count"]
+    daemon._arm_pending_reload(_CHANNEL, store.read_state(_CHANNEL), plan_end_at=None)
+    clock.advance(_WATCHDOG_SECONDS + 1.0)
+    daemon.process_once(_CHANNEL)
+    assert reissue_asks["count"] == asks_before + 1, "the new stall must re-issue, not restart"
+    assert daemon._reload_stall_rungs.get(_CHANNEL) == 1
+    assert strategy.process.returncode is None, "a new stall starts at rung 0, not at the restart"
 
 
 def test_u67_a_healthy_rollover_never_reaches_the_watchdog(tmp_path: Path) -> None:

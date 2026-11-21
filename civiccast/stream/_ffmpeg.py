@@ -625,15 +625,110 @@ _AIR_PATH_PRIORITY_CLASS: Final = 0x4000
 _BACKGROUND_MIN_CORES: Final = 4
 
 
-def _background_cores(available: list[int]) -> list[int] | None:
+def _performance_cores() -> list[int] | None:
+    """Best-effort: the logical processors in this CPU's performance class.
+
+    MSI reload-preparation overrun (2026-11-20): on a hybrid CPU the highest
+    logical processors belong to the E-cores, so the highest-numbered quarter
+    (:func:`_background_cores`) put every background encode on the slow half of
+    the box -- 2.4x realtime there versus 17.5x on the P-cores, and a live
+    89-minute background job ran at 1.14x. Windows reports one efficiency class
+    per CPU set; on the MSI (i7-13620H) the P-cores are logical 0-11 and the
+    E-cores 12-15.
+
+    Measured on the MSI with ``GetSystemCpuSetInformation``: class 0 is
+    logical 12-15 (the E-cores) and class 1 is logical 0-11 (the P-cores), and
+    Microsoft documents that a higher efficiency class has greater performance.
+    So the performance class is the one with the HIGHEST ``EfficiencyClass``
+    value -- not the one holding logical processor 0, which firmware on this
+    box places on a slower class. Returns ``None`` on non-Windows, when the OS
+    reports a single class (a non-hybrid CPU), and on any failure -- the caller
+    then keeps its previous behaviour.
+    """
+    if os.name != "nt":
+        return None
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        # SYSTEM_CPU_SET_INFORMATION (winnt.h): a variable-length array of
+        # Size-byte entries; this layout is the x64 one (32 bytes per entry).
+        class _CpuSet(ctypes.Structure):
+            _fields_ = [
+                ("Id", wintypes.DWORD),
+                ("Group", wintypes.WORD),
+                ("LogicalProcessorIndex", ctypes.c_ubyte),
+                ("CoreIndex", ctypes.c_ubyte),
+                ("LastLevelCacheIndex", ctypes.c_ubyte),
+                ("NumaNodeIndex", ctypes.c_ubyte),
+                ("EfficiencyClass", ctypes.c_ubyte),
+                ("AllFlags", ctypes.c_ubyte),
+                ("Reserved", wintypes.DWORD),
+                ("AllocationTag", ctypes.c_ulonglong),
+            ]
+
+        class _CpuSetInformation(ctypes.Structure):
+            _fields_ = [
+                ("Size", wintypes.DWORD),
+                ("Type", wintypes.DWORD),
+                ("CpuSet", _CpuSet),
+            ]
+
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        needed = wintypes.DWORD(0)
+        kernel32.GetSystemCpuSetInformation(None, 0, ctypes.byref(needed), None, 0)
+        if needed.value == 0:
+            return None
+        buffer = ctypes.create_string_buffer(needed.value)
+        size = wintypes.DWORD(needed.value)
+        if not kernel32.GetSystemCpuSetInformation(buffer, size, ctypes.byref(size), None, 0):
+            return None
+        entry_size = ctypes.sizeof(_CpuSetInformation)
+        by_class: dict[int, list[int]] = {}
+        offset = 0
+        while offset + entry_size <= size.value:
+            entry = _CpuSetInformation.from_buffer_copy(buffer.raw, offset)
+            if entry.Size == 0:
+                break
+            by_class.setdefault(entry.CpuSet.EfficiencyClass, []).append(
+                entry.CpuSet.LogicalProcessorIndex
+            )
+            offset += entry.Size
+        if len(by_class) < 2:
+            return None
+        return sorted(by_class[max(by_class)])
+    except Exception:  # best effort: any failure keeps today's behaviour
+        return None
+
+
+def _background_cores(
+    available: list[int], fast_cores: list[int] | None = None
+) -> list[int] | None:
     """The cores background ffmpeg is pinned to, or None to leave it unpinned.
 
     The highest-numbered quarter of ``available`` (the cores this process may
     run on), at least :data:`_BACKGROUND_MIN_CORES`. A box with that many
     cores or fewer is left unpinned.
+
+    On a hybrid CPU that quarter is taken from the PERFORMANCE cores instead:
+    the plain rule put every background encode on the E-cores (MSI, 2026-11-20:
+    2.4x realtime there against 17.5x on the P-cores, and a live 89-minute
+    background job at 1.14x). The count rule is unchanged. When the performance
+    cores cannot supply that many cores, or the pick would overlap
+    :func:`_half_cores`, today's rule stands.
     """
     if len(available) <= _BACKGROUND_MIN_CORES:
         return None
+    if fast_cores is None:
+        fast_cores = _performance_cores()
+    if fast_cores:
+        fast = sorted(core for core in fast_cores if core in available)
+        count = max(_BACKGROUND_MIN_CORES, len(fast) // 4)
+        if len(fast) >= count:
+            chosen = fast[-count:]
+            half = _half_cores(available)
+            if half is None or not set(chosen) & set(half):
+                return chosen
     count = max(_BACKGROUND_MIN_CORES, len(available) // 4)
     return sorted(available)[-count:]
 

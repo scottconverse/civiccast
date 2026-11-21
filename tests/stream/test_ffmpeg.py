@@ -617,8 +617,11 @@ class TestRunFfmpeg:
         ],
     )
     def test_background_cores_are_the_top_quarter_never_fewer_than_four(
-        self, available: list[int], expected: list[int] | None
+        self, available: list[int], expected: list[int] | None, monkeypatch: pytest.MonkeyPatch
     ) -> None:
+        # A non-hybrid CPU (the helper reports no performance class): the
+        # pre-MSI rule, on any host the suite runs on.
+        monkeypatch.setattr(ffmpeg_module, "_performance_cores", lambda: None)
         """FT-7 (measured on the Beelink, 2026-11-06): h264_mf there is the
         Microsoft software H.264 MFT, which threads across every core and
         ignores ``-threads 1``, so IDLE priority alone still left live
@@ -627,7 +630,10 @@ class TestRunFfmpeg:
         all 16: 19.2x. With no background encode, captions were 3.3 s."""
         assert ffmpeg_module._background_cores(available) == expected
 
-    def test_windows_background_ffmpeg_is_pinned_to_the_background_cores(self) -> None:
+    def test_windows_background_ffmpeg_is_pinned_to_the_background_cores(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(ffmpeg_module, "_performance_cores", lambda: None)
         nt_os = SimpleNamespace(name="nt")
         fake_psutil = _FakePsutil(list(range(16)))
         with (
@@ -667,15 +673,74 @@ class TestRunFfmpeg:
         ],
     )
     def test_half_cores_are_the_lower_half_apart_from_the_background_quarter(
-        self, available: list[int], expected: list[int] | None
+        self,
+        available: list[int],
+        expected: list[int] | None,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """FT-7 (Beelink, 2026-11-06): the air path's speech-leveling program
         mux ran at NORMAL on all 16 cores (56-58 % of the box) because the
         software h264_mf ignores the preparer's half-machine ``-threads``."""
+        monkeypatch.setattr(ffmpeg_module, "_performance_cores", lambda: None)
         assert ffmpeg_module._half_cores(available) == expected
         background = ffmpeg_module._background_cores(available)
         if expected is not None and background is not None:
             assert not set(expected) & set(background)
+
+    def test_hybrid_background_cores_take_the_performance_class(self) -> None:
+        """MSI reload-preparation overrun (2026-11-20): the i7-13620H's 16
+        logical cores are P-cores 0-11 and E-cores 12-15. The top-quarter rule
+        pinned every background encode to 12-15 (2.4x realtime, versus 17.5x on
+        the P-cores); the same count rule over the P-cores gives 8-11."""
+        assert ffmpeg_module._background_cores(list(range(16)), fast_cores=list(range(12))) == [
+            8,
+            9,
+            10,
+            11,
+        ]
+        # No performance class known (non-hybrid, or the helper failed): today's
+        # rule stands, exactly as before.
+        with patch.object(ffmpeg_module, "_performance_cores", lambda: None):
+            assert ffmpeg_module._background_cores(list(range(16))) == [12, 13, 14, 15]
+        # A CPU with only the minimum cores still leaves the child unpinned.
+        assert ffmpeg_module._background_cores(list(range(4)), fast_cores=[0, 1, 2]) is None
+
+    def test_hybrid_performance_pick_never_overlaps_the_half_cores(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The background quarter must stay clear of the air path's half."""
+        # 8 P-cores + 8 E-cores: a top quarter of the P-cores (4-7) would sit
+        # inside the lower half, so today's rule must win instead.
+        cores = ffmpeg_module._background_cores(list(range(16)), fast_cores=list(range(8)))
+        assert cores == [12, 13, 14, 15]
+        assert not set(cores) & set(ffmpeg_module._half_cores(list(range(16))) or [])
+
+        # And through the real pin path: MSI layout pins the child to 8-11.
+        monkeypatch.setattr(ffmpeg_module, "_performance_cores", lambda: list(range(12)))
+        fake_psutil = _FakePsutil(list(range(16)))
+        with (
+            patch.object(ffmpeg_module, "os", SimpleNamespace(name="nt")),
+            patch("civiccast.stream._ffmpeg.shutil.which", return_value="/usr/bin/ffmpeg"),
+            patch(
+                "civiccast.stream._ffmpeg.subprocess.Popen",
+                return_value=_finished_process(pid=555),
+            ),
+            patch("civiccast.stream._ffmpeg.psutil", fake_psutil, create=True),
+        ):
+            run_ffmpeg(["-version"], lower_priority=True)
+        assert fake_psutil.pinned == {555: [8, 9, 10, 11]}
+
+    def test_performance_core_helper_is_none_when_it_cannot_tell(self) -> None:
+        """Best effort: non-Windows, a single efficiency class, or any failure
+        leaves the caller on today's rule."""
+        with patch.object(ffmpeg_module, "os", SimpleNamespace(name="posix")):
+            assert ffmpeg_module._performance_cores() is None
+        # A Windows host where the API call fails: the exception is swallowed.
+        with (
+            patch.object(ffmpeg_module, "os", SimpleNamespace(name="nt")),
+            patch("ctypes.WinDLL", side_effect=OSError("no such api")),
+        ):
+            assert ffmpeg_module._performance_cores() is None
 
     def test_half_cores_pins_a_normal_priority_windows_run(self) -> None:
         nt_os = SimpleNamespace(name="nt")

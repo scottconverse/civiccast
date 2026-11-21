@@ -97,6 +97,7 @@ from civiccast.egress.models import (
 from civiccast.egress.pacing import UniformPacingLatch
 from civiccast.egress.preparer import (
     SourcePreparationReport,
+    air_preparation_timeout_seconds,
     preparation_timeout_seconds_from_env,
 )
 from civiccast.egress.process_identity import verify_and_kill_process
@@ -6487,7 +6488,12 @@ class EgressDaemon:
                 preparation_report = yield _PreparationRequest(
                     source_plan,
                     config,
-                    bound_seconds=_content_reload_preparation_bound_seconds(rollover_plan_end_at),
+                    # The longest segment is the one whose scaled per-call
+                    # budget the whole-job bound has to cover.
+                    bound_seconds=_content_reload_preparation_bound_seconds(
+                        rollover_plan_end_at,
+                        max(segment.duration_seconds for segment in source_plan.segments),
+                    ),
                 )
                 source_plan = preparation_report.source_plan
                 prepared_plan_dir = preparation_report.plan_dir
@@ -7154,8 +7160,20 @@ class EgressDaemon:
             )
         else:
             bound = _reload_stall_bound_seconds(plan_end_at)
+        # MSI reload-preparation overrun (2026-11-20): arming a pin does NOT
+        # start a new stall episode. A declined reload, and the watchdog's own
+        # re-issue, both come back through here while the SAME stall is still
+        # running, so the rung must survive: clearing it after the re-issue of a
+        # long reload put the pin back on rung 0 -- the re-issue's preparation
+        # failed at 300s, the rung reset, and the watchdog re-issued again
+        # instead of ever reaching the restart rung, leaving the channel on its
+        # slate. The round-1 fix (no clear on a FAILED preparation) was not
+        # enough: the settlement branch of ``_poll_reload_stall_watchdog`` also
+        # cleared the rung, so the same reset happened while the re-issue's
+        # preparation was in flight. The rung now ends with the episode: when the
+        # pin is gone (``_poll_reload_stall_watchdog``) or at a real return to
+        # air (``_start``).
         self._reload_stall_bound_s[channel_id] = bound
-        self._reload_stall_rungs.pop(channel_id, None)
 
     def _poll_reload_stall_watchdog(self, channel_id: str) -> None:
         """U67: recover a channel whose ``_pending_reloads`` pin has outlived
@@ -7201,9 +7219,13 @@ class EgressDaemon:
         if self.has_pending_reload_settlement(channel_id):
             # Real work is outstanding: a preparation is running, or a reload
             # this daemon accepted is still settling. The pin is being driven,
-            # not stuck. Restart the clock for whatever comes after it.
+            # not stuck. Restart the clock for whatever comes after it, but keep
+            # the rung: if this re-issue's preparation fails, ``_arm_pending_reload``
+            # re-arms the SAME stall, and it must still reach the restart rung
+            # rather than being pushed back to rung 0 and re-issued forever. The
+            # rung ends with the episode -- the pin-gone branch below, or a real
+            # return to air (``_start``).
             self._reload_stall_since[channel_id] = now
-            self._reload_stall_rungs.pop(channel_id, None)
             return
         since = self._reload_stall_since.get(channel_id)
         if since is None:
@@ -7241,14 +7263,14 @@ class EgressDaemon:
                 _TRANSITIONING_WATCHDOG_REISSUE_GRACE_SECONDS,
             )
             self._request_reload(channel_id)
-            # A re-issue that declines again comes back through
-            # ``_arm_pending_reload``, which resets this pin's clock and clears its
-            # rung -- correct for a NEW stall, wrong here: this is still the SAME
-            # stall, and without restoring the rung the grace below would never
-            # apply and the channel would simply re-issue forever at the full
-            # bound instead of ever reaching the restart. (A re-issue that
-            # SUCCEEDS leaves no pin at all -- ``_reload_steps`` drops it when the
-            # reload arms -- so the first branch above ends the episode.)
+            # A re-issue that declines again, or whose asynchronous preparation
+            # fails, comes back through ``_arm_pending_reload``, which resets this
+            # pin's clock but KEEPS the rung -- this is still the SAME stall
+            # episode, so the grace below applies on the next expiry and the
+            # channel reaches the restart instead of re-issuing forever at the
+            # full bound. (A re-issue that SUCCEEDS leaves no pin at all --
+            # ``_reload_steps`` drops it when the reload arms -- so the first
+            # branch above ends the episode and clears the rung.)
             if channel_id in self._pending_reloads:
                 self._reload_stall_since[channel_id] = now
                 self._reload_stall_rungs[channel_id] = 1
@@ -8005,7 +8027,9 @@ def _process_pid(process: object) -> int | None:
     return getattr(process, "pid", None)
 
 
-def _content_reload_preparation_bound_seconds(plan_end_at: datetime | None) -> float:
+def _content_reload_preparation_bound_seconds(
+    plan_end_at: datetime | None, media_seconds: float | None = None
+) -> float:
     """rc.6.1 Dell bug 2: how long a content reload's preparation may run.
 
     With a recorded rollover horizon, the answer is "until the outgoing plan
@@ -8021,15 +8045,31 @@ def _content_reload_preparation_bound_seconds(plan_end_at: datetime | None) -> f
     ``_CONTENT_RELOAD_PREPARATION_PASSES`` bounded calls plus the grace -- so
     even that path cannot report "accepted" and then sit silent for as long as
     the box is slow.
+
+    MSI reload-preparation overrun (2026-11-20): each of those bounded calls is
+    itself scaled to the media it encodes (``air_preparation_timeout_seconds``),
+    so for a long programme the whole-job bound must cover the scaled per-call
+    budget or it kills the very sequence the per-call fix widened. ``media_seconds``
+    is the longest segment the preparation will encode; the bound is never less
+    than ``_CONTENT_RELOAD_PREPARATION_PASSES`` scaled calls plus the grace. The
+    per-call value already carries its own ceiling, so this cannot grow without
+    limit, and a short programme (or no duration known) keeps today's bound
+    exactly.
     """
 
     timeout = preparation_timeout_seconds_from_env()
+    scaled = air_preparation_timeout_seconds(media_seconds, timeout)
+    passes = _CONTENT_RELOAD_PREPARATION_PASSES
     if plan_end_at is None:
-        return (
-            _CONTENT_RELOAD_PREPARATION_PASSES * timeout + _CONTENT_RELOAD_PREPARATION_GRACE_SECONDS
-        )
-    remaining = (plan_end_at - datetime.now(UTC)).total_seconds()
-    return max(timeout, remaining + _CONTENT_RELOAD_PREPARATION_GRACE_SECONDS)
+        return passes * scaled + _CONTENT_RELOAD_PREPARATION_GRACE_SECONDS
+    bound = max(
+        timeout,
+        (plan_end_at - datetime.now(UTC)).total_seconds()
+        + _CONTENT_RELOAD_PREPARATION_GRACE_SECONDS,
+    )
+    if scaled > timeout:
+        bound = max(bound, passes * scaled + _CONTENT_RELOAD_PREPARATION_GRACE_SECONDS)
+    return bound
 
 
 def _reload_stall_bound_seconds(plan_end_at: datetime | None) -> float:

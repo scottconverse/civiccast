@@ -9291,9 +9291,10 @@ def test_content_reload_preparation_bound_follows_the_rollover_horizon(monkeypat
     now = datetime.now(UTC)
     # No horizon (an operator reload): two bounded passes plus the FT-8 grace.
     assert _content_reload_preparation_bound_seconds(None) == pytest.approx(660.0)
-    # With one: the outgoing plan's end plus the same grace.
+    # With one: the outgoing plan's end plus the same grace (to the second: the
+    # remaining time is measured from a clock the assertion cannot freeze).
     assert _content_reload_preparation_bound_seconds(now + timedelta(seconds=600)) == pytest.approx(
-        660.0
+        660.0, abs=1.0
     )
     # ...but never below one bounded pass, even when the horizon is nearer.
     assert _content_reload_preparation_bound_seconds(now + timedelta(seconds=120)) == pytest.approx(
@@ -9303,6 +9304,57 @@ def test_content_reload_preparation_bound_follows_the_rollover_horizon(monkeypat
     assert _content_reload_preparation_bound_seconds(now - timedelta(seconds=600)) == pytest.approx(
         300.0
     )
+
+
+def test_content_reload_preparation_bound_scales_for_a_long_program(monkeypatch):
+    """MSI reload-preparation overrun (2026-11-20): each ffmpeg call in the
+    sequence is scaled to the media it encodes (``air_preparation_timeout_seconds``),
+    so the whole-job bound must cover that scaled per-call budget for the same
+    number of passes plus the existing grace -- or it kills the very sequence
+    that fix widened. A short programme keeps today's bound exactly."""
+
+    from civiccast.egress.daemon import (
+        _CONTENT_RELOAD_PREPARATION_GRACE_SECONDS,
+        _CONTENT_RELOAD_PREPARATION_PASSES,
+        _content_reload_preparation_bound_seconds,
+    )
+    from civiccast.egress.preparer import (
+        _AIR_CONFORM_TIMEOUT_CEILING_SECONDS,
+        air_preparation_timeout_seconds,
+    )
+
+    monkeypatch.setenv("CIVICAST_EGRESS_PREPARATION_TIMEOUT_SECONDS", "300")
+    now = datetime.now(UTC)
+
+    # A short programme: the scaled per-call bound is the flat base, so the
+    # bound is byte-for-byte today's.
+    for seconds in (None, 0.0, 120.0, 600.0):
+        assert _content_reload_preparation_bound_seconds(None, seconds) == pytest.approx(660.0)
+        assert _content_reload_preparation_bound_seconds(
+            now + timedelta(seconds=600), seconds
+        ) == pytest.approx(660.0)
+        assert _content_reload_preparation_bound_seconds(
+            now + timedelta(seconds=120), seconds
+        ) == pytest.approx(300.0)
+
+    # A 5.3-hour programme (the longest real one): its per-call budget is the
+    # air ceiling, and the whole-job bound covers two of those plus the grace.
+    long_seconds = 5.3 * 3600.0
+    per_call = air_preparation_timeout_seconds(long_seconds, 300.0)
+    assert per_call == _AIR_CONFORM_TIMEOUT_CEILING_SECONDS
+    expected = (
+        _CONTENT_RELOAD_PREPARATION_PASSES * per_call + _CONTENT_RELOAD_PREPARATION_GRACE_SECONDS
+    )
+    assert _content_reload_preparation_bound_seconds(None, long_seconds) == pytest.approx(expected)
+    assert _content_reload_preparation_bound_seconds(
+        now + timedelta(seconds=120), long_seconds
+    ) == pytest.approx(expected)
+    # The ceiling still holds: the bound cannot grow past the scaled passes.
+    assert _content_reload_preparation_bound_seconds(None, 24 * 3600.0) == pytest.approx(expected)
+    # A horizon further out than that still wins, as before.
+    assert _content_reload_preparation_bound_seconds(
+        now + timedelta(hours=2), long_seconds
+    ) == pytest.approx(7200.0 + 60.0, abs=30.0)
 
 
 def test_reload_preparation_past_its_bound_fails_clearly_and_falls_back(tmp_path, caplog):
