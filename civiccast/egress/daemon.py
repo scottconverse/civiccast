@@ -328,6 +328,27 @@ _SLOW_START_EXIT_CODES = frozenset(
 _PENDING_RELOAD_SETTLE_DEADLINE_S = 960.0
 _ROLLOVER_EXTENSION_TOLERANCE_S = 0.25
 
+
+def _switch_wait_seconds(request: EncoderStartRequest) -> float:
+    """Settlement grace: seconds until the switch ``request`` says is ahead.
+
+    ``switch_at_unix`` (scheduled pre-arm) names the switch instant;
+    ``defer_watchdog_not_before_unix`` (deferred rollover) names the plan end
+    plus 60 s. Either is later than the reload can legitimately still be
+    waiting, so the flat settlement deadline is extended by it. Neither field
+    changes WHEN the switch happens -- this only stops the daemon calling a
+    legitimately waiting reload lost.
+    """
+    wait_until = (
+        request.switch_at_unix
+        if request.switch_at_unix is not None
+        else request.defer_watchdog_not_before_unix
+    )
+    if wait_until is None:
+        return 0.0
+    return max(0.0, wait_until - time.time())
+
+
 # U26 defect 2 (live, government, 2026-09-25 02:58 MDT): a reload that resolves
 # the schedule at wall-clock now can land on the CLOSING SECONDS of the item
 # that is due. With the GStreamer engine selected the production provider is
@@ -585,15 +606,12 @@ class _PendingReloadSettlement(NamedTuple):
     #: slate-replan suppression -- describe THIS plan and no other.
     chained_program_end_at: datetime | None = None
     switch_at_unix: float | None = None
-    scheduled_wait_seconds: float = 0.0
-    #: True only for the slate-first pre-arm (``scheduled_start_at`` was given:
-    #: the channel is on the slate and the worker holds the next programme's
-    #: preroll until its due instant). ``switch_at_unix`` is also carried by an
-    #: ordinary deferred ON_AIR rollover (so a lead longer than the engine's
-    #: watchdog cannot cut the live programme), and the settlement logic must
-    #: not treat THAT as a scheduled hand-off -- see
-    #: ``has_pending_scheduled_start`` and ``_poll_reload_settlement``.
-    scheduled_start: bool = False
+    #: rc.8 MSI round 4: extra settlement time for a switch the request itself
+    #: says is still ahead -- the scheduled pre-arm's due instant or a deferred
+    #: rollover's plan end. Without it a rollover dispatched a full lead (up to
+    #: ~1020 s) before the boundary would be judged lost at the flat 960 s
+    #: deadline and restarted, cutting the programme the lead exists to protect.
+    settle_grace_seconds: float = 0.0
 
 
 class _TailFloorOutcome(NamedTuple):
@@ -2130,8 +2148,10 @@ class EgressDaemon:
             freeze.escalated_for_pid = None
 
     def has_pending_scheduled_start(self, channel_id: str) -> bool:
+        # ``switch_at_unix`` is sent only by the scheduled-slate pre-arm, so its
+        # presence is exactly the scheduled hand-off -- see ``_reload_steps``.
         pending = self._pending_reload_settle.get(channel_id)
-        return pending is not None and pending.scheduled_start
+        return pending is not None and pending.switch_at_unix is not None
 
     def can_prearm_slate_program(self, channel_id: str) -> bool:
         return bool(
@@ -6602,21 +6622,24 @@ class EgressDaemon:
             plan_end_at=rollover_plan_end_at,
             now=datetime.now(UTC),
         )
-        # rc.8 MSI round 3 (2026-11-21): a deferred switch waits for the
-        # outgoing leg's own EOS, and the engine bounds that wait with its
-        # ``defer_switch_timeout_s`` (900s) measured from the new leg becoming
-        # ready. A rollover lead longer than that watchdog (now possible: a
-        # cold 1800s window needs ~1020s at the 2s-per-second design speed)
-        # would have the new leg ready ~1020s early, and the watchdog would
-        # FORCE the switch 900s in -- cutting the live programme ~120s short.
-        # Hand the engine the boundary it is actually waiting for. With it,
-        # ``_force_deferred_boundary`` refuses before ``switch_at_unix`` and
-        # ``_on_scheduled_start`` waits for it. The scheduled-slate path
-        # already supplied its own boundary; a deferred rollover is the other
-        # case that has one (``rollover_plan_end_at``).
+        # rc.8 MSI round 4 (2026-11-21): ``switch_at_unix`` is the SWITCH time
+        # and belongs to the scheduled-slate pre-arm only (the slate is on air,
+        # so there is no outgoing EOS to wait for). An ordinary deferred
+        # rollover must stay driven by the outgoing leg's real EOS: round 3
+        # sent the plan end here too, which made ``_commit_reload`` wait for the
+        # clock after an early EOS (a gap on air) and cut a late-running leg at
+        # the boundary.
+        #
+        # A cold 1800 s window's rollover lead is ~1020 s, longer than the
+        # engine's 900 s no-EOS watchdog, so the new leg can be ready early and
+        # the watchdog would force the switch before the programme ends. Hand
+        # the engine a separate, watchdog-only floor at the plan end + 60 s:
+        # the watchdog fires at the later of (ready + 900 s) and that floor,
+        # while the EOS-driven commit and the stall rescue ignore it.
         switch_boundary_at = scheduled_start_at
-        if defer_switch and switch_boundary_at is None:
-            switch_boundary_at = rollover_plan_end_at
+        defer_watchdog_not_before_unix: float | None = None
+        if defer_switch and scheduled_start_at is None and rollover_plan_end_at is not None:
+            defer_watchdog_not_before_unix = rollover_plan_end_at.timestamp() + 60.0
         request = EncoderStartRequest(
             channel_id=channel_id,
             source_plan=source_plan,
@@ -6675,6 +6698,7 @@ class EgressDaemon:
             # ``_request_reload``'s docstrings for the exact matching rule.
             switch_at_end_of_current=defer_switch,
             switch_at_unix=switch_boundary_at.timestamp() if switch_boundary_at else None,
+            defer_watchdog_not_before_unix=defer_watchdog_not_before_unix,
         )
         # F3(b), owner-authorized 2026-09-24: an IMMEDIATE (non-deferred) reload
         # out of FALLBACK_SLATE must not attempt the in-place selector swap.
@@ -6836,12 +6860,7 @@ class EgressDaemon:
             rollover_plan_end_at=rollover_plan_end_at,
             chained_program_end_at=chained_program_end_at,
             switch_at_unix=request.switch_at_unix,
-            scheduled_wait_seconds=(
-                max(0.0, request.switch_at_unix - time.time())
-                if request.switch_at_unix is not None
-                else 0.0
-            ),
-            scheduled_start=scheduled_start_at is not None,
+            settle_grace_seconds=_switch_wait_seconds(request),
         )
         _LOG.info(
             "Seamless content-reload accepted for %s (reload_id=%s, switch_at_end_of_current=%s); "
@@ -7088,11 +7107,7 @@ class EgressDaemon:
                 self._commit_reload_settlement(channel_id, pending)
                 return
             if isinstance(result, str) and result.startswith("aborted:"):
-                if (
-                    pending.scheduled_start
-                    and pending.switch_at_unix is not None
-                    and time.time() < pending.switch_at_unix
-                ):
+                if pending.switch_at_unix is not None and time.time() < pending.switch_at_unix:
                     self._discard_pending_reload_settlement(channel_id, reason=result)
                     self._keep_slate_after_failed_hand_off(channel_id)
                     return
@@ -7128,7 +7143,7 @@ class EgressDaemon:
             )
             self._fall_back_to_restart_reload(channel_id, plan_end_at=pending.rollover_plan_end_at)
             return
-        settle_deadline = _PENDING_RELOAD_SETTLE_DEADLINE_S + pending.scheduled_wait_seconds
+        settle_deadline = _PENDING_RELOAD_SETTLE_DEADLINE_S + pending.settle_grace_seconds
         if self._monotonic() - pending.since >= settle_deadline:
             _LOG.warning(
                 "Seamless content-reload for %s reported no settlement within %.0fs "

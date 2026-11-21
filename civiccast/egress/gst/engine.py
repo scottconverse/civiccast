@@ -5733,7 +5733,9 @@ class GstPlayoutEngine:
                 with reload_path.open(encoding="utf-8") as handle:
                     graph_json = handle.read()
                     new_graph = graph_from_json(graph_json)
-                    switch_at_unix = json.loads(graph_json).get("switch_at_unix")
+                    document = json.loads(graph_json)
+                    switch_at_unix = document.get("switch_at_unix")
+                    defer_watchdog_not_before_unix = document.get("defer_watchdog_not_before_unix")
                 with contextlib.suppress(OSError):
                     reload_path.unlink()  # one-shot graph file: consume it after read
 
@@ -5762,6 +5764,11 @@ class GstPlayoutEngine:
                     switch_at_end_of_current=reload_switch_is_deferred(command[1]),
                     on_settled=_on_settled,
                     **({"switch_at_unix": switch_at_unix} if switch_at_unix is not None else {}),
+                    **(
+                        {"defer_watchdog_not_before_unix": defer_watchdog_not_before_unix}
+                        if defer_watchdog_not_before_unix is not None
+                        else {}
+                    ),
                 )
                 # BLOCKER fix: a content-reload must also re-apply the graphics-overlay
                 # leg (station bug / lower-third) from the SAME reloaded graph — reload
@@ -5815,6 +5822,7 @@ class GstPlayoutEngine:
         switch_at_end_of_current: bool = False,
         on_settled: Callable[[bool, str | None], None] | None = None,
         switch_at_unix: float | None = None,
+        defer_watchdog_not_before_unix: float | None = None,
     ) -> None:
         """Replace the program leg (source index 0) with ``new_leg`` seamlessly.
 
@@ -5928,16 +5936,22 @@ class GstPlayoutEngine:
         that dispatch path defer its ack until the reload genuinely lands one way or
         the other. A caller that does not pass it (the POSIX FIFO dispatch path,
         ``_dispatch_control``, which was always fire-and-forget) is unaffected."""
-        if switch_at_unix is not None:
-            import math
-
-            if (
-                isinstance(switch_at_unix, bool)
-                or not isinstance(switch_at_unix, (int, float))
-                or not math.isfinite(switch_at_unix)
-                or not switch_at_end_of_current
-            ):
-                raise ValueError("A scheduled start requires a finite UTC time and a held reload.")
+        if switch_at_unix is not None and (
+            isinstance(switch_at_unix, bool)
+            or not isinstance(switch_at_unix, (int, float))
+            or not math.isfinite(switch_at_unix)
+            or not switch_at_end_of_current
+        ):
+            raise ValueError("A scheduled start requires a finite UTC time and a held reload.")
+        if defer_watchdog_not_before_unix is not None and (
+            isinstance(defer_watchdog_not_before_unix, bool)
+            or not isinstance(defer_watchdog_not_before_unix, (int, float))
+            or not math.isfinite(defer_watchdog_not_before_unix)
+            or not switch_at_end_of_current
+        ):
+            raise ValueError(
+                "A deferred watchdog delay requires a finite UTC time and a held reload."
+            )
         if self.selector is None or not self.selector_sink_pads:
             raise RuntimeError("engine not built; cannot reload")
         if getattr(self, "_stopping", False):
@@ -6049,6 +6063,10 @@ class GstPlayoutEngine:
             # outgoing-EOS condition starts satisfied for an immediate switch.
             "switch_at_end_of_current": switch_at_end_of_current,
             "switch_at_unix": switch_at_unix,
+            # rc.8 MSI round 4: delays ONLY ``_on_defer_switch_timeout``. It is
+            # not a switch time -- ``_commit_reload`` and the stall rescue keep
+            # being driven by the outgoing leg's real EOS.
+            "defer_watchdog_not_before_unix": defer_watchdog_not_before_unix,
             "new_leg_ready": False,
             # U41: a boundary-aligned switch normally waits for the outgoing leg's
             # own EOS. After ``_hold_slate_for_plan_eos`` there is no such EOS to
@@ -6277,8 +6295,16 @@ class GstPlayoutEngine:
             )
             return False
         if pending["switch_at_end_of_current"] and not pending["old_leg_eos"]:
+            # rc.8 MSI round 4: fire at the LATER of (ready + timeout) and (the
+            # recorded boundary + 60 s). The second term only exists so a lead
+            # longer than the timeout cannot cut the live programme early; it
+            # never delays the EOS-driven commit or the stall rescue.
+            delay_s = max(1.0, float(self.defer_switch_timeout_s))
+            not_before = pending.get("defer_watchdog_not_before_unix")
+            if not_before is not None:
+                delay_s = max(delay_s, not_before - time.time())
             pending["defer_timeout_id"] = GLib.timeout_add_seconds(
-                max(1, int(self.defer_switch_timeout_s)), self._on_defer_switch_timeout, txn_id
+                max(1, math.ceil(delay_s)), self._on_defer_switch_timeout, txn_id
             )
             return False
         if pending.get("tail_padding_done", True):
@@ -7241,6 +7267,16 @@ class GstPlayoutEngine:
         if pending is None or pending.get("txn_id") != txn_id:
             return False
         pending["defer_timeout_id"] = None
+        # rc.8 MSI round 4: an early timer (a GLib source armed before the
+        # boundary was known, or a clock step) re-arms rather than forcing.
+        not_before = pending.get("defer_watchdog_not_before_unix")
+        if not_before is not None:
+            remaining = not_before - time.time()
+            if remaining > 0:
+                pending["defer_timeout_id"] = GLib.timeout_add_seconds(
+                    max(1, math.ceil(remaining)), self._on_defer_switch_timeout, txn_id
+                )
+                return False
         self._force_deferred_boundary(
             txn_id,
             reason=(

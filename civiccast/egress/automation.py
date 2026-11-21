@@ -1056,8 +1056,9 @@ class ChannelAutomationService:
     # pessimistic 2.0x the preparer budgets both the air path and a warm
     # from: below every rate measured on any supported box. A lead longer than
     # the engine's defer watchdog is safe because a deferred switch waits for
-    # the outgoing plan's own boundary (``switch_at_unix``), not for the
-    # watchdog -- see ``_check_plan_rollover`` and ``engine._on_scheduled_start``.
+    # the outgoing leg's real EOS, and the daemon holds that watchdog until
+    # 60 s past the plan end (``defer_watchdog_not_before_unix``) -- see
+    # ``_check_plan_rollover`` and ``_try_content_reload``.
     # A CACHED item keeps the short lead: its preparation is a cache hit, not
     # a cold whole-asset conform, so the asset-derived term does not apply.
     _ROLLOVER_CONFORM_REALTIME_FACTOR = AIR_CONFORM_DESIGN_SPEED_RPS
@@ -1854,11 +1855,12 @@ class ChannelAutomationService:
         Past that point the watchdog (``engine.py``'s
         ``_on_defer_switch_timeout``) can force the switch to whatever leg is
         armed before the outgoing plan reaches its own end -- UNLESS the
-        reload carries its boundary as ``switch_at_unix``, which the daemon
-        now does for a deferred rollover (``_try_content_reload``). This
-        warning therefore reports the configuration, not a predicted cut: a
-        rollover with a recorded boundary waits for it, and a reload without
-        one falls back to the watchdog. The value is still USED as given: this
+        reload carries the plan end as ``defer_watchdog_not_before_unix``,
+        which the daemon sends for a deferred rollover with a recorded horizon
+        (``_try_content_reload``). This warning therefore reports the
+        configuration, not a predicted cut: a rollover with a recorded horizon
+        waits at least until 60 s past it, and a reload without one falls back
+        to the watchdog. The value is still USED as given: this
         warns, it does not clamp. Silently shortening an operator's explicit
         ``ROLLOVER_LEAD_ENV`` would reinstate exactly the failure the lead
         exists to prevent, and clamping the computed default would make the

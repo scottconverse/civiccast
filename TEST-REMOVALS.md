@@ -53,3 +53,15 @@ every window of a long programme cold, so it was removed.
 | Old test | Replaced by | Why | Run |
 |---|---|---|---|
 | `test_a_plan_warm_that_cannot_finish_before_airtime_fails_once_quickly` | `test_a_long_programme_already_airing_is_still_warmed_for_its_later_windows` and `test_a_warm_that_cannot_finish_before_airtime_still_runs_for_later_airings` | Both cases now assert the warm runs (a whole-asset cache entry serves the programme's later 1800 s windows) and that a started airing sorts behind every future one. | `pytest tests/egress/test_preparer.py` |
+
+## 2026-11-21 — rc.8 MSI round 4: the deferred switch is EOS-driven again
+
+Round 3 sent a deferred rollover's plan end as `switch_at_unix`, a field that
+means "switch at this wall-clock time". Two tests pinned that shape. Both were
+replaced in place with tests that pin the real contract: the outgoing leg's
+EOS drives the commit, and the plan end only delays the 900 s no-EOS watchdog.
+
+| Old test | Replaced by | Why | Run |
+|---|---|---|---|
+| `tests/egress/test_daemon.py::test_a_deferred_rollover_gives_the_engine_its_boundary` | `test_a_deferred_rollover_delays_only_the_watchdog_and_never_the_switch` | An ordinary deferred rollover must send no `switch_at_unix`; it sends `defer_watchdog_not_before_unix` at plan end + 60 s instead. | `pytest tests/egress/test_daemon.py` |
+| `tests/egress/test_gst_engine_reload_commit_ordering.py::test_a_lead_longer_than_the_defer_watchdog_cannot_cut_the_program_early` | `test_the_watchdog_fires_at_the_later_of_900s_and_the_boundary_plus_60s` (plus `test_an_old_leg_eos_before_the_boundary_commits_at_the_eos`, `test_a_stalled_old_leg_before_the_boundary_is_still_rescued`, `test_a_request_with_no_defer_watchdog_field_behaves_as_before`) | The old test proved a `switch_at_unix` guard; the new shape proves the watchdog fires at the later of ready+900 s and boundary+60 s, while an early EOS and the stall rescue are unaffected. | `pytest tests/egress/test_gst_engine_reload_commit_ordering.py` |

@@ -1434,10 +1434,12 @@ class _FakeContentReloadStrategy:
         # can pin daemon.py's should_defer_switch wiring (_try_content_reload
         # sets EncoderStartRequest.switch_at_end_of_current).
         self.switch_at_end_of_current_calls: list[bool] = []
-        # rc.8 MSI round 3: the boundary a deferred switch must wait for, so a
-        # lead longer than the engine's 900s watchdog cannot cut the live
-        # programme early.
+        # rc.8 MSI round 4: ``switch_at_unix`` is the scheduled-slate pre-arm's
+        # wall-clock switch point only. An ordinary deferred rollover is driven
+        # by the outgoing leg's EOS and only delays the 900s no-EOS watchdog,
+        # which is what ``defer_watchdog_not_before_unix`` bounds.
         self.switch_at_unix_calls: list[float | None] = []
+        self.defer_watchdog_not_before_unix_calls: list[float | None] = []
 
     def start(self, request: EncoderStartRequest) -> EncoderStartResult:
         process = self._processes.pop(0)
@@ -1465,6 +1467,7 @@ class _FakeContentReloadStrategy:
         self.reload_ids.append(command_id)
         self.switch_at_end_of_current_calls.append(request.switch_at_end_of_current)
         self.switch_at_unix_calls.append(request.switch_at_unix)
+        self.defer_watchdog_not_before_unix_calls.append(request.defer_watchdog_not_before_unix)
         if self._reload_exc is not None:
             raise self._reload_exc
         if self._reload_ok and self._auto_settle:
@@ -1723,20 +1726,17 @@ def test_content_reload_defers_switch_for_an_on_air_reload_with_no_override(
     assert strategy.switch_at_end_of_current_calls == [True]
 
 
-def test_a_deferred_rollover_gives_the_engine_its_boundary(
+def test_a_deferred_rollover_delays_only_the_watchdog_and_never_the_switch(
     tmp_path: Path,
 ) -> None:
-    """rc.8 MSI round 3 (item 2): a rollover lead longer than the engine's 900s
-    defer-switch watchdog must not be able to cut the live programme short.
+    """rc.8 MSI round 4: an ordinary deferred ON_AIR rollover is driven by the
+    outgoing leg's real EOS.
 
-    The watchdog fires ``defer_switch_timeout_s`` after the new leg is ready
-    and FORCES the switch. A cold 1800 s window's lead is now ~1020 s, so the
-    new leg can be ready ~1020 s early and the watchdog would cut ~120 s into
-    the outgoing programme. The engine already refuses to force before
-    ``switch_at_unix`` (``_force_deferred_boundary``'s guard and
-    ``_on_scheduled_start``); the daemon must actually send it. Previously only
-    the scheduled-slate path supplied one, so an ordinary ON_AIR rollover had
-    no boundary at all."""
+    Round 3 sent the rollover boundary as ``switch_at_unix``. That field means
+    "switch at this wall-clock time", so an old leg reaching EOS early waited
+    for the clock (a gap on air) and an old leg running late was cut at the
+    boundary. The boundary must instead only delay the 900 s no-EOS watchdog,
+    by 60 s past the plan end, and it must reach the worker on its own field."""
 
     store = InMemoryEgressStore()
     store.upsert_config(_config())
@@ -1764,15 +1764,25 @@ def test_a_deferred_rollover_gives_the_engine_its_boundary(
     daemon.process_once("gov")
 
     assert strategy.switch_at_end_of_current_calls == [True]
-    assert strategy.switch_at_unix_calls == [pytest.approx(boundary.timestamp())], (
-        "a deferred rollover must hand the engine the boundary it waits for"
+    assert strategy.switch_at_unix_calls == [None], (
+        "an EOS-driven deferred rollover must not send a wall-clock switch time"
+    )
+    assert strategy.defer_watchdog_not_before_unix_calls == [
+        pytest.approx(boundary.timestamp() + 60.0)
+    ], "the no-EOS watchdog must be held until 60 s past the plan end"
+    # A lead this long outlives the flat 960 s settlement deadline, so the
+    # daemon must not judge the still-waiting reload lost and restart it.
+    pending = daemon._pending_reload_settle["gov"]  # type: ignore[attr-defined]
+    assert pending.settle_grace_seconds == pytest.approx(
+        (boundary - datetime.now(UTC)).total_seconds() + 60.0, abs=5.0
     )
 
 
 def test_a_reload_with_no_recorded_boundary_sends_no_switch_deadline(tmp_path: Path) -> None:
     """The counterpart: with no horizon there is nothing to wait for, so the
     ordinary ON_AIR deferred reload keeps its previous shape (no
-    ``switch_at_unix``) -- this change must not invent a deadline."""
+    ``switch_at_unix`` and no watchdog delay) -- this change must not invent a
+    deadline."""
 
     store = InMemoryEgressStore()
     store.upsert_config(_config())
@@ -1793,6 +1803,51 @@ def test_a_reload_with_no_recorded_boundary_sends_no_switch_deadline(tmp_path: P
 
     assert strategy.switch_at_end_of_current_calls == [True]
     assert strategy.switch_at_unix_calls == [None]
+    assert strategy.defer_watchdog_not_before_unix_calls == [None]
+
+
+def test_the_scheduled_slate_prearm_still_switches_at_its_wall_clock_time(
+    tmp_path: Path,
+) -> None:
+    """The scheduled-slate pre-arm keeps ``switch_at_unix`` unchanged: the
+    slate is on air, so there is no outgoing EOS to wait for, and its due
+    instant IS the switch point."""
+
+    store = InMemoryEgressStore()
+    store.upsert_config(_config())
+    processes = [_FakeProcess(pid=111)]
+    started: list[_FakeProcess] = [processes[0]]
+    strategy = _FakeContentReloadStrategy(processes, started)
+    daemon = EgressDaemon(
+        store,
+        work_dir=tmp_path,
+        source_plan_provider=lambda _cid: _source_plan_with_label(tmp_path, "Due program"),
+        encoder_strategy=strategy,
+    )
+    daemon._processes["gov"] = processes[0]  # type: ignore[attr-defined]
+    store.write_state(
+        EgressStateRow(
+            channel_id="gov",
+            state="FALLBACK_SLATE",
+            current_source_label="CivicCast slate",
+            updated_at=datetime(2026, 6, 12, 6, 0, tzinfo=UTC),
+        )
+    )
+    boundary = datetime.now(UTC) + timedelta(minutes=10)
+
+    state = store.read_state("gov")
+    assert state is not None
+    applied = daemon._try_content_reload(  # type: ignore[attr-defined]
+        "gov",
+        state,
+        processes[0],
+        rollover_plan_end_at=boundary,
+        scheduled_start_at=boundary,
+    )
+
+    assert applied is True
+    assert strategy.switch_at_unix_calls == [pytest.approx(boundary.timestamp())]
+    assert strategy.defer_watchdog_not_before_unix_calls == [None]
 
 
 @pytest.mark.parametrize("generated_slate", [False, True])
