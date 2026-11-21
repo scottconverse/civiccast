@@ -1247,7 +1247,9 @@ def test_native_marker_collections_match_the_workflow_floors() -> None:
     # Resolving SDDL alias SIDs in the bin-ACL read-back check (PR #377
     # follow-up) adds six portable cases and one Windows-only seam case,
     # measured by this test's own collection: 2265 / 2537.
-    assert (collect("not windows_only"), collect()) == (2265, 2537)
+    # Pinning the WebView2 offline installer (PR #385) adds five portable
+    # cases, measured by this test's own collection: 2270 / 2542.
+    assert (collect("not windows_only"), collect()) == (2270, 2542)
 
 
 def test_linux_unit_job_runs_native_tests_once_in_the_dedicated_pure_lane() -> None:
