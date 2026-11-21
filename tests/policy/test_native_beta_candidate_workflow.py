@@ -668,6 +668,39 @@ def test_native_beta_candidate_workflow_installs_the_vc_runtime_before_the_pack_
         )
 
 
+def test_native_beta_candidate_workflow_pins_the_webview2_offline_installer() -> None:
+    """The fwlink is not a pin: it served 294,099,168 bytes on 2026-11-20.
+
+    Tauri's offlineInstaller mode downloads whatever the fwlink resolves to
+    unless its cache entry already exists, and rc.7's installer was
+    215,195,856 bytes. The workflow must supply the reviewed file from the
+    local mirror so the build script seeds Tauri's cache with it.
+    """
+
+    _, workflow = _workflow()
+    steps = workflow["jobs"]["build-native-beta"]["steps"]
+    names = [step["name"] for step in steps]
+
+    recover_name = "Recover the exact reviewed WebView2 offline installer"
+    assert recover_name in names, (
+        "the WebView2 offline installer must come from the reviewed local mirror; "
+        "an unpinned fwlink download blows the 300 MB bootstrap gate"
+    )
+    recover = steps[names.index(recover_name)]["run"]
+    assert "MicrosoftEdgeWebView2RuntimeInstallerX64.exe" in recover
+    assert "runtime-artifact-mirror" in recover
+    assert "215195856" in recover
+    assert "1d1c838e5971343c060415da7c630c3c1ca7ad33fbb61cca660f3c1122f4cca8" in recover
+    assert "Invoke-WebRequest" not in recover, (
+        "the reviewed installer must come from the mirror, never the internet"
+    )
+
+    build_idx = names.index("Build the native bootstrap with the release trust root")
+    assert names.index(recover_name) < build_idx
+    build = steps[build_idx]["run"]
+    assert "--webview2-offline-installer-x64 $env:WEBVIEW2_OFFLINE_INSTALLER_X64" in build
+
+
 def _assert_self_hosted_dotnet_sdk_provisioning(job: dict[str, object]) -> None:
     """Regression guard for candidate run 32838619949.
 

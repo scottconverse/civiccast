@@ -51,6 +51,7 @@ the lock's byte length and hash before use. No new bulk rehash was performed her
 | `postgresql-17.10-2-windows-x64-binaries.zip` | 333,927,270 | Bundled database binaries |
 | `ollama-windows-amd64-v0.30.6.zip` | 1,456,569,673 | Bundled product Ollama runtime |
 | `ollama-LICENSE-v0.30.6.txt` | 1,058 | Required license notice |
+| `MicrosoftEdgeWebView2RuntimeInstallerX64.exe` | 215,195,856 | Reviewed WebView2 offline installer Tauri embeds in setup.exe (SHA-256 `1d1c838e5971343c060415da7c630c3c1ca7ad33fbb61cca660f3c1122f4cca8`, Authenticode-valid Microsoft signature); the Microsoft fwlink is not a pin |
 
 The FFmpeg mirror subdirectory is
 `e9712ffbdb03ef71bbab660c75b835bfe698ef6fad0247c76d8d394a39a3db63`.

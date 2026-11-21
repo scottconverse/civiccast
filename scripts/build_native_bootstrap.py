@@ -12,6 +12,8 @@ import json
 import os
 import shutil
 import subprocess
+import urllib.request
+from collections.abc import Callable
 from pathlib import Path
 from typing import NoReturn
 
@@ -24,6 +26,21 @@ NATIVE_CONFIG = SRC_TAURI / "tauri.native.conf.json"
 VC_REDIST_RESOURCE = SRC_TAURI / "resources" / "vc_redist.x64.exe"
 VC_REDIST_EXPECTED_BYTES = 25_635_768
 VC_REDIST_EXPECTED_SHA256 = "cc0ff0eb1dc3f5188ae6300faef32bf5beeba4bdd6e8e445a9184072096b713b"
+# Tauri's `offlineInstaller` mode has no local-path option: it resolves the
+# Microsoft fwlink with a HEAD request to learn the CDN GUID/filename, then
+# downloads the runtime unless that exact cache entry already exists
+# (tauri-bundler's `download_webview2_offline_installer`). The unpinned fwlink
+# silently returns a different build over time (294,099,168 bytes on
+# 2026-11-20 vs the 215,195,856 bytes rc.7 shipped), which pushed setup.exe
+# past the 300 MB gate. So pin the bytes here, seed Tauri's cache entry
+# before the build, and fail if the bundler would have downloaded instead.
+WEBVIEW2_INSTALLER_FILENAME = "MicrosoftEdgeWebView2RuntimeInstallerX64.exe"
+WEBVIEW2_OFFLINE_INSTALLER_URL = "https://go.microsoft.com/fwlink/?linkid=2124701"
+WEBVIEW2_URL_PREFIX = "https://msedge.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/"
+WEBVIEW2_OFFLINE_INSTALLER_EXPECTED_BYTES = 215_195_856
+WEBVIEW2_OFFLINE_INSTALLER_EXPECTED_SHA256 = (
+    "1d1c838e5971343c060415da7c630c3c1ca7ad33fbb61cca660f3c1122f4cca8"
+)
 # The station resources the installer embeds so a DOWNLOAD-ONLY install or
 # upgrade of setup.exe alone carries the signed station index, placeholder
 # core pack, and mandatory local Whistle model/engine needed by activation.
@@ -302,6 +319,145 @@ def validate_vc_redist(
     return resolved
 
 
+def validate_webview2_offline_installer(
+    path: Path,
+    *,
+    expected_bytes: int | None = None,
+    expected_sha256: str | None = None,
+) -> Path:
+    """Require the reviewed silent WebView2 offline installer exactly."""
+
+    if expected_bytes is None:
+        expected_bytes = WEBVIEW2_OFFLINE_INSTALLER_EXPECTED_BYTES
+    if expected_sha256 is None:
+        expected_sha256 = WEBVIEW2_OFFLINE_INSTALLER_EXPECTED_SHA256
+    resolved = path.expanduser().resolve(strict=True)
+    if not resolved.is_file():
+        raise ValueError(f"WebView2 offline installer is not a regular file: {resolved}")
+    observed_bytes = resolved.stat().st_size
+    if observed_bytes != expected_bytes:
+        raise ValueError(
+            "WebView2 offline installer byte length mismatch: "
+            f"expected {expected_bytes}, observed {observed_bytes}"
+        )
+    observed_sha256 = _sha256(resolved)
+    if observed_sha256 != expected_sha256:
+        raise ValueError(
+            "WebView2 offline installer SHA-256 mismatch: "
+            f"expected {expected_sha256}, observed {observed_sha256}"
+        )
+    return resolved
+
+
+def tauri_tools_directory(environ: dict[str, str] | None = None) -> Path:
+    """Return the build-tool cache Tauri bundles WebView2 from."""
+
+    env = os.environ if environ is None else environ
+    local_app_data = env.get("LOCALAPPDATA")
+    if not local_app_data:
+        raise ValueError("LOCALAPPDATA is required to locate Tauri's WebView2 installer cache")
+    return Path(local_app_data) / "tauri"
+
+
+def webview2_cache_entry(
+    url: str = WEBVIEW2_OFFLINE_INSTALLER_URL,
+) -> tuple[str, str]:
+    """Resolve the CDN GUID/filename exactly as tauri-bundler does."""
+
+    request = urllib.request.Request(url, method="HEAD")
+    try:
+        with urllib.request.urlopen(request, timeout=60) as response:
+            final_url = response.geturl()
+    except OSError as exc:
+        raise ValueError(
+            "cannot resolve the WebView2 offline installer cache entry without "
+            "network access; the build must use the pinned local installer, not "
+            f"download one ({exc})"
+        ) from exc
+    if not final_url.startswith(WEBVIEW2_URL_PREFIX):
+        raise ValueError(
+            f"WebView2 URL prefix mismatch; expected {WEBVIEW2_URL_PREFIX}, found {final_url}"
+        )
+    guid, separator, filename = final_url[len(WEBVIEW2_URL_PREFIX) :].partition("/")
+    if not separator or not guid or not filename or "/" in filename:
+        raise ValueError(
+            "WebView2 URL format mismatch; expected <GUID>/<FILENAME>, found "
+            f"{final_url[len(WEBVIEW2_URL_PREFIX) :]}"
+        )
+    return guid, filename
+
+
+def seed_webview2_offline_installer(
+    source: Path,
+    *,
+    tools_dir: Path | None = None,
+    url: str = WEBVIEW2_OFFLINE_INSTALLER_URL,
+    resolve: Callable[[str], tuple[str, str]] = webview2_cache_entry,
+) -> Path:
+    """Place the pinned installer where Tauri will reuse it, never download it.
+
+    Tauri only downloads when the resolved cache entry is absent, so seeding
+    that exact path means the bundler embeds the reviewed bytes. A stale entry
+    (Microsoft rotates the GUID target) is replaced with the pin.
+    """
+
+    reviewed = validate_webview2_offline_installer(source)
+    root = tauri_tools_directory() if tools_dir is None else tools_dir
+    guid, filename = resolve(url)
+    entry = root / "x64" / guid / filename
+    entry.parent.mkdir(parents=True, exist_ok=True)
+    if entry.exists() and _sha256(entry) != WEBVIEW2_OFFLINE_INSTALLER_EXPECTED_SHA256:
+        entry.unlink()
+    shutil.copyfile(reviewed, entry)
+    os.utime(entry, (SOURCE_DATE_EPOCH, SOURCE_DATE_EPOCH))
+    observed_sha256 = _sha256(entry)
+    if observed_sha256 != WEBVIEW2_OFFLINE_INSTALLER_EXPECTED_SHA256:
+        raise ValueError(
+            "seeded WebView2 cache entry SHA-256 mismatch: "
+            f"expected {WEBVIEW2_OFFLINE_INSTALLER_EXPECTED_SHA256}, "
+            f"observed {observed_sha256}"
+        )
+    return entry
+
+
+def webview2_installer_snapshot(tools_dir: Path) -> dict[Path, tuple[int, int]]:
+    """Record every cached WebView2 installer so a download can be detected."""
+
+    snapshot: dict[Path, tuple[int, int]] = {}
+    if not tools_dir.is_dir():
+        return snapshot
+    for installer in tools_dir.rglob(WEBVIEW2_INSTALLER_FILENAME):
+        stat = installer.stat()
+        snapshot[installer] = (stat.st_mtime_ns, stat.st_size)
+    return snapshot
+
+
+def verify_webview2_was_not_downloaded(
+    before: dict[Path, tuple[int, int]],
+    tools_dir: Path,
+    seeded_entry: Path,
+) -> None:
+    """Fail the build if Tauri fetched a WebView2 installer instead of the pin."""
+
+    downloaded = [
+        str(path)
+        for path, identity in webview2_installer_snapshot(tools_dir).items()
+        if before.get(path) != identity
+    ]
+    if downloaded:
+        raise ValueError(
+            "Tauri downloaded the WebView2 offline installer instead of using the "
+            f"pinned local copy: {', '.join(downloaded)}"
+        )
+    observed_sha256 = _sha256(seeded_entry)
+    if observed_sha256 != WEBVIEW2_OFFLINE_INSTALLER_EXPECTED_SHA256:
+        raise ValueError(
+            "Tauri's WebView2 cache entry is not the pinned installer: "
+            f"expected {WEBVIEW2_OFFLINE_INSTALLER_EXPECTED_SHA256}, "
+            f"observed {observed_sha256}"
+        )
+
+
 def _run(
     command: list[str],
     *,
@@ -484,11 +640,17 @@ def normalize_nsis_bootstrap(*, sign_installed_executables: bool = False) -> Non
 
 
 def _build(
-    public_key: str, key_id: str, vc_redist: Path, *, sign_installed_executables: bool = False
+    public_key: str,
+    key_id: str,
+    vc_redist: Path,
+    webview2_offline_installer: Path,
+    *,
+    sign_installed_executables: bool = False,
 ) -> None:
     npm = "npm.cmd" if os.name == "nt" else "npm"
     tauri = INSTALLER_DIR / "node_modules" / ".bin" / ("tauri.cmd" if os.name == "nt" else "tauri")
     reviewed_redist = validate_vc_redist(vc_redist)
+    reviewed_webview2 = validate_webview2_offline_installer(webview2_offline_installer)
     VC_REDIST_RESOURCE.parent.mkdir(parents=True, exist_ok=True)
     if VC_REDIST_RESOURCE.exists():
         VC_REDIST_RESOURCE.unlink()
@@ -514,6 +676,11 @@ def _build(
             env["CIVICCAST_ALLOW_DEVELOPMENT_PACK_KEY"] = "1"
         else:
             env.pop("CIVICCAST_ALLOW_DEVELOPMENT_PACK_KEY", None)
+        # Seed Tauri's cache with the reviewed installer BEFORE the bundle so
+        # the bundler embeds it instead of fetching today's (larger) build.
+        tools_dir = tauri_tools_directory()
+        seeded_webview2 = seed_webview2_offline_installer(reviewed_webview2, tools_dir=tools_dir)
+        webview2_before = webview2_installer_snapshot(tools_dir)
         _run(
             [
                 str(tauri),
@@ -529,6 +696,7 @@ def _build(
             ],
             env=env,
         )
+        verify_webview2_was_not_downloaded(webview2_before, tools_dir, seeded_webview2)
         normalize_nsis_bootstrap(sign_installed_executables=sign_installed_executables)
     finally:
         VC_REDIST_RESOURCE.unlink(missing_ok=True)
@@ -568,6 +736,7 @@ def main() -> int:
     parser.add_argument("--pack-public-key-base64", required=True)
     parser.add_argument("--pack-signing-key-id", required=True)
     parser.add_argument("--vc-redist-x64", required=True, type=Path)
+    parser.add_argument("--webview2-offline-installer-x64", required=True, type=Path)
     parser.add_argument("--report", required=True, type=Path)
     parser.add_argument("--allow-development-key", action="store_true")
     parser.add_argument(
@@ -588,6 +757,7 @@ def main() -> int:
             args.pack_public_key_base64,
             args.pack_signing_key_id,
             args.vc_redist_x64,
+            args.webview2_offline_installer_x64,
             sign_installed_executables=args.sign_installed_executables,
         )
         report = build_report(

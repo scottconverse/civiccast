@@ -474,6 +474,30 @@ jobs:
           }
           "VC_REDIST_X64=$redist" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
+      - name: Recover the exact reviewed WebView2 offline installer
+        shell: pwsh
+        run: |
+          # Tauri's `offlineInstaller` mode has no local-path option: it HEADs
+          # https://go.microsoft.com/fwlink/?linkid=2124701 and downloads the
+          # runtime it points at unless that cache entry already exists. The
+          # fwlink is not a pin -- on 2026-11-20 it served a 294,099,168-byte
+          # build (rc.7 used 215,195,856 bytes), pushing setup.exe past the
+          # 300 MB gate. The build script seeds Tauri's cache from this exact
+          # file, so the bytes are reviewed here and never downloaded there.
+          $filename = "MicrosoftEdgeWebView2RuntimeInstallerX64.exe"
+          $webview2 = Join-Path $env:RUNNER_TEMP $filename
+          $mirror = Join-Path "C:\CivicCastTester\runtime-artifact-mirror" $filename
+          if (-not (Test-Path -LiteralPath $mirror)) {
+            throw "Provision the reviewed WebView2 offline installer in the local mirror: $mirror"
+          }
+          Copy-Item -LiteralPath $mirror -Destination $webview2
+          $size = (Get-Item -LiteralPath $webview2).Length
+          if ($size -ne 215195856) { throw "WebView2 offline installer size mismatch: $size" }
+          $actual = (Get-FileHash -Algorithm SHA256 -LiteralPath $webview2).Hash.ToLowerInvariant()
+          $expected = "1d1c838e5971343c060415da7c630c3c1ca7ad33fbb61cca660f3c1122f4cca8"
+          if ($actual -ne $expected) { throw "WebView2 offline installer SHA-256 mismatch: $actual" }
+          "WEBVIEW2_OFFLINE_INSTALLER_X64=$webview2" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
       - name: Install the reviewed VC++ runtime on the runner
         shell: pwsh
         run: |
@@ -994,6 +1018,7 @@ jobs:
             --pack-public-key-base64 $env:PACK_PUBLIC_KEY_BASE64 `
             --pack-signing-key-id $env:PACK_SIGNING_KEY_ID `
             --vc-redist-x64 $env:VC_REDIST_X64 `
+            --webview2-offline-installer-x64 $env:WEBVIEW2_OFFLINE_INSTALLER_X64 `
             --sign-installed-executables `
             --report artifacts/native-beta/native-bootstrap-report.json
           if ($LASTEXITCODE -ne 0) { throw "Native bootstrap normalization/signing failed; refusing initial unsigned Tauri output." }
