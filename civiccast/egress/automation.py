@@ -37,6 +37,7 @@ command queue each tick is a cheap poll; no encoder ever spawns uncommanded).
 from __future__ import annotations
 
 import contextlib
+import inspect
 import logging
 import math
 import os
@@ -1063,6 +1064,13 @@ class ChannelAutomationService:
     # a cold whole-asset conform, so the asset-derived term does not apply.
     _ROLLOVER_CONFORM_REALTIME_FACTOR = AIR_CONFORM_DESIGN_SPEED_RPS
     _ROLLOVER_CONFORM_MARGIN_SECONDS = 120.0
+    #: rc.8 MSI round 5: how many times ``_probe_rollover_asset`` re-asks the
+    #: boundary provider while the plan it resolves keeps widening with the
+    #: lead that plan implies. The plan grows by WHOLE schedule items, so the
+    #: fixed point is reached in one step per item the lead reaches -- two for
+    #: every shape measured on the MSI. The cap is a safety net against a
+    #: pathological schedule, not an expected path.
+    _ROLLOVER_PLAN_SHAPE_MAX_STEPS = 4
     #: BETA.10 U03: the engine's own deferred/boundary-aligned switch watchdog,
     #: ``GstPlayoutEngine.defer_switch_timeout_s`` (``engine.py:614``, default
     #: 900.0s). If it fires first it FORCES the switch to the armed leg
@@ -1715,7 +1723,10 @@ class ChannelAutomationService:
         raises that floor to the measured cost of conforming the item that
         must actually be prepared --
         ``asset_seconds / _ROLLOVER_CONFORM_REALTIME_FACTOR +
-        _ROLLOVER_CONFORM_MARGIN_SECONDS``. The timeout-derived value is a
+        _ROLLOVER_CONFORM_MARGIN_SECONDS``. rc.8 MSI round 5: the caller passes
+        the COLD media of the whole plan the dispatch will prepare, not the
+        single item due at the boundary -- see ``_probe_rollover_asset``. The
+        timeout-derived value is a
         FLOOR, not a replacement: the two answer different questions ("what
         may one ffmpeg pass take" vs "what will this asset cost"), so the
         larger wins and an item cheaper than the timeout bound keeps exactly
@@ -1778,20 +1789,23 @@ class ChannelAutomationService:
             return cached[1], cached[2], cached[3]
         return None
 
-    def _rollover_asset_is_cached(self, channel_id: str, plan: EgressSourcePlan) -> bool:
-        """True when the conform cache already holds EVERY segment this
-        boundary will air, so its preparation is a cache hit.
+    def _segment_is_cached(
+        self,
+        probe: object,
+        channel_id: str,
+        source_path: Path,
+    ) -> bool:
+        """Whether the conform cache already holds this ONE segment.
 
         Fails open (False): a daemon without the probe, or a probe that
         raises, must never be able to keep a cold lead short -- the cold lead
         is the safe direction.
         """
 
-        probe = getattr(self._daemon, "rollover_asset_cached", None)
         if not callable(probe):
             return False
         try:
-            return all(bool(probe(channel_id, Path(segment.path))) for segment in plan.segments)
+            return bool(probe(channel_id, source_path))
         except Exception:
             _LOG.debug(
                 "Channel automation could not read the conform cache state for %s; "
@@ -1800,6 +1814,59 @@ class ChannelAutomationService:
                 exc_info=True,
             )
             return False
+
+    def _plan_cold_seconds(self, channel_id: str, plan: EgressSourcePlan) -> tuple[float, float]:
+        """``(total_seconds, cold_seconds)`` for the plan a boundary will air.
+
+        Only COLD media costs a whole-asset conform, so only cold segments may
+        size the lead (rc.8 MSI round 5). A fully cached plan answers
+        ``cold_seconds == 0.0`` and keeps the short preparation-timeout lead.
+        """
+
+        probe = getattr(self._daemon, "rollover_asset_cached", None)
+        total_seconds = 0.0
+        cold_seconds = 0.0
+        for segment in plan.segments:
+            duration = float(segment.duration_seconds)
+            total_seconds += duration
+            if not self._segment_is_cached(probe, channel_id, Path(segment.path)):
+                cold_seconds += duration
+        return total_seconds, cold_seconds
+
+    def _resolve_boundary_plan_with_horizon(
+        self,
+        channel_id: str,
+        plan_end_at: datetime,
+        min_plan_seconds: float,
+    ) -> EgressSourcePlan | None:
+        """Ask the boundary provider for the plan shape the DISPATCH will
+        prepare: the same ``min_plan_seconds`` the daemon is handed.
+
+        ``EgressDaemon._reload_steps`` builds the plan with
+        ``min_plan_seconds=lead_seconds``, and the provider keeps appending
+        whole following items until the plan covers that horizon. A probe that
+        omits the horizon gets the provider's own default (``0.0``) and, with
+        the gst engine's ``max_segments=1``, only the FIRST item -- which is
+        how the MSI's 105 s tail was sized as if it were the whole rollover
+        while the dispatch prepared 1905 s (rc.8 MSI round 5).
+
+        A provider that does not accept the keyword (a test double, or a
+        deployment whose boundary provider predates the horizon) is called
+        exactly as before; the caller then simply has no wider shape to read.
+        """
+
+        assert self._boundary_source_plan_provider is not None
+        provider = self._boundary_source_plan_provider
+        try:
+            inspect.signature(provider).bind(
+                channel_id, plan_end_at, min_plan_seconds=min_plan_seconds
+            )
+        except (TypeError, ValueError, AttributeError):
+            return cast("EgressSourcePlan | None", provider(channel_id, plan_end_at))
+        return cast(
+            "EgressSourcePlan | None",
+            provider(channel_id, plan_end_at, min_plan_seconds=min_plan_seconds),
+        )
 
     def _probe_rollover_asset(
         self, channel_id: str, plan_end_at: datetime
@@ -1824,23 +1891,73 @@ class ChannelAutomationService:
         retry cooldown untouched.
         Callers outside this window read the same cache through
         ``_cached_rollover_asset`` rather than calling this.
+
+        rc.8 MSI round 5 (2026-11-21): the answer is the plan the DISPATCH will
+        prepare, not merely the item due at the boundary -- the same
+        ``min_plan_seconds`` horizon (the lead itself), every segment that
+        horizon adds, and the cache state of EACH segment. The MSI logged
+        ``lead=690s ... (105s at 12x + 120s)`` and then prepared two segments
+        for 812.3 s, because the probe's call had no horizon and got one item
+        while the daemon's call had 690 s and got two. Only COLD segments size
+        the lead; a fully cached plan keeps the short lead, and a mixed plan
+        counts its cold part alone.
         """
 
         cached_asset = self._cached_rollover_asset(channel_id, plan_end_at)
         if cached_asset is not None:
             return cached_asset
         assert self._boundary_source_plan_provider is not None  # caller-gated
+        # rc.8 MSI round 5: resolve the plan shape the DISPATCH will prepare.
+        # The daemon builds it with ``min_plan_seconds`` = the lead this probe
+        # is computing, so the probe asks with the lead it currently has and
+        # re-asks whenever the answer widens the plan -- the fixed point where
+        # the horizon the lead implies is the horizon the plan was built for.
+        # The plan grows by whole schedule items, so this terminates after at
+        # most one step per item the horizon reaches; the step cap is a safety
+        # net, and the last plan resolved is kept if it is hit.
+        min_seconds = self._rollover_lead_seconds()
         try:
-            plan = self._boundary_source_plan_provider(channel_id, plan_end_at)
+            plan = self._resolve_boundary_plan_with_horizon(channel_id, plan_end_at, min_seconds)
         except SourcePrepareError:
             self._rollover_asset_probe[channel_id] = (plan_end_at, None, None, False)
             return None, None, False
+        for _ in range(self._ROLLOVER_PLAN_SHAPE_MAX_STEPS):
+            if plan is None or not plan.segments:
+                break
+            total_seconds, cold_seconds = self._plan_cold_seconds(channel_id, plan)
+            lead = self._rollover_lead_seconds(
+                cold_seconds if cold_seconds > 0.0 else None,
+                asset_cached=cold_seconds <= 0.0,
+            )
+            # ``total_seconds >= lead`` means this plan is NOT a prefix cut
+            # short by the horizon: the provider breaks at the same item for
+            # any larger ``min_plan_seconds`` (the break test is evaluated at
+            # the same append points, and this plan already covers the wider
+            # horizon), so the shape the dispatch will build at ``lead`` is
+            # this one and there is nothing to re-ask.
+            if lead <= min_seconds or total_seconds >= lead:
+                break
+            min_seconds = lead
+            try:
+                widened = self._resolve_boundary_plan_with_horizon(
+                    channel_id, plan_end_at, min_seconds
+                )
+            except SourcePrepareError:
+                break
+            if widened is None or not widened.segments:
+                break
+            plan = widened
         if plan is None or not plan.segments:
             self._rollover_asset_probe[channel_id] = (plan_end_at, None, None, False)
             return None, None, False
-        seconds = sum(segment.duration_seconds for segment in plan.segments)
+        total_seconds, cold_seconds = self._plan_cold_seconds(channel_id, plan)
         label = plan.segments[0].label
-        cached = self._rollover_asset_is_cached(channel_id, plan)
+        cached = cold_seconds <= 0.0
+        # The value the lead is sized from: the COLD media only (a cache hit
+        # costs seconds). ``total_seconds`` is kept for a fully cached plan so
+        # the log still names the item it resolved, but the cached flag makes
+        # the cold term inapplicable.
+        seconds = cold_seconds if cold_seconds > 0.0 else total_seconds
         self._rollover_asset_probe[channel_id] = (plan_end_at, seconds, label, cached)
         return seconds, label, cached
 
