@@ -8,7 +8,7 @@ CivicCast v1.0.0-rc.7 is a complete native Windows station. It includes Python, 
 
 ## Download and install the complete station
 
-Use Windows 11 x64, internet for the download, and a Windows administrator account for setup. Allow about **100 GB free** for preparation and installation, plus your media and recordings. The model download is about 22 GB; preparation temporarily holds the parts, assembled archive and extracted models.
+Use Windows 11 x64, internet for the download, and a Windows administrator account for setup. The supported minimum is **32 GB of RAM**; a processor with integrated graphics is enough and no separate graphics card is required (16 GB is below the minimum). Allow about **100 GB free** for preparation and installation, plus your media and recordings. The model download is about 22 GB; preparation temporarily holds the parts, assembled archive and extracted models.
 
 Open **Windows PowerShell** and paste:
 

@@ -43,6 +43,11 @@ The [RC7 verification record](../releases/v1.0.0-rc.7-verification.md)
 is the current package record for this native line. The historical native
 release identities below remain background only.
 
+The supported minimum for the native line is **32 GB of RAM**, with a processor
+whose integrated graphics are enough; no separate graphics card is required. A
+16 GB machine is below the minimum. The [rc.8 release notes](../releases/v1.0.0-rc.8-release-notes.md)
+carry the candidate's soak evidence and open items.
+
 ## Historical: Installer Status (retired WSL2 line)
 
 The paragraphs and numbered steps below describe the retired WSL2 line and
