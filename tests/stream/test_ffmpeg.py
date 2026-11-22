@@ -738,7 +738,7 @@ class TestRunFfmpeg:
         # A Windows host where the API call fails: the exception is swallowed.
         with (
             patch.object(ffmpeg_module, "os", SimpleNamespace(name="nt")),
-            patch("ctypes.WinDLL", side_effect=OSError("no such api")),
+            patch("ctypes.WinDLL", side_effect=OSError("no such api"), create=True),
         ):
             assert ffmpeg_module._performance_cores() is None
 
