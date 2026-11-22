@@ -7891,6 +7891,442 @@
         "security/native-bundled-components.json",
         "native-windows-runtime-dependencies.lock.json"
       ]
+    },
+    {
+      "package": "cpython-openssl",
+      "version": "3.5.9",
+      "id": "CVE-2026-107493",
+      "reviewed": "2026-11-22",
+      "review_by": "2026-12-22",
+      "reason": "Not reachable on the shipped bytes. `_ssl.pyd` imports `PEM_read_bio_X509`, `PEM_write_bio_X509` and `d2i_X509_bio` (single-object readers) and contains no `PEM_X509_INFO_*` import or string, so the advisory's precondition (a caller-supplied stack) cannot be met from shipped code. Static evidence only; nothing was run.",
+      "evidence": [
+        "https://openssl-library.org/news/secadv/20261117.txt",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-107493",
+        "native-app-payload.ccpack::payload/_ssl.pyd sha256 2f558ad6f38d4663f0874e110f524da208ed46674e31ec1d731d3cac88d56c53",
+        "native-app-payload.ccpack::payload/libcrypto-3.dll sha256 75495fe0e079ab00d49be740d3c710a0b94e3f74f9648cb7cc9f768fc7f52319",
+        "Static import-table and string-table scan of every PE in every .ccpack in the shipped kit (C:\\CivicCastTester\\kit-staging\\d125c16d94402ce242363ba1bb9aadd39c1f2387; 500 PEs, 0 parse errors); nothing was run."
+      ]
+    },
+    {
+      "package": "cpython-openssl",
+      "version": "3.5.9",
+      "id": "CVE-2026-107494",
+      "reviewed": "2026-11-22",
+      "review_by": "2026-12-22",
+      "reason": "Not reachable on the shipped bytes. Zero `OSSL_QUIC*` imports or strings in `_ssl.pyd`, `_hashlib.pyd` or any of the 500 PEs in the kit, and Python 3.12's `ssl` module exposes no QUIC API. Static evidence only.",
+      "evidence": [
+        "https://openssl-library.org/news/secadv/20261117.txt",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-107494",
+        "native-app-payload.ccpack::payload/_ssl.pyd sha256 2f558ad6f38d4663f0874e110f524da208ed46674e31ec1d731d3cac88d56c53",
+        "native-app-payload.ccpack::payload/_hashlib.pyd sha256 5b529341bee8c655ce102045c30bf884b8a8895ed1d6825d7a1e60a42c6740b7",
+        "native-app-payload.ccpack::payload/libcrypto-3.dll sha256 75495fe0e079ab00d49be740d3c710a0b94e3f74f9648cb7cc9f768fc7f52319",
+        "Static import-table and string-table scan of every PE in every .ccpack in the shipped kit (C:\\CivicCastTester\\kit-staging\\d125c16d94402ce242363ba1bb9aadd39c1f2387; 500 PEs, 0 parse errors); nothing was run."
+      ]
+    },
+    {
+      "package": "cpython-openssl",
+      "version": "3.5.9",
+      "id": "CVE-2026-121482",
+      "reviewed": "2026-11-22",
+      "review_by": "2026-12-22",
+      "reason": "Not reachable on the shipped bytes. No `CMS_*` or `PKCS7_*` imports in any shipped PE. The CMS names present in `_ssl.pyd` are OpenSSL reason-code strings (`CMS_DATAFINAL_ERROR`, `CONTENTIDENTIFIER_MISMATCH`), not calls. Static evidence only.",
+      "evidence": [
+        "https://openssl-library.org/news/secadv/20261117.txt",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-121482",
+        "native-app-payload.ccpack::payload/_ssl.pyd sha256 2f558ad6f38d4663f0874e110f524da208ed46674e31ec1d731d3cac88d56c53",
+        "native-app-payload.ccpack::payload/libcrypto-3.dll sha256 75495fe0e079ab00d49be740d3c710a0b94e3f74f9648cb7cc9f768fc7f52319",
+        "Static import-table and string-table scan of every PE in every .ccpack in the shipped kit (C:\\CivicCastTester\\kit-staging\\d125c16d94402ce242363ba1bb9aadd39c1f2387; 500 PEs, 0 parse errors); nothing was run."
+      ]
+    },
+    {
+      "package": "cpython-openssl",
+      "version": "3.5.9",
+      "id": "CVE-2026-124709",
+      "reviewed": "2026-11-22",
+      "review_by": "2026-12-22",
+      "reason": "Not reachable on the shipped bytes. No QUIC stack is reachable: zero `OSSL_QUIC*` imports or strings in any shipped PE. Static evidence only.",
+      "evidence": [
+        "https://openssl-library.org/news/secadv/20261117.txt",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-124709",
+        "native-app-payload.ccpack::payload/_ssl.pyd sha256 2f558ad6f38d4663f0874e110f524da208ed46674e31ec1d731d3cac88d56c53",
+        "native-app-payload.ccpack::payload/libcrypto-3.dll sha256 75495fe0e079ab00d49be740d3c710a0b94e3f74f9648cb7cc9f768fc7f52319",
+        "Static import-table and string-table scan of every PE in every .ccpack in the shipped kit (C:\\CivicCastTester\\kit-staging\\d125c16d94402ce242363ba1bb9aadd39c1f2387; 500 PEs, 0 parse errors); nothing was run."
+      ]
+    },
+    {
+      "package": "cpython-openssl",
+      "version": "3.5.9",
+      "id": "CVE-2026-35190",
+      "reviewed": "2026-11-22",
+      "review_by": "2026-12-22",
+      "reason": "Not reachable on the shipped bytes. `_ssl.pyd` neither imports nor contains `SSL_CTX_set_cert_flags` or `SSL_CERT_FLAG_SUITEB_128_LOS`; Python's `ssl` module exposes no certificate-flags control. Static evidence only.",
+      "evidence": [
+        "https://openssl-library.org/news/secadv/20261117.txt",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-35190",
+        "native-app-payload.ccpack::payload/_ssl.pyd sha256 2f558ad6f38d4663f0874e110f524da208ed46674e31ec1d731d3cac88d56c53",
+        "native-app-payload.ccpack::payload/libcrypto-3.dll sha256 75495fe0e079ab00d49be740d3c710a0b94e3f74f9648cb7cc9f768fc7f52319",
+        "Static import-table and string-table scan of every PE in every .ccpack in the shipped kit (C:\\CivicCastTester\\kit-staging\\d125c16d94402ce242363ba1bb9aadd39c1f2387; 500 PEs, 0 parse errors); nothing was run."
+      ]
+    },
+    {
+      "package": "cpython-openssl",
+      "version": "3.5.9",
+      "id": "CVE-2026-84786",
+      "reviewed": "2026-11-22",
+      "review_by": "2026-12-22",
+      "reason": "Not reachable on the shipped bytes. No DANE function is imported by any shipped PE; the `DANE_*` names in `_ssl.pyd` are reason-code strings only, and Python's `ssl` module has no DANE API. Static evidence only.",
+      "evidence": [
+        "https://openssl-library.org/news/secadv/20261117.txt",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-84786",
+        "native-app-payload.ccpack::payload/_ssl.pyd sha256 2f558ad6f38d4663f0874e110f524da208ed46674e31ec1d731d3cac88d56c53",
+        "native-app-payload.ccpack::payload/libcrypto-3.dll sha256 75495fe0e079ab00d49be740d3c710a0b94e3f74f9648cb7cc9f768fc7f52319",
+        "Static import-table and string-table scan of every PE in every .ccpack in the shipped kit (C:\\CivicCastTester\\kit-staging\\d125c16d94402ce242363ba1bb9aadd39c1f2387; 500 PEs, 0 parse errors); nothing was run."
+      ]
+    },
+    {
+      "package": "cpython-openssl",
+      "version": "3.5.9",
+      "id": "CVE-2026-95690",
+      "reviewed": "2026-11-22",
+      "review_by": "2026-12-22",
+      "reason": "Not reachable on the shipped bytes. `_ssl.pyd` imports `TLS_method`, `TLS_client_method`, `TLS_server_method`, `TLSv1_method`, `TLSv1_1_method` and `TLSv1_2_method` but no `DTLS_*` function, and Python 3.12's `ssl` module cannot create a DTLS endpoint. Static evidence only; nothing was run.",
+      "evidence": [
+        "https://openssl-library.org/news/secadv/20261117.txt",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-95690",
+        "native-app-payload.ccpack::payload/_ssl.pyd sha256 2f558ad6f38d4663f0874e110f524da208ed46674e31ec1d731d3cac88d56c53",
+        "native-app-payload.ccpack::payload/libcrypto-3.dll sha256 75495fe0e079ab00d49be740d3c710a0b94e3f74f9648cb7cc9f768fc7f52319",
+        "Static import-table and string-table scan of every PE in every .ccpack in the shipped kit (C:\\CivicCastTester\\kit-staging\\d125c16d94402ce242363ba1bb9aadd39c1f2387; 500 PEs, 0 parse errors); nothing was run."
+      ]
+    },
+    {
+      "package": "cryptography-openssl",
+      "version": "4.0.3",
+      "id": "CVE-2026-107493",
+      "reviewed": "2026-11-22",
+      "review_by": "2026-12-22",
+      "reason": "Not reachable on the shipped bytes. `_rust.pyd` (OpenSSL 4.0.3, statically linked) has no `PEM_X509_INFO_*` call site; cryptography 50.0.2 `load_pem_x509_certificates` uses `pem::parse_many`. The single `PEM_X509_INFO_read_bio_ex` string comes from the linked libcrypto (`crypto/pem/pem_info.c`), not from a caller. Static evidence only.",
+      "evidence": [
+        "https://openssl-library.org/news/secadv/20261117.txt",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-107493",
+        "native-app-payload.ccpack::payload/Lib/site-packages/cryptography/hazmat/bindings/_rust.pyd sha256 1d4332a447cab13dec8e3a533ad579e0e562b79e40822c931f33769758fc7156",
+        "cryptography 50.0.2 src/rust/src/x509/certificate.rs:418-422 (pem::parse_many)",
+        "Static import-table and string-table scan of every PE in every .ccpack in the shipped kit (C:\\CivicCastTester\\kit-staging\\d125c16d94402ce242363ba1bb9aadd39c1f2387; 500 PEs, 0 parse errors); nothing was run."
+      ]
+    },
+    {
+      "package": "cryptography-openssl",
+      "version": "4.0.3",
+      "id": "CVE-2026-107494",
+      "reviewed": "2026-11-22",
+      "review_by": "2026-12-22",
+      "reason": "Not reachable on the shipped bytes. `OSSL_QUIC` string count is 0 in `_rust.pyd`, and cryptography exposes no QUIC API. Static evidence only.",
+      "evidence": [
+        "https://openssl-library.org/news/secadv/20261117.txt",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-107494",
+        "native-app-payload.ccpack::payload/Lib/site-packages/cryptography/hazmat/bindings/_rust.pyd sha256 1d4332a447cab13dec8e3a533ad579e0e562b79e40822c931f33769758fc7156",
+        "Static import-table and string-table scan of every PE in every .ccpack in the shipped kit (C:\\CivicCastTester\\kit-staging\\d125c16d94402ce242363ba1bb9aadd39c1f2387; 500 PEs, 0 parse errors); nothing was run."
+      ]
+    },
+    {
+      "package": "cryptography-openssl",
+      "version": "4.0.3",
+      "id": "CVE-2026-121481",
+      "reviewed": "2026-11-22",
+      "review_by": "2026-12-22",
+      "reason": "Not reachable on the shipped bytes. `EVP_EncodeBlock` string count is 0 in `_rust.pyd`; cryptography passes only bounded DER/PEM buffers, never a caller length near `INT_MAX` as the advisory requires. Static evidence only.",
+      "evidence": [
+        "https://openssl-library.org/news/secadv/20261117.txt",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-121481",
+        "native-app-payload.ccpack::payload/Lib/site-packages/cryptography/hazmat/bindings/_rust.pyd sha256 1d4332a447cab13dec8e3a533ad579e0e562b79e40822c931f33769758fc7156",
+        "Static import-table and string-table scan of every PE in every .ccpack in the shipped kit (C:\\CivicCastTester\\kit-staging\\d125c16d94402ce242363ba1bb9aadd39c1f2387; 500 PEs, 0 parse errors); nothing was run."
+      ]
+    },
+    {
+      "package": "cryptography-openssl",
+      "version": "4.0.3",
+      "id": "CVE-2026-121482",
+      "reviewed": "2026-11-22",
+      "review_by": "2026-12-22",
+      "reason": "Not reachable on the shipped bytes. `CMS_verify` count is 0 in `_rust.pyd`; `PKCS7_verify` appears only as the linked libcrypto's `pk7_smime.c` name. `src/rust/src/pkcs7.rs` builds PKCS#7 through ASN.1 with `crls: None` and exposes no verify-with-CRL API. Static evidence only.",
+      "evidence": [
+        "https://openssl-library.org/news/secadv/20261117.txt",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-121482",
+        "native-app-payload.ccpack::payload/Lib/site-packages/cryptography/hazmat/bindings/_rust.pyd sha256 1d4332a447cab13dec8e3a533ad579e0e562b79e40822c931f33769758fc7156",
+        "Static import-table and string-table scan of every PE in every .ccpack in the shipped kit (C:\\CivicCastTester\\kit-staging\\d125c16d94402ce242363ba1bb9aadd39c1f2387; 500 PEs, 0 parse errors); nothing was run."
+      ]
+    },
+    {
+      "package": "cryptography-openssl",
+      "version": "4.0.3",
+      "id": "CVE-2026-124709",
+      "reviewed": "2026-11-22",
+      "review_by": "2026-12-22",
+      "reason": "Not reachable on the shipped bytes. No QUIC API is exposed and `OSSL_QUIC*` string count is 0 in `_rust.pyd`. Static evidence only.",
+      "evidence": [
+        "https://openssl-library.org/news/secadv/20261117.txt",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-124709",
+        "native-app-payload.ccpack::payload/Lib/site-packages/cryptography/hazmat/bindings/_rust.pyd sha256 1d4332a447cab13dec8e3a533ad579e0e562b79e40822c931f33769758fc7156",
+        "Static import-table and string-table scan of every PE in every .ccpack in the shipped kit (C:\\CivicCastTester\\kit-staging\\d125c16d94402ce242363ba1bb9aadd39c1f2387; 500 PEs, 0 parse errors); nothing was run."
+      ]
+    },
+    {
+      "package": "cryptography-openssl",
+      "version": "4.0.3",
+      "id": "CVE-2026-35190",
+      "reviewed": "2026-11-22",
+      "review_by": "2026-12-22",
+      "reason": "Not reachable on the shipped bytes. `SSL_CTX_set_cert_flags` and `SSL_CERT_FLAG_SUITEB` string counts are 0 in `_rust.pyd`, and the library exposes no TLS-server API. Static evidence only.",
+      "evidence": [
+        "https://openssl-library.org/news/secadv/20261117.txt",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-35190",
+        "native-app-payload.ccpack::payload/Lib/site-packages/cryptography/hazmat/bindings/_rust.pyd sha256 1d4332a447cab13dec8e3a533ad579e0e562b79e40822c931f33769758fc7156",
+        "Static import-table and string-table scan of every PE in every .ccpack in the shipped kit (C:\\CivicCastTester\\kit-staging\\d125c16d94402ce242363ba1bb9aadd39c1f2387; 500 PEs, 0 parse errors); nothing was run."
+      ]
+    },
+    {
+      "package": "cryptography-openssl",
+      "version": "4.0.3",
+      "id": "CVE-2026-84786",
+      "reviewed": "2026-11-22",
+      "review_by": "2026-12-22",
+      "reason": "Not reachable on the shipped bytes. `DANE_TLSA` string count is 0 in `_rust.pyd`, and cryptography exposes no DANE API. Static evidence only.",
+      "evidence": [
+        "https://openssl-library.org/news/secadv/20261117.txt",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-84786",
+        "native-app-payload.ccpack::payload/Lib/site-packages/cryptography/hazmat/bindings/_rust.pyd sha256 1d4332a447cab13dec8e3a533ad579e0e562b79e40822c931f33769758fc7156",
+        "Static import-table and string-table scan of every PE in every .ccpack in the shipped kit (C:\\CivicCastTester\\kit-staging\\d125c16d94402ce242363ba1bb9aadd39c1f2387; 500 PEs, 0 parse errors); nothing was run."
+      ]
+    },
+    {
+      "package": "cryptography-openssl",
+      "version": "4.0.3",
+      "id": "CVE-2026-95690",
+      "reviewed": "2026-11-22",
+      "review_by": "2026-12-22",
+      "reason": "Not reachable on the shipped bytes. No DTLS API is exposed by cryptography: `DTLS_client_method`, `DTLS_server_method`, `DTLS_method`, `DTLS_get_data_mtu` and `DTLSv1_handle_timeout` exist only as names in the binding table (kept for pyOpenSSL, which is not shipped). No shipped code calls them and there is no object-level DTLS constructor. Static evidence only.",
+      "evidence": [
+        "https://openssl-library.org/news/secadv/20261117.txt",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-95690",
+        "native-app-payload.ccpack::payload/Lib/site-packages/cryptography/hazmat/bindings/_rust.pyd sha256 1d4332a447cab13dec8e3a533ad579e0e562b79e40822c931f33769758fc7156",
+        "Static import-table and string-table scan of every PE in every .ccpack in the shipped kit (C:\\CivicCastTester\\kit-staging\\d125c16d94402ce242363ba1bb9aadd39c1f2387; 500 PEs, 0 parse errors); nothing was run."
+      ]
+    },
+    {
+      "package": "gstreamer-openssl",
+      "version": "3.5.9",
+      "id": "CVE-2026-107493",
+      "reviewed": "2026-11-22",
+      "review_by": "2026-12-22",
+      "reason": "Not reachable on the shipped bytes. `gioopenssl.dll` imports `PEM_read_bio_X509`, `PEM_read_bio_PrivateKey` and `d2i_X509` (single-object readers); `rtmp-1.dll` imports no `PEM_*`; `srt.dll` imports only AES/RAND symbols. No consumer imports `PEM_X509_INFO_*`, and no shipped PE contains that name. Static evidence only.",
+      "evidence": [
+        "https://openssl-library.org/news/secadv/20261117.txt",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-107493",
+        "native-app-payload.ccpack::payload/dependencies/gstreamer/lib/gio/modules/gioopenssl.dll sha256 41c8c5145c388d911e691956426f7e625f72fade65575dba34a0b1af27477931",
+        "native-app-payload.ccpack::payload/dependencies/gstreamer/bin/rtmp-1.dll sha256 ff8c9f2270106fb4fe249169c5ca0a8cbbb126d4a24b5839273c479e8aeb2d18",
+        "native-app-payload.ccpack::payload/dependencies/gstreamer/bin/srt.dll sha256 314526395ea677c94cb9187c0959ff1ad8f28a504cbdfade99ae83b0e5d99d69",
+        "native-app-payload.ccpack::payload/dependencies/gstreamer/bin/libcrypto-3-x64.dll sha256 aa20423966287639a7ed2ca4c5df07cdfa69171b24be64ab24d360d58a99c960",
+        "Static import-table and string-table scan of every PE in every .ccpack in the shipped kit (C:\\CivicCastTester\\kit-staging\\d125c16d94402ce242363ba1bb9aadd39c1f2387; 500 PEs, 0 parse errors); nothing was run."
+      ]
+    },
+    {
+      "package": "gstreamer-openssl",
+      "version": "3.5.9",
+      "id": "CVE-2026-107494",
+      "reviewed": "2026-11-22",
+      "review_by": "2026-12-22",
+      "reason": "Not reachable on the shipped bytes. Zero `OSSL_QUIC*` imports or strings in the 68 DLLs under `gstreamer/bin`, the 41 GStreamer plugins, or any other shipped PE. Static evidence only.",
+      "evidence": [
+        "https://openssl-library.org/news/secadv/20261117.txt",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-107494",
+        "native-app-payload.ccpack::payload/dependencies/gstreamer/bin/libcrypto-3-x64.dll sha256 aa20423966287639a7ed2ca4c5df07cdfa69171b24be64ab24d360d58a99c960",
+        "Static import-table and string-table scan of every PE in every .ccpack in the shipped kit (C:\\CivicCastTester\\kit-staging\\d125c16d94402ce242363ba1bb9aadd39c1f2387; 500 PEs, 0 parse errors); nothing was run."
+      ]
+    },
+    {
+      "package": "gstreamer-openssl",
+      "version": "3.5.9",
+      "id": "CVE-2026-121482",
+      "reviewed": "2026-11-22",
+      "review_by": "2026-12-22",
+      "reason": "Not reachable on the shipped bytes. No `CMS_*` or `PKCS7_*` import in `rtmp-1.dll`, `gioopenssl.dll`, `srt.dll` or any shipped GStreamer plugin. Static evidence only.",
+      "evidence": [
+        "https://openssl-library.org/news/secadv/20261117.txt",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-121482",
+        "native-app-payload.ccpack::payload/dependencies/gstreamer/lib/gio/modules/gioopenssl.dll sha256 41c8c5145c388d911e691956426f7e625f72fade65575dba34a0b1af27477931",
+        "native-app-payload.ccpack::payload/dependencies/gstreamer/bin/rtmp-1.dll sha256 ff8c9f2270106fb4fe249169c5ca0a8cbbb126d4a24b5839273c479e8aeb2d18",
+        "native-app-payload.ccpack::payload/dependencies/gstreamer/bin/srt.dll sha256 314526395ea677c94cb9187c0959ff1ad8f28a504cbdfade99ae83b0e5d99d69",
+        "Static import-table and string-table scan of every PE in every .ccpack in the shipped kit (C:\\CivicCastTester\\kit-staging\\d125c16d94402ce242363ba1bb9aadd39c1f2387; 500 PEs, 0 parse errors); nothing was run."
+      ]
+    },
+    {
+      "package": "gstreamer-openssl",
+      "version": "3.5.9",
+      "id": "CVE-2026-124709",
+      "reviewed": "2026-11-22",
+      "review_by": "2026-12-22",
+      "reason": "Not reachable on the shipped bytes. No QUIC stack is reachable: zero `OSSL_QUIC*` imports or strings in the GStreamer tree or any shipped PE. Static evidence only.",
+      "evidence": [
+        "https://openssl-library.org/news/secadv/20261117.txt",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-124709",
+        "native-app-payload.ccpack::payload/dependencies/gstreamer/bin/libcrypto-3-x64.dll sha256 aa20423966287639a7ed2ca4c5df07cdfa69171b24be64ab24d360d58a99c960",
+        "Static import-table and string-table scan of every PE in every .ccpack in the shipped kit (C:\\CivicCastTester\\kit-staging\\d125c16d94402ce242363ba1bb9aadd39c1f2387; 500 PEs, 0 parse errors); nothing was run."
+      ]
+    },
+    {
+      "package": "gstreamer-openssl",
+      "version": "3.5.9",
+      "id": "CVE-2026-35190",
+      "reviewed": "2026-11-22",
+      "review_by": "2026-12-22",
+      "reason": "Not reachable on the shipped bytes. `rtmp-1.dll` imports `TLS_server_method` and `SSL_accept`, and `gioopenssl.dll` imports `TLS_server_method`, but neither imports `SSL_CTX_set_cert_flags`, so the Suite B flag cannot be set from shipped code. Static evidence only.",
+      "evidence": [
+        "https://openssl-library.org/news/secadv/20261117.txt",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-35190",
+        "native-app-payload.ccpack::payload/dependencies/gstreamer/bin/rtmp-1.dll sha256 ff8c9f2270106fb4fe249169c5ca0a8cbbb126d4a24b5839273c479e8aeb2d18",
+        "native-app-payload.ccpack::payload/dependencies/gstreamer/lib/gio/modules/gioopenssl.dll sha256 41c8c5145c388d911e691956426f7e625f72fade65575dba34a0b1af27477931",
+        "Static import-table and string-table scan of every PE in every .ccpack in the shipped kit (C:\\CivicCastTester\\kit-staging\\d125c16d94402ce242363ba1bb9aadd39c1f2387; 500 PEs, 0 parse errors); nothing was run."
+      ]
+    },
+    {
+      "package": "gstreamer-openssl",
+      "version": "3.5.9",
+      "id": "CVE-2026-84786",
+      "reviewed": "2026-11-22",
+      "review_by": "2026-12-22",
+      "reason": "Not reachable on the shipped bytes. No DANE symbol is imported by or present in any shipped GStreamer binary. Static evidence only.",
+      "evidence": [
+        "https://openssl-library.org/news/secadv/20261117.txt",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-84786",
+        "native-app-payload.ccpack::payload/dependencies/gstreamer/lib/gio/modules/gioopenssl.dll sha256 41c8c5145c388d911e691956426f7e625f72fade65575dba34a0b1af27477931",
+        "native-app-payload.ccpack::payload/dependencies/gstreamer/bin/rtmp-1.dll sha256 ff8c9f2270106fb4fe249169c5ca0a8cbbb126d4a24b5839273c479e8aeb2d18",
+        "native-app-payload.ccpack::payload/dependencies/gstreamer/bin/srt.dll sha256 314526395ea677c94cb9187c0959ff1ad8f28a504cbdfade99ae83b0e5d99d69",
+        "Static import-table and string-table scan of every PE in every .ccpack in the shipped kit (C:\\CivicCastTester\\kit-staging\\d125c16d94402ce242363ba1bb9aadd39c1f2387; 500 PEs, 0 parse errors); nothing was run."
+      ]
+    },
+    {
+      "package": "gstreamer-openssl",
+      "version": "3.5.9",
+      "id": "CVE-2026-95690",
+      "reviewed": "2026-11-22",
+      "review_by": "2026-12-22",
+      "reason": "Not proven. `gioopenssl.dll` contains the DTLS entry points (`DTLS_client_method`, `DTLS_server_method`); no shipped program, plugin, or CivicCast code was found that calls them (no shipped PE imports `g_dtls_*` except the GIO OpenSSL backend itself, no WebRTC/DTLS plugin is shipped, and `civiccast/` does not reference `GDtlsConnection`); shipped PyGObject could construct a DTLS connection through `Gio.DTlsClientConnection`/`DTlsServerConnection`, so absence of a caller cannot be excluded statically; this was NOT proven at run time. The owner accepted this for rc.8 on 2026-11-22; replace with OpenSSL 3.5.10 when it is released. Static evidence only; nothing was run.",
+      "evidence": [
+        "https://openssl-library.org/news/secadv/20261117.txt",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-95690",
+        "native-app-payload.ccpack::payload/dependencies/gstreamer/lib/gio/modules/gioopenssl.dll sha256 41c8c5145c388d911e691956426f7e625f72fade65575dba34a0b1af27477931",
+        "native-app-payload.ccpack::payload/dependencies/gstreamer/bin/libcrypto-3-x64.dll sha256 aa20423966287639a7ed2ca4c5df07cdfa69171b24be64ab24d360d58a99c960",
+        "native-app-payload.ccpack::payload/dependencies/gstreamer/bin/gio-2.0-0.dll (GLib 2.88.4) exports g_dtls_client_connection_new and g_dtls_server_connection_new",
+        "native-app-payload.ccpack::payload/dependencies/gstreamer/python/gi/ (shipped PyGObject) with Gio-2.0.typelib",
+        "Static import-table and string-table scan of every PE in every .ccpack in the shipped kit (C:\\CivicCastTester\\kit-staging\\d125c16d94402ce242363ba1bb9aadd39c1f2387; 500 PEs, 0 parse errors); nothing was run."
+      ]
+    },
+    {
+      "package": "postgres-openssl",
+      "version": "3.5.9",
+      "id": "CVE-2026-107493",
+      "reviewed": "2026-11-22",
+      "review_by": "2026-12-22",
+      "reason": "Not reachable on the shipped bytes. `postgres.exe` imports `PEM_read_bio_DHparams` only, with no `PEM_X509_INFO_*` import or string; `libpq.dll` imports no `PEM_*` function. The shipped cluster also runs `ssl = off`. Static evidence only.",
+      "evidence": [
+        "https://openssl-library.org/news/secadv/20261117.txt",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-107493",
+        "native-server-binaries.ccpack::payload/bin/postgres.exe sha256 70334b2428dac81d111b4e3a6cfed01568b216e4ef3c5cc879d423a0fe69c0df",
+        "native-server-binaries.ccpack::payload/bin/libpq.dll sha256 d87674d536cb8fcc4897f8d6a1c8445675e33447ca0e6ebac210559029f19d04",
+        "native-server-binaries.ccpack::payload/bin/libcrypto-3-x64.dll sha256 aa20423966287639a7ed2ca4c5df07cdfa69171b24be64ab24d360d58a99c960",
+        "Static import-table and string-table scan of every PE in every .ccpack in the shipped kit (C:\\CivicCastTester\\kit-staging\\d125c16d94402ce242363ba1bb9aadd39c1f2387; 500 PEs, 0 parse errors); nothing was run."
+      ]
+    },
+    {
+      "package": "postgres-openssl",
+      "version": "3.5.9",
+      "id": "CVE-2026-107494",
+      "reviewed": "2026-11-22",
+      "review_by": "2026-12-22",
+      "reason": "Not reachable on the shipped bytes. Zero `OSSL_QUIC*` imports or strings in `postgres.exe`, `libpq.dll` or the rest of the server pack. Static evidence only.",
+      "evidence": [
+        "https://openssl-library.org/news/secadv/20261117.txt",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-107494",
+        "native-server-binaries.ccpack::payload/bin/postgres.exe sha256 70334b2428dac81d111b4e3a6cfed01568b216e4ef3c5cc879d423a0fe69c0df",
+        "native-server-binaries.ccpack::payload/bin/libpq.dll sha256 d87674d536cb8fcc4897f8d6a1c8445675e33447ca0e6ebac210559029f19d04",
+        "native-server-binaries.ccpack::payload/bin/libcrypto-3-x64.dll sha256 aa20423966287639a7ed2ca4c5df07cdfa69171b24be64ab24d360d58a99c960",
+        "Static import-table and string-table scan of every PE in every .ccpack in the shipped kit (C:\\CivicCastTester\\kit-staging\\d125c16d94402ce242363ba1bb9aadd39c1f2387; 500 PEs, 0 parse errors); nothing was run."
+      ]
+    },
+    {
+      "package": "postgres-openssl",
+      "version": "3.5.9",
+      "id": "CVE-2026-121482",
+      "reviewed": "2026-11-22",
+      "review_by": "2026-12-22",
+      "reason": "Not reachable on the shipped bytes. No `CMS_*` or `PKCS7_*` import in `postgres.exe` or `libpq.dll`. Static evidence only.",
+      "evidence": [
+        "https://openssl-library.org/news/secadv/20261117.txt",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-121482",
+        "native-server-binaries.ccpack::payload/bin/postgres.exe sha256 70334b2428dac81d111b4e3a6cfed01568b216e4ef3c5cc879d423a0fe69c0df",
+        "native-server-binaries.ccpack::payload/bin/libpq.dll sha256 d87674d536cb8fcc4897f8d6a1c8445675e33447ca0e6ebac210559029f19d04",
+        "Static import-table and string-table scan of every PE in every .ccpack in the shipped kit (C:\\CivicCastTester\\kit-staging\\d125c16d94402ce242363ba1bb9aadd39c1f2387; 500 PEs, 0 parse errors); nothing was run."
+      ]
+    },
+    {
+      "package": "postgres-openssl",
+      "version": "3.5.9",
+      "id": "CVE-2026-124709",
+      "reviewed": "2026-11-22",
+      "review_by": "2026-12-22",
+      "reason": "Not reachable on the shipped bytes. No QUIC stack is reachable, and the shipped cluster listens on `127.0.0.1` with `ssl = off` (`civiccast/native/provision/conf.py:render_postgresql_conf`). Static evidence only.",
+      "evidence": [
+        "https://openssl-library.org/news/secadv/20261117.txt",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-124709",
+        "native-server-binaries.ccpack::payload/bin/postgres.exe sha256 70334b2428dac81d111b4e3a6cfed01568b216e4ef3c5cc879d423a0fe69c0df",
+        "native-server-binaries.ccpack::payload/bin/libpq.dll sha256 d87674d536cb8fcc4897f8d6a1c8445675e33447ca0e6ebac210559029f19d04",
+        "civiccast/native/provision/conf.py:render_postgresql_conf",
+        "Static import-table and string-table scan of every PE in every .ccpack in the shipped kit (C:\\CivicCastTester\\kit-staging\\d125c16d94402ce242363ba1bb9aadd39c1f2387; 500 PEs, 0 parse errors); nothing was run."
+      ]
+    },
+    {
+      "package": "postgres-openssl",
+      "version": "3.5.9",
+      "id": "CVE-2026-35190",
+      "reviewed": "2026-11-22",
+      "review_by": "2026-12-22",
+      "reason": "Not reachable on the shipped bytes. Neither `postgres.exe` nor `libpq.dll` imports `SSL_CTX_set_cert_flags`, and the shipped cluster runs `ssl = off`. Static evidence only.",
+      "evidence": [
+        "https://openssl-library.org/news/secadv/20261117.txt",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-35190",
+        "native-server-binaries.ccpack::payload/bin/postgres.exe sha256 70334b2428dac81d111b4e3a6cfed01568b216e4ef3c5cc879d423a0fe69c0df",
+        "native-server-binaries.ccpack::payload/bin/libpq.dll sha256 d87674d536cb8fcc4897f8d6a1c8445675e33447ca0e6ebac210559029f19d04",
+        "Static import-table and string-table scan of every PE in every .ccpack in the shipped kit (C:\\CivicCastTester\\kit-staging\\d125c16d94402ce242363ba1bb9aadd39c1f2387; 500 PEs, 0 parse errors); nothing was run."
+      ]
+    },
+    {
+      "package": "postgres-openssl",
+      "version": "3.5.9",
+      "id": "CVE-2026-84786",
+      "reviewed": "2026-11-22",
+      "review_by": "2026-12-22",
+      "reason": "Not reachable on the shipped bytes. No DANE symbol is imported by either TLS-using binary in the server pack. Static evidence only.",
+      "evidence": [
+        "https://openssl-library.org/news/secadv/20261117.txt",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-84786",
+        "native-server-binaries.ccpack::payload/bin/postgres.exe sha256 70334b2428dac81d111b4e3a6cfed01568b216e4ef3c5cc879d423a0fe69c0df",
+        "native-server-binaries.ccpack::payload/bin/libpq.dll sha256 d87674d536cb8fcc4897f8d6a1c8445675e33447ca0e6ebac210559029f19d04",
+        "Static import-table and string-table scan of every PE in every .ccpack in the shipped kit (C:\\CivicCastTester\\kit-staging\\d125c16d94402ce242363ba1bb9aadd39c1f2387; 500 PEs, 0 parse errors); nothing was run."
+      ]
+    },
+    {
+      "package": "postgres-openssl",
+      "version": "3.5.9",
+      "id": "CVE-2026-95690",
+      "reviewed": "2026-11-22",
+      "review_by": "2026-12-22",
+      "reason": "Not reachable on the shipped bytes. `postgres.exe` and `libpq.dll` import no `DTLS_*` function, and PostgreSQL has no DTLS mode. Static evidence only.",
+      "evidence": [
+        "https://openssl-library.org/news/secadv/20261117.txt",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-95690",
+        "native-server-binaries.ccpack::payload/bin/postgres.exe sha256 70334b2428dac81d111b4e3a6cfed01568b216e4ef3c5cc879d423a0fe69c0df",
+        "native-server-binaries.ccpack::payload/bin/libpq.dll sha256 d87674d536cb8fcc4897f8d6a1c8445675e33447ca0e6ebac210559029f19d04",
+        "Static import-table and string-table scan of every PE in every .ccpack in the shipped kit (C:\\CivicCastTester\\kit-staging\\d125c16d94402ce242363ba1bb9aadd39c1f2387; 500 PEs, 0 parse errors); nothing was run."
+      ]
     }
   ]
 }
