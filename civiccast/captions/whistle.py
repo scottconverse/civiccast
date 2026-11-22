@@ -14,6 +14,7 @@ import math
 import os
 import queue
 import re
+import struct
 import subprocess
 import sys
 import threading
@@ -41,6 +42,15 @@ LIBRARY_SHA256 = "de2e2c39cd311fbd9971fad4736abc329ed970653674c203e149c4ef27fd1c
 #: this ladder emulated on the Beelink, an air-path preparation at 97 % CPU
 #: left captions at a 3.1-3.5 s mean, max 5.3 s, none over 10 s.
 SPEECH_CHILD_PRIORITY_CLASS = 0x20
+#: Access rights for the suspended speech child handle: QUERY_INFORMATION |
+#: QUERY_LIMITED_INFORMATION | SYNCHRONIZE, plus PROCESS_SET_INFORMATION
+#: (0x200) so the parent can pin the Whistle child to the performance cores.
+SPEECH_CHILD_PROCESS_ACCESS = 0x501 | 0x200
+#: ``RelationProcessorCore`` in GetLogicalProcessorInformationEx.
+_RELATION_PROCESSOR_CORE = 0
+#: A hybrid CPU needs at least this many logical CPUs in its highest
+#: efficiency class before pinning the child there is worthwhile.
+_MIN_PERFORMANCE_CORES = 4
 _FALLBACK_RETRY_COOLDOWN_SECONDS = 30.0
 _WHISTLE_REQUEST_TIMEOUT_SECONDS = 30.0
 _WHISPER_REQUEST_TIMEOUT_SECONDS = 120.0
@@ -87,6 +97,139 @@ def _speech_request_timeout(engine: str) -> float:
     if not math.isfinite(timeout) or not 1 <= timeout <= 600:
         raise ValueError("Whisper fallback timeout must be finite and between 1 and 600 seconds")
     return timeout
+
+
+def _kernel32() -> Any:
+    """Return kernel32 with last-error capture; tests replace this."""
+    return ctypes.WinDLL("kernel32", use_last_error=True)
+
+
+def _parse_processor_core_records(data: bytes) -> list[tuple[int, int, int]]:
+    """Parse ``SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX`` core records.
+
+    Each tuple is ``(efficiency_class, group, mask)`` for one physical core.
+    Non-core relationship records are ignored.
+    """
+
+    records: list[tuple[int, int, int]] = []
+    offset = 0
+    while offset + 8 <= len(data):
+        relationship, size = struct.unpack_from("<II", data, offset)
+        if size < 8:
+            break
+        if relationship == _RELATION_PROCESSOR_CORE and offset + 32 <= len(data):
+            efficiency_class = data[offset + 9]
+            group_count = struct.unpack_from("<H", data, offset + 30)[0]
+            group_offset = offset + 32
+            for _ in range(group_count):
+                if group_offset + 16 > len(data):
+                    break
+                mask, group = struct.unpack_from("<QH", data, group_offset)
+                records.append((efficiency_class, group, mask))
+                group_offset += 16
+        offset += size
+    return records
+
+
+def _select_performance_core_mask(
+    records: list[tuple[int, int, int]], group_count: int
+) -> tuple[int, str]:
+    """Return ``(mask, "")`` for the performance cores, or ``(0, reason)``.
+
+    The performance cores are the highest efficiency class reported by
+    Windows. On a single-class CPU, more than one processor group, or a
+    highest class with fewer than four logical CPUs, no change is made.
+    """
+
+    if group_count > 1:
+        return 0, f"CPU has {group_count} processor groups"
+    if not records:
+        return 0, "no processor core records"
+    classes = {efficiency_class for efficiency_class, _group, _mask in records}
+    if len(classes) < 2:
+        return 0, "CPU is not hybrid"
+    highest = max(classes)
+    performance = [record for record in records if record[0] == highest]
+    logical_cpus = sum(record[2].bit_count() for record in performance)
+    if logical_cpus < _MIN_PERFORMANCE_CORES:
+        return (
+            0,
+            f"highest efficiency class has {logical_cpus} logical CPUs, "
+            f"fewer than {_MIN_PERFORMANCE_CORES}",
+        )
+    mask = 0
+    for _efficiency_class, _group, core_mask in performance:
+        mask |= core_mask
+    return mask, ""
+
+
+def _detect_performance_core_mask() -> tuple[int, str]:
+    """Query the CPU topology and return the performance-core mask."""
+
+    kernel = _kernel32()
+    group_count = int(kernel.GetActiveProcessorGroupCount())
+    length = ctypes.c_ulong(0)
+    get_info = kernel.GetLogicalProcessorInformationEx
+    get_info.argtypes = [
+        ctypes.c_int,
+        ctypes.c_void_p,
+        ctypes.POINTER(ctypes.c_ulong),
+    ]
+    get_info.restype = ctypes.c_int
+    get_info(_RELATION_PROCESSOR_CORE, None, ctypes.byref(length))
+    if length.value == 0:
+        raise ctypes.WinError(ctypes.get_last_error())
+    buffer = ctypes.create_string_buffer(length.value)
+    if not get_info(_RELATION_PROCESSOR_CORE, buffer, ctypes.byref(length)):
+        raise ctypes.WinError(ctypes.get_last_error())
+    records = _parse_processor_core_records(buffer.raw[: length.value])
+    return _select_performance_core_mask(records, group_count)
+
+
+def _apply_performance_core_affinity(engine: str, pid: int, process_handle: Any) -> None:
+    """Pin the Whistle speech child to the performance cores before resume.
+
+    Detection or affinity failure is logged and swallowed: captions must not
+    stop because of it. The Whisper fallback child is never altered.
+    """
+
+    if engine != "whistle":
+        _LOG.info(
+            "Caption child CPU affinity unchanged: engine=%s pid=%s reason=not whistle",
+            engine,
+            pid,
+        )
+        return
+    try:
+        mask, reason = _detect_performance_core_mask()
+        if not mask:
+            _LOG.info(
+                "Caption child CPU affinity unchanged: engine=%s pid=%s reason=%s",
+                engine,
+                pid,
+                reason,
+            )
+            return
+        kernel = _kernel32()
+        set_affinity = kernel.SetProcessAffinityMask
+        set_affinity.argtypes = [ctypes.c_void_p, ctypes.c_size_t]
+        set_affinity.restype = ctypes.c_int
+        if not set_affinity(int(process_handle), mask):
+            raise ctypes.WinError(ctypes.get_last_error())
+        cpus = [index for index in range(mask.bit_length()) if mask >> index & 1]
+        _LOG.info(
+            "Caption child CPU affinity set: engine=%s pid=%s cpus=%s",
+            engine,
+            pid,
+            cpus,
+        )
+    except Exception as exc:
+        _LOG.warning(
+            "Caption child CPU affinity not applied: engine=%s pid=%s reason=%s",
+            engine,
+            pid,
+            exc,
+        )
 
 
 class _SpeechWorker(Protocol):
@@ -235,7 +378,7 @@ class _SpeechProcess:
             )
             self._process = process
             self._stderr = cast(IO[str], process.stderr)
-            process_handle = win32api.OpenProcess(0x501, False, process.pid)
+            process_handle = win32api.OpenProcess(SPEECH_CHILD_PROCESS_ACCESS, False, process.pid)
             try:
                 win32job.AssignProcessToJobObject(self._job, process_handle)
                 if not win32job.IsProcessInJob(process_handle, self._job):
@@ -243,6 +386,7 @@ class _SpeechProcess:
                 threads = psutil.Process(process.pid).threads()
                 if len(threads) != 1:
                     raise RuntimeError("suspended child has an unexpected thread count")
+                _apply_performance_core_affinity(engine, process.pid, process_handle)
                 thread_handle = win32api.OpenThread(2, False, threads[0].id)
                 try:
                     win32process.ResumeThread(thread_handle)
