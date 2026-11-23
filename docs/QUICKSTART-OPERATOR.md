@@ -12,7 +12,7 @@ Use the complete signed kit matching the release. The current public download is
 
 Use the Manual for full steps, error recovery, and responsibilities. Preparation is not on-air proof. Do not repeatedly reload an already pending handoff.
 
-For RC7, Windows 11 x64 is the verified platform; Windows 10/Server support is unverified. No minimum hardware specification is certified for three simultaneous captioned channels. Captions are machine-generated, and their accuracy is not calibrated against human transcripts. At a program change, a caption page still being spoken can be cut off. Captions can slow down if the station PC is busy with programs other than CivicCast. Check caption delivery at transitions on your configuration. See the RC7 release notes for the measured scope, security findings and known issues before a distribution decision.
+For RC7, Windows 11 x64 is the verified platform; Windows 10/Server support is unverified. The supported minimum for the rc.8 candidate is **32 GB of RAM**; a processor with integrated graphics is enough and no separate graphics card is required. A 16 GB machine is below that minimum. Captions are machine-generated, and their accuracy is not calibrated against human transcripts. At a program change, a caption page still being spoken can be cut off. Captions can slow down if the station PC is busy with programs other than CivicCast. Check caption delivery at transitions on your configuration. See the RC7 release notes for the measured scope, security findings and known issues before a distribution decision, and the [rc.8 release notes](releases/v1.0.0-rc.8-release-notes.md) for the candidate's soak scope and open items.
 
 ---
 

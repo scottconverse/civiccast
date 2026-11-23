@@ -43,6 +43,7 @@ import time
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -111,22 +112,49 @@ _DEFAULT_PREPARATION_TIMEOUT_SECONDS = 300.0
 #: left flat: on the MSI (2026-11-20) a flat 300s killed every stage of a
 #: 1800s slot's conform and the channel never came back on air.
 #:
-#: 8.0x is the design speed: the measured 16.3x alone and 10.4x against a
-#: concurrent foreground conform are both faster, so this is a worst case that
-#: still terminates rather than a target.
-_WARM_CONFORM_DESIGN_SPEED_RPS = 8.0
+#: 8.0x was the original design speed: the measured 16.3x alone and 10.4x
+#: against a concurrent foreground conform on the live station, both faster, so
+#: it was a worst case there rather than a target.
+#:
+#: That station is not the slowest box this ships on. rc.8 MSI field test
+#: (2026-11-21, i7-13620H, 16 GB, no GPU use, live captions on): the warm's
+#: speech-leveling program mux was killed at 1398.51 s on a 7458.74 s asset --
+#: exactly ``7458.74 / 8.0 * 1.5`` -- because at ONE thread on the background
+#: cores that mux runs at the 2.3-2.5x realtime measured for this machine
+#: class (see ``_AIR_CONFORM_DESIGN_SPEED_RPS``), i.e. ~3243 s of work, so it
+#: was stopped at 43 % of it, its ridden audio was discarded, and the loudnorm
+#: fallback then started over on the same asset inside the same budget. A
+#: design speed faster than the slowest shape the warm actually runs makes
+#: every long warm unwarmable and burns the whole budget on each attempt.
+#: 2.0x is the same pessimistic rate the AIR path budgets from, for the same
+#: reason: it is below every measured rate on any supported box, so the bound
+#: is never the thing that kills a healthy warm.
+_WARM_CONFORM_DESIGN_SPEED_RPS = 2.0
 #: Headroom over the design-speed estimate. The warm has no interactive
 #: deadline -- its only cost of over-running is a longer-lived child -- so the
 #: bound is set to tolerate a machine materially slower than the one the design
 #: speed was measured on.
 _WARM_CONFORM_TIMEOUT_FACTOR = 1.5
+#: The longest asset a warm is required to cover. rc.8 MSI field test
+#: (2026-11-21): the library's longest programme is 19,254 s, and the old
+#: 7,200 s wall-clock ceiling killed its warm (and the 15,949 s one's) at the
+#: bound -- each held the ONE warm worker thread for the full two hours,
+#: never populated its cache entry, and starved the warm of the programme
+#: that aired next. The ceiling is derived from this duration so the two can
+#: never drift apart again.
+_WARM_CONFORM_MAX_MEDIA_SECONDS = 19_800.0
 #: Ceiling on the scaled bound. There is ONE warm worker thread, so a bound
 #: that scales without limit would let a single pathological asset (or a
 #: misreported duration) hold the warm queue for the rest of the day. This is a
-#: cap on WALL CLOCK, not on asset duration: at the measured 16.3x, 2h still
-#: covers an asset longer than a day. No asset the station has recorded comes
-#: anywhere near it (the longest observed, 9154s, designs to ~29 min).
-_WARM_CONFORM_TIMEOUT_CEILING_SECONDS = 7200.0
+#: cap on WALL CLOCK, not on asset duration: at the 2.0x design speed and 1.5x
+#: factor it covers an asset up to ``_WARM_CONFORM_MAX_MEDIA_SECONDS``
+#: (5 h 30 min) of media -- 14,850 s here, against 14,440.5 s designed for the
+#: library's longest (19,254 s) programme. Starvation of a sooner-airing
+#: programme is handled separately, by airtime ordering and preemption in the
+#: warm queue, so the ceiling no longer has to be small to protect the queue.
+_WARM_CONFORM_TIMEOUT_CEILING_SECONDS = (
+    _WARM_CONFORM_MAX_MEDIA_SECONDS / _WARM_CONFORM_DESIGN_SPEED_RPS * _WARM_CONFORM_TIMEOUT_FACTOR
+)
 #: Failed warms retry on later scheduling passes after 60s, doubling up to
 #: 30 minutes. Cancellation does not consume a retry; success resets the delay.
 _WARM_FAILURE_BACKOFF_SECONDS = 60.0
@@ -149,6 +177,10 @@ _WARM_FAILURE_BACKOFF_SECONDS = 60.0
 #: preparation bound (``_content_reload_preparation_bound_seconds``) and the
 #: watchdog remain the outer protection against a genuinely stuck job.
 _AIR_CONFORM_DESIGN_SPEED_RPS = 2.0
+#: Public alias: the automation sizes a cold rollover lead from the same
+#: pessimistic speed this module budgets both the air path and the warm with,
+#: so the lead and the budget cannot describe the same asset differently.
+AIR_CONFORM_DESIGN_SPEED_RPS = _AIR_CONFORM_DESIGN_SPEED_RPS
 #: Ceiling on the scaled air-path bound. The air path has a deadline, so unlike
 #: a warm it must not scale without limit: one pathological asset must not hold
 #: a first-ever ON_AIR for hours. 1800s covers a 60-minute slot at the 2x design
@@ -288,6 +320,107 @@ _warm_queue: queue.PriorityQueue[tuple[int, int, Callable[[], None]]] = queue.Pr
 _warm_sequence = itertools.count()
 _warm_worker_lock = threading.Lock()
 _warm_worker_started = False
+#: The job the single warm worker is running right now: its queue priority, the
+#: job itself, and the cancel event the worker gave it. ``None`` when idle.
+#: Guarded by ``_warm_running_lock``. A job with a STRICTLY LOWER priority
+#: number arriving while this is set preempts it (see
+#: ``_default_warm_scheduler``): the running warm is cancelled and re-queued.
+_warm_running: tuple[int, Callable[[], None], threading.Event] | None = None
+_warm_running_lock = threading.Lock()
+
+#: Priority of an opportunistic warm: one no airing is waiting on -- the
+#: warm-behind an asset gets after it aired, or a scheduled warm whose
+#: programme has already started. Sorts after every warm with an airing ahead
+#: of it.
+_WARM_PRIORITY_BEHIND = 1 << 62
+#: Priority of a scheduled warm whose airing is unknown (a plan segment with no
+#: recorded occurrence start). Still ahead of opportunistic work, because an
+#: airing may be coming.
+_WARM_PRIORITY_UNKNOWN = _WARM_PRIORITY_BEHIND - 1
+#: How many times the scheduler may cancel one running warm for a programme
+#: that airs sooner before that warm becomes non-preemptible for the rest of
+#: its life. A long whole-asset conform is preempted at its own airing's price:
+#: it restarts from zero on the next turn, so an unbounded stream of sooner
+#: airings (a 30-minute schedule emits one every 30 minutes) would keep it
+#: from ever finishing. After this many cancellations the job runs to its own
+#: timeout and either populates its cache entry or fails and takes the normal
+#: backoff -- both terminal, neither repeating forever. The air path's own
+#: promotion (``_promote_queued_warm``) is NOT bounded by this: an asset a
+#: reload is about to need now always outranks a background warm.
+_WARM_MAX_PREEMPTIONS = 3
+
+
+def _warm_priority_for_start(start: datetime | None, *, now: datetime | None = None) -> int:
+    """Priority for a warm whose programme airs at ``start``. See
+    :func:`plan_warm_priority`."""
+
+    if start is None:
+        return _WARM_PRIORITY_UNKNOWN
+    if start.tzinfo is None:
+        start = start.replace(tzinfo=UTC)
+    current = datetime.now(UTC) if now is None else now
+    if start <= current:
+        return _WARM_PRIORITY_BEHIND
+    return int(start.timestamp())
+
+
+def _warm_effective_priority(job: Callable[[], None], *, now: datetime | None = None) -> int:
+    """A queued/running warm's priority as of NOW, not as of when it was queued.
+
+    rc.8 MSI round 2 (item 4): a job's priority used to be frozen at enqueue
+    time. Once its programme's airing passed, that frozen timestamp was in the
+    past and therefore sorted AHEAD of every future airing, and a running job
+    carrying it could not be preempted by any newer work. Recomputing from the
+    airing instant makes a passed airing sort at the bottom
+    (``_WARM_PRIORITY_BEHIND``) -- it is opportunistic work now -- while a
+    still-upcoming airing keeps its own instant. A job promoted by the air path
+    carries priority 0 (``_promote_queued_warm``)."""
+
+    if getattr(job, "_warm_promoted", False):
+        return 0
+    start = getattr(job, "_warm_airing_start", None)
+    if start is None:
+        return getattr(job, "_warm_priority", _WARM_PRIORITY_BEHIND)
+    return _warm_priority_for_start(start, now=now)
+
+
+def _warm_preemptible(job: Callable[[], None]) -> bool:
+    """False once a warm has been cancelled for a sooner airing
+    ``_WARM_MAX_PREEMPTIONS`` times -- it must be allowed to finish."""
+
+    return int(getattr(job, "_warm_preemptions", 0) or 0) < _WARM_MAX_PREEMPTIONS
+
+
+def _preempt_warm(job: Callable[[], None], cancel_event: threading.Event) -> None:
+    """Cancel a running warm for a sooner airing, counting the cancellation."""
+
+    job.__dict__["_warm_preemptions"] = int(getattr(job, "_warm_preemptions", 0) or 0) + 1
+    job.__dict__["_warm_preempted"] = True
+    cancel_event.set()
+
+
+def plan_warm_priority(segment: EgressSourceSegment, *, now: datetime | None = None) -> int:
+    """The warm-queue priority for one scheduled plan segment.
+
+    rc.8 MSI round 2 (2026-11-21): priority used to be a constant per job
+    class, so the single warm worker served warms in the order they were
+    queued. The two longest programmes' warms were queued first and held the
+    worker for two hours each; the warm of program 06 -- the programme that
+    aired next -- never got a turn, its cache entry stayed cold, and the air
+    path conformed it synchronously while the channel sat on its slate.
+
+    The key is the programme's own airing instant in Unix seconds: an asset
+    that airs sooner always sorts ahead of one that airs later, no matter
+    which was queued first, and the ordering does not go stale while a job
+    waits in the queue. A programme whose airing has started needs no warm
+    for this airing (``_WARM_PRIORITY_BEHIND``), and an unknown airing keeps
+    the optimistic middle place it had.
+    """
+
+    start = segment.schedule_occurrence_start
+    if start is None:
+        return _WARM_PRIORITY_UNKNOWN
+    return _warm_priority_for_start(start, now=now)
 
 
 def _warm_worker() -> None:
@@ -298,14 +431,53 @@ def _warm_worker() -> None:
     bug in that handling can never permanently kill warming for the rest of
     the process (the worker is started exactly once -- see
     ``_warm_worker_started`` -- so a thread that dies uncaught would never
-    be replaced)."""
+    be replaced).
+
+    Each job is handed a fresh cancel event before it starts, registered in
+    ``_warm_running`` so :func:`_default_warm_scheduler` can cancel it when a
+    programme that airs sooner is queued. After registering, the worker looks
+    at the queue's head once: a sooner job that was queued in the instant
+    between the dequeue and the registration would otherwise have missed its
+    chance to preempt, and the running one would keep the worker for its full
+    duration.
+    """
+    global _warm_running
     while True:
         _, _, job = _warm_queue.get()
+        priority = _warm_effective_priority(job)
+        # Item 4: the queue orders by the priority a job was queued WITH. If
+        # this job's airing has since passed, that stored number is in the
+        # past and would otherwise keep it at the front of every future
+        # airing. Re-evaluate it (and the head it is about to overtake) and
+        # let the sooner work go first.
+        with _warm_queue.mutex:
+            try:
+                queued_ahead = _warm_effective_priority(_warm_queue.queue[0][2])
+            except IndexError:
+                queued_ahead = None
+        if queued_ahead is not None and queued_ahead < priority:
+            _warm_queue.put((priority, next(_warm_sequence), job))
+            _warm_queue.task_done()
+            continue
+        cancel_event = threading.Event()
+        job.__dict__["_warm_cancel_event"] = cancel_event
+        job.__dict__["_warm_preempted"] = False
+        with _warm_running_lock:
+            _warm_running = (priority, job, cancel_event)
+        with _warm_queue.mutex:
+            try:
+                queued_ahead = _warm_effective_priority(_warm_queue.queue[0][2])
+            except IndexError:
+                queued_ahead = None
+        if queued_ahead is not None and queued_ahead < priority and _warm_preemptible(job):
+            _preempt_warm(job, cancel_event)
         try:
             job()
         except Exception:
             _LOG.exception("Conform-cache warm job raised past its own error handling.")
         finally:
+            with _warm_running_lock:
+                _warm_running = None
             _warm_queue.task_done()
 
 
@@ -317,27 +489,75 @@ def _default_warm_scheduler(job: Callable[[], None]) -> None:
     PER job -- unbounded, so every distinct asset aired while a previous
     warm was still running got its own thread, all contending for CPU with
     the synchronous foreground conforms this whole feature exists to keep
-    fast. Upcoming-plan jobs precede opportunistic jobs, FIFO within each priority: at most one background
-    warm conform runs at a time, queued jobs simply wait. ``_schedule_warm``'s
-    own per-key dedupe (``self._warming``) still prevents the same asset
-    from being queued twice while its warm is pending or running.
+    fast. At most one background warm conform runs at a time, queued jobs
+    simply wait. ``_schedule_warm``'s own per-key dedupe (``self._warming``)
+    still prevents the same asset from being queued twice while its warm is
+    pending or running.
+
+    Jobs run in priority order, and the priority of a scheduled warm is when
+    its programme airs (``plan_warm_priority``), so a warm for a programme
+    that airs later can never take the worker from one that airs sooner. When
+    the sooner job is queued while the later one is ALREADY conforming, the
+    running job is cancelled and marked preempted: ordering the queue alone
+    cannot help there, and the field data shows exactly that shape (program
+    06's warm was queued during program 05's). The cancelled job's own
+    handler re-queues it -- cancellation is not an asset failure
+    (``_schedule_plan_warm``).
     """
     global _warm_worker_started
     with _warm_worker_lock:
         if not _warm_worker_started:
             threading.Thread(target=_warm_worker, name="conform-cache-warm", daemon=True).start()
             _warm_worker_started = True
-    _warm_queue.put((getattr(job, "_warm_priority", 10), next(_warm_sequence), job))
+    priority = _warm_effective_priority(job)
+    with _warm_running_lock:
+        running = _warm_running
+        if running is not None:
+            running_job = running[1]
+            # Item 4: compare against what the running warm is worth NOW. Its
+            # frozen number would otherwise be a past timestamp that no future
+            # airing can beat, so nothing could ever preempt it.
+            if priority < _warm_effective_priority(running_job) and _warm_preemptible(running_job):
+                _preempt_warm(running_job, running[2])
+    _warm_queue.put((priority, next(_warm_sequence), job))
 
 
 def _promote_queued_warm(key: str) -> None:
-    """Promote queued work under the queue lock; a dequeued job is untouched."""
+    """Promote the queued warm for ``key`` to the front, and get a running
+    later warm out of its way.
+
+    rc.8 MSI round 2 (item 4): promoting the queued job alone is not enough --
+    the air path promotes because a reload is about to need this asset NOW,
+    and a later warm already on the single worker would still hold it for its
+    full duration. The running job is cancelled and re-queued exactly as a
+    sooner airing cancels it, and the cancellation is not counted against the
+    ``_WARM_MAX_PREEMPTIONS`` cap: an asset the air path needs now always
+    outranks a background warm.
+    """
+
+    promoted = False
     with _warm_queue.mutex:
         for index, (priority, sequence, job) in enumerate(_warm_queue.queue):
             if priority > 0 and getattr(job, "_warm_key", None) == key:
+                job.__dict__["_warm_promoted"] = True
                 _warm_queue.queue[index] = (0, sequence, job)
                 heapq.heapify(_warm_queue.queue)
+                promoted = True
                 break
+    if not promoted:
+        return
+    with _warm_running_lock:
+        running = _warm_running
+        if running is None:
+            return
+        running_job = running[1]
+        # The same asset already conforming is the warm this promotion wants;
+        # let it finish rather than restarting it from zero.
+        if getattr(running_job, "_warm_key", None) == key:
+            return
+        if _warm_effective_priority(running_job) > 0:
+            running_job.__dict__["_warm_preempted"] = True
+            running[2].set()
 
 
 #: Room left on the cache volume that a conform is never allowed to spend.
@@ -917,6 +1137,25 @@ class SourcePreparer:
             return None
         return data if isinstance(data, dict) else None
 
+    def full_asset_cache_hit(self, source_path: Path, config: EgressConfig) -> bool:
+        """True when the conform cache already holds this whole asset.
+
+        The same predicate the warm-behind, plan-warm and air-path jobs use to
+        skip a redundant conform: the media file exists AND its sidecar says
+        ``full_asset_conform`` (a flagless sidecar is a probe-only artifact,
+        not a whole-asset entry -- see ``_write_cache_meta``). The automation
+        asks it before sizing a rollover lead: a cached item needs only the
+        short preparation lead, not a cold whole-asset conform's.
+        """
+
+        key = self._cache_key(source_path, config)
+        if key is None:
+            return False
+        if not (self._cache_dir() / f"{key}.ts").is_file():
+            return False
+        meta = self._read_cache_meta(key)
+        return meta is not None and meta.get("full_asset_conform") is True
+
     def _write_cache_meta(
         self,
         key: str,
@@ -1225,6 +1464,12 @@ class SourcePreparer:
                         if timeout_seconds is None
                         else timeout_seconds
                     ),
+                    # rc.8 MSI round 2 (item 3): the ride and every child it
+                    # starts take the rung of the work they belong to. An
+                    # air-path preparation keeps BELOW_NORMAL on the air-path
+                    # half; a background warm takes IDLE on the background
+                    # cores, the same rung as the warm's own conform.
+                    lower_priority=lower_priority,
                 )
             except LoudnessRideCancelledError as exc:
                 # Checked first: a cancellation IS a LoudnessRideError, and it
@@ -2065,6 +2310,13 @@ class SourcePreparer:
             # the probe is itself what raised. ``warm_preparation_timeout_
             # seconds`` is pure arithmetic, so the pre-try computation costs
             # nothing when the caller already supplied a usable duration.
+            #
+            # rc.8 MSI round 2: an opportunistic warm-behind yields to any
+            # scheduled warm that airs sooner (``_default_warm_scheduler``
+            # cancels it), so it takes the worker's cancel event. A cancelled
+            # warm-behind is simply dropped -- the asset's next airing queues
+            # it again -- which is the right cost for the ladder's bottom job.
+            cancel_event: threading.Event | None = getattr(_job, "_warm_cancel_event", None)
             warm_duration_seconds = media_duration_seconds
             warm_timeout_seconds = warm_preparation_timeout_seconds(
                 warm_duration_seconds, self._preparation_timeout_seconds
@@ -2110,6 +2362,7 @@ class SourcePreparer:
                     loudness,
                     normalized,
                     media_duration_seconds=warm_duration_seconds,
+                    cancel_event=cancel_event,
                     timeout_seconds=warm_timeout_seconds,
                     lower_priority=True,
                 )
@@ -2267,6 +2520,13 @@ class SourcePreparer:
             warm_duration_seconds: float | None = None
             warm_timeout_seconds = self._preparation_timeout_seconds
             scratch = self._work_dir / config.channel_id / "warm" / uuid.uuid4().hex[:12]
+            # The worker hands every job its own cancel event; a warm is
+            # cancelled only when a programme that airs sooner needs the
+            # worker (see ``_default_warm_scheduler``). It is read here, so
+            # a job invoked directly (a test, or a custom scheduler) simply
+            # has none.
+            cancel_event: threading.Event | None = getattr(_job, "_warm_cancel_event", None)
+            requeue_preempted = False
             try:
                 cached_ts = self._cache_dir() / f"{key}.ts"
                 cached_meta = self._read_cache_meta(key)
@@ -2293,6 +2553,16 @@ class SourcePreparer:
                 warm_timeout_seconds = warm_preparation_timeout_seconds(
                     warm_duration_seconds, self._preparation_timeout_seconds
                 )
+                # rc.8 MSI round 2 fix, round 3 (2026-11-21): round 2 refused
+                # a warm whose airing had already started, or whose design
+                # cost exceeded the runway to its airing. That made every
+                # window of a long programme cold: a programme airs in 1800 s
+                # windows, so the whole-asset cache entry this warm builds is
+                # still there for the LATER windows even though it cannot be
+                # ready for the airing that queued it. The job is queued
+                # anyway; ``plan_warm_priority`` / ``_warm_effective_priority``
+                # already sort a started airing behind every future one, so it
+                # cannot delay a programme that airs sooner.
                 scratch.mkdir(parents=True, exist_ok=True)
                 # The synthetic whole-asset segment: the REAL source path (so
                 # the cache key is the air path's own), no in/out points, and
@@ -2320,6 +2590,7 @@ class SourcePreparer:
                     synthetic,
                     config=config,
                     output_path=scratch / "warm.ts",
+                    cancel_event=cancel_event,
                     lower_priority=True,
                     timeout_seconds=warm_timeout_seconds,
                 )
@@ -2330,7 +2601,17 @@ class SourcePreparer:
             except SourcePreparationCancelledError:
                 # A shutdown/pause is not a property of the asset: no warning,
                 # no backoff window -- the same rule ``_schedule_warm`` states.
-                pass
+                #
+                # Neither is a preemption (see ``_default_warm_scheduler``):
+                # the worker cancels this job when a programme that airs
+                # sooner needs it. The asset still deserves its warm, so the
+                # job re-queues itself in the ``finally`` below and runs once
+                # the sooner one is done. It re-checks the cache and the
+                # runway when it runs again, so a requeued warm whose airing
+                # has passed retires on its own instead of looping.
+                requeue_preempted = bool(getattr(_job, "_warm_preempted", False))
+                if requeue_preempted:
+                    _job.__dict__["_warm_preempted"] = False
             except Exception as exc:
                 retry_seconds = self._record_warm_failure(key)
                 duration_text = (
@@ -2356,9 +2637,29 @@ class SourcePreparer:
                 shutil.rmtree(scratch, ignore_errors=True)
                 with self._warming_guard:
                     self._warming.discard(key)
+                if requeue_preempted:
+                    with self._warming_guard:
+                        # Re-register the key so no second warm for the same
+                        # asset can be queued behind this one; the requeued
+                        # job's own ``finally`` discards it again.
+                        self._warming.add(key)
+                    try:
+                        self._warm_scheduler(_job)
+                    except Exception:
+                        with self._warming_guard:
+                            self._warming.discard(key)
+                        _LOG.exception(
+                            "Failed to re-queue the preempted U60 plan look-ahead "
+                            "warm for %r; the air path is unaffected and will "
+                            "prepare this asset synchronously if it reaches it.",
+                            source_path.name,
+                        )
 
         try:
-            _job.__dict__["_warm_priority"] = 0
+            _job.__dict__["_warm_priority"] = plan_warm_priority(segment)
+            # The airing instant itself, so the queue can re-evaluate this
+            # job's worth after it has waited (``_warm_effective_priority``).
+            _job.__dict__["_warm_airing_start"] = segment.schedule_occurrence_start
             self._warm_scheduler(_job)
         except Exception:
             with self._warming_guard:
@@ -3165,6 +3466,14 @@ class SourcePreparer:
                 probe_start_seconds=probe_start_seconds,
                 probe_duration_seconds=probe_duration_seconds,
                 threads=conform_threads,
+                # rc.8 MSI (2026-11-21): this probe is preparation work, so it
+                # takes the preparation's own rung -- BELOW_NORMAL plus the
+                # air-path half on the air path, IDLE plus the background
+                # quarter on a warm. Left at the caller's NORMAL class it
+                # competed with the live caption child on every logical
+                # processor, beside the ride and the mux.
+                lower_priority=lower_priority,
+                half_cores=not lower_priority,
             )
             if (
                 single_sample_is_conclusive
@@ -3249,6 +3558,9 @@ class SourcePreparer:
                         probe_start_seconds=second_probe_start,
                         probe_duration_seconds=_UNTRIMMED_LOUDNESS_PROBE_CAP_S,
                         threads=conform_threads,
+                        # Same rung as the first sample: it is the same probe.
+                        lower_priority=lower_priority,
+                        half_cores=not lower_priority,
                     )
                     if second_loudness.measured_lufs is not None:
                         # Item 66 round-6 (point 4): only replace the first

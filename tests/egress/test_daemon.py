@@ -1434,6 +1434,12 @@ class _FakeContentReloadStrategy:
         # can pin daemon.py's should_defer_switch wiring (_try_content_reload
         # sets EncoderStartRequest.switch_at_end_of_current).
         self.switch_at_end_of_current_calls: list[bool] = []
+        # rc.8 MSI round 4: ``switch_at_unix`` is the scheduled-slate pre-arm's
+        # wall-clock switch point only. An ordinary deferred rollover is driven
+        # by the outgoing leg's EOS and only delays the 900s no-EOS watchdog,
+        # which is what ``defer_watchdog_not_before_unix`` bounds.
+        self.switch_at_unix_calls: list[float | None] = []
+        self.defer_watchdog_not_before_unix_calls: list[float | None] = []
 
     def start(self, request: EncoderStartRequest) -> EncoderStartResult:
         process = self._processes.pop(0)
@@ -1460,6 +1466,8 @@ class _FakeContentReloadStrategy:
         self.reload_calls.append(request.source_plan.segments[0].label)
         self.reload_ids.append(command_id)
         self.switch_at_end_of_current_calls.append(request.switch_at_end_of_current)
+        self.switch_at_unix_calls.append(request.switch_at_unix)
+        self.defer_watchdog_not_before_unix_calls.append(request.defer_watchdog_not_before_unix)
         if self._reload_exc is not None:
             raise self._reload_exc
         if self._reload_ok and self._auto_settle:
@@ -1716,6 +1724,130 @@ def test_content_reload_defers_switch_for_an_on_air_reload_with_no_override(
     daemon.process_once("gov")
 
     assert strategy.switch_at_end_of_current_calls == [True]
+
+
+def test_a_deferred_rollover_delays_only_the_watchdog_and_never_the_switch(
+    tmp_path: Path,
+) -> None:
+    """rc.8 MSI round 4: an ordinary deferred ON_AIR rollover is driven by the
+    outgoing leg's real EOS.
+
+    Round 3 sent the rollover boundary as ``switch_at_unix``. That field means
+    "switch at this wall-clock time", so an old leg reaching EOS early waited
+    for the clock (a gap on air) and an old leg running late was cut at the
+    boundary. The boundary must instead only delay the 900 s no-EOS watchdog,
+    by 60 s past the plan end, and it must reach the worker on its own field."""
+
+    store = InMemoryEgressStore()
+    store.upsert_config(_config())
+    store.enqueue_command(_command())
+    processes = [_FakeProcess(pid=111), _FakeProcess(pid=222)]
+    started: list[_FakeProcess] = []
+    current_label = "Council meeting"
+
+    def source_provider(_channel_id: str) -> EgressSourcePlan:
+        return _source_plan_with_label(tmp_path, current_label)
+
+    strategy = _FakeContentReloadStrategy(processes, started)
+    daemon = EgressDaemon(
+        store,
+        work_dir=tmp_path,
+        source_plan_provider=source_provider,
+        encoder_strategy=strategy,
+    )
+
+    daemon.process_once("gov")  # initial start -> ON_AIR
+    boundary = datetime.now(UTC) + timedelta(minutes=10)
+    daemon.record_rollover_plan_end("gov", boundary, command_id="cmd-reload")
+    current_label = "Mayor interview"
+    store.enqueue_command(_command("reload"))
+    daemon.process_once("gov")
+
+    assert strategy.switch_at_end_of_current_calls == [True]
+    assert strategy.switch_at_unix_calls == [None], (
+        "an EOS-driven deferred rollover must not send a wall-clock switch time"
+    )
+    assert strategy.defer_watchdog_not_before_unix_calls == [
+        pytest.approx(boundary.timestamp() + 60.0)
+    ], "the no-EOS watchdog must be held until 60 s past the plan end"
+    # A lead this long outlives the flat 960 s settlement deadline, so the
+    # daemon must not judge the still-waiting reload lost and restart it.
+    pending = daemon._pending_reload_settle["gov"]  # type: ignore[attr-defined]
+    assert pending.settle_grace_seconds == pytest.approx(
+        (boundary - datetime.now(UTC)).total_seconds() + 60.0, abs=5.0
+    )
+
+
+def test_a_reload_with_no_recorded_boundary_sends_no_switch_deadline(tmp_path: Path) -> None:
+    """The counterpart: with no horizon there is nothing to wait for, so the
+    ordinary ON_AIR deferred reload keeps its previous shape (no
+    ``switch_at_unix`` and no watchdog delay) -- this change must not invent a
+    deadline."""
+
+    store = InMemoryEgressStore()
+    store.upsert_config(_config())
+    store.enqueue_command(_command())
+    processes = [_FakeProcess(pid=111), _FakeProcess(pid=222)]
+    started: list[_FakeProcess] = []
+    strategy = _FakeContentReloadStrategy(processes, started)
+    daemon = EgressDaemon(
+        store,
+        work_dir=tmp_path,
+        source_plan_provider=lambda _cid: _source_plan_with_label(tmp_path, "Council meeting"),
+        encoder_strategy=strategy,
+    )
+
+    daemon.process_once("gov")  # initial start -> ON_AIR
+    store.enqueue_command(_command("reload"))
+    daemon.process_once("gov")
+
+    assert strategy.switch_at_end_of_current_calls == [True]
+    assert strategy.switch_at_unix_calls == [None]
+    assert strategy.defer_watchdog_not_before_unix_calls == [None]
+
+
+def test_the_scheduled_slate_prearm_still_switches_at_its_wall_clock_time(
+    tmp_path: Path,
+) -> None:
+    """The scheduled-slate pre-arm keeps ``switch_at_unix`` unchanged: the
+    slate is on air, so there is no outgoing EOS to wait for, and its due
+    instant IS the switch point."""
+
+    store = InMemoryEgressStore()
+    store.upsert_config(_config())
+    processes = [_FakeProcess(pid=111)]
+    started: list[_FakeProcess] = [processes[0]]
+    strategy = _FakeContentReloadStrategy(processes, started)
+    daemon = EgressDaemon(
+        store,
+        work_dir=tmp_path,
+        source_plan_provider=lambda _cid: _source_plan_with_label(tmp_path, "Due program"),
+        encoder_strategy=strategy,
+    )
+    daemon._processes["gov"] = processes[0]  # type: ignore[attr-defined]
+    store.write_state(
+        EgressStateRow(
+            channel_id="gov",
+            state="FALLBACK_SLATE",
+            current_source_label="CivicCast slate",
+            updated_at=datetime(2026, 6, 12, 6, 0, tzinfo=UTC),
+        )
+    )
+    boundary = datetime.now(UTC) + timedelta(minutes=10)
+
+    state = store.read_state("gov")
+    assert state is not None
+    applied = daemon._try_content_reload(  # type: ignore[attr-defined]
+        "gov",
+        state,
+        processes[0],
+        rollover_plan_end_at=boundary,
+        scheduled_start_at=boundary,
+    )
+
+    assert applied is True
+    assert strategy.switch_at_unix_calls == [pytest.approx(boundary.timestamp())]
+    assert strategy.defer_watchdog_not_before_unix_calls == [None]
 
 
 @pytest.mark.parametrize("generated_slate", [False, True])
@@ -9291,9 +9423,10 @@ def test_content_reload_preparation_bound_follows_the_rollover_horizon(monkeypat
     now = datetime.now(UTC)
     # No horizon (an operator reload): two bounded passes plus the FT-8 grace.
     assert _content_reload_preparation_bound_seconds(None) == pytest.approx(660.0)
-    # With one: the outgoing plan's end plus the same grace.
+    # With one: the outgoing plan's end plus the same grace (to the second: the
+    # remaining time is measured from a clock the assertion cannot freeze).
     assert _content_reload_preparation_bound_seconds(now + timedelta(seconds=600)) == pytest.approx(
-        660.0
+        660.0, abs=1.0
     )
     # ...but never below one bounded pass, even when the horizon is nearer.
     assert _content_reload_preparation_bound_seconds(now + timedelta(seconds=120)) == pytest.approx(
@@ -9303,6 +9436,57 @@ def test_content_reload_preparation_bound_follows_the_rollover_horizon(monkeypat
     assert _content_reload_preparation_bound_seconds(now - timedelta(seconds=600)) == pytest.approx(
         300.0
     )
+
+
+def test_content_reload_preparation_bound_scales_for_a_long_program(monkeypatch):
+    """MSI reload-preparation overrun (2026-11-20): each ffmpeg call in the
+    sequence is scaled to the media it encodes (``air_preparation_timeout_seconds``),
+    so the whole-job bound must cover that scaled per-call budget for the same
+    number of passes plus the existing grace -- or it kills the very sequence
+    that fix widened. A short programme keeps today's bound exactly."""
+
+    from civiccast.egress.daemon import (
+        _CONTENT_RELOAD_PREPARATION_GRACE_SECONDS,
+        _CONTENT_RELOAD_PREPARATION_PASSES,
+        _content_reload_preparation_bound_seconds,
+    )
+    from civiccast.egress.preparer import (
+        _AIR_CONFORM_TIMEOUT_CEILING_SECONDS,
+        air_preparation_timeout_seconds,
+    )
+
+    monkeypatch.setenv("CIVICAST_EGRESS_PREPARATION_TIMEOUT_SECONDS", "300")
+    now = datetime.now(UTC)
+
+    # A short programme: the scaled per-call bound is the flat base, so the
+    # bound is byte-for-byte today's.
+    for seconds in (None, 0.0, 120.0, 600.0):
+        assert _content_reload_preparation_bound_seconds(None, seconds) == pytest.approx(660.0)
+        assert _content_reload_preparation_bound_seconds(
+            now + timedelta(seconds=600), seconds
+        ) == pytest.approx(660.0)
+        assert _content_reload_preparation_bound_seconds(
+            now + timedelta(seconds=120), seconds
+        ) == pytest.approx(300.0)
+
+    # A 5.3-hour programme (the longest real one): its per-call budget is the
+    # air ceiling, and the whole-job bound covers two of those plus the grace.
+    long_seconds = 5.3 * 3600.0
+    per_call = air_preparation_timeout_seconds(long_seconds, 300.0)
+    assert per_call == _AIR_CONFORM_TIMEOUT_CEILING_SECONDS
+    expected = (
+        _CONTENT_RELOAD_PREPARATION_PASSES * per_call + _CONTENT_RELOAD_PREPARATION_GRACE_SECONDS
+    )
+    assert _content_reload_preparation_bound_seconds(None, long_seconds) == pytest.approx(expected)
+    assert _content_reload_preparation_bound_seconds(
+        now + timedelta(seconds=120), long_seconds
+    ) == pytest.approx(expected)
+    # The ceiling still holds: the bound cannot grow past the scaled passes.
+    assert _content_reload_preparation_bound_seconds(None, 24 * 3600.0) == pytest.approx(expected)
+    # A horizon further out than that still wins, as before.
+    assert _content_reload_preparation_bound_seconds(
+        now + timedelta(hours=2), long_seconds
+    ) == pytest.approx(7200.0 + 60.0, abs=30.0)
 
 
 def test_reload_preparation_past_its_bound_fails_clearly_and_falls_back(tmp_path, caplog):

@@ -136,11 +136,17 @@ class _HorizonAwareDaemon(_FakeDaemon):
     def __init__(self, *, live_channels: set[str] | None = None) -> None:
         super().__init__(live_channels=live_channels)
         self.dispatched: dict[str, tuple[str | None, tuple[float, ...], bool]] = {}
+        # Mirrors EgressDaemon.rollover_asset_cached: paths whose whole-asset
+        # conform is already resident. Empty means every boundary is cold.
+        self.cached_paths: set[str] = set()
 
     def dispatched_plan_horizon(
         self, channel_id: str
     ) -> tuple[str | None, tuple[float, ...], bool] | None:
         return self.dispatched.get(channel_id)
+
+    def rollover_asset_cached(self, channel_id: str, source_path: object) -> bool:
+        return str(Path(source_path)) in {str(Path(path)) for path in self.cached_paths}
 
 
 def _plan_with_segments(
@@ -390,6 +396,11 @@ class TestGstRolloverLeadCoversPreparationTimeout:
         monkeypatch.delenv(self._LEAD_ENV, raising=False)
         monkeypatch.setenv(self._PREP_ENV, "300")
         service, store, boundaries = self._service((1800.0,))
+        # The boundary item is already cached: a cache hit keeps the short,
+        # preparation-timeout-derived lead (see
+        # ``test_a_cold_boundary_item_sizes_the_lead_from_the_design_speed``
+        # for the cold case).
+        service._daemon.cached_paths.add("C:/media/program.ts")  # type: ignore[attr-defined]
         end = _NOW + timedelta(seconds=1800)
 
         assert service._rollover_lead_seconds() == 690.0
@@ -397,6 +408,59 @@ class TestGstRolloverLeadCoversPreparationTimeout:
         service.run_once(now=_NOW)
         service.run_once(now=end - timedelta(seconds=691))
         assert boundaries == [end]
+        assert _pending_actions(store, "public") == []
+
+        service.run_once(now=end - timedelta(seconds=690))
+        assert boundaries == [end, end]
+        assert _pending_actions(store, "public") == ["reload"]
+
+    def test_a_cold_boundary_item_sizes_the_lead_from_the_design_speed(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """rc.8 MSI round 3 (2026-11-21): a cold 1800 s window needs the lead a
+        2x realtime conform actually costs.
+
+        The 12.0 factor assumed the station's 16.3x; the MSI measures ~2.3x, so
+        a cold 1800 s window needs about 770 s and the 690 s lead dispatched it
+        too late -- the channel reached its boundary on slate (measured:
+        767.7 s of preparation finishing 83 s after the boundary). At the 2.0x
+        design speed the lead is 1800/2 + 120 = 1020 s, and the reload is
+        issued at ``end - 1020``."""
+
+        monkeypatch.delenv(self._LEAD_ENV, raising=False)
+        monkeypatch.setenv(self._PREP_ENV, "300")
+        service, store, boundaries = self._service((1800.0,))
+        end = _NOW + timedelta(seconds=1800)
+
+        assert service._rollover_lead_seconds(1800.0) == 1020.0, (
+            "a cold 1800s window must not be sized at the 12x station's rate"
+        )
+
+        service.run_once(now=_NOW)  # establish the horizon
+        service.run_once(now=end - timedelta(seconds=1021))
+        assert _pending_actions(store, "public") == []
+
+        service.run_once(now=end - timedelta(seconds=1020))
+        assert boundaries == [end, end]
+        assert _pending_actions(store, "public") == ["reload"]
+
+    def test_a_cached_boundary_item_keeps_the_short_lead(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """rc.8 MSI round 3: a cached item's preparation is a cache hit, so it
+        must keep the preparation-timeout lead, not a cold conform's. Otherwise
+        every ordinary rollover would arm minutes early and hold two legs."""
+
+        monkeypatch.delenv(self._LEAD_ENV, raising=False)
+        monkeypatch.setenv(self._PREP_ENV, "300")
+        service, store, boundaries = self._service((1800.0,))
+        service._daemon.cached_paths.add("C:/media/program.ts")  # type: ignore[attr-defined]
+        end = _NOW + timedelta(seconds=1800)
+
+        assert service._rollover_lead_seconds(1800.0, asset_cached=True) == 690.0
+
+        service.run_once(now=_NOW)
+        service.run_once(now=end - timedelta(seconds=691))
         assert _pending_actions(store, "public") == []
 
         service.run_once(now=end - timedelta(seconds=690))
@@ -429,6 +493,8 @@ class TestGstRolloverLeadCoversPreparationTimeout:
         monkeypatch.setenv(self._PREP_ENV, "300")
         monkeypatch.setenv(self._LEAD_ENV, bad)
         service, store, boundaries = self._service((1800.0,))
+        # Cached boundary item: the fallback is the timeout-derived lead.
+        service._daemon.cached_paths.add("C:/media/program.ts")  # type: ignore[attr-defined]
         end = _NOW + timedelta(seconds=1800)
 
         with caplog.at_level(logging.WARNING, logger="civiccast.egress.automation"):

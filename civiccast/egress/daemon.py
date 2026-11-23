@@ -97,6 +97,7 @@ from civiccast.egress.models import (
 from civiccast.egress.pacing import UniformPacingLatch
 from civiccast.egress.preparer import (
     SourcePreparationReport,
+    air_preparation_timeout_seconds,
     preparation_timeout_seconds_from_env,
 )
 from civiccast.egress.process_identity import verify_and_kill_process
@@ -326,6 +327,27 @@ _SLOW_START_EXIT_CODES = frozenset(
 # treat the reload as lost and fall back to restart rather than wait forever.
 _PENDING_RELOAD_SETTLE_DEADLINE_S = 960.0
 _ROLLOVER_EXTENSION_TOLERANCE_S = 0.25
+
+
+def _switch_wait_seconds(request: EncoderStartRequest) -> float:
+    """Settlement grace: seconds until the switch ``request`` says is ahead.
+
+    ``switch_at_unix`` (scheduled pre-arm) names the switch instant;
+    ``defer_watchdog_not_before_unix`` (deferred rollover) names the plan end
+    plus 60 s. Either is later than the reload can legitimately still be
+    waiting, so the flat settlement deadline is extended by it. Neither field
+    changes WHEN the switch happens -- this only stops the daemon calling a
+    legitimately waiting reload lost.
+    """
+    wait_until = (
+        request.switch_at_unix
+        if request.switch_at_unix is not None
+        else request.defer_watchdog_not_before_unix
+    )
+    if wait_until is None:
+        return 0.0
+    return max(0.0, wait_until - time.time())
+
 
 # U26 defect 2 (live, government, 2026-09-25 02:58 MDT): a reload that resolves
 # the schedule at wall-clock now can land on the CLOSING SECONDS of the item
@@ -584,7 +606,12 @@ class _PendingReloadSettlement(NamedTuple):
     #: slate-replan suppression -- describe THIS plan and no other.
     chained_program_end_at: datetime | None = None
     switch_at_unix: float | None = None
-    scheduled_wait_seconds: float = 0.0
+    #: rc.8 MSI round 4: extra settlement time for a switch the request itself
+    #: says is still ahead -- the scheduled pre-arm's due instant or a deferred
+    #: rollover's plan end. Without it a rollover dispatched a full lead (up to
+    #: ~1020 s) before the boundary would be judged lost at the flat 960 s
+    #: deadline and restarted, cutting the programme the lead exists to protect.
+    settle_grace_seconds: float = 0.0
 
 
 class _TailFloorOutcome(NamedTuple):
@@ -835,6 +862,12 @@ class EgressDaemon:
         fallback_source_provider: FallbackSourceProvider | None = None,
         source_preparer: SourcePreparerFunc | None = None,
         async_source_preparer: AsyncSourcePreparerFunc | None = None,
+        # rc.8 MSI round 3: answers "does the conform cache already hold this
+        # whole asset?" so a rollover lead can stay short for an item whose
+        # preparation will be a cache hit. Wired from ``SourcePreparer`` in
+        # ``build_channel_automation``; None (every other caller) means every
+        # boundary is treated as cold, which is the safe direction.
+        source_cache_probe: Callable[[Path, EgressConfig], bool] | None = None,
         branding_plan_provider: BrandingPlanProvider | None = None,
         cg_overlay_provider: BoardOverlayProvider | None = None,
         board_live_video_provider: BoardLiveVideoProvider | None = None,
@@ -912,6 +945,7 @@ class EgressDaemon:
         self._fallback_source_provider = fallback_source_provider
         self._source_preparer = source_preparer
         self._async_source_preparer = async_source_preparer
+        self._source_cache_probe = source_cache_probe
         self._preparation_executor: ThreadPoolExecutor | None = None
         self._preparations: dict[str, _PendingPreparation] = {}
         self._preparation_guard = RLock()
@@ -2114,6 +2148,8 @@ class EgressDaemon:
             freeze.escalated_for_pid = None
 
     def has_pending_scheduled_start(self, channel_id: str) -> bool:
+        # ``switch_at_unix`` is sent only by the scheduled-slate pre-arm, so its
+        # presence is exactly the scheduled hand-off -- see ``_reload_steps``.
         pending = self._pending_reload_settle.get(channel_id)
         return pending is not None and pending.switch_at_unix is not None
 
@@ -5521,6 +5557,31 @@ class EgressDaemon:
             if plan_dir is not None
         )
 
+    def rollover_asset_cached(self, channel_id: str, source_path: Path) -> bool:
+        """Public capability ``ChannelAutomationService`` getattr-probes: does
+        the conform cache already hold this whole asset?
+
+        Read on the automation's ~2s poll tick while it sizes a rollover lead.
+        A cache hit means the reload's preparation costs seconds, so the lead
+        stays at the preparation-timeout floor instead of growing to a cold
+        whole-asset conform's cost. False whenever the probe or the live
+        config is unavailable: the cold lead is the safe direction.
+        """
+
+        probe = self._source_cache_probe
+        config = self._built_configs.get(channel_id)
+        if probe is None or config is None:
+            return False
+        try:
+            return bool(probe(source_path, config))
+        except Exception:
+            _LOG.exception(
+                "channel %s: conform-cache probe failed for %s; treating the boundary as cold.",
+                channel_id,
+                source_path,
+            )
+            return False
+
     def record_rollover_plan_end(
         self,
         channel_id: str,
@@ -6487,7 +6548,12 @@ class EgressDaemon:
                 preparation_report = yield _PreparationRequest(
                     source_plan,
                     config,
-                    bound_seconds=_content_reload_preparation_bound_seconds(rollover_plan_end_at),
+                    # The longest segment is the one whose scaled per-call
+                    # budget the whole-job bound has to cover.
+                    bound_seconds=_content_reload_preparation_bound_seconds(
+                        rollover_plan_end_at,
+                        max(segment.duration_seconds for segment in source_plan.segments),
+                    ),
                 )
                 source_plan = preparation_report.source_plan
                 prepared_plan_dir = preparation_report.plan_dir
@@ -6550,6 +6616,30 @@ class EgressDaemon:
             # the ordinary due-item path will resolve a fresh recovery offset.
             self._release_prepared_plan_dir(prepared_plan_dir)
             return False
+        defer_switch = should_defer_switch(
+            previous_state=state.state if state else None,
+            manual_override_active=self.has_manual_override(channel_id),
+            plan_end_at=rollover_plan_end_at,
+            now=datetime.now(UTC),
+        )
+        # rc.8 MSI round 4 (2026-11-21): ``switch_at_unix`` is the SWITCH time
+        # and belongs to the scheduled-slate pre-arm only (the slate is on air,
+        # so there is no outgoing EOS to wait for). An ordinary deferred
+        # rollover must stay driven by the outgoing leg's real EOS: round 3
+        # sent the plan end here too, which made ``_commit_reload`` wait for the
+        # clock after an early EOS (a gap on air) and cut a late-running leg at
+        # the boundary.
+        #
+        # A cold 1800 s window's rollover lead is ~1020 s, longer than the
+        # engine's 900 s no-EOS watchdog, so the new leg can be ready early and
+        # the watchdog would force the switch before the programme ends. Hand
+        # the engine a separate, watchdog-only floor at the plan end + 60 s:
+        # the watchdog fires at the later of (ready + 900 s) and that floor,
+        # while the EOS-driven commit and the stall rescue ignore it.
+        switch_boundary_at = scheduled_start_at
+        defer_watchdog_not_before_unix: float | None = None
+        if defer_switch and scheduled_start_at is None and rollover_plan_end_at is not None:
+            defer_watchdog_not_before_unix = rollover_plan_end_at.timestamp() + 60.0
         request = EncoderStartRequest(
             channel_id=channel_id,
             source_plan=source_plan,
@@ -6606,13 +6696,9 @@ class EgressDaemon:
             # to the reload command now being processed -- never handed down
             # from a mismatched command. See ``_rollover_plan_end_at`` and
             # ``_request_reload``'s docstrings for the exact matching rule.
-            switch_at_end_of_current=should_defer_switch(
-                previous_state=state.state if state else None,
-                manual_override_active=self.has_manual_override(channel_id),
-                plan_end_at=rollover_plan_end_at,
-                now=datetime.now(UTC),
-            ),
-            switch_at_unix=scheduled_start_at.timestamp() if scheduled_start_at else None,
+            switch_at_end_of_current=defer_switch,
+            switch_at_unix=switch_boundary_at.timestamp() if switch_boundary_at else None,
+            defer_watchdog_not_before_unix=defer_watchdog_not_before_unix,
         )
         # F3(b), owner-authorized 2026-09-24: an IMMEDIATE (non-deferred) reload
         # out of FALLBACK_SLATE must not attempt the in-place selector swap.
@@ -6774,11 +6860,7 @@ class EgressDaemon:
             rollover_plan_end_at=rollover_plan_end_at,
             chained_program_end_at=chained_program_end_at,
             switch_at_unix=request.switch_at_unix,
-            scheduled_wait_seconds=(
-                max(0.0, request.switch_at_unix - time.time())
-                if request.switch_at_unix is not None
-                else 0.0
-            ),
+            settle_grace_seconds=_switch_wait_seconds(request),
         )
         _LOG.info(
             "Seamless content-reload accepted for %s (reload_id=%s, switch_at_end_of_current=%s); "
@@ -7061,7 +7143,7 @@ class EgressDaemon:
             )
             self._fall_back_to_restart_reload(channel_id, plan_end_at=pending.rollover_plan_end_at)
             return
-        settle_deadline = _PENDING_RELOAD_SETTLE_DEADLINE_S + pending.scheduled_wait_seconds
+        settle_deadline = _PENDING_RELOAD_SETTLE_DEADLINE_S + pending.settle_grace_seconds
         if self._monotonic() - pending.since >= settle_deadline:
             _LOG.warning(
                 "Seamless content-reload for %s reported no settlement within %.0fs "
@@ -7154,8 +7236,20 @@ class EgressDaemon:
             )
         else:
             bound = _reload_stall_bound_seconds(plan_end_at)
+        # MSI reload-preparation overrun (2026-11-20): arming a pin does NOT
+        # start a new stall episode. A declined reload, and the watchdog's own
+        # re-issue, both come back through here while the SAME stall is still
+        # running, so the rung must survive: clearing it after the re-issue of a
+        # long reload put the pin back on rung 0 -- the re-issue's preparation
+        # failed at 300s, the rung reset, and the watchdog re-issued again
+        # instead of ever reaching the restart rung, leaving the channel on its
+        # slate. The round-1 fix (no clear on a FAILED preparation) was not
+        # enough: the settlement branch of ``_poll_reload_stall_watchdog`` also
+        # cleared the rung, so the same reset happened while the re-issue's
+        # preparation was in flight. The rung now ends with the episode: when the
+        # pin is gone (``_poll_reload_stall_watchdog``) or at a real return to
+        # air (``_start``).
         self._reload_stall_bound_s[channel_id] = bound
-        self._reload_stall_rungs.pop(channel_id, None)
 
     def _poll_reload_stall_watchdog(self, channel_id: str) -> None:
         """U67: recover a channel whose ``_pending_reloads`` pin has outlived
@@ -7201,9 +7295,13 @@ class EgressDaemon:
         if self.has_pending_reload_settlement(channel_id):
             # Real work is outstanding: a preparation is running, or a reload
             # this daemon accepted is still settling. The pin is being driven,
-            # not stuck. Restart the clock for whatever comes after it.
+            # not stuck. Restart the clock for whatever comes after it, but keep
+            # the rung: if this re-issue's preparation fails, ``_arm_pending_reload``
+            # re-arms the SAME stall, and it must still reach the restart rung
+            # rather than being pushed back to rung 0 and re-issued forever. The
+            # rung ends with the episode -- the pin-gone branch below, or a real
+            # return to air (``_start``).
             self._reload_stall_since[channel_id] = now
-            self._reload_stall_rungs.pop(channel_id, None)
             return
         since = self._reload_stall_since.get(channel_id)
         if since is None:
@@ -7241,14 +7339,14 @@ class EgressDaemon:
                 _TRANSITIONING_WATCHDOG_REISSUE_GRACE_SECONDS,
             )
             self._request_reload(channel_id)
-            # A re-issue that declines again comes back through
-            # ``_arm_pending_reload``, which resets this pin's clock and clears its
-            # rung -- correct for a NEW stall, wrong here: this is still the SAME
-            # stall, and without restoring the rung the grace below would never
-            # apply and the channel would simply re-issue forever at the full
-            # bound instead of ever reaching the restart. (A re-issue that
-            # SUCCEEDS leaves no pin at all -- ``_reload_steps`` drops it when the
-            # reload arms -- so the first branch above ends the episode.)
+            # A re-issue that declines again, or whose asynchronous preparation
+            # fails, comes back through ``_arm_pending_reload``, which resets this
+            # pin's clock but KEEPS the rung -- this is still the SAME stall
+            # episode, so the grace below applies on the next expiry and the
+            # channel reaches the restart instead of re-issuing forever at the
+            # full bound. (A re-issue that SUCCEEDS leaves no pin at all --
+            # ``_reload_steps`` drops it when the reload arms -- so the first
+            # branch above ends the episode and clears the rung.)
             if channel_id in self._pending_reloads:
                 self._reload_stall_since[channel_id] = now
                 self._reload_stall_rungs[channel_id] = 1
@@ -8005,7 +8103,9 @@ def _process_pid(process: object) -> int | None:
     return getattr(process, "pid", None)
 
 
-def _content_reload_preparation_bound_seconds(plan_end_at: datetime | None) -> float:
+def _content_reload_preparation_bound_seconds(
+    plan_end_at: datetime | None, media_seconds: float | None = None
+) -> float:
     """rc.6.1 Dell bug 2: how long a content reload's preparation may run.
 
     With a recorded rollover horizon, the answer is "until the outgoing plan
@@ -8021,15 +8121,31 @@ def _content_reload_preparation_bound_seconds(plan_end_at: datetime | None) -> f
     ``_CONTENT_RELOAD_PREPARATION_PASSES`` bounded calls plus the grace -- so
     even that path cannot report "accepted" and then sit silent for as long as
     the box is slow.
+
+    MSI reload-preparation overrun (2026-11-20): each of those bounded calls is
+    itself scaled to the media it encodes (``air_preparation_timeout_seconds``),
+    so for a long programme the whole-job bound must cover the scaled per-call
+    budget or it kills the very sequence the per-call fix widened. ``media_seconds``
+    is the longest segment the preparation will encode; the bound is never less
+    than ``_CONTENT_RELOAD_PREPARATION_PASSES`` scaled calls plus the grace. The
+    per-call value already carries its own ceiling, so this cannot grow without
+    limit, and a short programme (or no duration known) keeps today's bound
+    exactly.
     """
 
     timeout = preparation_timeout_seconds_from_env()
+    scaled = air_preparation_timeout_seconds(media_seconds, timeout)
+    passes = _CONTENT_RELOAD_PREPARATION_PASSES
     if plan_end_at is None:
-        return (
-            _CONTENT_RELOAD_PREPARATION_PASSES * timeout + _CONTENT_RELOAD_PREPARATION_GRACE_SECONDS
-        )
-    remaining = (plan_end_at - datetime.now(UTC)).total_seconds()
-    return max(timeout, remaining + _CONTENT_RELOAD_PREPARATION_GRACE_SECONDS)
+        return passes * scaled + _CONTENT_RELOAD_PREPARATION_GRACE_SECONDS
+    bound = max(
+        timeout,
+        (plan_end_at - datetime.now(UTC)).total_seconds()
+        + _CONTENT_RELOAD_PREPARATION_GRACE_SECONDS,
+    )
+    if scaled > timeout:
+        bound = max(bound, passes * scaled + _CONTENT_RELOAD_PREPARATION_GRACE_SECONDS)
+    return bound
 
 
 def _reload_stall_bound_seconds(plan_end_at: datetime | None) -> float:

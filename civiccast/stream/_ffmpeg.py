@@ -44,6 +44,7 @@ __all__ = [
     "FfmpegResult",
     "H264EncoderUnavailableError",
     "check_ffmpeg",
+    "pin_air_path_child",
     "probe_ffmpeg_encoders",
     "probe_media_duration_seconds",
     "probe_video_dimensions",
@@ -625,15 +626,110 @@ _AIR_PATH_PRIORITY_CLASS: Final = 0x4000
 _BACKGROUND_MIN_CORES: Final = 4
 
 
-def _background_cores(available: list[int]) -> list[int] | None:
+def _performance_cores() -> list[int] | None:
+    """Best-effort: the logical processors in this CPU's performance class.
+
+    MSI reload-preparation overrun (2026-11-20): on a hybrid CPU the highest
+    logical processors belong to the E-cores, so the highest-numbered quarter
+    (:func:`_background_cores`) put every background encode on the slow half of
+    the box -- 2.4x realtime there versus 17.5x on the P-cores, and a live
+    89-minute background job ran at 1.14x. Windows reports one efficiency class
+    per CPU set; on the MSI (i7-13620H) the P-cores are logical 0-11 and the
+    E-cores 12-15.
+
+    Measured on the MSI with ``GetSystemCpuSetInformation``: class 0 is
+    logical 12-15 (the E-cores) and class 1 is logical 0-11 (the P-cores), and
+    Microsoft documents that a higher efficiency class has greater performance.
+    So the performance class is the one with the HIGHEST ``EfficiencyClass``
+    value -- not the one holding logical processor 0, which firmware on this
+    box places on a slower class. Returns ``None`` on non-Windows, when the OS
+    reports a single class (a non-hybrid CPU), and on any failure -- the caller
+    then keeps its previous behaviour.
+    """
+    if os.name != "nt":
+        return None
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        # SYSTEM_CPU_SET_INFORMATION (winnt.h): a variable-length array of
+        # Size-byte entries; this layout is the x64 one (32 bytes per entry).
+        class _CpuSet(ctypes.Structure):
+            _fields_ = [
+                ("Id", wintypes.DWORD),
+                ("Group", wintypes.WORD),
+                ("LogicalProcessorIndex", ctypes.c_ubyte),
+                ("CoreIndex", ctypes.c_ubyte),
+                ("LastLevelCacheIndex", ctypes.c_ubyte),
+                ("NumaNodeIndex", ctypes.c_ubyte),
+                ("EfficiencyClass", ctypes.c_ubyte),
+                ("AllFlags", ctypes.c_ubyte),
+                ("Reserved", wintypes.DWORD),
+                ("AllocationTag", ctypes.c_ulonglong),
+            ]
+
+        class _CpuSetInformation(ctypes.Structure):
+            _fields_ = [
+                ("Size", wintypes.DWORD),
+                ("Type", wintypes.DWORD),
+                ("CpuSet", _CpuSet),
+            ]
+
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        needed = wintypes.DWORD(0)
+        kernel32.GetSystemCpuSetInformation(None, 0, ctypes.byref(needed), None, 0)
+        if needed.value == 0:
+            return None
+        buffer = ctypes.create_string_buffer(needed.value)
+        size = wintypes.DWORD(needed.value)
+        if not kernel32.GetSystemCpuSetInformation(buffer, size, ctypes.byref(size), None, 0):
+            return None
+        entry_size = ctypes.sizeof(_CpuSetInformation)
+        by_class: dict[int, list[int]] = {}
+        offset = 0
+        while offset + entry_size <= size.value:
+            entry = _CpuSetInformation.from_buffer_copy(buffer.raw, offset)
+            if entry.Size == 0:
+                break
+            by_class.setdefault(entry.CpuSet.EfficiencyClass, []).append(
+                entry.CpuSet.LogicalProcessorIndex
+            )
+            offset += entry.Size
+        if len(by_class) < 2:
+            return None
+        return sorted(by_class[max(by_class)])
+    except Exception:  # best effort: any failure keeps today's behaviour
+        return None
+
+
+def _background_cores(
+    available: list[int], fast_cores: list[int] | None = None
+) -> list[int] | None:
     """The cores background ffmpeg is pinned to, or None to leave it unpinned.
 
     The highest-numbered quarter of ``available`` (the cores this process may
     run on), at least :data:`_BACKGROUND_MIN_CORES`. A box with that many
     cores or fewer is left unpinned.
+
+    On a hybrid CPU that quarter is taken from the PERFORMANCE cores instead:
+    the plain rule put every background encode on the E-cores (MSI, 2026-11-20:
+    2.4x realtime there against 17.5x on the P-cores, and a live 89-minute
+    background job at 1.14x). The count rule is unchanged. When the performance
+    cores cannot supply that many cores, or the pick would overlap
+    :func:`_half_cores`, today's rule stands.
     """
     if len(available) <= _BACKGROUND_MIN_CORES:
         return None
+    if fast_cores is None:
+        fast_cores = _performance_cores()
+    if fast_cores:
+        fast = sorted(core for core in fast_cores if core in available)
+        count = max(_BACKGROUND_MIN_CORES, len(fast) // 4)
+        if len(fast) >= count:
+            chosen = fast[-count:]
+            half = _half_cores(available)
+            if half is None or not set(chosen) & set(half):
+                return chosen
     count = max(_BACKGROUND_MIN_CORES, len(available) // 4)
     return sorted(available)[-count:]
 
@@ -665,6 +761,54 @@ def _pin_cores(pid: int, choose: Callable[[list[int]], list[int] | None]) -> Non
             psutil.Process(pid).cpu_affinity(cores)
     except Exception:  # any failure leaves ffmpeg unpinned; it never fails the job
         _LOG.warning("Could not pin ffmpeg pid %s to its cores.", pid)
+
+
+def pin_air_path_child(pid: int) -> None:
+    """Hold a just-started AIR-PATH preparation child to the air-path cores.
+
+    :func:`run_ffmpeg`'s ``half_cores`` path applies the ladder's affinity
+    itself, but only to the children it starts. The speech-leveling ride
+    (``civiccast.egress.loudness_ride``) starts its own children, and it starts
+    TWO of them CONCURRENTLY (decoder and sink, by construction) plus a
+    measurement and a re-encode pass -- so without this they run on every
+    logical processor on the box while the live caption child has to share
+    them. MSI rc.8 field test (2026-11-21): below-normal preparation ffmpeg
+    children were observed with affinity on all 16 logical processors, i.e.
+    never pinned, exactly the ones :func:`run_ffmpeg` had not started.
+
+    Priority alone is not the ladder. ``BELOW_NORMAL`` orders these threads
+    against the caption child's NORMAL ones, but it leaves a multi-threaded
+    decode and encode free to occupy every core -- including the half that
+    :func:`_half_cores` reserves on the ladder's own terms ("live captions
+    always have cores neither kind of preparation can take").
+
+    Windows only, like the rest of the affinity ladder; elsewhere the child
+    stays where the OS put it, exactly as before. Best effort throughout: a
+    hint that cannot be applied never fails the job.
+    """
+    if os.name != "nt":
+        return
+    _pin_cores(pid, _half_cores)
+
+
+def pin_background_child(pid: int) -> None:
+    """Hold a just-started BACKGROUND-PREPARATION child to the background cores.
+
+    The mirror of :func:`pin_air_path_child` for work that is not on the air
+    path: a conform-cache warm and every ffmpeg child it starts (the ride's
+    decoder, sink, measurement and re-encode) runs at IDLE
+    (:data:`_BACKGROUND_PRIORITY_CLASS`) and on the background quarter
+    (:func:`_background_cores`) -- the FT-7 ladder's bottom rung. A warm ride
+    pinned to the air-path half instead would take cores the ladder reserves
+    for a preparation that actually has a deadline, and BELOW_NORMAL is not
+    below the warm conform's own IDLE class (MSI rc.8 round 2, 2026-11-21).
+
+    Windows only, like the rest of the affinity ladder. Best effort
+    throughout: a hint that cannot be applied never fails the job.
+    """
+    if os.name != "nt":
+        return
+    _pin_cores(pid, _background_cores)
 
 
 class FfmpegCancelledError(RuntimeError):

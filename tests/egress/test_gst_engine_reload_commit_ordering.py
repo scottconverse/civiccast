@@ -807,6 +807,146 @@ def test_outgoing_eos_cannot_commit_scheduled_program_early(engine_module, monke
     assert not pending.get("boundary_forced", False)
 
 
+def _deferred_rollover_pending(
+    recorder: _Recorder, *, defer_watchdog_not_before_unix: float | None
+) -> dict[str, Any]:
+    """A ready deferred rollover with no ``switch_at_unix``.
+
+    rc.8 MSI round 4: ``switch_at_unix`` means "switch at this wall clock"; it
+    is sent only by the scheduled-slate pre-arm. An ordinary ON_AIR rollover is
+    driven by the outgoing leg's real EOS, and only its 900 s no-EOS watchdog is
+    delayed by ``defer_watchdog_not_before_unix``."""
+    pending = _unready_reload(recorder)
+    old_video = pending["old_video_pad"]
+    pending.update(
+        switch_at_end_of_current=True,
+        new_leg_ready=True,
+        holds_awaited=0,
+        old_leg_eos=False,
+        switch_at_unix=None,
+        defer_watchdog_not_before_unix=defer_watchdog_not_before_unix,
+        boundary_probes=[(old_video, 77)],
+        outgoing_eos_pads=set(),
+        tail_padding_done=True,
+    )
+    return pending
+
+
+def test_an_old_leg_eos_before_the_boundary_commits_at_the_eos(engine_module, monkeypatch):
+    """The switch is driven by the real EOS, not by the wall clock.
+
+    With the round-3 shape (``switch_at_unix`` = the plan end) an EOS arriving
+    BEFORE the boundary made ``_commit_reload`` wait for the clock and left the
+    channel with a gap on air. Here the watchdog is delayed past the boundary
+    and the real EOS still commits at once."""
+    recorder = _Recorder()
+    engine = _bare_engine_for_commit(engine_module, recorder)
+    pending = _deferred_rollover_pending(recorder, defer_watchdog_not_before_unix=3660.0)
+    engine._pending_reload = pending
+    engine.defer_switch_timeout_s = 900.0
+    monkeypatch.setattr(engine_module.time, "time", lambda: 1000.0)
+
+    began: list[str] = []
+    monkeypatch.setattr(engine, "_prepare_reload_handoff", lambda _p: began.append("handoff"))
+    monkeypatch.setattr(engine, "_start_reload_commit", lambda _p: began.append("switch"))
+    monkeypatch.setattr(
+        engine,
+        "_arm_commit_watchdog",
+        lambda: (
+            types.SimpleNamespace(cancel=lambda: None, join=lambda timeout=None: None),
+            threading.Event(),
+        ),
+    )
+
+    assert engine._on_old_leg_eos(pending["old_video_pad"], pending["txn_id"]) is False
+    assert pending["old_leg_eos"] is True
+    assert began == ["handoff", "switch"], (
+        "an EOS before the boundary must commit at the EOS with no wait"
+    )
+
+
+def test_the_watchdog_fires_at_the_later_of_900s_and_the_boundary_plus_60s(
+    engine_module, monkeypatch
+):
+    """A ready new leg must not be forced on air 900 s early.
+
+    The new leg can be ready ~1020 s before the outgoing plan ends. The
+    watchdog fires at the LATER of (readiness + 900 s) and (boundary + 60 s) --
+    so it neither cuts at T-900 nor waits for a boundary the old leg has
+    already passed."""
+    recorder = _Recorder()
+    engine = _bare_engine_for_commit(engine_module, recorder)
+    pending = _deferred_rollover_pending(recorder, defer_watchdog_not_before_unix=3660.0)
+    pending["new_leg_ready"] = False
+    engine._pending_reload = pending
+    engine.defer_switch_timeout_s = 900.0
+    clock = {"now": 1000.0}  # ready at 1000; boundary + 60 s at 3660
+    monkeypatch.setattr(engine_module.time, "time", lambda: clock["now"])
+
+    armed: list[tuple[int, Any]] = []
+
+    def _add_seconds(seconds: int, callback: Any, *args: Any) -> int:
+        armed.append((seconds, callback))
+        return 1
+
+    monkeypatch.setattr(engine_module.GLib, "timeout_add_seconds", _add_seconds, raising=False)
+    engine._on_new_leg_ready(pending["txn_id"])
+    assert [(seconds, cb.__name__) for seconds, cb in armed] == [
+        (2660, "_on_defer_switch_timeout")
+    ], "the watchdog must be armed at readiness+900 and boundary+60, whichever is later"
+
+    commits: list[str] = []
+    engine._commit_reload = lambda: commits.append("commit")
+
+    # 900 s after readiness: the old leg's own 900 s bound has elapsed, but the
+    # boundary has not. The watchdog must re-arm, not cut.
+    clock["now"] = 1900.0
+    assert engine._on_defer_switch_timeout(pending["txn_id"]) is False
+    assert commits == [], "the watchdog cut the programme before its boundary"
+    assert not pending.get("boundary_forced", False)
+    assert [(seconds, cb.__name__) for seconds, cb in armed][-1] == (
+        1760,
+        "_on_defer_switch_timeout",
+    )
+
+    clock["now"] = 3660.0
+    engine._on_defer_switch_timeout(pending["txn_id"])
+    assert commits == ["commit"], "past boundary+60 s the watchdog must force the switch"
+
+
+def test_a_stalled_old_leg_before_the_boundary_is_still_rescued(engine_module, monkeypatch):
+    """The stall rescue must not be blocked by the watchdog delay.
+
+    A broken outgoing leg that stops producing never delivers the EOS. The
+    stall path forces the switch regardless of how far ahead the boundary is;
+    the delay bounds only the watchdog timer's own firing."""
+    recorder = _Recorder()
+    engine = _bare_engine_for_commit(engine_module, recorder)
+    pending = _deferred_rollover_pending(recorder, defer_watchdog_not_before_unix=9999.0)
+    engine._pending_reload = pending
+    monkeypatch.setattr(engine_module.time, "time", lambda: 1000.0)
+    commits: list[str] = []
+    engine._commit_reload = lambda: commits.append("commit")
+
+    assert engine._force_ready_deferred_switch(reason="stall") is True
+    assert commits == ["commit"], "a stall before the boundary must still be rescued"
+
+
+def test_a_request_with_no_defer_watchdog_field_behaves_as_before(engine_module, monkeypatch):
+    """An older or missing value means today's 900 s behaviour."""
+    recorder = _Recorder()
+    engine = _bare_engine_for_commit(engine_module, recorder)
+    pending = _deferred_rollover_pending(recorder, defer_watchdog_not_before_unix=None)
+    engine._pending_reload = pending
+    engine.defer_switch_timeout_s = 900.0
+    monkeypatch.setattr(engine_module.time, "time", lambda: 1000.0)
+    commits: list[str] = []
+    engine._commit_reload = lambda: commits.append("commit")
+
+    engine._on_defer_switch_timeout(pending["txn_id"])
+    assert commits == ["commit"]
+
+
 def test_f1_duplicate_hold_cannot_substitute_for_unprerolled_audio(engine_module) -> None:
     recorder = _Recorder()
     engine = _bare_engine_for_commit(engine_module, recorder)

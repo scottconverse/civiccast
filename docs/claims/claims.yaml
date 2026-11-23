@@ -74,6 +74,14 @@
 # three-channel development proof is not transferred into historical installed
 # or Session0 claims. Same-run CI producers and assertions remain required.
 # Measured Expat 2.10 input transfer rebind; no producer/contract weakening; same-run verification still required; no historical/installed renewal.
+# rc.8 soak (2026-11-22): worker.py/engine.py source tripwires renewed for the
+# d125c16d reload-lead change (defer_watchdog_not_before_unix). It only delays
+# the deferred-switch watchdog timer; the EOS-driven commit and stall rescue
+# are unchanged. The registered claim text is a point-in-time spike/observation
+# record and asserts nothing about current bytes, so this is a D2 change-
+# detection renewal, not new acceptance. Blob IDs re-hashed with
+# `git hash-object --path <file> <file>` per D2. Historical hardware, installed,
+# boot/pre-login and session-0 results remain historical and are not renewed.
 schema_version: 1
 
 governed_doc_set:
@@ -1205,9 +1213,15 @@ entries:
       # RC2 R7 health counters: current-source review and native caption transport
       # evidence in docs/ops/evidence/rc2-r7-corrections.md. Historical installed
       # and hardware claims are not renewed; these are drift tripwires only.
+      # rc.8 soak current-source review (2026-11-22): worker.py and engine.py
+      # drifted for the d125c16d reload-lead change (defer_watchdog_not_before_unix
+      # delays only the deferred-switch watchdog timer; the EOS-driven commit and
+      # stall rescue are unchanged). This renews drift detection only; the
+      # historical spike/pre-login observation is not rerun and no installed or
+      # service acceptance is transferred or established.
       code:
         - path: civiccast/egress/gst/worker.py
-          blob: a942a2b67006c56974d4504ed9453809c9671271
+          blob: bec476522f3814236252b3305d2498793f8833d1
         # Sprint 3: current-source bindings reviewed for output DSP and EOS
         # preservation; focused native results: .agent-runs/native-windows/
         # sprint3-output/evidence/{outputs,eos}.md. Historical acceptance stays
@@ -1245,7 +1259,7 @@ entries:
         # only, not installed/release proof. Blob IDs re-hashed with
         # `git hash-object <file>`.
         - path: civiccast/egress/gst/engine.py
-          blob: d83f75a38028858dcc5e892bcaacf1f5d6a52b6e
+          blob: e6967303258a9bbeaf14b8bca79ac95fa1882042
         - path: civiccast/egress/gst/caption_flow.py
           blob: c0c981dfa050e8ca196533c791a99028302c5ca5
         - path: civiccast/egress/gst/decode_policy.py
@@ -2197,9 +2211,15 @@ entries:
       # RC2 R7 health counters: current-source review and native caption transport
       # evidence in docs/ops/evidence/rc2-r7-corrections.md. Historical installed
       # and hardware claims are not renewed; these are drift tripwires only.
+      # rc.8 soak current-source review (2026-11-22): worker.py and engine.py
+      # drifted for the d125c16d reload-lead change (defer_watchdog_not_before_unix
+      # delays only the deferred-switch watchdog timer; the EOS-driven commit and
+      # stall rescue are unchanged). This renews drift detection only; the
+      # historical spike/pre-login observation is not rerun and no installed or
+      # service acceptance is transferred or established.
       code:
         - path: civiccast/egress/gst/worker.py
-          blob: a942a2b67006c56974d4504ed9453809c9671271
+          blob: bec476522f3814236252b3305d2498793f8833d1
         # Sprint 3: current-source bindings reviewed for output DSP and EOS
         # preservation; focused native results: .agent-runs/native-windows/
         # sprint3-output/evidence/{outputs,eos}.md. Historical acceptance stays
@@ -2237,7 +2257,7 @@ entries:
         # only, not installed/release proof. Blob IDs re-hashed with
         # `git hash-object <file>`.
         - path: civiccast/egress/gst/engine.py
-          blob: d83f75a38028858dcc5e892bcaacf1f5d6a52b6e
+          blob: e6967303258a9bbeaf14b8bca79ac95fa1882042
         - path: civiccast/egress/gst/caption_flow.py
           blob: c0c981dfa050e8ca196533c791a99028302c5ca5
         - path: civiccast/egress/gst/decode_policy.py

@@ -81,7 +81,7 @@ identities are recorded in
 
 ## Install and run
 
-Download the signed RC7 station with the Windows helper. It obtains the installer, runtime packs and required station models, verifies them, and installs without separately installed development tools. Use Windows 11 x64 and a Windows administrator account. Allow about **100 GB free** when preparation and installation share a drive (including roughly **22 GB of model downloads**), plus recording space. Keep the complete kit for offline installation:
+Download the signed RC7 station with the Windows helper. It obtains the installer, runtime packs and required station models, verifies them, and installs without separately installed development tools. Use Windows 11 x64, a Windows administrator account, and a machine with at least **32 GB of RAM**. A processor with integrated graphics is enough; no separate graphics card is required. A 16 GB machine is below the supported minimum. Allow about **100 GB free** when preparation and installation share a drive (including roughly **22 GB of model downloads**), plus recording space. Keep the complete kit for offline installation:
 
 ```powershell
 $installerScript = Join-Path $env:TEMP 'CivicCast-Install-RC7.ps1'

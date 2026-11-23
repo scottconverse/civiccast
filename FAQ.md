@@ -32,7 +32,7 @@ signing or attestation status is called out separately in each release.
 
 ## What do I need before the first real meeting?
 
-- A Windows 11 host that passes `civiccast doctor`.
+- A Windows 11 host that passes `civiccast doctor`, with at least **32 GB of RAM**. A processor with integrated graphics is enough; no separate graphics card is required. A 16 GB machine is below the supported minimum.
 - The native station's installer-provisioned local PostgreSQL service and a
   first local admin account with a saved recovery kit. Standalone app/setup
   mode can use managed SQLite; that is not the native Windows service default.

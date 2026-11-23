@@ -217,7 +217,9 @@ def _apply_accepted_reload(
         with reload_path.open(encoding="utf-8") as handle:
             graph_json = handle.read()
             new_graph = graphmod.graph_from_json(graph_json)
-            switch_at_unix = json.loads(graph_json).get("switch_at_unix")
+            document = json.loads(graph_json)
+            switch_at_unix = document.get("switch_at_unix")
+            defer_watchdog_not_before_unix = document.get("defer_watchdog_not_before_unix")
         switch_at_end_of_current = reload_policy_mod.reload_switch_is_deferred(command[1])
         with contextlib.suppress(OSError):
             # One-shot graph file: a failed admission is terminal and the daemon
@@ -233,6 +235,11 @@ def _apply_accepted_reload(
             switch_at_end_of_current=switch_at_end_of_current,
             on_settled=_on_settled,
             **({"switch_at_unix": switch_at_unix} if switch_at_unix is not None else {}),
+            **(
+                {"defer_watchdog_not_before_unix": defer_watchdog_not_before_unix}
+                if defer_watchdog_not_before_unix is not None
+                else {}
+            ),
         )
     except Exception as exc:
         print(f"CTRL reload: accepted arm failed: {exc!r}", flush=True)

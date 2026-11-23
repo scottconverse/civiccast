@@ -51,7 +51,15 @@ class EncoderStartRequest:
     switch_at_end_of_current: bool = False
     # Automatic starts from an indefinite slate can preroll before the slot.
     # The worker keeps the incoming first buffers held until this UTC epoch.
+    # This is the SWITCH time, for the scheduled-slate pre-arm only. An
+    # ordinary deferred rollover is driven by the outgoing leg's real EOS and
+    # must not send it.
     switch_at_unix: float | None = None
+    # Deferred rollovers only: the ``defer_switch_timeout_s`` no-EOS watchdog
+    # must not fire before this UTC epoch. It delays ONLY that watchdog -- the
+    # EOS-driven commit and the stall rescue are unaffected. ``None`` (an
+    # older request or no recorded horizon) keeps the plain 900 s behaviour.
+    defer_watchdog_not_before_unix: float | None = None
     # A failed session reset must not expose old sidecars/audio. This is a
     # session safety gate, independent of the operator's caption preference.
     captions_allowed: bool = True

@@ -1597,9 +1597,12 @@ class GstPlayoutStrategy:
         suffix = reload_sidecar_suffix(switch_at_end_of_current=request.switch_at_end_of_current)
         reload_path = channel_dir / f"playout-graph.reload.{command_id or uuid.uuid4().hex}{suffix}"
         payload = graph_to_json(graph)
-        if request.switch_at_unix is not None:
+        if request.switch_at_unix is not None or request.defer_watchdog_not_before_unix is not None:
             document = json.loads(payload)
-            document["switch_at_unix"] = request.switch_at_unix
+            if request.switch_at_unix is not None:
+                document["switch_at_unix"] = request.switch_at_unix
+            if request.defer_watchdog_not_before_unix is not None:
+                document["defer_watchdog_not_before_unix"] = request.defer_watchdog_not_before_unix
             payload = json.dumps(document)
         _write_graph_file(reload_path, payload)
         return self.send_command(
