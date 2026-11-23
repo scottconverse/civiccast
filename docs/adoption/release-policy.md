@@ -61,6 +61,10 @@ The draft-first sequence is mandatory:
 
 1. Verify the complete owner-held asset set without publishing it:
    `python scripts/policy/check_published_release_assets.py <tag> --candidate`.
+   This requires the real 26-asset release shape: `setup.exe` and its
+   `.sidecar.json`, `SHA256SUMS.txt`, the five `native-*` runtime/payload packs,
+   `station-models.json` with a complete `station-models.zip.001..NNN` series,
+   and the `USER-MANUAL.pdf` / `.docx` / `.render.json` assets.
 2. Obtain the owner's explicit publication approval.
 3. Publish the release, then immediately verify its live publication state and
    asset set with

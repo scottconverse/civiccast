@@ -3,8 +3,14 @@
 """Release-asset gate for an owner-held candidate or a published release.
 
 Catches the class of release-engineering defect that shipped in v1.0.0-rc8
-(gate-civiccast C1/C2): the unified release-artifacts manifest silently missing,
-and a ``*.sigstore.json`` attestation left orphaned next to no base file.
+(gate-civiccast C1/C2): a required release asset silently missing, or a
+``*.sigstore.json`` attestation left orphaned next to no base file.
+
+The required names are the ones the live v1.0.0-rc.7 / v1.0.0-rc.8 releases
+actually publish -- ``setup.exe`` plus its sidecar, ``SHA256SUMS.txt``, the
+five ``native-*`` runtime/payload packs, the station bundle manifest and its
+complete multipart archive, and the manual assets. The old WSL-era names
+(``*-release-artifacts-manifest.json``, ``*-windows-setup.exe``) are gone.
 
 Usage:
     python scripts/policy/check_published_release_assets.py <tag> --candidate
@@ -22,8 +28,30 @@ the network.
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import sys
+
+#: Every asset a release must publish, by exact name. This is the single place
+#: the real release name list lives; the multipart station archive is handled
+#: separately because its part count varies.
+REQUIRED_RELEASE_ASSETS: tuple[str, ...] = (
+    "setup.exe",
+    "setup.exe.sidecar.json",
+    "SHA256SUMS.txt",
+    "native-app-payload.ccpack",
+    "native-cuda-runtime.ccpack",
+    "native-ffmpeg-runtime.ccpack",
+    "native-ollama-runtime.ccpack.zip",
+    "native-server-binaries.ccpack",
+    "station-models.json",
+    "USER-MANUAL.pdf",
+    "USER-MANUAL.docx",
+    "USER-MANUAL.render.json",
+)
+
+#: ``station-models.zip.001`` .. ``station-models.zip.NNN`` (three-digit part).
+STATION_MODELS_PART_PATTERN = re.compile(r"^station-models\.zip\.(\d{3})$")
 
 
 def find_asset_problems(asset_names: list[str]) -> list[str]:
@@ -34,17 +62,43 @@ def find_asset_problems(asset_names: list[str]) -> list[str]:
     names = set(asset_names)
     problems: list[str] = []
 
-    # 1. Exactly one unified release-artifacts manifest must be published.
-    manifests = [n for n in names if n.endswith("-release-artifacts-manifest.json")]
-    if not manifests:
-        problems.append(
-            "missing the unified '*-release-artifacts-manifest.json' "
-            "(the merged ledger publish-manifest is supposed to produce)"
-        )
-    elif len(manifests) > 1:
-        problems.append(f"more than one release-artifacts manifest published: {sorted(manifests)}")
+    # 1. Every required asset, by exact name, must be present.
+    for required in REQUIRED_RELEASE_ASSETS:
+        if required not in names:
+            problems.append(f"missing required release asset '{required}'")
 
-    # 2. No orphaned attestation: every '<x>.sigstore.json' needs '<x>' present.
+    # 2. The multipart station archive must be a complete series: 001..N with
+    #    no gap and no duplicate index.
+    part_indexes = sorted(
+        int(match.group(1))
+        for name in names
+        if (match := STATION_MODELS_PART_PATTERN.match(name))
+    )
+    if not part_indexes:
+        problems.append(
+            "missing the multipart station archive 'station-models.zip.001'..NNN"
+        )
+    else:
+        expected = list(range(1, part_indexes[-1] + 1))
+        if part_indexes != expected:
+            missing = sorted(set(expected) - set(part_indexes))
+            duplicate = sorted(
+                {i for i in part_indexes if part_indexes.count(i) > 1}
+            )
+            detail = []
+            if missing:
+                detail.append(
+                    "missing part(s) " + ", ".join(f"{i:03d}" for i in missing)
+                )
+            if duplicate:
+                detail.append(
+                    "duplicate part(s) " + ", ".join(f"{i:03d}" for i in duplicate)
+                )
+            problems.append(
+                "station-models.zip.NNN series is incomplete: " + "; ".join(detail)
+            )
+
+    # 3. No orphaned attestation: every '<x>.sigstore.json' needs '<x>' present.
     for n in sorted(names):
         if n.endswith(".sigstore.json"):
             base = n[: -len(".sigstore.json")]
@@ -53,13 +107,6 @@ def find_asset_problems(asset_names: list[str]) -> list[str]:
                     f"orphaned attestation '{n}' has no base artifact '{base}' "
                     "(stale/dangling predicate — a verifier would fail)"
                 )
-
-    # 3. The Windows installer + its sidecar (the reason the merge job exists)
-    #    must be present.
-    if not any(n.endswith("-windows-setup.exe") for n in names):
-        problems.append("missing the Windows installer '*-windows-setup.exe'")
-    if not any(n.endswith("-windows-setup.exe.sidecar.json") for n in names):
-        problems.append("missing the installer sidecar '*-windows-setup.exe.sidecar.json'")
 
     return problems
 
