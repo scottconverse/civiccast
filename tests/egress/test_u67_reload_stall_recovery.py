@@ -569,7 +569,13 @@ def test_u67_real_sequence_reaches_the_restart_after_a_failed_preparation(
 
         # The preparation FAILS: ``_settle_preparation`` falls back to restart
         # and re-arms the pin through ``_arm_pending_reload``. Rung 1 survives.
+        pending = daemon._preparations[_CHANNEL]
         gate.set()
+        # Wait for the background job to actually finish (with its error)
+        # before ticking. Otherwise ``process_once`` can run while the future
+        # is still pending, the daemon correctly keeps the preparation, and
+        # the assert below races the executor.
+        pending.future.exception(timeout=10)
         clock.advance(2.0)
         daemon.process_once(_CHANNEL)
         assert _CHANNEL not in daemon._preparations
