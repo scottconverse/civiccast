@@ -42,9 +42,10 @@ LIBRARY_SHA256 = "de2e2c39cd311fbd9971fad4736abc329ed970653674c203e149c4ef27fd1c
 #: this ladder emulated on the Beelink, an air-path preparation at 97 % CPU
 #: left captions at a 3.1-3.5 s mean, max 5.3 s, none over 10 s.
 SPEECH_CHILD_PRIORITY_CLASS = 0x20
-#: Access rights for the suspended speech child handle: QUERY_INFORMATION |
-#: QUERY_LIMITED_INFORMATION | SYNCHRONIZE, plus PROCESS_SET_INFORMATION
-#: (0x200) so the parent can pin the Whistle child to the performance cores.
+#: Access rights for the suspended speech child handle: PROCESS_TERMINATE
+#: (0x1) | PROCESS_SET_QUOTA (0x100) | PROCESS_QUERY_INFORMATION (0x400), which
+#: job-object assignment needs, plus PROCESS_SET_INFORMATION (0x200) so the
+#: parent can pin the Whistle child to the performance cores.
 SPEECH_CHILD_PROCESS_ACCESS = 0x501 | 0x200
 #: ``RelationProcessorCore`` in GetLogicalProcessorInformationEx.
 _RELATION_PROCESSOR_CORE = 0
