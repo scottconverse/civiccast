@@ -2,7 +2,7 @@
 title: CivicCast User Manual
 subtitle: For station staff, volunteers and city IT staff - v1.0.0-rc.8 (native Windows line)
 author: The CivicCast Authors
-date: 2026-11-15
+date: 2026-11-23
 urlcolor: blue
 toccolor: black
 ---
@@ -3181,6 +3181,8 @@ The installer's first-run window has a screen called **Checking This Computer**.
 
 A value the installer cannot read is shown as **Unavailable**. It is never replaced with a guess. If the whole check fails, the window says **Hardware check unavailable** and lets setup continue.
 
+The minimum machine is 32 GB of RAM. A 16 GB computer is below the minimum and is not supported. Integrated graphics are enough; no separate graphics card is required.
+
 > **Known issue (beta.11):** The **Checking This Computer** screen runs after Windows setup has already copied and extracted the program. Its free-space check covers only optional downloads selected in the first-run window; it is not a pre-flight for the full installation. Use the storage table below to plan room for the staged packs, extracted models, conform cache and recordings, and follow the exact package's disk-space message.
 
 #### The operating system and software
@@ -3243,7 +3245,7 @@ The three-channel evidence in the verification record came from one lab computer
 
 #### Our recommendation
 
-These follow from the evidence above. They are not tested minimums, because the project has not published any.
+These follow from the evidence above. The minimum machine is 32 GB of RAM; a 16 GB computer is below the minimum and is not supported. Integrated graphics are enough, so no separate graphics card is required.
 
 1. **For several live channels with captions**, size the processor for video playout and Whistle's station-wide serialized recognition, then observe and measure the planned workload on the intended computer.
 2. **Without an NVIDIA card**, Whistle live captions still run on CPU. An NVIDIA card can accelerate Whisper fallback/recorded captions and may allow the larger summary model; neither the GPU nor CUDA is required for Whistle. Test the summary and caption workload on the intended machine.
@@ -3910,7 +3912,7 @@ Because the database password is deleted from the registry, the surviving databa
 
 ### Package status and verification
 
-This chapter describes the published v1.0.0-rc.7 edition. Install only a package on the [releases page](https://github.com/scottconverse/civiccast/releases), and follow its bundled Help and the version-specific verification record for that package. The [Beta 20 record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.20-verification.md) and the [Beta 18 record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.18-verification.md) remain historical. A historical Beta 15 field report found the installed `CivicCast Native.exe` unsigned while the outer setup was signed; that observation does not establish another package's status.
+This chapter describes the published v1.0.0-rc.8 edition. Install only a package on the [releases page](https://github.com/scottconverse/civiccast/releases), and follow its bundled Help and the version-specific verification record for that package. The [Beta 20 record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.20-verification.md) and the [Beta 18 record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.18-verification.md) remain historical. A historical Beta 15 field report found the installed `CivicCast Native.exe` unsigned while the outer setup was signed; that observation does not establish another package's status.
 
 ### Related
 
@@ -4642,7 +4644,7 @@ For all other variables, the appendix of settings ([Appendix: settings](#app-set
 
 ### Package status
 
-These instructions describe the published v1.0.0-rc.7 edition. Use the release page and the Help and verification record that match the package on the station. The [RC7 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-rc.7-verification.md) identifies that package's scoped checks; the [Beta 20 record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.20-verification.md) remains historical.
+These instructions describe the published v1.0.0-rc.8 edition. Use the release page and the Help and verification record that match the package on the station. The [RC8 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-rc.8-verification.md) identifies this package's scoped checks; the [Beta 20 record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.20-verification.md) remains historical.
 
 ### Related
 
@@ -5059,7 +5061,7 @@ Hardware sizing (CPU, memory, number of channels) is in [Chapter 9](#ch-planning
 
 ### Package status and verification
 
-This chapter describes the published v1.0.0-rc.7 edition. For package results, use the [RC7 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-rc.7-verification.md). The [Beta 20 record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.20-verification.md), [Beta 18 record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.18-verification.md) and [Beta 15 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.15-verification.md) remain historical. Historical host measurements retain their Beta 11 or C16 run identity.
+This chapter describes the published v1.0.0-rc.8 edition. For package results, use the [RC8 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-rc.8-verification.md). The [Beta 20 record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.20-verification.md), [Beta 18 record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.18-verification.md) and [Beta 15 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.15-verification.md) remain historical. Historical host measurements retain their Beta 11 or C16 run identity.
 
 ### Related
 
@@ -5365,7 +5367,7 @@ The entries below summarize the whole-repository audit dated 2026-10-02 (`audit-
 
 ### Package status and verification
 
-This chapter describes the published v1.0.0-rc.7 edition. Use the [RC7 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-rc.7-verification.md) for package checks; the [Beta 20 record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.20-verification.md) and [Beta 18 record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.18-verification.md) remain historical. A historical Beta 15 field report found the installed `CivicCast Native.exe` unsigned while the outer setup was signed; this does not establish the status of another package. See the [deferred field follow-up](https://github.com/scottconverse/civiccast/blob/main/docs/ops/beta17-deferred.md).
+This chapter describes the published v1.0.0-rc.8 edition. Use the [RC8 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-rc.8-verification.md) for package checks; the [Beta 20 record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.20-verification.md) and [Beta 18 record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.18-verification.md) remain historical. A historical Beta 15 field report found the installed `CivicCast Native.exe` unsigned while the outer setup was signed; this does not establish the status of another package. See the [deferred field follow-up](https://github.com/scottconverse/civiccast/blob/main/docs/ops/beta17-deferred.md).
 
 #### Report a security problem
 
@@ -5803,7 +5805,7 @@ If nothing here matches, do the following in order. First, run `curl.exe http://
 
 ### Package status and verification
 
-This chapter describes the published v1.0.0-rc.7 edition. For package-specific results, use the [RC7 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-rc.7-verification.md). The [Beta 20 record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.20-verification.md), [Beta 18 record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.18-verification.md) and [Beta 15 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.15-verification.md) remain historical.
+This chapter describes the published v1.0.0-rc.8 edition. For package-specific results, use the [RC8 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-rc.8-verification.md). The [Beta 20 record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.20-verification.md), [Beta 18 record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.18-verification.md) and [Beta 15 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.15-verification.md) remain historical.
 
 ### Related
 
@@ -6274,7 +6276,7 @@ Other things worth reading with a token: `GET /api/staff/runtime-safe-to-air`, `
 
 ### Package status and verification
 
-This chapter describes the published v1.0.0-rc.7 edition. Use the [RC7 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-rc.7-verification.md) for that package's scoped checks; the [Beta 20 record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.20-verification.md) and [Beta 18 record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.18-verification.md) remain historical. Commission each external service and headend for the station's actual configuration.
+This chapter describes the published v1.0.0-rc.8 edition. Use the [RC8 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-rc.8-verification.md) for that package's scoped checks; the [Beta 20 record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.20-verification.md) and [Beta 18 record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.18-verification.md) remain historical. Commission each external service and headend for the station's actual configuration.
 
 ### Related
 
@@ -10451,7 +10453,7 @@ The native Windows release history and the source edition covered by this manual
 | **v1.0.0-rc.6** | 2026-11-15 | Superseded by rc.7; scoped checks in the [RC6 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-rc.6-verification.md) | AC-3 sound and a constant bit rate on the cable output, an upgrade repair for saved cable presets, and AI summaries and translation on an integrated graphics chip. Soaked about 28 hours on five test PCs. |
 | **v1.0.0-rc.5** | 2026-11-07 | Superseded by rc.6 | Live captions stay on time while the station prepares upcoming programmes; uploads and imports refuse XML documents before FFmpeg opens them; a failed programme change no longer leaves the channel on the slate for about 28 minutes. |
 | **v1.0.0-rc.4** | 2026-11-05 | Superseded by rc.5 | Installer and upgrade fixes and caption corrections following RC3. See the [RC4 release notes](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-rc.4-release-notes.md). |
-| **v1.0.0-rc.3** | 2026-11-01 | Superseded by rc.4 | Addresses the RC2 operator findings: credential-validation redaction, restore safety, caption ownership and delivery, scheduling, health/errors and reporting. See the [RC3 release notes](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-rc.3-release-notes.md). |
+| **v1.0.0-rc.3** | 2026-11-01 | Superseded by rc.4 | Addresses the RC2 operator findings: credential-validation redaction, restore safety, caption ownership and delivery, scheduling, health/errors and reporting. See the [RC3 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-rc.3-verification.md). |
 | **v1.0.0-rc.2** | 2026-10-30 | Superseded by rc.3 | Addresses the R9 and R7 operator findings with credential-error redaction, model-store permissions, caption corrections, second-level scheduling and measured output health. |
 | **v1.0.0-rc.1** | 2026-10-30 | Superseded by rc.2 | First release candidate: administrator agenda setup with bundled offline English OCR, retained PDF review, agenda backup/recovery and native dependency security updates. |
 | **v1.0.0-beta.20** | 2026-10-21 | Superseded by rc.1; scoped checks in the Beta 20 verification record | Consolidates Sprint 6 preparation, hardware-aware encoding, webhook/Roku and station-federation changes. TownLight integration remains deferred to 2.0. |
