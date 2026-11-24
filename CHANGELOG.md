@@ -11,6 +11,19 @@ Release candidate **v1.0.0-rc.8** (unpublished candidate). Full notes and the dr
 - Egress audio PTS never steps back on an immediate finite reload (#381).
 - Native install grants the installing account RX on the Postgres bin, so setup no longer fails with "Access is denied" on a Dell (#377).
 
+## [1.0.0-rc.8] - 2026-11-23
+
+Release candidate **v1.0.0-rc.8**, published November 23, 2026. Full notes, verification and known issues:
+`docs/releases/v1.0.0-rc.8-release-notes.md`.
+
+- The supported minimum machine is now **32 GB of RAM**; a processor with integrated graphics is enough and no separate graphics card is required. A 16 GB machine is below the minimum. Model-tier memory figures (for example the 16 GB the 12B summary model needs) are unchanged.
+- A programme change stays on air on a busy or hybrid station (#379). Before: a preparation step that overran its window could leave a channel dark, and preparing a long programme could fall behind its own speed estimate. Now: preparation is held inside its processor budget, its warm-up uses the real measured speed, the sooner warm is kept first, and a reload that overruns no longer strands the channel on its slate.
+- The cable output no longer takes the public channel off the air (#378). Before: on Blackwell-class NVIDIA cards, the cable `udp-ts` output branch could pull the public output off the air. Now: that branch no longer does.
+- Audio timestamps never step back on an immediate finite reload (#381). Before: an immediate finite source reload could step the audio timestamps backwards. Now: the egress audio presentation timestamps never move back.
+- A deferred rollover is driven from the end of stream (#380, #382). Before: a deferred rollover's lead was sized from a guessed speed, the warm queue could starve long programmes, and the watchdog timing was loose. Now: the lead is sized from the plan the dispatch will actually prepare and from a real speed, the rollover is driven from the end of stream, and the watchdog is delayed only as needed.
+- Live captions run the speech child on the performance cores of a hybrid processor, so on-air recognition keeps its share of the CPU when background work would otherwise contend for it.
+- The native install grants the installing account read-and-execute on the Postgres bin (#377). Before: setup could fail with "Access is denied" on a Dell because the installing account could not read the Postgres bin. Now: it grants that account those rights before it runs `pg_ctl`.
+
 ## [1.0.0-rc.7] - 2026-11-19
 
 Release candidate **v1.0.0-rc.7**, published November 19, 2026. Full notes, verification and known issues:
