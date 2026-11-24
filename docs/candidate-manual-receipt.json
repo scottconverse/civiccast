@@ -1,22 +1,20 @@
 {
   "schema_version": 1,
-  "source_sha": "c6be85b7b165d43b75f6cc124f26ae918e5830d2",
-  "candidate_version": "1.0.0-beta.20",
-  "workflow_run_id": "39208157501",
-  "manual_source_sha256": "d73aed3ffbbb967e69f8a7324ac2585f19273dbdffea10c72ace249c9477de54",
-  "render_manifest_sha256": "056b24fc4da8353e620c241d9537c577126a40f7d5bd0db497ccb5cd6e7db126",
+  "source_sha": "d125c16d94402ce242363ba1bb9aadd39c1f2387",
+  "candidate_version": "1.0.0-rc.8",
+  "workflow_run_id": "44968448604",
+  "manual_source_sha256": "210f555a64fa12d49370a079a35bfaa33bed79db339b796b9528f6f737da043b",
+  "render_manifest_sha256": "42ed9d7e940f48c5fe877c850eba3d17350810cc26f480185901999e4bf178d9",
   "files": [
     {
       "filename": "USER-MANUAL.pdf",
-      "sha256": "1ef1ee4798fbee7c9e78f8a57236fc30d468c75c15fdb49623433e4f369389ca",
-      "size_bytes": 7261656
+      "sha256": "5b7a780f3071631b938b723a9fe340baff7d3e9e1e8f5811cb463c7692f02355",
+      "size_bytes": 7345056
     },
     {
       "filename": "USER-MANUAL.docx",
-      "sha256": "2bcade470178e4192c1d10536474415e96c0a345e2fa0bd3523cbb56e54c7bf2",
-      "size_bytes": 5608422
+      "sha256": "29e5345a4b85af4f580f6265df363b0ceb36f09d79dd706d1ce7eb786844c3fc",
+      "size_bytes": 5666874
     }
-  ],
-  "hosted_render_manifest_sha256": "f9f36cfcd2e2144b3aadc2f1e0c6a95a1ba6c78ea76ff475bb0cbd2a3d2df363",
-  "local_manifest_adjustment": "Artifact paths remapped to docs/; hosted PDF and DOCX bytes unchanged."
+  ]
 }

@@ -4,8 +4,8 @@
 > limits for Beta 10 only. v1.0.0-rc.8 is the current published release; Beta 20
 > is history. For current operating guidance, use the
 > [current User Manual](../USER-MANUAL.md), [Windows install guide](../../INSTALL-WINDOWS.md),
-> [tester start page](START-HERE.md), and [Beta 20 verification
-> record](../releases/v1.0.0-beta.20-verification.md). The Beta 10 results below
+> [tester start page](START-HERE.md), and [rc.8 verification
+> record](../releases/v1.0.0-rc.8-verification.md). The Beta 10 results below
 > remain historical and do not establish Beta 20 behavior.
 
 ## Release State
@@ -191,8 +191,8 @@ repository's native Windows line. Its cited verification documents
 (`docs/releases/v1.0.0-rc{13,17,18}-verification.md`) are not present in this
 repository and are not linked here for that reason. `v1.0.0-beta.1` (the
 first native release) was USB-delivered; the current native-line package
-evidence is in the [Beta 20 verification
-record](../releases/v1.0.0-beta.20-verification.md).
+evidence is in the [rc.8 verification
+record](../releases/v1.0.0-rc.8-verification.md).
 
 <details>
 <summary>Expand: retired WSL2-line (rc13-rc18) clean-machine proof record</summary>

@@ -69,8 +69,9 @@ host ran Public, Government, and Education together for 72 hours, with 99.78%
 live caption-input coverage and 216 healthy scheduled checkpoints. See the
 [72-hour host report](../ops/beta11-host-caption-performance-72-hour-2026-10-11.md).
 
-Older Beta10 and earlier verification records are retained in
-[`docs/releases`](../releases/). They describe their specific packages and do
+The current release verification record is
+[`v1.0.0-rc.8-verification.md`](../releases/v1.0.0-rc.8-verification.md). Older
+Beta10 and earlier verification records describe their specific packages and do
 not establish Beta 20 results. Current native Windows source is in
 [civiccast](https://github.com/scottconverse/civiccast) (formerly `civiccast-native`). The
 retired WSL2 product line and its `rc` releases belong to a separate repository

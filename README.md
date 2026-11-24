@@ -65,6 +65,17 @@ and [verification record](docs/releases/v1.0.0-rc.7-verification.md) are kept as
 Windows 11 is the verified platform. Source changes after publication do not
 update an installed station.
 
+## Previous published package (RC6)
+
+[`v1.0.0-rc.6`](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-rc.6)
+was the published native Windows pre-release from November 15, 2026 until rc.7
+replaced it. Its source tag and the signed artifacts are commit `d74a8c31`; the
+build run was 43576185174 (its run record is no longer on GitHub). Its
+[release notes](docs/releases/v1.0.0-rc.6-release-notes.md) and
+[verification record](docs/releases/v1.0.0-rc.6-verification.md) are kept as history.
+Windows 11 is the verified platform. Source changes after publication do not
+update an installed station.
+
 ## Previous published package (RC5)
 
 The signed RC5 [release page](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-rc.5)
