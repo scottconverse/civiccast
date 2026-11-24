@@ -2,15 +2,6 @@
 
 ## [Unreleased]
 
-Release candidate **v1.0.0-rc.8** (unpublished candidate). Full notes and the draft verification record: `docs/releases/v1.0.0-rc.8-release-notes.md`, `docs/releases/v1.0.0-rc.8-verification.md`.
-
-- The supported minimum machine is now **32 GB of RAM**; a processor with integrated graphics is enough and no separate graphics card is required. A 16 GB machine is below the minimum. Model-tier memory figures (for example the 16 GB the 12B summary model needs) are unchanged.
-
-- Playout source reload: a preparation step that overruns its window no longer leaves the channel dark (#379).
-- Cable udp-ts output branch no longer takes the public output off the air on Blackwell (#378).
-- Egress audio PTS never steps back on an immediate finite reload (#381).
-- Native install grants the installing account RX on the Postgres bin, so setup no longer fails with "Access is denied" on a Dell (#377).
-
 ## [1.0.0-rc.8] - 2026-11-23
 
 Release candidate **v1.0.0-rc.8**, published November 23, 2026. Full notes, verification and known issues:
