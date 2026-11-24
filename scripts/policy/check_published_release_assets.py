@@ -70,33 +70,21 @@ def find_asset_problems(asset_names: list[str]) -> list[str]:
     # 2. The multipart station archive must be a complete series: 001..N with
     #    no gap and no duplicate index.
     part_indexes = sorted(
-        int(match.group(1))
-        for name in names
-        if (match := STATION_MODELS_PART_PATTERN.match(name))
+        int(match.group(1)) for name in names if (match := STATION_MODELS_PART_PATTERN.match(name))
     )
     if not part_indexes:
-        problems.append(
-            "missing the multipart station archive 'station-models.zip.001'..NNN"
-        )
+        problems.append("missing the multipart station archive 'station-models.zip.001'..NNN")
     else:
         expected = list(range(1, part_indexes[-1] + 1))
         if part_indexes != expected:
             missing = sorted(set(expected) - set(part_indexes))
-            duplicate = sorted(
-                {i for i in part_indexes if part_indexes.count(i) > 1}
-            )
+            duplicate = sorted({i for i in part_indexes if part_indexes.count(i) > 1})
             detail = []
             if missing:
-                detail.append(
-                    "missing part(s) " + ", ".join(f"{i:03d}" for i in missing)
-                )
+                detail.append("missing part(s) " + ", ".join(f"{i:03d}" for i in missing))
             if duplicate:
-                detail.append(
-                    "duplicate part(s) " + ", ".join(f"{i:03d}" for i in duplicate)
-                )
-            problems.append(
-                "station-models.zip.NNN series is incomplete: " + "; ".join(detail)
-            )
+                detail.append("duplicate part(s) " + ", ".join(f"{i:03d}" for i in duplicate))
+            problems.append("station-models.zip.NNN series is incomplete: " + "; ".join(detail))
 
     # 3. No orphaned attestation: every '<x>.sigstore.json' needs '<x>' present.
     for n in sorted(names):
