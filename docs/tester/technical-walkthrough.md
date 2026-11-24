@@ -10,7 +10,7 @@ underwriting daypart selection. This walkthrough
 covers package acquisition, installation, the release feature paths, upgrade,
 and uninstall.
 
-Beta 18 is published. The [package verification record](../releases/v1.0.0-beta.18-verification.md)
+Beta 18 is published. The [package verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.18-verification.md)
 identifies the signed kit and its scoped checks.
 
 For the broader station acceptance path, use the
@@ -101,7 +101,7 @@ Windows Sandbox on 2026-10-02 against exactly this build; the cross-version
 (upgrade) lane and the download-only lane were not run (waived by the owner for
 this publication). The human/station acceptance pass is not done. Its lab
 checks do not replace testing the exact installer you downloaded. See
-[`docs/releases/v1.0.0-beta.10-verification.md`](../releases/v1.0.0-beta.10-verification.md)
+[`docs/releases/v1.0.0-beta.10-verification.md`](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.10-verification.md)
 and
 [Known Limitations](known-limitations.md#historical-beta-10-evidence)
 for the current captions evidence boundary.

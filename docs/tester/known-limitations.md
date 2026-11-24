@@ -3,9 +3,9 @@
 > **Historical Beta 10 limitation record.** This page records evidence and
 > limits for Beta 10 only. v1.0.0-rc.8 is the current published release; Beta 20
 > is history. For current operating guidance, use the
-> [current User Manual](../USER-MANUAL.md), [Windows install guide](../../INSTALL-WINDOWS.md),
+> [current User Manual](https://github.com/scottconverse/civiccast/blob/main/docs/USER-MANUAL.md), [Windows install guide](https://github.com/scottconverse/civiccast/blob/main/INSTALL-WINDOWS.md),
 > [tester start page](START-HERE.md), and [rc.8 verification
-> record](../releases/v1.0.0-rc.8-verification.md). The Beta 10 results below
+> record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-rc.8-verification.md). The Beta 10 results below
 > remain historical and do not establish Beta 20 behavior.
 
 ## Release State
@@ -31,7 +31,7 @@ At the time, `v1.0.0-beta.10` was the current published release (`v1.0.0-beta.8`
 `v1.0.0-beta.9` were never published, and their work is included in it). It is
 a GitHub pre-release, not a production release. Its lab evidence is an
 eight-hour watched run on a three-channel lab station; see
-[`docs/releases/v1.0.0-beta.10-verification.md`](../releases/v1.0.0-beta.10-verification.md).
+[`docs/releases/v1.0.0-beta.10-verification.md`](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.10-verification.md).
 Gate A (automated station acceptance) for beta.10: the clean-install lane
 passed, 10 of 10 criteria, run locally in Windows Sandbox on 2026-10-02 against
 exactly this build. The cross-version (upgrade) lane and the download-only lane
@@ -76,7 +76,7 @@ a later GauntletGate rebuild.
 > **Historical: describes the retired public WSL2 line, not this
 > repository.** `civiccast` (formerly `civiccast-native`) ships one product, the native Windows
 > station (session-0 Windows service, no WSL) -- see
-> [BRANCHES.md](../../BRANCHES.md). This section's `rc15`/WSL2 setup
+> [BRANCHES.md](https://github.com/scottconverse/civiccast/blob/main/BRANCHES.md). This section's `rc15`/WSL2 setup
 > behavior belongs to the separate, private `scottconverse/civiccast-wsl-legacy`
 > repository and does not apply here. Kept as historical reference pending
 > a native-line known-limitations section.
@@ -192,7 +192,7 @@ repository's native Windows line. Its cited verification documents
 repository and are not linked here for that reason. `v1.0.0-beta.1` (the
 first native release) was USB-delivered; the current native-line package
 evidence is in the [rc.8 verification
-record](../releases/v1.0.0-rc.8-verification.md).
+record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-rc.8-verification.md).
 
 <details>
 <summary>Expand: retired WSL2-line (rc13-rc18) clean-machine proof record</summary>
