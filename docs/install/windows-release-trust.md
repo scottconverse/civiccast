@@ -7,11 +7,11 @@
 
 ## Current Release State
 
-`v1.0.0-rc.7` is the current signed public release. Download the complete kit from its [release page](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-rc.7),
+`v1.0.0-rc.8` is the current signed public release. Download the complete kit from its [release page](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-rc.8),
 and use that release's `SHA256SUMS.txt`, installer signature and station/pack
-manifests to verify the bytes you receive. The [RC7 release
-notes](../releases/v1.0.0-rc.7-release-notes.md) identify the exact signed
-package (`setup.exe` SHA-256 `58c89376362af339848a408aba1d052512065b42815fe5cab53c1d89c1b8bb18`,
+manifests to verify the bytes you receive. The [RC8 release
+notes](../releases/v1.0.0-rc.8-release-notes.md) identify the exact signed
+package (`setup.exe` SHA-256 `452a08cc76eb29b378539dc07858c6a0d0c7f727884c899377dd620e2fc24c86`,
 Authenticode Valid, signer `CN=Scott Converse`), its verification and its
 known issues. Earlier installation results remain
 in their own verification records.
@@ -19,7 +19,7 @@ in their own verification records.
 is the authored release-state record. Watch the official native release page,
 not `scottconverse/civiccast-wsl-legacy` (the retired, separate WSL2-line repository).
 The retired line's tags are the `v1.0.0-rc11` through `v1.0.0-rc18` style; this
-repository publishes the native line's `v1.0.0-rc.1` through `v1.0.0-rc.7` tags.
+repository publishes the native line's `v1.0.0-rc.1` through `v1.0.0-rc.8` tags.
 
 This repository was renamed from `scottconverse/civiccast-native` to
 `scottconverse/civiccast` on 2026-11-08; the old address redirects to it.
@@ -39,7 +39,7 @@ upgrade-baseline kit.
 This page explains how an operator should verify a CivicCast Windows setup
 download before running it.
 
-For the published RC7 interface, use the Help installed with RC7 or the manual assets from its release page. Repository manual revisions may contain later editorial corrections; source changes do not update an installed station.
+For the published RC8 interface, use the Help installed with RC8 or the manual assets from its release page. Repository manual revisions may contain later editorial corrections; source changes do not update an installed station.
 
 ## Read The Release Docs First
 
@@ -84,22 +84,22 @@ report `Valid` and the approved publisher; a local `NotSigned` engineering build
 is suitable only for an explicitly authorized local acceptance run and must not
 be distributed as a public beta.
 
-## Download The Complete RC7 Kit
+## Download The Complete RC8 Kit
 
 Use the helper asset from the exact tagged release. Download the helper and
 `SHA256SUMS.txt`, then verify the helper's own hash before executing it:
 
 ```powershell
-$tag = "v1.0.0-rc.7"
+$tag = "v1.0.0-rc.8"
 $base = "https://github.com/scottconverse/civiccast/releases/download/$tag"
-$helper = Join-Path $env:TEMP "CivicCast-Install-RC7.ps1"
-$sums = Join-Path $env:TEMP "CivicCast-RC7-SHA256SUMS.txt"
+$helper = Join-Path $env:TEMP "CivicCast-Install-RC8.ps1"
+$sums = Join-Path $env:TEMP "CivicCast-RC8-SHA256SUMS.txt"
 Invoke-WebRequest -UseBasicParsing "$base/download_windows_release_artifacts.ps1" -OutFile $helper
 Invoke-WebRequest -UseBasicParsing "$base/SHA256SUMS.txt" -OutFile $sums
 $expected = ((Get-Content $sums) | Where-Object { $_ -match '\s+download_windows_release_artifacts\.ps1$' } | Select-Object -First 1) -replace '^([0-9a-fA-F]{64})\s+.*$', '$1'
 $actual = (Get-FileHash $helper -Algorithm SHA256).Hash
 if ($actual -ne $expected) { throw "Downloader hash does not match the release checksum list." }
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File $helper -Tag $tag -Version $tag.TrimStart('v') -Install -Destination (Join-Path $env:USERPROFILE "Downloads\CivicCast-RC7")
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File $helper -Tag $tag -Version $tag.TrimStart('v') -Install -Destination (Join-Path $env:USERPROFILE "Downloads\CivicCast-RC8")
 ```
 
 With `-Install`, the helper downloads and checks all five runtime packs,

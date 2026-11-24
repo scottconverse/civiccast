@@ -2,7 +2,7 @@
 
 > Historical implementation record. The checkpoints below describe work at that time.
 > These features subsequently shipped in Beta 16 and remain in the current
-> release; use the [RC7 verification record](../releases/v1.0.0-rc.7-verification.md)
+> release; use the [RC8 verification record](../releases/v1.0.0-rc.8-verification.md)
 > for that package identity and its results. Earlier unreleased/pending statements
 > are historical, not current outstanding tasks.
 

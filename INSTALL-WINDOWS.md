@@ -1,10 +1,10 @@
 # Install CivicCast on Windows
 
-CivicCast v1.0.0-rc.7 is a complete native Windows station. It includes Python, PostgreSQL, FFmpeg, GStreamer and local AI runtimes. You do not need Git, Python, Docker, WSL, Ollama or GitHub CLI installed separately.
+CivicCast v1.0.0-rc.8 is a complete native Windows station. It includes Python, PostgreSQL, FFmpeg, GStreamer and local AI runtimes. You do not need Git, Python, Docker, WSL, Ollama or GitHub CLI installed separately.
 
-[RC7 manual PDF](https://github.com/scottconverse/civiccast/releases/download/v1.0.0-rc.7/USER-MANUAL.pdf) · [RC7 release notes](docs/releases/v1.0.0-rc.7-release-notes.md) · [Current source manual](docs/USER-MANUAL.md)
+[RC8 manual PDF](https://github.com/scottconverse/civiccast/releases/download/v1.0.0-rc.8/USER-MANUAL.pdf) · [rc.8 release notes](docs/releases/v1.0.0-rc.8-release-notes.md) · [Current source manual](docs/USER-MANUAL.md)
 
-`v1.0.0-rc.7` is the current [published release](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-rc.7). Check `setup.exe` against the SHA-256 in the [release notes](docs/releases/v1.0.0-rc.7-release-notes.md), then run it with the adjacent `packs` and `station` folders intact, or use the download command below.
+`v1.0.0-rc.8` is the current [published release](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-rc.8). Check `setup.exe` against the SHA-256 in the [release notes](docs/releases/v1.0.0-rc.8-release-notes.md), then run it with the adjacent `packs` and `station` folders intact, or use the download command below.
 
 ## Download and install the complete station
 
@@ -13,9 +13,9 @@ Use Windows 11 x64, internet for the download, and a Windows administrator accou
 Open **Windows PowerShell** and paste:
 
 ```powershell
-$installerScript = Join-Path $env:TEMP 'CivicCast-Install-RC7.ps1'
-Invoke-WebRequest -UseBasicParsing -Uri 'https://github.com/scottconverse/civiccast/releases/download/v1.0.0-rc.7/download_windows_release_artifacts.ps1' -OutFile $installerScript
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installerScript -Tag v1.0.0-rc.7 -Version 1.0.0-rc.7 -Install -Destination "$env:USERPROFILE\Downloads\CivicCast-RC7"
+$installerScript = Join-Path $env:TEMP 'CivicCast-Install-RC8.ps1'
+Invoke-WebRequest -UseBasicParsing -Uri 'https://github.com/scottconverse/civiccast/releases/download/v1.0.0-rc.8/download_windows_release_artifacts.ps1' -OutFile $installerScript
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installerScript -Tag v1.0.0-rc.8 -Version 1.0.0-rc.8 -Install -Destination "$env:USERPROFILE\Downloads\CivicCast-RC8"
 ```
 
 The helper downloads the installer, all five runtime packs and all six signed station packs. It verifies SHA-256 hashes and the installer's valid **Scott Converse** Authenticode signature, and creates the `packs` and `station` folders setup needs. Windows requests administrator approval if needed. Setup uses supported silent mode with the complete kit, without the separate optional raw-model acquisition screen. Wait for it to finish; any actual nonzero exit is reported as failure.
@@ -27,7 +27,7 @@ names the step in progress.
 
 For download only, replace `-Install` with `-IncludePacks`. Keep the resulting folder together when copying it to USB. The complete folder supplies the dependencies for offline installation.
 
-[RC7 downloader source](scripts/download_windows_release_artifacts.ps1). The source defaults target RC7. The command explicitly supplies both tag and version so it also targets RC7 when a frozen helper asset retains older defaults.
+[RC8 downloader source](scripts/download_windows_release_artifacts.ps1). The source defaults target RC8. The command explicitly supplies both tag and version so it also targets RC8 when a frozen helper asset retains older defaults.
 
 ## First start
 
@@ -62,10 +62,10 @@ It prompts privately, preserves station data and revokes that administrator's ex
 
 The release's `station-models.zip.001`, `.002` and subsequent parts form one ZIP64 archive. **Use the helper to verify and extract them.** Individual parts are not runtime packs.
 
-The layout below is the RC7 kit created by the published-download command. It matches the rc.7 release asset list; the same folder layout was checked against a full public download with the RC4 helper on November 5, 2026 (exit 0, every file's SHA-256 verified) and has not been re-checked against a fresh RC7 download.
+The layout below is the RC8 kit created by the published-download command. It matches the rc.8 release asset list; the same folder layout was checked against a full public download with the RC4 helper on November 5, 2026 (exit 0, every file's SHA-256 verified) and has not been re-checked against a fresh RC8 download.
 
 ```text
-CivicCast-RC7/
+CivicCast-RC8/
   setup.exe
   setup.exe.sidecar.json
   SHA256SUMS.txt
@@ -103,7 +103,7 @@ See [Windows release trust](docs/install/windows-release-trust.md) and [Support]
 
 ## Package evidence and historical results
 
-[RC7 release notes](docs/releases/v1.0.0-rc.7-release-notes.md) are the current package record. [RC2 package checks](docs/releases/v1.0.0-rc.2-verification.md) document that
+[rc.8 release notes](docs/releases/v1.0.0-rc.8-release-notes.md) are the current package record. The [RC7 release notes](docs/releases/v1.0.0-rc.7-release-notes.md) remain as history. [RC2 package checks](docs/releases/v1.0.0-rc.2-verification.md) document that
 historical package and its scoped acceptance. [Beta 17 follow-up](docs/ops/beta17-deferred.md)
 records deferred field findings.
 

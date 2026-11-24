@@ -1,18 +1,20 @@
-> **Current release:** the current public download is v1.0.0-rc.7. For an
+> **Current release:** the current public download is v1.0.0-rc.8. For an
 > operator run, use its matching packaged manual and built-in Help to install,
 > set up and run Public, Education and Government from the normal UI. Use
 > [the operator quick start](../QUICKSTART-OPERATOR.md) as the entry point.
 > Do not substitute API calls or environment edits for an operator task that
 > the manual says is available in the UI. The Beta20 instructions below are historical.
 
-# Tester quickstart (v1.0.0-rc.7)
+# Tester quickstart (v1.0.0-rc.8)
 
-Use the complete kit from the [v1.0.0-rc.7 release page](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-rc.7). Check the [RC7 verification record](../releases/v1.0.0-rc.7-verification.md) for the exact signed installer and scoped results. Earlier Beta 20 instructions are kept as history below.
+The minimum machine is 32 GB of RAM.
+
+Use the complete kit from the [v1.0.0-rc.8 release page](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-rc.8). Check the [RC8 verification record](../releases/v1.0.0-rc.8-verification.md) for the exact signed installer and scoped results. Earlier Beta 20 instructions are kept as history below.
 
 ## Install, open, and check
 
-1. **Confirm package identity.** Use the published v1.0.0-rc.7 release and compare its installer with the verification record before testing.
-2. **Prepare the complete kit.** Keep `setup.exe`, `packs\`, and `station\`
+1. **Confirm package identity.** Use the published v1.0.0-rc.8 release and compare its installer with the verification record before testing. The published release holds the downloader `download_windows_release_artifacts.ps1`, `setup.exe`, `SHA256SUMS.txt`, the five `native-*.ccpack` runtime packs, and the `station-models` parts; the downloader assembles them into the `packs\` and `station\` folders below. `setup.exe` SHA-256 is `452a08cc76eb29b378539dc07858c6a0d0c7f727884c899377dd620e2fc24c86`.
+2. **Prepare the complete kit.** Run the [Windows install guide](../../INSTALL-WINDOWS.md) download command, which fetches every part and verifies hashes and the signature; keep `setup.exe`, `packs\`, and `station\`
    together. Compare its manifest, installer hash, and signature with the active
    handoff using [Windows release trust](../install/windows-release-trust.md).
    Stop and report any mismatch before running setup. If Windows shows
