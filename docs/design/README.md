@@ -3,8 +3,8 @@
 > **Status boundary (October 11, 2026):** This directory contains design and
 > recovery records whose decision states are dated in their individual files.
 > They describe design targets and owner decisions; they are not a report of
-> what the current package ships. Use the [RC7 verification
-> record](../releases/v1.0.0-rc.7-verification.md) and current source for
+> what the current package ships. Use the [RC8 verification
+> record](../releases/v1.0.0-rc.8-verification.md) and current source for
 > shipped behavior. Later dated amendments remain in force where explicitly
 > recorded; this notice does not reopen or replace owner decisions.
 

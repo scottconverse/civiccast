@@ -9,7 +9,7 @@ Older process documents and historical handoffs do not restore those generic rul
 Product requirements, explicit task acceptance, required CI, branch protections,
 security/data safeguards, and release recovery requirements remain in force.
 
-v1.0.0-rc.7 is the current published release (2026-11-19); Beta20 and the
+v1.0.0-rc.8 is the current published release (2026-11-23); Beta20 and the
 October 19 pause are historical, not current state.
 Read `docs/handoff/CURRENT.md` for the portable handoff and outstanding work.
 Scott authorized publishing the checker fix, portable instructions, and handoff on
@@ -220,7 +220,7 @@ When you ask, name (1) the branch/line you're on, (2) the section of the spec th
 - Branch from `main`; there is no second line to choose between.
 - Conventional commits with DCO sign-off on every commit.
 - Use pull requests to `main`; merge on green CI under the owner's assignment.
-- This native Windows product uses `v1.0.0-rc.N` release tags (current: `v1.0.0-rc.7`). Tag and publish only within current owner authorization. Historical beta.5 authorization does not resume a stopped Beta20 task.
+- This native Windows product uses `v1.0.0-rc.N` release tags (current: `v1.0.0-rc.8`). Tag and publish only within current owner authorization. Historical beta.5 authorization does not resume a stopped Beta20 task.
 - Release notes and PR descriptions state the resulting behavior, relevant verification, limitations, and affected ADRs. No fixed audit report is required.
 
 ## Engineering posture

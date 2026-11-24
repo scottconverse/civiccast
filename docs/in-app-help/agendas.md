@@ -1,6 +1,6 @@
 # Agenda guidance (historical RC1 snapshot)
 
-> The guidance below is the current wording as published with the RC7 manual; the RC1 label records when it was written.
+> The guidance below is the current wording as published with the RC8 manual; the RC1 label records when it was written.
 
 A setup administrator uses **Agenda source setup → Use Longmont / PrimeGov → Save agenda source**. Public PrimeGov needs no credentials. Saving applies immediately and survives restart. Records clerks and meeting operators choose a meeting explicitly, review the retained original and numbered preview, then confirm a complete import. Previewing does not create agenda items; confirmation does not publish them.
 

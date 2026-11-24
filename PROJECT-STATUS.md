@@ -10,14 +10,14 @@
 > are historical Beta 10 audit records; the linked Beta 11 inventory is a dated
 > source audit, not the current defect list.
 
-## Current release: RC7
+## Current release: RC8
 
-v1.0.0-rc.7 is the current published native Windows package, published
-2026-11-19. It turns live captions on by default for a new station, shows the
-station's own time on the on-air clock, survives a power cut without breaking
-caption scans, and keeps a slate channel from making `/health` say `degraded`.
-No station soak of this exact installer exists yet.
-Its signed package and scoped checks are in the [RC7 record](docs/releases/v1.0.0-rc.7-verification.md); the [RC7 release notes](docs/releases/v1.0.0-rc.7-release-notes.md) list known issues. RC6, RC5, Beta 20 and Beta 19 remain historical.
+v1.0.0-rc.8 is the current published native Windows package, published
+2026-11-23. It keeps a channel from staying dark when a content reload overruns
+its preparation window, stops audio timestamps stepping backwards on an
+immediate finite source reload, and carries the rc.7 fixes forward. The minimum
+machine is 32 GB of RAM.
+Its signed package and scoped checks are in the [RC8 record](docs/releases/v1.0.0-rc.8-verification.md); the [RC8 release notes](docs/releases/v1.0.0-rc.8-release-notes.md) list known issues. RC7, RC6, RC5, Beta 20 and Beta 19 remain historical.
 
 ## Historical Beta 17 release
 

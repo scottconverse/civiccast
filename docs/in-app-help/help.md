@@ -1,6 +1,6 @@
 # Historical contextual help and instruction inventory — Beta 11 audit snapshot
 
-> **Current help:** RC7 operator Help serves the bundled current manual, generated from `docs/USER-MANUAL.md` (with `docs/manual/src/` as chapter sources). Use the [current User Manual](../USER-MANUAL.md) and its [package verification record](../releases/v1.0.0-rc.7-verification.md) for current operator guidance and release scope. The findings below record an October 8, 2026 Beta 11 source audit; they are not a current defect list. Read the current manual before applying any older audit note.
+> **Current help:** RC8 operator Help serves the bundled current manual, generated from `docs/USER-MANUAL.md` (with `docs/manual/src/` as chapter sources). Use the [current User Manual](../USER-MANUAL.md) and its [package verification record](../releases/v1.0.0-rc.8-verification.md) for current operator guidance and release scope. The findings below record an October 8, 2026 Beta 11 source audit; they are not a current defect list. Read the current manual before applying any older audit note.
 
 ## Beta 12 follow-up — October 10, 2026
 
