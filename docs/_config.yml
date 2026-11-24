@@ -476,7 +476,7 @@ exclude:
   - spec/3.0/sections/S15-playout-engine-gstreamer.md
   - spec/3.0/sections/S16-production-control-room.md
   - spec/3.0/sections/S17-remote-contribution.md
-  - spec/3.0/sections/S18-cablecast-parity-gap-closure.md
+  - spec/3.0/sections/S18-*.md
   - spec/3.0/sections/S19-scheduling-automation.md
   - spec/3.0/sections/S2-headend-handoff-matrix.md
   - spec/3.0/sections/S20-accessibility-ada-title-ii.md
