@@ -2,9 +2,9 @@
 
 > **Archived Beta 10 handoff.** This document records the Beta 10 tester
 > packet and is not a current release guide. v1.0.0-rc.8 is the current release;
-> use the [current User Manual](../USER-MANUAL.md), [Windows install
-> guide](../../INSTALL-WINDOWS.md), [tester start page](START-HERE.md), and
-> [RC8 verification record](../releases/v1.0.0-rc.8-verification.md).
+> use the [current User Manual](https://github.com/scottconverse/civiccast/blob/main/docs/USER-MANUAL.md), [Windows install
+> guide](https://github.com/scottconverse/civiccast/blob/main/INSTALL-WINDOWS.md), [tester start page](START-HERE.md), and
+> [RC8 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-rc.8-verification.md).
 
 ## Historical Beta 10 Release Record
 
@@ -36,7 +36,7 @@ acceptance): the clean-install lane passed, 10 of 10 criteria, run locally in
 Windows Sandbox on 2026-10-02 against exactly this build; the cross-version
 (upgrade) lane and the download-only lane were not run (waived by the owner for
 this publication). The human/station acceptance pass is not done. See
-[`docs/releases/v1.0.0-beta.10-verification.md`](../releases/v1.0.0-beta.10-verification.md).
+[`docs/releases/v1.0.0-beta.10-verification.md`](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.10-verification.md).
 
 If Sergio/LPM is still on a USB-delivered `v1.0.0-beta.1` station, that
 install is also superseded but still runs; see "Upgrading from
@@ -77,7 +77,7 @@ won't match that new identity unless the full kit is present. From `beta.3`
 on, every later step (`beta.3` to `beta.4` and beyond) is a normal
 download-only upgrade in place: your recordings, settings, and AI models are
 kept. Details:
-[`docs/releases/2026-09-02-beta1-to-beta2-fresh-install-only.md`](../releases/2026-09-02-beta1-to-beta2-fresh-install-only.md).
+[`docs/releases/2026-09-02-beta1-to-beta2-fresh-install-only.md`](https://github.com/scottconverse/civiccast/blob/main/docs/releases/2026-09-02-beta1-to-beta2-fresh-install-only.md).
 
 Last updated: 2026-10-02.
 

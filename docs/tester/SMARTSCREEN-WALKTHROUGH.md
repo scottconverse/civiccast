@@ -91,14 +91,14 @@ approved build by exact hash, according to local policy.
 
 A valid Authenticode signature does not guarantee that Windows will omit a
 SmartScreen warning. Do not promise that the warning will disappear after a
-particular number of downloads. See [CODE_SIGNING_POLICY.md](../../CODE_SIGNING_POLICY.md)
+particular number of downloads. See [CODE_SIGNING_POLICY.md](https://github.com/scottconverse/civiccast/blob/main/CODE_SIGNING_POLICY.md)
 for the signing posture, and verify the actual downloaded executable.
 
 ## Release context
 
 The current published native installer is `v1.0.0-rc.8`, a signed GitHub
-pre-release. Follow the [current User Manual](../USER-MANUAL.md),
-[Windows install guide](../../INSTALL-WINDOWS.md), [Windows release-trust guide](../install/windows-release-trust.md),
+pre-release. Follow the [current User Manual](https://github.com/scottconverse/civiccast/blob/main/docs/USER-MANUAL.md),
+[Windows install guide](https://github.com/scottconverse/civiccast/blob/main/INSTALL-WINDOWS.md), [Windows release-trust guide](https://github.com/scottconverse/civiccast/blob/main/docs/install/windows-release-trust.md),
 and exact owner-authorized handoff. The Beta 10 details below are historical
 and do not qualify Beta 20.
 
@@ -121,6 +121,6 @@ authored release-state record.
 Beta 10 was a beta candidate: its clean-install automated check
 passed, upgrade paths were not run for it, and the human/station acceptance
 pass is not done (see
-[`docs/releases/v1.0.0-beta.10-verification.md`](../releases/v1.0.0-beta.10-verification.md)).
+[`docs/releases/v1.0.0-beta.10-verification.md`](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.10-verification.md)).
 A familiar filename or a passing SmartScreen check is not evidence that its
 release checks have passed.
