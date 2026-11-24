@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """Guard the published-release asset-consistency check (gate-civiccast C2/M7).
 
-Proves the check flags the exact rc8 defects: a missing unified manifest and an
-orphaned *.sigstore.json attestation. Pure logic, no network.
+Proves the check passes on the real v1.0.0-rc.8 asset set and still fails when
+a required asset is missing. Pure logic, no network.
 """
 
 from __future__ import annotations
@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 
 from scripts.policy.check_published_release_assets import (
+    REQUIRED_RELEASE_ASSETS,
     find_asset_problems,
     find_candidate_problems,
     find_public_beta_problems,
@@ -17,39 +18,70 @@ from scripts.policy.check_published_release_assets import (
     main,
 )
 
-COMPLETE = [
-    "civiccast-1.0.0-rc9-windows-setup.exe",
-    "civiccast-1.0.0-rc9-windows-setup.exe.sidecar.json",
-    "civiccast-1.0.0-rc9-windows-setup.exe.sigstore.json",
-    "civiccast-1.0.0-rc9-release-artifacts-manifest.json",
-    "civiccast-1.0.0-rc9-release-artifacts-manifest.json.sigstore.json",
-    "civiccast-1.0.0rc9-py3-none-any.whl",
-    "civiccast-1.0.0rc9-py3-none-any.whl.sigstore.json",
+#: The exact 26 assets published for v1.0.0-rc.7 and v1.0.0-rc.8.
+REAL_RC8_ASSETS = [
+    "candidate-manual-receipt.json",
+    "download_windows_release_artifacts.ps1",
+    "native-app-payload.ccpack",
+    "native-cuda-runtime.ccpack",
+    "native-ffmpeg-runtime.ccpack",
+    "native-ollama-runtime.ccpack.zip",
+    "native-server-binaries.ccpack",
+    "setup.exe",
+    "setup.exe.sidecar.json",
+    "SHA256SUMS.txt",
+    "station-models.json",
+    "station-models.zip.001",
+    "station-models.zip.002",
+    "station-models.zip.003",
+    "station-models.zip.004",
+    "station-models.zip.005",
+    "station-models.zip.006",
+    "station-models.zip.007",
+    "station-models.zip.008",
+    "station-models.zip.009",
+    "station-models.zip.010",
+    "station-models.zip.011",
+    "station-models.zip.012",
+    "USER-MANUAL.docx",
+    "USER-MANUAL.pdf",
+    "USER-MANUAL.render.json",
 ]
 
 
-def test_complete_self_consistent_set_passes():
-    assert find_asset_problems(COMPLETE) == []
+def test_real_rc8_asset_set_passes():
+    assert len(REAL_RC8_ASSETS) == 26
+    assert find_asset_problems(REAL_RC8_ASSETS) == []
 
 
-def test_missing_unified_manifest_is_flagged():
-    assets = [a for a in COMPLETE if not a.endswith("-release-artifacts-manifest.json")]
+def test_missing_setup_exe_is_flagged():
+    assets = [a for a in REAL_RC8_ASSETS if a != "setup.exe"]
+    assert any("setup.exe" in p for p in find_asset_problems(assets))
+
+
+def test_missing_station_zip_part_is_flagged():
+    assets = [a for a in REAL_RC8_ASSETS if a != "station-models.zip.006"]
     problems = find_asset_problems(assets)
-    assert any("release-artifacts-manifest.json" in p for p in problems)
+    assert any("station-models.zip.NNN" in p and "006" in p for p in problems)
+
+
+def test_missing_sha256sums_is_flagged():
+    assets = [a for a in REAL_RC8_ASSETS if a != "SHA256SUMS.txt"]
+    assert any("SHA256SUMS.txt" in p for p in find_asset_problems(assets))
+
+
+def test_every_required_name_is_enforced():
+    for required in REQUIRED_RELEASE_ASSETS:
+        assets = [a for a in REAL_RC8_ASSETS if a != required]
+        assert any(required in p for p in find_asset_problems(assets)), required
 
 
 def test_orphan_sigstore_is_flagged():
-    # The exact rc8 shape: the manifest's sigstore is present but the manifest is not.
-    assets = [a for a in COMPLETE if a != "civiccast-1.0.0-rc9-release-artifacts-manifest.json"]
-    problems = find_asset_problems(assets)
-    assert any("orphaned attestation" in p and "manifest.json.sigstore.json" in p for p in problems)
-
-
-def test_missing_installer_or_sidecar_is_flagged():
-    no_exe = [a for a in COMPLETE if not a.endswith("-windows-setup.exe")]
-    assert any("windows-setup.exe" in p for p in find_asset_problems(no_exe))
-    no_sidecar = [a for a in COMPLETE if not a.endswith(".exe.sidecar.json")]
-    assert any("sidecar" in p for p in find_asset_problems(no_sidecar))
+    assets = [*REAL_RC8_ASSETS, "setup.exe.sigstore.json"]
+    # setup.exe is present, so this attestation is not orphaned.
+    assert not any("orphaned attestation" in p for p in find_asset_problems(assets))
+    assets = [*REAL_RC8_ASSETS, "civiccast-1.0.0-rc9-release-artifacts-manifest.json.sigstore.json"]
+    assert any("orphaned attestation" in p for p in find_asset_problems(assets))
 
 
 def test_draft_release_is_not_accepted_as_published():
@@ -81,7 +113,7 @@ def test_public_beta_is_an_explicit_cli_phase(monkeypatch):
                 "tagName": "v1.0.0-rc14",
                 "isDraft": False,
                 "isPrerelease": True,
-                "assets": [{"name": name} for name in COMPLETE],
+                "assets": [{"name": name} for name in REAL_RC8_ASSETS],
             }
         )
 
@@ -111,7 +143,7 @@ def test_require_published_is_an_explicit_cli_phase(monkeypatch):
             {
                 "tagName": "v1.0.0-rc11",
                 "isDraft": True,
-                "assets": [{"name": name} for name in COMPLETE],
+                "assets": [{"name": name} for name in REAL_RC8_ASSETS],
             }
         )
 
