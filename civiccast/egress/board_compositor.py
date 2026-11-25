@@ -168,8 +168,14 @@ def board_segment_cache_key(
     audio_gain_db: float = 0.0,
     audio_source_version: str | None = None,
     audio_offset_seconds: float = 0.0,
+    image_asset_version: str | None = None,
 ) -> str:
-    """Return the stable content-addressed cache key for one board segment."""
+    """Return the stable content-addressed cache key for one board segment.
+
+    ``image_asset_version`` carries the version of any image the board embeds
+    (issue #348: the channel's uploaded station logo). Without it, replacing a
+    logo would keep airing the previously rendered, cached board picture.
+    """
 
     material: dict[str, object] = {
         "text_renderer": "text-fit-v1",
@@ -198,6 +204,10 @@ def board_segment_cache_key(
             "offset_seconds": audio_offset_seconds,
         },
     }
+    # Only boards that actually embed the station logo get a key that depends
+    # on it, so every other board keeps the cache key it had before.
+    if image_asset_version is not None:
+        material["image_asset_version"] = image_asset_version
     if _has_clock_zone(board):
         material["clock_minute"] = now.replace(second=0, microsecond=0).isoformat()
     encoded = json.dumps(material, sort_keys=True, separators=(",", ":"), ensure_ascii=True)

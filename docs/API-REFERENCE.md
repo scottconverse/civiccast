@@ -2835,6 +2835,33 @@ Set the S15 graphics-overlay (lower-third) state for a channel.
 - Request body: `GraphicsOverlayUpdateRequest`
 - Responses: 200 `GraphicsOverlayStateResponse`; 401 Missing, invalid, revoked, or misconfigured CivicCast staff bearer token.; 404 Egress config not found; 422 `HTTPValidationError`; 429 The observed peer exceeded the failed staff authentication budget. Wait for Retry-After before another invalid attempt; valid staff tokens remain accepted.; 503 Durable storage not ready -- run Setup storage or set DATABASE_URL
 
+### `DELETE /api/staff/egress/channels/{channel_id}/graphics-overlay/logo`
+
+Remove this channel's uploaded station logo.
+
+- Access: staff bearer token required; keep loopback or reverse-proxy network protection enabled
+- Parameters: `channel_id` (path, required): `string`
+- Request body: none
+- Responses: 204 Successful Response; 401 Missing, invalid, revoked, or misconfigured CivicCast staff bearer token.; 404 Egress config not found; 429 The observed peer exceeded the failed staff authentication budget. Wait for Retry-After before another invalid attempt; valid staff tokens remain accepted.
+
+### `GET /api/staff/egress/channels/{channel_id}/graphics-overlay/logo`
+
+Read this channel's uploaded station logo image.
+
+- Access: staff bearer token required; keep loopback or reverse-proxy network protection enabled
+- Parameters: `channel_id` (path, required): `string`
+- Request body: none
+- Responses: 200 Successful Response; 401 Missing, invalid, revoked, or misconfigured CivicCast staff bearer token.; 404 No logo uploaded; 429 The observed peer exceeded the failed staff authentication budget. Wait for Retry-After before another invalid attempt; valid staff tokens remain accepted.
+
+### `PUT /api/staff/egress/channels/{channel_id}/graphics-overlay/logo`
+
+Upload this channel's station logo (PNG or JPEG, up to 2 MB).
+
+- Access: staff bearer token required; keep loopback or reverse-proxy network protection enabled
+- Parameters: `channel_id` (path, required): `string`
+- Request body: `Body_upload_graphics_overlay_logo_api_staff_egress_channels__channel_id__graphics_overlay_logo_put`
+- Responses: 200 `GraphicsOverlayStateResponse`; 401 Missing, invalid, revoked, or misconfigured CivicCast staff bearer token.; 404 Egress config not found; 413 Image larger than 2 MB; 422 Not a PNG/JPEG image, undecodable, or too large; 429 The observed peer exceeded the failed staff authentication budget. Wait for Retry-After before another invalid attempt; valid staff tokens remain accepted.; 503 The image checker or the logo storage is not available
+
 ### `GET /api/staff/egress/channels/{channel_id}/health`
 
 Read recent egress health samples.
@@ -5716,6 +5743,10 @@ Read CivicCast local federation metadata.
 
 - `file` (required): `string`
 
+### `Body_upload_graphics_overlay_logo_api_staff_egress_channels__channel_id__graphics_overlay_logo_put`
+
+- `file` (required): `string`
+
 ### `BroadcastGate`
 
 - `attention` (optional): `Array<BroadcastGateItem>`
@@ -6928,6 +6959,7 @@ Read CivicCast local federation metadata.
 - `enabled` (required): `boolean`
 - `fill_policy` (optional): `'slate' | 'bulletins'`
 - `graphics_overlay_enabled` (optional): `boolean`
+- `graphics_overlay_logo_enabled` (optional): `boolean`
 - `graphics_overlay_lower_third_text` (optional): `string`
 - `loudness_target_lufs` (optional): `number`
 - `loudness_tolerance_lufs` (optional): `number`
@@ -7323,11 +7355,16 @@ rule (S13 §5.1).
 
 - `channel_id` (required): `string`
 - `graphics_overlay_enabled` (required): `boolean`
+- `graphics_overlay_logo_bytes` (optional): `number | null`
+- `graphics_overlay_logo_enabled` (optional): `boolean`
+- `graphics_overlay_logo_present` (optional): `boolean`
+- `graphics_overlay_logo_updated_at` (optional): `string | null`
 - `graphics_overlay_lower_third_text` (required): `string`
 
 ### `GraphicsOverlayUpdateRequest`
 
 - `graphics_overlay_enabled` (required): `boolean`
+- `graphics_overlay_logo_enabled` (optional): `boolean | null`
 - `graphics_overlay_lower_third_text` (optional): `string`
 
 ### `GstreamerRepairResponse`

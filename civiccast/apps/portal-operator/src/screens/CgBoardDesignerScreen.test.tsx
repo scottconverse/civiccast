@@ -79,6 +79,34 @@ describe('ZoneForm', () => {
     expect(onSubmit.mock.calls[0][0].feed_source_id).toBe('feed_rss')
   })
 
+  // Issue #348: a board image zone can show the channel's uploadable station logo.
+  it('lets an image zone choose the station logo and sends the reference', () => {
+    const onSubmit = vi.fn()
+    const { getByLabelText, getByText, queryByText } = render(
+      <ZoneForm feeds={[]} submitting={false} onSubmit={onSubmit} />,
+    )
+    fireEvent.change(getByLabelText('Content source'), { target: { value: 'image' } })
+    fireEvent.change(getByLabelText('Zone image'), { target: { value: 'station-logo' } })
+    // No logo uploaded on this channel: say so, but still allow saving the zone.
+    expect(getByText(/No station logo has been uploaded yet/)).toBeTruthy()
+    fireEvent.click(getByText('Add zone'))
+    expect(onSubmit.mock.calls[0][0].image_asset_ref).toBe('station-logo')
+    expect(queryByText(/No station logo has been uploaded yet/)).toBeTruthy()
+  })
+
+  it('drops the note once the channel has a logo, and clears the reference for other sources', () => {
+    const onSubmit = vi.fn()
+    const { getByLabelText, getByText, queryByText } = render(
+      <ZoneForm feeds={[]} stationLogoPresent submitting={false} onSubmit={onSubmit} />,
+    )
+    fireEvent.change(getByLabelText('Content source'), { target: { value: 'image' } })
+    fireEvent.change(getByLabelText('Zone image'), { target: { value: 'station-logo' } })
+    expect(queryByText(/No station logo has been uploaded yet/)).toBeNull()
+    fireEvent.change(getByLabelText('Content source'), { target: { value: 'manual' } })
+    fireEvent.click(getByText('Add zone'))
+    expect(onSubmit.mock.calls[0][0].image_asset_ref).toBeNull()
+  })
+
   it('includes parsed allowed_tags in the payload', () => {
     const onSubmit = vi.fn()
     const { getByText, getByLabelText } = render(<ZoneForm feeds={[]} submitting={false} onSubmit={onSubmit} />)

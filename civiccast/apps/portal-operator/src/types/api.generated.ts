@@ -756,6 +756,10 @@ export interface Body_upload_contributor_media_api_public_contribute_uploads_pos
   file: string
 }
 
+export interface Body_upload_graphics_overlay_logo_api_staff_egress_channels__channel_id__graphics_overlay_logo_put {
+  file: string
+}
+
 export interface BroadcastGate {
   color: 'green' | 'yellow' | 'red'
   blocking?: Array<BroadcastGateItem>
@@ -1975,6 +1979,7 @@ export interface EgressConfig {
   canonical_profile?: CanonicalProfile
   graphics_overlay_enabled?: boolean
   graphics_overlay_lower_third_text?: string
+  graphics_overlay_logo_enabled?: boolean
 }
 
 export interface EgressHealthSample {
@@ -2359,11 +2364,16 @@ export interface GraphicsOverlayStateResponse {
   channel_id: string
   graphics_overlay_enabled: boolean
   graphics_overlay_lower_third_text: string
+  graphics_overlay_logo_enabled?: boolean
+  graphics_overlay_logo_present?: boolean
+  graphics_overlay_logo_bytes?: number | null
+  graphics_overlay_logo_updated_at?: string | null
 }
 
 export interface GraphicsOverlayUpdateRequest {
   graphics_overlay_enabled: boolean
   graphics_overlay_lower_third_text?: string
+  graphics_overlay_logo_enabled?: boolean | null
 }
 
 export interface GstreamerRepairResponse {

@@ -264,6 +264,11 @@ class EgressConfigDb(Base):
     graphics_overlay_lower_third_text: Mapped[str] = mapped_column(
         Text, nullable=False, default="", server_default=text("''")
     )
+    # Issue #348: the operator's uploaded station logo is drawn over the
+    # program only when this is on. Off by default, same as the overlay itself.
+    graphics_overlay_logo_enabled: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
     loudness_target_lufs: Mapped[float] = mapped_column(Float, nullable=False, default=-16.0)
     loudness_tolerance_lufs: Mapped[float] = mapped_column(Float, nullable=False, default=2.0)
     canonical_profile_json: Mapped[str] = mapped_column(Text, nullable=False)
@@ -509,6 +514,11 @@ class EgressConfig(BaseModel):
     # and its documented "not hot" limitation.
     graphics_overlay_enabled: bool = False
     graphics_overlay_lower_third_text: Annotated[str, Field(default="", max_length=240)] = ""
+    # Issue #348: show the channel's uploaded station logo over the program.
+    # Meaningful only while ``graphics_overlay_enabled`` is on, and only when a
+    # logo file has actually been uploaded; see
+    # civiccast.egress.gst.bridge.graphics_overlay_leg_from_config.
+    graphics_overlay_logo_enabled: bool = False
 
     @field_validator("graphics_overlay_lower_third_text")
     @classmethod

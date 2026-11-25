@@ -414,8 +414,8 @@ class TestSingleAlembicHead:
         # it. 0087 added retention-term authoring; 0088 seeds live-caption health.
         # 0089 adds unverified remote-guest media-control request state.
         # Beta 19 adds board-audio gain (0093) and live-video zones (0094).
-        assert heads[0] == "0099_egress_health_sample_index", (
-            f"Expected head '0099_egress_health_sample_index'; got {heads[0]!r}."
+        assert heads[0] == "0100_egress_graphics_overlay_logo", (
+            f"Expected head '0100_egress_graphics_overlay_logo'; got {heads[0]!r}."
         )
 
 

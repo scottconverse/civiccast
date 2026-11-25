@@ -11,6 +11,7 @@ import {
   getAppPlatformConfig,
   getCgBoard,
   getCgBoardAudio,
+  getGraphicsOverlay,
   getStaffIdentity,
   listCgBoardAudit,
   listLiveSources,
@@ -215,12 +216,15 @@ export function BoardCreateForm({
 export function ZoneForm({
   feeds,
   liveSources = [],
+  stationLogoPresent = false,
   submitting,
   onSubmit,
   initial,
 }: {
   feeds: CgFeedSource[]
   liveSources?: Pick<LiveSourceResponse, 'live_source_id' | 'channel_id' | 'name' | 'source_type'>[]
+  // Issue #348: whether this channel already has a station logo uploaded.
+  stationLogoPresent?: boolean
   submitting: boolean
   onSubmit: (payload: ZoneInput) => void
   initial?: CgZoneConfig
@@ -233,6 +237,7 @@ export function ZoneForm({
   const [feedSourceId, setFeedSourceId] = useState<string>(initial?.feed_source_id ?? '')
   const [liveSourceId, setLiveSourceId] = useState<string>(initial?.live_source_id ?? '')
   const [manualText, setManualText] = useState<string>(initial?.manual_text ?? '')
+  const [imageAssetRef, setImageAssetRef] = useState<string>(initial?.image_asset_ref ?? '')
   const [approvalRequired, setApprovalRequired] = useState<boolean>(initial?.approval_required ?? false)
   const [allowedTags, setAllowedTags] = useState<string>(formatTags(initial?.allowed_tags))
 
@@ -306,6 +311,27 @@ export function ZoneForm({
           <textarea value={manualText} onChange={(e) => setManualText(e.target.value)} rows={2} className="rounded-md px-2 py-1.5 text-sm" style={fieldStyle} />
         </label>
       )}
+      {contentSource === 'image' && (
+        <label className="grid gap-1 text-xs">
+          <span style={{ color: 'var(--cc-ink-3)' }}>Image</span>
+          <select
+            aria-label="Zone image"
+            value={imageAssetRef}
+            onChange={(e) => setImageAssetRef(e.target.value)}
+            className="rounded-md px-2 py-1.5"
+            style={fieldStyle}
+          >
+            <option value="">Choose an image…</option>
+            <option value="station-logo">Station logo</option>
+          </select>
+          {imageAssetRef === 'station-logo' && !stationLogoPresent && (
+            <span style={{ color: 'var(--cc-err)' }}>
+              No station logo has been uploaded yet. Upload one on the Channel Ops screen first; until
+              then this zone shows nothing.
+            </span>
+          )}
+        </label>
+      )}
       <label className="flex items-center gap-2 text-xs">
         <input type="checkbox" checked={approvalRequired} onChange={(e) => setApprovalRequired(e.target.checked)} />
         <span>Require operator approval of feed items before they show</span>
@@ -341,6 +367,8 @@ export function ZoneForm({
               live_source_id: contentSource === 'live_video' ? liveSourceId : null,
               approval_required: approvalRequired,
               manual_text: contentSource === 'manual' ? manualText.trim() || null : null,
+              image_asset_ref:
+                contentSource === 'image' ? imageAssetRef.trim() || null : null,
               allowed_tags: parseTags(allowedTags),
             })
           }
@@ -529,6 +557,16 @@ export function CgBoardDesignerScreen() {
   const audioQuery = useQuery({ queryKey: ['cg-board-audio', channelId], queryFn: () => getCgBoardAudio(channelId), enabled: canRead && board != null, retry: false })
   const assetsQuery = useQuery({ queryKey: ['staff-assets'], queryFn: listStaffAssets, enabled: canWrite && board != null, retry: false })
   const liveSourcesQuery = useQuery({ queryKey: ['live-sources'], queryFn: listLiveSources, enabled: canRead && board != null, retry: false })
+  // Issue #348: a logo zone can show the channel's uploaded station logo. The
+  // designer only needs to know whether one is uploaded, so the operator is
+  // told before they pick it.
+  const stationLogoQuery = useQuery({
+    queryKey: ['graphics-overlay', channelId],
+    queryFn: () => getGraphicsOverlay(channelId),
+    enabled: canRead && board != null,
+    retry: false,
+  })
+  const stationLogoPresent = stationLogoQuery.data?.graphics_overlay_logo_present ?? false
   const previewQuery = useNoneOn404<ResolvedBoard | null>(['cg-board-preview', channelId], () => previewCgBoard(channelId), canRead && board != null)
   const auditQuery = useQuery({
     queryKey: ['cg-board-audit', channelId],
@@ -708,7 +746,7 @@ export function CgBoardDesignerScreen() {
                 </div>
                 {showAddZone && canWrite && (
                   <div className="mt-3">
-                    <ZoneForm feeds={feeds} liveSources={liveSources} submitting={addZone.isPending} onSubmit={(p) => addZone.mutate(p)} />
+                    <ZoneForm feeds={feeds} liveSources={liveSources} stationLogoPresent={stationLogoPresent} submitting={addZone.isPending} onSubmit={(p) => addZone.mutate(p)} />
                   </div>
                 )}
                 {liveSourcesQuery.isError && (
@@ -733,7 +771,7 @@ export function CgBoardDesignerScreen() {
                       </div>
                       {editingZoneId === zone.zone_id && canWrite && (
                         <div className="mt-2">
-                          <ZoneForm feeds={feeds} liveSources={liveSources} submitting={updateZone.isPending} initial={zone} onSubmit={(p) => updateZone.mutate({ id: zone.zone_id, p })} />
+                          <ZoneForm feeds={feeds} liveSources={liveSources} stationLogoPresent={stationLogoPresent} submitting={updateZone.isPending} initial={zone} onSubmit={(p) => updateZone.mutate({ id: zone.zone_id, p })} />
                         </div>
                       )}
                     </div>

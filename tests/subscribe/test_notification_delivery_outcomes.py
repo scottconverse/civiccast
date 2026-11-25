@@ -40,7 +40,7 @@ _WP05_TABLES = {"notification_delivery_outcomes", "notification_delivery_attempt
 _PRIOR_TABLE = "subscription_webhook_retries"
 _REVISION = "0092_notification_delivery_outcomes"
 _PARENT = "0091_programlog_local_anchor"
-_CURRENT_HEAD = "0099_egress_health_sample_index"
+_CURRENT_HEAD = "0100_egress_graphics_overlay_logo"
 
 
 def _cfg(url: str) -> Config:
