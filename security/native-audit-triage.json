@@ -2455,12 +2455,13 @@
       "package": "cpython-libexpat",
       "version": "2.10.0",
       "id": "CVE-2026-124317",
-      "reviewed": "2026-11-14",
-      "review_by": "2026-12-14",
-      "reason": "The overread is only in the unknown-encoding path for multi-byte lead bytes (map value -2..-4) that calls the application convert callback. Pinned CPython 3.12.16 PyUnknownEncodingHandler decodes exactly 256 single bytes, rejects multi-byte encodings with ValueError, sets every map entry to a code point or -1, and sets convert=NULL, so no multi-byte lead entry exists and the vulnerable branch is unreachable. No upstream fixed release exists yet (latest R_2_10_0); this is API non-reachability, not a claim that Expat 2.10.0 fixes the issue.",
+      "reviewed": "2026-11-24",
+      "review_by": "2026-12-24",
+      "reason": "The overread is only in the unknown-encoding path for multi-byte lead bytes (map value -2..-4) that calls the application convert callback. Pinned CPython 3.12.16 PyUnknownEncodingHandler decodes exactly 256 single bytes, rejects multi-byte encodings with ValueError, sets every map entry to a code point or -1, and sets convert=NULL, so no multi-byte lead entry exists and the vulnerable branch is unreachable. libexpat 2.11.0 was released on 2026-11-23 and fixes this CVE, but the shipped CPython 3.12.16 still vendors Expat 2.10.0 and was not upgraded in rc.8. This is API non-reachability, not a claim that Expat 2.10.0 fixes the issue.",
       "evidence": [
         "https://github.com/python/cpython/blob/v3.12.16/Modules/pyexpat.c",
         "https://github.com/libexpat/libexpat/pull/1492",
+        "https://github.com/libexpat/libexpat/releases/tag/R_2_11_0",
         "https://nvd.nist.gov/vuln/detail/CVE-2026-124317",
         "docs/ops/evidence/rc1-native-security/expat-applicability.json"
       ]
@@ -2469,15 +2470,16 @@
       "package": "gstreamer-libexpat",
       "version": "2.10.0",
       "id": "CVE-2026-124317",
-      "reviewed": "2026-11-14",
-      "review_by": "2026-12-14",
-      "reason": "The overread needs an application-registered unknown encoding handler. The shipped libexpat.dll is consumed only by fontconfig-1.dll, whose resolved PE imports do not include XML_SetUnknownEncodingHandler, and Fontconfig 2.16.1 fcxml.c creates a UTF-8 XML_ParserCreate parser without one. The vulnerable decoder path is unreachable. No upstream fixed release exists yet (latest R_2_10_0); no underlying version fix is claimed.",
+      "reviewed": "2026-11-24",
+      "review_by": "2026-12-24",
+      "reason": "The overread needs an application-registered unknown encoding handler. The shipped libexpat.dll is consumed only by fontconfig-1.dll, whose resolved PE imports do not include XML_SetUnknownEncodingHandler, and Fontconfig 2.16.1 fcxml.c creates a UTF-8 XML_ParserCreate parser without one. The vulnerable decoder path is unreachable. libexpat 2.11.0 was released on 2026-11-23 and fixes this CVE, but the shipped libexpat.dll remains 2.10.0 and was not upgraded in rc.8; no underlying version fix is claimed.",
       "evidence": [
         "https://raw.githubusercontent.com/fontconfig/fontconfig/2.16.1/src/fcxml.c",
         "scripts/build_native_runtime_closure.py",
         "scripts/verify_native_runtime_closure.py",
         "scripts/build_native_security_libraries.py",
         "https://github.com/libexpat/libexpat/pull/1492",
+        "https://github.com/libexpat/libexpat/releases/tag/R_2_11_0",
         "https://nvd.nist.gov/vuln/detail/CVE-2026-124317",
         "docs/ops/evidence/rc1-native-security/expat-applicability.json"
       ]
@@ -7193,12 +7195,13 @@
       "package": "cpython-libexpat",
       "version": "2.10.0",
       "id": "CVE-2026-128241",
-      "reviewed": "2026-11-19",
-      "review_by": "2026-12-19",
-      "reason": "Defect is in the xmlwf command-line tool's -d output mode, which opens the output file with fopen(\"wb\") and follows a planted symlink. CivicCast's CPython build vendors only the lib/ sources of expat (scripts/build_native_python_runtime.py EXPAT_LIB_FILES and vendor_expat copy lib/*.c/.h into Modules/expat); no xmlwf source or executable is built, packed or shipped. No upstream 2.11.0 release exists to move to: the latest libexpat release is R_2_10_0 (2026-11-02), so the pinned 2.10.0 cannot yet be replaced.",
+      "reviewed": "2026-11-24",
+      "review_by": "2026-12-24",
+      "reason": "Defect is in the xmlwf command-line tool's -d output mode, which opens the output file with fopen(\"wb\") and follows a planted symlink. CivicCast's CPython build vendors only the lib/ sources of expat (scripts/build_native_python_runtime.py EXPAT_LIB_FILES and vendor_expat copy lib/*.c/.h into Modules/expat); no xmlwf source or executable is built, packed or shipped. libexpat 2.11.0 was released on 2026-11-23 and fixes this CVE, but the pinned CPython build still vendors Expat 2.10.0 and was not upgraded in rc.8.",
       "evidence": [
         "https://nvd.nist.gov/vuln/detail/CVE-2026-128241",
         "scripts/build_native_python_runtime.py",
+        "https://github.com/libexpat/libexpat/releases/tag/R_2_11_0",
         "https://github.com/libexpat/libexpat/releases"
       ]
     },
@@ -7206,13 +7209,14 @@
       "package": "gstreamer-libexpat",
       "version": "2.10.0",
       "id": "CVE-2026-128241",
-      "reviewed": "2026-11-19",
-      "review_by": "2026-12-19",
-      "reason": "Defect is in the xmlwf command-line tool's -d output mode, which opens the output file with fopen(\"wb\") and follows a planted symlink. The shipped GStreamer closure contains libexpat.dll consumed only by fontconfig-1.dll and has no xmlwf executable. No upstream 2.11.0 release exists to move to: the latest libexpat release is R_2_10_0 (2026-11-02).",
+      "reviewed": "2026-11-24",
+      "review_by": "2026-12-24",
+      "reason": "Defect is in the xmlwf command-line tool's -d output mode, which opens the output file with fopen(\"wb\") and follows a planted symlink. The shipped GStreamer closure contains libexpat.dll consumed only by fontconfig-1.dll and has no xmlwf executable. libexpat 2.11.0 was released on 2026-11-23 and fixes this CVE, but the shipped libexpat.dll remains 2.10.0 and was not upgraded in rc.8.",
       "evidence": [
         "https://nvd.nist.gov/vuln/detail/CVE-2026-128241",
         "docs/ops/evidence/rc1-native-security/expat-applicability.json",
         "scripts/build_native_runtime_closure.py",
+        "https://github.com/libexpat/libexpat/releases/tag/R_2_11_0",
         "https://github.com/libexpat/libexpat/releases"
       ]
     },
