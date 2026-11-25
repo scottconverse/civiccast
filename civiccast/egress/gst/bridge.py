@@ -811,19 +811,10 @@ def graphics_overlay_leg_from_config(
     # reload) can never read a partially-written PNG on a clobbered fixed path.
     banner_path = render_dir_path / f"graphics-overlay-lower-third.{uuid.uuid4().hex}.png"
     if show_logo:
-        if text:
-            render_lower_third_png(
-                banner_path,
-                text,
-                canvas_width=profile.width,
-                banner_height=GRAPHICS_OVERLAY_LOWER_THIRD_HEIGHT,
-            )
-        if sweep_stale:
-            sweep_stale_lower_third_banners(render_dir_path, keep=banner_path if text else None)
         # ``station_bug_and_lower_third_leg`` renders the banner itself when
         # ``banner_text`` is given, into the per-call path above; with no text
         # it returns a logo-only leg.
-        return station_bug_and_lower_third_leg(
+        leg = station_bug_and_lower_third_leg(
             logo_path=logo_file,
             canvas_width=profile.width,
             canvas_height=profile.height,
@@ -831,6 +822,9 @@ def graphics_overlay_leg_from_config(
             banner_path=banner_path,
             banner_height=GRAPHICS_OVERLAY_LOWER_THIRD_HEIGHT,
         )
+        if sweep_stale:
+            sweep_stale_lower_third_banners(render_dir_path, keep=banner_path if text else None)
+        return leg
     render_lower_third_png(
         banner_path,
         text,
