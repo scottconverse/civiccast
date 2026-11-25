@@ -149,26 +149,33 @@ def validate_logo_bytes(data: bytes) -> tuple[str, int, int]:
     with tempfile.TemporaryDirectory(prefix="civiccast-logo-check-") as scratch:
         sample = Path(scratch) / ("logo.png" if declared_format == "png" else "logo.jpg")
         sample.write_bytes(data)
-        completed = subprocess.run(  # noqa: S603 - list form, no shell, fixed binary
-            [
-                ffprobe,
-                "-v",
-                "error",
-                "-select_streams",
-                "v:0",
-                "-show_entries",
-                "stream=codec_name,width,height",
-                "-of",
-                "json",
-                str(sample),
-            ],
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=_FFPROBE_TIMEOUT_SECONDS,
-            check=False,
-        )
+        try:
+            completed = subprocess.run(  # noqa: S603 - list form, no shell, fixed binary
+                [
+                    ffprobe,
+                    "-v",
+                    "error",
+                    "-select_streams",
+                    "v:0",
+                    "-show_entries",
+                    "stream=codec_name,width,height",
+                    "-of",
+                    "json",
+                    str(sample),
+                ],
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=_FFPROBE_TIMEOUT_SECONDS,
+                check=False,
+            )
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            # The checker itself failed to run (not the image). Refuse the
+            # upload rather than store something nobody checked.
+            raise StationLogoError(
+                "That image could not be checked. Try again; if it keeps failing, contact support."
+            ) from exc
     if completed.returncode != 0:
         raise StationLogoError(
             "That image could not be read. It may be damaged; try saving and uploading it again."
