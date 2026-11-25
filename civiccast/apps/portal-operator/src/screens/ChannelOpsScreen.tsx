@@ -18,6 +18,9 @@ import {
   getEgressHealth,
   getEgressState,
   getGraphicsOverlay,
+  getGraphicsOverlayLogo,
+  deleteGraphicsOverlayLogo,
+  uploadGraphicsOverlayLogo,
   listEgressChannels,
   getStaffIdentity,
   getStationProfile,
@@ -1195,6 +1198,11 @@ export function GraphicsOverlayPanel({
   canEdit,
   saveError,
   onSave,
+  logoPreviewUrl = null,
+  logoUploading = false,
+  logoError = null,
+  onUploadLogo,
+  onRemoveLogo,
 }: {
   channelId: string | undefined
   state: GraphicsOverlayStateResponse | undefined
@@ -1203,6 +1211,11 @@ export function GraphicsOverlayPanel({
   canEdit: boolean
   saveError: unknown
   onSave: (next: GraphicsOverlayUpdateRequest) => void
+  logoPreviewUrl?: string | null
+  logoUploading?: boolean
+  logoError?: unknown
+  onUploadLogo?: (file: File) => void
+  onRemoveLogo?: () => void
 }) {
   const [text, setText] = useState<string | null>(null)
   // Two-step confirm before an on-air state change, mirroring the "Take off
@@ -1210,18 +1223,46 @@ export function GraphicsOverlayPanel({
   // row instead of firing the request straight from the toggle click.
   const [confirmingAction, setConfirmingAction] = useState<'on' | 'off' | null>(null)
 
+  const [logoLocalError, setLogoLocalError] = useState<string | null>(null)
+
   const effectiveText = text ?? state?.graphics_overlay_lower_third_text ?? ''
   const isOnAir = state?.graphics_overlay_enabled ?? false
+  const logoPresent = state?.graphics_overlay_logo_present ?? false
+  const logoEnabled = state?.graphics_overlay_logo_enabled ?? false
   const notFound = loadError instanceof ApiError && loadError.status === 404
   const canPutOnAir = effectiveText.trim().length > 0
+  const savingPayload = (changes: Partial<GraphicsOverlayUpdateRequest>): GraphicsOverlayUpdateRequest => ({
+    graphics_overlay_enabled: isOnAir,
+    graphics_overlay_lower_third_text: effectiveText,
+    graphics_overlay_logo_enabled: logoEnabled,
+    ...changes,
+  })
 
   function confirmToggle() {
     if (!confirmingAction) return
-    onSave({
-      graphics_overlay_enabled: confirmingAction === 'on',
-      graphics_overlay_lower_third_text: effectiveText,
-    })
+    onSave(
+      savingPayload({
+        graphics_overlay_enabled: confirmingAction === 'on',
+      }),
+    )
     setConfirmingAction(null)
+  }
+
+  function chooseLogo(file: File | undefined) {
+    setLogoLocalError(null)
+    if (!file) return
+    // Check the two things the operator can fix without a round trip; the
+    // server still checks the real bytes and refuses with its own message.
+    const looksAllowed = file.type === 'image/png' || file.type === 'image/jpeg'
+    if (!looksAllowed) {
+      setLogoLocalError('Choose a PNG (.png) or JPEG (.jpg) image.')
+      return
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setLogoLocalError('That image is larger than 2 MB. Save a smaller copy and try again.')
+      return
+    }
+    onUploadLogo?.(file)
   }
 
   return (
@@ -1284,6 +1325,7 @@ export function GraphicsOverlayPanel({
             >
               Lower-third text
             </span>
+
             <input
               type="text"
               value={effectiveText}
@@ -1295,6 +1337,90 @@ export function GraphicsOverlayPanel({
               style={fieldStyle}
             />
           </label>
+
+          <div
+            className="grid gap-2 rounded-md p-3"
+            style={{ background: 'var(--cc-surface-2)', border: '1px solid var(--cc-line)' }}
+          >
+            <div
+              className="text-[11px] font-semibold uppercase tracking-wider"
+              style={{ color: 'var(--cc-ink-3)' }}
+            >
+              Station logo
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              {logoPresent && logoPreviewUrl ? (
+                <img
+                  src={logoPreviewUrl}
+                  alt="Station logo preview"
+                  style={{ maxHeight: 48, maxWidth: 160 }}
+                />
+              ) : (
+                <span className="text-xs" style={{ color: 'var(--cc-ink-2)' }}>
+                  {logoPresent ? 'Logo uploaded.' : 'No logo uploaded yet.'}
+                </span>
+              )}
+              <label className="grid gap-1 text-xs">
+                <span style={{ color: 'var(--cc-ink-3)' }}>
+                  Logo image (PNG or JPEG, up to 2 MB)
+                </span>
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg"
+                  aria-label="Logo image file"
+                  disabled={!canEdit || logoUploading}
+                  onChange={(e) => {
+                    chooseLogo(e.target.files?.[0])
+                    e.target.value = ''
+                  }}
+                  className="text-xs"
+                />
+              </label>
+              {logoPresent && onRemoveLogo && (
+                <button
+                  type="button"
+                  disabled={!canEdit || logoUploading}
+                  onClick={() => {
+                    setLogoLocalError(null)
+                    onRemoveLogo()
+                  }}
+                  className="rounded-md px-3 py-1.5 text-sm font-medium"
+                  style={{
+                    border: '1px solid var(--cc-line)',
+                    color: 'var(--cc-ink-2)',
+                    background: 'var(--cc-surface)',
+                  }}
+                >
+                  Remove logo
+                </button>
+              )}
+            </div>
+            {logoUploading && (
+              <div className="text-xs" style={{ color: 'var(--cc-ink-2)' }}>
+                Uploading…
+              </div>
+            )}
+            {(logoLocalError || Boolean(logoError)) && (
+              <div role="alert" className="text-sm" style={{ color: 'var(--cc-err)' }}>
+                {logoLocalError ?? apiMessage(logoError, 'Could not upload the logo.')}
+              </div>
+            )}
+            <label className="flex items-center gap-2 text-xs">
+              <input
+                type="checkbox"
+                aria-label="Show logo on air"
+                checked={logoEnabled}
+                disabled={!canEdit || saving || (!logoEnabled && !logoPresent)}
+                onChange={(e) => onSave(savingPayload({ graphics_overlay_logo_enabled: e.target.checked }))}
+              />
+              <span>Show logo on air</span>
+            </label>
+            <div className="text-xs" style={{ color: 'var(--cc-ink-3)' }}>
+              The logo sits in the top-left corner of the picture and shows only while the overlay
+              above is on air. Changes take effect on this channel’s next pipeline build, the same
+              as the banner.
+            </div>
+          </div>
 
           {confirmingAction ? (
             <div className="grid gap-2">
@@ -2039,6 +2165,38 @@ export function ChannelOpsScreen() {
       void queryClient.invalidateQueries({ queryKey: ['graphics-overlay', channelId] })
     },
   })
+  const stationLogoQuery = useQuery({
+    queryKey: [
+      'graphics-overlay-logo',
+      channelId,
+      graphicsOverlayQuery.data?.graphics_overlay_logo_updated_at ?? null,
+    ],
+    queryFn: () => getGraphicsOverlayLogo(channelId ?? ''),
+    enabled: Boolean(channelId) && Boolean(graphicsOverlayQuery.data?.graphics_overlay_logo_present),
+    retry: false,
+  })
+  // The staff API needs a bearer token, so the <img> preview shows a blob URL
+  // made from the fetched bytes; revoke it when the image changes or unmounts.
+  const stationLogoPreviewUrl = useMemo(
+    () => (stationLogoQuery.data ? URL.createObjectURL(stationLogoQuery.data) : null),
+    [stationLogoQuery.data],
+  )
+  useEffect(() => {
+    if (!stationLogoPreviewUrl) return
+    return () => URL.revokeObjectURL(stationLogoPreviewUrl)
+  }, [stationLogoPreviewUrl])
+  const refreshStationLogo = () => {
+    void queryClient.invalidateQueries({ queryKey: ['graphics-overlay', channelId] })
+    void queryClient.invalidateQueries({ queryKey: ['graphics-overlay-logo', channelId] })
+  }
+  const stationLogoUploadMutation = useMutation({
+    mutationFn: (file: File) => uploadGraphicsOverlayLogo(channelId ?? '', file),
+    onSuccess: refreshStationLogo,
+  })
+  const stationLogoRemoveMutation = useMutation({
+    mutationFn: () => deleteGraphicsOverlayLogo(channelId ?? ''),
+    onSuccess: refreshStationLogo,
+  })
   const headendProfilesQuery = useQuery({
     queryKey: ['headend-profiles'],
     queryFn: listHeadendProfiles,
@@ -2231,6 +2389,11 @@ export function ChannelOpsScreen() {
             canEdit={canControlEgress}
             saveError={graphicsOverlayMutation.error}
             onSave={(next) => graphicsOverlayMutation.mutate(next)}
+            logoPreviewUrl={stationLogoPreviewUrl}
+            logoUploading={stationLogoUploadMutation.isPending || stationLogoRemoveMutation.isPending}
+            logoError={stationLogoUploadMutation.error ?? stationLogoRemoveMutation.error}
+            onUploadLogo={(file) => stationLogoUploadMutation.mutate(file)}
+            onRemoveLogo={() => stationLogoRemoveMutation.mutate()}
           />
           {selectedChannel && <EmbedCopyPanel key={`embed-${selectedChannel.channel_id}`} kind="channel" identity={selectedChannel.channel_id} />}
           <OutputsPanel outputs={selectedChannel?.outputs ?? []} />

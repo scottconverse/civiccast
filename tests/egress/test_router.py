@@ -194,23 +194,28 @@ def test_staff_egress_config_allows_rtmp_on_default_gstreamer_engine(
     assert r.json()["sinks"][0]["kind"] == "rtmp"
 
 
-def test_staff_egress_graphics_overlay_round_trip(client: TestClient) -> None:
+def test_staff_egress_graphics_overlay_round_trip(client: TestClient, tmp_path: Path) -> None:
     """A-3: the operator's lower-third toggle + text persist through the
     dedicated GET/PUT endpoint and flow back to the full config GET (proving
     it lands on the same durable EgressConfig row the playout-graph builder
     reads, not a side channel)."""
+    client.app.dependency_overrides[get_egress_work_dir] = lambda: tmp_path  # type: ignore[attr-defined]
     assert (
         client.put("/api/staff/egress/channels/gov/config", json=_config_payload()).status_code
         == 200
     )
 
-    # Default is off/blank before any operator ever sets it.
+    # Default is off/blank, with no logo uploaded, before any operator sets it.
     r = client.get("/api/staff/egress/channels/gov/graphics-overlay")
     assert r.status_code == 200, r.text
     assert r.json() == {
         "channel_id": "gov",
         "graphics_overlay_enabled": False,
         "graphics_overlay_lower_third_text": "",
+        "graphics_overlay_logo_enabled": False,
+        "graphics_overlay_logo_present": False,
+        "graphics_overlay_logo_bytes": None,
+        "graphics_overlay_logo_updated_at": None,
     }
 
     r = client.put(
@@ -225,6 +230,10 @@ def test_staff_egress_graphics_overlay_round_trip(client: TestClient) -> None:
         "channel_id": "gov",
         "graphics_overlay_enabled": True,
         "graphics_overlay_lower_third_text": "Town Council - Live",
+        "graphics_overlay_logo_enabled": False,
+        "graphics_overlay_logo_present": False,
+        "graphics_overlay_logo_bytes": None,
+        "graphics_overlay_logo_updated_at": None,
     }
 
     # Get-after-set round trip via the dedicated endpoint...
@@ -294,6 +303,125 @@ def test_staff_egress_graphics_overlay_rejects_control_characters(client: TestCl
     r = client.get("/api/staff/egress/channels/gov/graphics-overlay")
     assert r.status_code == 200
     assert r.json()["graphics_overlay_lower_third_text"] == ""
+
+
+# --- Issue #348: the station logo -------------------------------------------
+
+
+def _logo_png_bytes(width: int = 24, height: int = 24) -> bytes:
+    import tempfile
+
+    from civiccast.egress.gst.graphics_overlay import write_rgba_png
+
+    with tempfile.TemporaryDirectory() as scratch:
+        path = Path(scratch) / "logo.png"
+        write_rgba_png(path, width, height, bytes([30, 120, 60, 255]) * (width * height))
+        return path.read_bytes()
+
+
+def _configure_gov(client: TestClient) -> None:
+    assert (
+        client.put("/api/staff/egress/channels/gov/config", json=_config_payload()).status_code
+        == 200
+    )
+
+
+def test_staff_egress_station_logo_upload_read_and_remove(
+    client: TestClient, tmp_path: Path
+) -> None:
+    """An operator uploads one image; the service stores it and reports only
+    facts about it (present/size/time) -- never a file path -- and can remove
+    it again."""
+    client.app.dependency_overrides[get_egress_work_dir] = lambda: tmp_path  # type: ignore[attr-defined]
+    _configure_gov(client)
+    png = _logo_png_bytes()
+
+    r = client.put(
+        "/api/staff/egress/channels/gov/graphics-overlay/logo",
+        files={"file": ("logo.png", png, "image/png")},
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["graphics_overlay_logo_present"] is True
+    assert body["graphics_overlay_logo_bytes"] == len(png)
+    assert body["graphics_overlay_logo_updated_at"] is not None
+    assert "path" not in json.dumps(body).lower()
+
+    # The service owns exactly one fixed file for the channel.
+    assert (tmp_path / "gov" / "branding" / "logo.png").read_bytes() == png
+
+    # The state endpoint and the full config endpoint both see it.
+    r = client.get("/api/staff/egress/channels/gov/graphics-overlay")
+    assert r.json()["graphics_overlay_logo_present"] is True
+    r = client.get("/api/staff/egress/channels/gov/config")
+    assert r.json()["graphics_overlay_logo_enabled"] is False
+
+    # The preview download serves the same bytes.
+    r = client.get("/api/staff/egress/channels/gov/graphics-overlay/logo")
+    assert r.status_code == 200
+    assert r.headers["content-type"] == "image/png"
+    assert r.content == png
+
+    # Switching the logo on persists to the same durable row.
+    r = client.put(
+        "/api/staff/egress/channels/gov/graphics-overlay",
+        json={
+            "graphics_overlay_enabled": True,
+            "graphics_overlay_lower_third_text": "",
+            "graphics_overlay_logo_enabled": True,
+        },
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["graphics_overlay_logo_enabled"] is True
+    r = client.get("/api/staff/egress/channels/gov/config")
+    assert r.json()["graphics_overlay_logo_enabled"] is True
+
+    # Removing it clears both the file and the reported presence.
+    r = client.delete("/api/staff/egress/channels/gov/graphics-overlay/logo")
+    assert r.status_code == 204
+    assert not (tmp_path / "gov" / "branding" / "logo.png").exists()
+    r = client.get("/api/staff/egress/channels/gov/graphics-overlay")
+    assert r.json()["graphics_overlay_logo_present"] is False
+    assert client.get("/api/staff/egress/channels/gov/graphics-overlay/logo").status_code == 404
+
+
+def test_staff_egress_station_logo_refuses_bad_images(client: TestClient, tmp_path: Path) -> None:
+    """SVG, over-size, and undecodable uploads are refused with the server's
+    plain message, and nothing is written."""
+    client.app.dependency_overrides[get_egress_work_dir] = lambda: tmp_path  # type: ignore[attr-defined]
+    _configure_gov(client)
+    url = "/api/staff/egress/channels/gov/graphics-overlay/logo"
+    good = _logo_png_bytes()
+
+    r = client.put(
+        url,
+        files={"file": ("logo.svg", b'<svg xmlns="http://www.w3.org/2000/svg"/>', "image/svg+xml")},
+    )
+    assert r.status_code == 422, r.text
+    assert "PNG or JPEG" in r.json()["detail"]
+
+    r = client.put(
+        url, files={"file": ("big.png", good + b"\x00" * (2 * 1024 * 1024), "image/png")}
+    )
+    assert r.status_code == 422, r.text
+    assert "2 MB" in r.json()["detail"]
+
+    r = client.put(
+        url, files={"file": ("broken.png", b"\x89PNG\r\n\x1a\nnot an image", "image/png")}
+    )
+    assert r.status_code == 422, r.text
+    assert not (tmp_path / "gov" / "branding" / "logo.png").exists()
+
+
+def test_staff_egress_station_logo_404_before_config_exists(
+    client: TestClient, tmp_path: Path
+) -> None:
+    client.app.dependency_overrides[get_egress_work_dir] = lambda: tmp_path  # type: ignore[attr-defined]
+    r = client.put(
+        "/api/staff/egress/channels/never-configured/graphics-overlay/logo",
+        files={"file": ("logo.png", _logo_png_bytes(), "image/png")},
+    )
+    assert r.status_code == 404
 
 
 def test_staff_egress_config_rtmp_allowed_on_ffmpeg_concat_engine(

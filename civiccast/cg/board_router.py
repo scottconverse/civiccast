@@ -167,7 +167,7 @@ def _preview_board_snapshot(service: Any, channel_id: str) -> ResolvedBoard | No
     return resolved_service.preview(channel_id)
 
 
-def _preview_image_resolver(service: Any) -> ImageResolver:
+def _preview_image_resolver(service: Any, channel_id: str) -> ImageResolver:
     """Resolve image zones for the preview exactly as the on-air path does.
 
     Passing a null resolver made the preview silently omit logo/image zones that
@@ -176,13 +176,17 @@ def _preview_image_resolver(service: Any) -> ImageResolver:
     no session factory is reachable.
     """
 
+    from civiccast.egress.automation import default_egress_work_dir
     from civiccast.egress.bulletin_filler import _default_image_resolver
+    from civiccast.egress.station_logo import with_station_logo
 
     store = getattr(_service_or_503(service), "_store", None)
     session_factory = getattr(store, "_session_factory", None)
-    if session_factory is None:
-        return lambda _ref: None
-    return _default_image_resolver(session_factory)
+    stored = None if session_factory is None else _default_image_resolver(session_factory)
+    # Issue #348: a logo zone may show the channel's uploaded station logo;
+    # that file is owned by the service, so it resolves even with no asset
+    # store behind the preview.
+    return with_station_logo(stored, work_dir=default_egress_work_dir(), channel_id=channel_id)
 
 
 def _render_board_preview(
@@ -680,7 +684,7 @@ def preview_board(
             return _render_board_preview(
                 channel_id,
                 resolved,
-                _preview_image_resolver(service),
+                _preview_image_resolver(service, channel_id),
                 ffmpeg_runner=ffmpeg_runner,
             )
         if format_.lower() != "json":
@@ -714,7 +718,7 @@ def preview_board_png(
     return _render_board_preview(
         channel_id,
         resolved,
-        _preview_image_resolver(service),
+        _preview_image_resolver(service, channel_id),
         ffmpeg_runner=ffmpeg_runner,
     )
 

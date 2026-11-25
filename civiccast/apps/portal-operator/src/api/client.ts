@@ -2648,6 +2648,39 @@ export function updateGraphicsOverlay(
   )
 }
 
+/**
+ * PUT /api/staff/egress/channels/{channel_id}/graphics-overlay/logo — upload
+ * this channel's station logo (PNG or JPEG, up to 2 MB). The service stores it
+ * under a fixed name and decides the path; the operator never types one.
+ */
+export function uploadGraphicsOverlayLogo(
+  channelId: string,
+  file: File,
+): Promise<GraphicsOverlayStateResponse> {
+  const body = new FormData()
+  body.append('file', file)
+  return requestForm<GraphicsOverlayStateResponse>(
+    `/api/staff/egress/channels/${encodeURIComponent(channelId)}/graphics-overlay/logo`,
+    body,
+    'PUT',
+  )
+}
+
+/** DELETE /api/staff/egress/channels/{channel_id}/graphics-overlay/logo — remove the logo. */
+export function deleteGraphicsOverlayLogo(channelId: string): Promise<void> {
+  return request<void>(
+    `/api/staff/egress/channels/${encodeURIComponent(channelId)}/graphics-overlay/logo`,
+    { method: 'DELETE' },
+  )
+}
+
+/** GET the uploaded logo image itself, for the operator screen's preview. */
+export function getGraphicsOverlayLogo(channelId: string): Promise<Blob> {
+  return staffApiBlobRequest(
+    `/api/staff/egress/channels/${encodeURIComponent(channelId)}/graphics-overlay/logo`,
+  )
+}
+
 export function getLoudnessPlan(channelId: string): Promise<ChannelLoudnessPlan> {
   return request<ChannelLoudnessPlan>(
     `/api/staff/egress/channels/${encodeURIComponent(channelId)}/loudness-plan`,

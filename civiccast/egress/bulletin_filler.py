@@ -52,6 +52,7 @@ from civiccast.egress.source_plan import (
     _escape_drawtext,
     concat_copy_args,
 )
+from civiccast.egress.station_logo import station_logo_version, with_station_logo
 from civiccast.schedule.store import PostgresAssetStore
 from civiccast.stream._ffmpeg import FfmpegError, FfmpegNotFoundError, run_ffmpeg
 
@@ -241,6 +242,9 @@ class BulletinFillerSourceGenerator:
                 audio_gain_db=audio_bed.gain_db if audio_bed else 0.0,
                 audio_source_version=audio_bed.source_version if audio_bed else None,
                 audio_offset_seconds=audio_offset,
+                # Issue #348: a board that shows the station logo must
+                # re-render when the operator uploads or removes it.
+                image_asset_version=station_logo_version(board, self._work_dir, config.channel_id),
             )
             segment_path = board_dir / f"{'audio-' if audio_bed else ''}{key}.ts"
             if not segment_path.exists():
@@ -383,7 +387,11 @@ class BulletinFillerSourceGenerator:
                 out_path=segment_path,
                 include_text=include_text,
                 now=now,
-                image_resolver=self._board_image_resolver or (lambda _: None),
+                image_resolver=with_station_logo(
+                    self._board_image_resolver,
+                    work_dir=self._work_dir,
+                    channel_id=config.channel_id,
+                ),
                 codec_args=self._board_codec_args(profile),
                 audio_path=bed.path if bed else None,
                 audio_offset_seconds=audio_offset_seconds if bed else 0.0,
@@ -850,6 +858,7 @@ def build_board_overlay_provider(
             height=height,
             frame_rate=fps,
             now=now,
+            image_asset_version=station_logo_version(board, work_dir, channel_id),
         )
         out_path = work_dir / channel_id / "board-overlay" / f"{key}.png"
         if not out_path.exists():
@@ -867,7 +876,9 @@ def build_board_overlay_provider(
                         out_path=out_path,
                         include_text=True,
                         now=now,
-                        image_resolver=image_resolver,
+                        image_resolver=with_station_logo(
+                            image_resolver, work_dir=work_dir, channel_id=channel_id
+                        ),
                     )
                 )
             except Exception:

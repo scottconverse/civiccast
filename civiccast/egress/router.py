@@ -10,7 +10,8 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Annotated, Any, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile, status
+from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
 from civiccast.alerting.resource_sampler import ResourceThresholds
@@ -62,6 +63,17 @@ from civiccast.egress.models import (
     reject_control_chars,
 )
 from civiccast.egress.operator_state import operator_state_projection
+from civiccast.egress.station_logo import (
+    MAX_LOGO_BYTES,
+    StationLogoCheckerUnavailableError,
+    StationLogoError,
+    logo_media_type,
+    remove_station_logo,
+    resolve_station_logo,
+    station_logo_bytes,
+    station_logo_updated_at,
+    write_station_logo,
+)
 from civiccast.egress.store import EgressStore
 from civiccast.egress.takeover_service import (
     AlreadyLiveError,
@@ -629,6 +641,12 @@ class GraphicsOverlayStateResponse(BaseModel):
     channel_id: str
     graphics_overlay_enabled: bool
     graphics_overlay_lower_third_text: str
+    # Issue #348: the station logo. The service never reveals the file path --
+    # only whether a logo is uploaded, its size, and when it last changed.
+    graphics_overlay_logo_enabled: bool = False
+    graphics_overlay_logo_present: bool = False
+    graphics_overlay_logo_bytes: int | None = None
+    graphics_overlay_logo_updated_at: datetime | None = None
 
 
 class GraphicsOverlayUpdateRequest(BaseModel):
@@ -638,12 +656,17 @@ class GraphicsOverlayUpdateRequest(BaseModel):
     on-air toggle never has to round-trip sinks/secrets/branding it doesn't touch
     -- mirrors ``HeadendProfileApplyRequest`` above, which patches a subset of the
     channel's config the same way.
+
+    ``graphics_overlay_logo_enabled`` is optional and, when omitted, leaves the
+    station-logo switch exactly as it is -- so an older client that only knows
+    about the banner cannot silently switch an operator's logo off.
     """
 
     model_config = ConfigDict(extra="forbid")
 
     graphics_overlay_enabled: bool
     graphics_overlay_lower_third_text: Annotated[str, Field(default="", max_length=240)] = ""
+    graphics_overlay_logo_enabled: bool | None = None
 
     @field_validator("graphics_overlay_lower_third_text")
     @classmethod
@@ -670,6 +693,7 @@ class GraphicsOverlayUpdateRequest(BaseModel):
 def get_graphics_overlay(
     channel_id: str,
     egress_store: EgressStore | None = Depends(get_egress_store),
+    work_dir: Path = Depends(get_egress_work_dir),
 ) -> GraphicsOverlayStateResponse:
     store = _require_store(egress_store, surface="graphics overlay")
     config = store.get_config(channel_id)
@@ -678,10 +702,28 @@ def get_graphics_overlay(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Egress config not found: {channel_id}",
         )
+    return _graphics_overlay_state(config, work_dir)
+
+
+def _graphics_overlay_state(config: EgressConfig, work_dir: Path) -> GraphicsOverlayStateResponse:
+    """Build the state response, including the station logo's file facts.
+
+    Only presence/size/updated time are exposed -- never the path the service
+    owns (the operator must not have to think about file paths).
+    """
+
+    logo_bytes = station_logo_bytes(work_dir, config.channel_id)
+    logo_updated = station_logo_updated_at(work_dir, config.channel_id)
     return GraphicsOverlayStateResponse(
-        channel_id=channel_id,
+        channel_id=config.channel_id,
         graphics_overlay_enabled=config.graphics_overlay_enabled,
         graphics_overlay_lower_third_text=config.graphics_overlay_lower_third_text,
+        graphics_overlay_logo_enabled=config.graphics_overlay_logo_enabled,
+        graphics_overlay_logo_present=logo_bytes is not None,
+        graphics_overlay_logo_bytes=logo_bytes,
+        graphics_overlay_logo_updated_at=(
+            None if logo_updated is None else datetime.fromtimestamp(logo_updated, UTC)
+        ),
     )
 
 
@@ -699,10 +741,12 @@ def update_graphics_overlay(
     channel_id: str,
     payload: GraphicsOverlayUpdateRequest,
     egress_store: EgressStore | None = Depends(get_egress_store),
+    work_dir: Path = Depends(get_egress_work_dir),
 ) -> GraphicsOverlayStateResponse:
-    """Persist the lower-third toggle + text. Takes effect on the channel's NEXT
-    pipeline build (a fresh ``start`` or a content-reload) -- it does not hot-update
-    an already-live pipeline's on-screen text; see
+    """Persist the lower-third toggle + text (+ station-logo switch when given).
+    Takes effect on the channel's NEXT pipeline build (a fresh ``start`` or a
+    content-reload) -- it does not hot-update an already-live pipeline's
+    on-screen graphics; see
     ``civiccast.egress.gst.bridge.graphics_overlay_leg_from_config``.
     """
     store = _require_store(egress_store, surface="graphics overlay")
@@ -712,12 +756,13 @@ def update_graphics_overlay(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Egress config not found: {channel_id}",
         )
-    updated = config.model_copy(
-        update={
-            "graphics_overlay_enabled": payload.graphics_overlay_enabled,
-            "graphics_overlay_lower_third_text": payload.graphics_overlay_lower_third_text,
-        }
-    )
+    changes: dict[str, Any] = {
+        "graphics_overlay_enabled": payload.graphics_overlay_enabled,
+        "graphics_overlay_lower_third_text": payload.graphics_overlay_lower_third_text,
+    }
+    if payload.graphics_overlay_logo_enabled is not None:
+        changes["graphics_overlay_logo_enabled"] = payload.graphics_overlay_logo_enabled
+    updated = config.model_copy(update=changes)
     store.upsert_config(updated)
     result = store.get_config(channel_id)
     if result is None:
@@ -725,10 +770,116 @@ def update_graphics_overlay(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Egress config was not readable after save.",
         )
-    return GraphicsOverlayStateResponse(
-        channel_id=channel_id,
-        graphics_overlay_enabled=result.graphics_overlay_enabled,
-        graphics_overlay_lower_third_text=result.graphics_overlay_lower_third_text,
+    return _graphics_overlay_state(result, work_dir)
+
+
+@staff_router.put(
+    "/channels/{channel_id}/graphics-overlay/logo",
+    response_model=GraphicsOverlayStateResponse,
+    summary="Upload this channel's station logo (PNG or JPEG, up to 2 MB)",
+    dependencies=[Depends(require_any_role("meeting_operator", "setup_admin"))],
+    responses={
+        404: {"description": "Egress config not found"},
+        413: {"description": "Image larger than 2 MB"},
+        422: {"description": "Not a PNG/JPEG image, undecodable, or too large"},
+        503: {"description": "The image checker or the logo storage is not available"},
+    },
+)
+async def upload_graphics_overlay_logo(
+    channel_id: str,
+    file: UploadFile = File(...),
+    egress_store: EgressStore | None = Depends(get_egress_store),
+    work_dir: Path = Depends(get_egress_work_dir),
+) -> GraphicsOverlayStateResponse:
+    """Store the operator's logo image for this channel, replacing any previous one.
+
+    The service owns the file (fixed name under the channel's work folder), so
+    the operator never types a path. The bytes are checked (header) and decoded
+    (ffprobe) before anything is written; the write itself is atomic. The logo
+    appears on the channel's NEXT pipeline build, the same rule the lower-third
+    banner already follows.
+    """
+    store = _require_store(egress_store, surface="graphics overlay")
+    config = store.get_config(channel_id)
+    if config is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Egress config not found: {channel_id}",
+        )
+    data = await file.read(MAX_LOGO_BYTES + 1)
+    try:
+        write_station_logo(work_dir, channel_id, data)
+    except StationLogoError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
+        ) from exc
+    except StationLogoCheckerUnavailableError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)
+        ) from exc
+    except OSError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="The station logo could not be saved. Check that the station's data disk "
+            "has free space, then try again.",
+        ) from exc
+    return _graphics_overlay_state(config, work_dir)
+
+
+@staff_router.delete(
+    "/channels/{channel_id}/graphics-overlay/logo",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Remove this channel's uploaded station logo",
+    dependencies=[Depends(require_any_role("meeting_operator", "setup_admin"))],
+    responses={404: {"description": "Egress config not found"}},
+)
+def delete_graphics_overlay_logo(
+    channel_id: str,
+    egress_store: EgressStore | None = Depends(get_egress_store),
+    work_dir: Path = Depends(get_egress_work_dir),
+) -> Response:
+    """Delete the uploaded logo. Removing one that is not there is not an error."""
+    store = _require_store(egress_store, surface="graphics overlay")
+    if store.get_config(channel_id) is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Egress config not found: {channel_id}",
+        )
+    try:
+        remove_station_logo(work_dir, channel_id)
+    except OSError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="The station logo could not be removed. Try again.",
+        ) from exc
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@staff_router.get(
+    "/channels/{channel_id}/graphics-overlay/logo",
+    summary="Read this channel's uploaded station logo image",
+    dependencies=[Depends(require_any_role("setup_admin", "meeting_operator", "support_admin"))],
+    responses={404: {"description": "No logo uploaded"}},
+)
+def get_graphics_overlay_logo(
+    channel_id: str,
+    work_dir: Path = Depends(get_egress_work_dir),
+) -> FileResponse:
+    """Serve the uploaded logo so the operator screen can preview it.
+
+    The staff API authenticates with a bearer token, so the operator screen
+    cannot point an ``<img>`` tag at this URL directly -- it fetches the bytes
+    with its own credentials. ``no-store`` keeps a replaced logo from lingering
+    in a browser cache.
+    """
+    path = resolve_station_logo(work_dir, channel_id)
+    if path is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No station logo uploaded for channel {channel_id}.",
+        )
+    return FileResponse(
+        path, media_type=logo_media_type(path), headers={"Cache-Control": "no-store"}
     )
 
 

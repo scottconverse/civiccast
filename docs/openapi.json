@@ -32453,7 +32453,7 @@
           "egress"
         ],
         "summary": "Set the S15 graphics-overlay (lower-third) state for a channel",
-        "description": "Persist the lower-third toggle + text. Takes effect on the channel's NEXT\npipeline build (a fresh ``start`` or a content-reload) -- it does not hot-update\nan already-live pipeline's on-screen text; see\n``civiccast.egress.gst.bridge.graphics_overlay_leg_from_config``.",
+        "description": "Persist the lower-third toggle + text (+ station-logo switch when given).\nTakes effect on the channel's NEXT pipeline build (a fresh ``start`` or a\ncontent-reload) -- it does not hot-update an already-live pipeline's\non-screen graphics; see\n``civiccast.egress.gst.bridge.graphics_overlay_leg_from_config``.",
         "operationId": "update_graphics_overlay_api_staff_egress_channels__channel_id__graphics_overlay_put",
         "parameters": [
           {
@@ -32492,6 +32492,200 @@
           },
           "503": {
             "description": "Durable storage not ready -- run Setup storage or set DATABASE_URL"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, revoked, or misconfigured CivicCast staff bearer token."
+          },
+          "429": {
+            "description": "The observed peer exceeded the failed staff authentication budget. Wait for Retry-After before another invalid attempt; valid staff tokens remain accepted.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the failure window reopens.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "CivicCastStaffBearer": []
+          }
+        ]
+      }
+    },
+    "/api/staff/egress/channels/{channel_id}/graphics-overlay/logo": {
+      "put": {
+        "tags": [
+          "staff",
+          "egress"
+        ],
+        "summary": "Upload this channel's station logo (PNG or JPEG, up to 2 MB)",
+        "description": "Store the operator's logo image for this channel, replacing any previous one.\n\nThe service owns the file (fixed name under the channel's work folder), so\nthe operator never types a path. The bytes are checked (header) and decoded\n(ffprobe) before anything is written; the write itself is atomic. The logo\nappears on the channel's NEXT pipeline build, the same rule the lower-third\nbanner already follows.",
+        "operationId": "upload_graphics_overlay_logo_api_staff_egress_channels__channel_id__graphics_overlay_logo_put",
+        "parameters": [
+          {
+            "name": "channel_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Channel Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_graphics_overlay_logo_api_staff_egress_channels__channel_id__graphics_overlay_logo_put"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GraphicsOverlayStateResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Egress config not found"
+          },
+          "413": {
+            "description": "Image larger than 2 MB"
+          },
+          "422": {
+            "description": "Not a PNG/JPEG image, undecodable, or too large"
+          },
+          "503": {
+            "description": "The image checker or the logo storage is not available"
+          },
+          "401": {
+            "description": "Missing, invalid, revoked, or misconfigured CivicCast staff bearer token."
+          },
+          "429": {
+            "description": "The observed peer exceeded the failed staff authentication budget. Wait for Retry-After before another invalid attempt; valid staff tokens remain accepted.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the failure window reopens.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "CivicCastStaffBearer": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "staff",
+          "egress"
+        ],
+        "summary": "Remove this channel's uploaded station logo",
+        "description": "Delete the uploaded logo. Removing one that is not there is not an error.",
+        "operationId": "delete_graphics_overlay_logo_api_staff_egress_channels__channel_id__graphics_overlay_logo_delete",
+        "parameters": [
+          {
+            "name": "channel_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Channel Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Egress config not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, revoked, or misconfigured CivicCast staff bearer token."
+          },
+          "429": {
+            "description": "The observed peer exceeded the failed staff authentication budget. Wait for Retry-After before another invalid attempt; valid staff tokens remain accepted.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the failure window reopens.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "CivicCastStaffBearer": []
+          }
+        ]
+      },
+      "get": {
+        "tags": [
+          "staff",
+          "egress"
+        ],
+        "summary": "Read this channel's uploaded station logo image",
+        "description": "Serve the uploaded logo so the operator screen can preview it.\n\nThe staff API authenticates with a bearer token, so the operator screen\ncannot point an ``<img>`` tag at this URL directly -- it fetches the bytes\nwith its own credentials. ``no-store`` keeps a replaced logo from lingering\nin a browser cache.",
+        "operationId": "get_graphics_overlay_logo_api_staff_egress_channels__channel_id__graphics_overlay_logo_get",
+        "parameters": [
+          {
+            "name": "channel_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Channel Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "404": {
+            "description": "No logo uploaded"
           },
           "422": {
             "description": "Validation Error",
@@ -39034,6 +39228,20 @@
           "file"
         ],
         "title": "Body_upload_contributor_media_api_public_contribute_uploads_post"
+      },
+      "Body_upload_graphics_overlay_logo_api_staff_egress_channels__channel_id__graphics_overlay_logo_put": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_graphics_overlay_logo_api_staff_egress_channels__channel_id__graphics_overlay_logo_put"
       },
       "BroadcastGate": {
         "properties": {
@@ -46926,6 +47134,11 @@
             "maxLength": 240,
             "title": "Graphics Overlay Lower Third Text",
             "default": ""
+          },
+          "graphics_overlay_logo_enabled": {
+            "type": "boolean",
+            "title": "Graphics Overlay Logo Enabled",
+            "default": false
           }
         },
         "additionalProperties": false,
@@ -49451,6 +49664,39 @@
           "graphics_overlay_lower_third_text": {
             "type": "string",
             "title": "Graphics Overlay Lower Third Text"
+          },
+          "graphics_overlay_logo_enabled": {
+            "type": "boolean",
+            "title": "Graphics Overlay Logo Enabled",
+            "default": false
+          },
+          "graphics_overlay_logo_present": {
+            "type": "boolean",
+            "title": "Graphics Overlay Logo Present",
+            "default": false
+          },
+          "graphics_overlay_logo_bytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Graphics Overlay Logo Bytes"
+          },
+          "graphics_overlay_logo_updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Graphics Overlay Logo Updated At"
           }
         },
         "additionalProperties": false,
@@ -49474,6 +49720,17 @@
             "maxLength": 240,
             "title": "Graphics Overlay Lower Third Text",
             "default": ""
+          },
+          "graphics_overlay_logo_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Graphics Overlay Logo Enabled"
           }
         },
         "additionalProperties": false,
@@ -49482,7 +49739,7 @@
           "graphics_overlay_enabled"
         ],
         "title": "GraphicsOverlayUpdateRequest",
-        "description": "Set the lower-third banner text and on/off state for one channel.\n\nA small, focused body (not the full ``EgressConfig``) so the operator UI's\non-air toggle never has to round-trip sinks/secrets/branding it doesn't touch\n-- mirrors ``HeadendProfileApplyRequest`` above, which patches a subset of the\nchannel's config the same way."
+        "description": "Set the lower-third banner text and on/off state for one channel.\n\nA small, focused body (not the full ``EgressConfig``) so the operator UI's\non-air toggle never has to round-trip sinks/secrets/branding it doesn't touch\n-- mirrors ``HeadendProfileApplyRequest`` above, which patches a subset of the\nchannel's config the same way.\n\n``graphics_overlay_logo_enabled`` is optional and, when omitted, leaves the\nstation-logo switch exactly as it is -- so an older client that only knows\nabout the banner cannot silently switch an operator's logo off."
       },
       "GstreamerRepairResponse": {
         "properties": {

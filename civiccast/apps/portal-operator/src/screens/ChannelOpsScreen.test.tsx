@@ -245,6 +245,10 @@ function graphicsOverlayState(overrides: Partial<GraphicsOverlayStateResponse> =
     channel_id: 'public',
     graphics_overlay_enabled: false,
     graphics_overlay_lower_third_text: '',
+    graphics_overlay_logo_enabled: false,
+    graphics_overlay_logo_present: false,
+    graphics_overlay_logo_bytes: null,
+    graphics_overlay_logo_updated_at: null,
     ...overrides,
   }
 }
@@ -334,6 +338,7 @@ describe('GraphicsOverlayPanel', () => {
     expect(onSave).toHaveBeenCalledWith({
       graphics_overlay_enabled: true,
       graphics_overlay_lower_third_text: 'Breaking: Council votes tonight',
+      graphics_overlay_logo_enabled: false,
     })
     expect(queryByText('Confirm: put on air')).toBeNull()
   })
@@ -392,6 +397,123 @@ describe('GraphicsOverlayPanel', () => {
     expect(getByText(/requires the meeting operator or setup admin role/)).toBeTruthy()
     const button = getByText('Put on air') as HTMLButtonElement
     expect(button.disabled).toBe(true)
+  })
+
+  // --- Issue #348: the station logo ----------------------------------------
+
+  it('says when no station logo has been uploaded', () => {
+    const { getByText, getByLabelText, queryByText } = render(
+      <GraphicsOverlayPanel
+        channelId="public"
+        state={graphicsOverlayState()}
+        loadError={null}
+        saving={false}
+        canEdit
+        saveError={null}
+        onSave={() => {}}
+      />,
+    )
+    expect(getByText('Station logo')).toBeTruthy()
+    expect(getByText('No logo uploaded yet.')).toBeTruthy()
+    // Nothing to remove or show yet.
+    expect(queryByText('Remove logo')).toBeNull()
+    expect((getByLabelText('Show logo on air') as HTMLInputElement).disabled).toBe(true)
+  })
+
+  it('shows the uploaded logo as a preview and offers to remove it', () => {
+    const onRemoveLogo = vi.fn()
+    const { getByText, getByAltText } = render(
+      <GraphicsOverlayPanel
+        channelId="public"
+        state={graphicsOverlayState({ graphics_overlay_logo_present: true })}
+        loadError={null}
+        saving={false}
+        canEdit
+        saveError={null}
+        onSave={() => {}}
+        logoPreviewUrl="blob:logo"
+        onRemoveLogo={onRemoveLogo}
+      />,
+    )
+    expect(getByAltText('Station logo preview').getAttribute('src')).toBe('blob:logo')
+    fireEvent.click(getByText('Remove logo'))
+    expect(onRemoveLogo).toHaveBeenCalledTimes(1)
+  })
+
+  it('switches the logo on air without disturbing the banner settings', () => {
+    const onSave = vi.fn()
+    const { getByLabelText } = render(
+      <GraphicsOverlayPanel
+        channelId="public"
+        state={graphicsOverlayState({
+          graphics_overlay_enabled: true,
+          graphics_overlay_lower_third_text: 'Town Council -- Live',
+          graphics_overlay_logo_present: true,
+        })}
+        loadError={null}
+        saving={false}
+        canEdit
+        saveError={null}
+        onSave={onSave}
+      />,
+    )
+    fireEvent.click(getByLabelText('Show logo on air'))
+    expect(onSave).toHaveBeenCalledWith({
+      graphics_overlay_enabled: true,
+      graphics_overlay_lower_third_text: 'Town Council -- Live',
+      graphics_overlay_logo_enabled: true,
+    })
+  })
+
+  it('uploads a chosen PNG and refuses the wrong type or an oversized file locally', () => {
+    const onUploadLogo = vi.fn()
+    const renderPanel = () =>
+      render(
+        <GraphicsOverlayPanel
+          channelId="public"
+          state={graphicsOverlayState()}
+          loadError={null}
+          saving={false}
+          canEdit
+          saveError={null}
+          onSave={() => {}}
+          onUploadLogo={onUploadLogo}
+        />,
+      )
+
+    const png = new File([new Uint8Array([1, 2, 3])], 'logo.png', { type: 'image/png' })
+    const { getByLabelText, unmount } = renderPanel()
+    fireEvent.change(getByLabelText('Logo image file'), { target: { files: [png] } })
+    expect(onUploadLogo).toHaveBeenCalledWith(png)
+    unmount()
+
+    const svg = new File(['<svg/>'], 'logo.svg', { type: 'image/svg+xml' })
+    const second = renderPanel()
+    fireEvent.change(second.getByLabelText('Logo image file'), { target: { files: [svg] } })
+    expect(onUploadLogo).toHaveBeenCalledTimes(1)
+    expect(second.getByText('Choose a PNG (.png) or JPEG (.jpg) image.')).toBeTruthy()
+
+    const big = new File([new Uint8Array(2 * 1024 * 1024 + 1)], 'big.png', { type: 'image/png' })
+    fireEvent.change(second.getByLabelText('Logo image file'), { target: { files: [big] } })
+    expect(onUploadLogo).toHaveBeenCalledTimes(1)
+    expect(second.getByText(/larger than 2 MB/)).toBeTruthy()
+  })
+
+  it("shows the server's reason when it refuses the image", () => {
+    const error = new ApiError('Request failed: 422', 422, 'That file is not a PNG or JPEG image.')
+    const { getByText } = render(
+      <GraphicsOverlayPanel
+        channelId="public"
+        state={graphicsOverlayState()}
+        loadError={null}
+        saving={false}
+        canEdit
+        saveError={null}
+        onSave={() => {}}
+        logoError={error}
+      />,
+    )
+    expect(getByText('That file is not a PNG or JPEG image.')).toBeTruthy()
   })
 })
 

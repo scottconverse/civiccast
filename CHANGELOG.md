@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- An operator can put a station logo on air (issue #348). Before: the station bug could draw a logo but nothing connected an operator's image to it, and a CG board's logo zone had no way to name an image, so a station had no way to show its own logo. Now: the **Lower-third banner** box on **Channels** has a **Station logo** part -- upload a PNG or JPEG up to 2 MB, see a small preview, remove it, and tick **Show logo on air**. The station stores one logo per channel and refuses SVG, GIF, damaged, oversized (over 2 MB) and too-large (over 1920 x 1080) images with a plain reason. In **CG Designer**, a zone whose content source is **Image** can choose **Station logo**. Both follow the overlay's existing rule: the change lands on the channel's next pipeline build. A missing or damaged logo falls back to no logo, with one warning, and the channel stays on air.
+
 ## [1.0.0-rc.8] - 2026-11-23
 
 Release candidate **v1.0.0-rc.8**, published November 23, 2026. Full notes, verification and known issues:

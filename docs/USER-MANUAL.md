@@ -1,6 +1,6 @@
 ---
 title: CivicCast User Manual
-subtitle: For station staff, volunteers and city IT staff - v1.0.0-rc.8 (native Windows line)
+subtitle: For station staff, volunteers and city IT staff - v1.0.0-rc.9 (native Windows line)
 author: The CivicCast Authors
 date: 2026-11-23
 urlcolor: blue
@@ -56,13 +56,13 @@ The manual was written from the product's own code and from a screen-by-screen i
 
 ## Edition and package evidence
 
-This manual describes the 1.0.0-rc.8 edition. The manual bundled with a release describes that release; source documentation can describe newer controls. For publication, download, installation, and acceptance status, use the matching release page and the version-specific verification record; do not infer status from this manual.
+This manual describes the 1.0.0-rc.9 edition; the published release is v1.0.0-rc.8. The manual bundled with a release describes that release; source documentation can describe newer controls. For publication, download, installation, and acceptance status, use the matching release page and the version-specific verification record; do not infer status from this manual.
 
 The October 17 documentation correction reconciles operating instructions and
 refreshes the CLI, API and settings references. Existing installed Help may still
 contain the older wording until its application package is updated.
 
-This RC8 edition keeps a channel from staying dark when a content reload overruns its preparation window, and stops the audio timestamps stepping backwards on an immediate finite source reload. Like RC7, it turns live captions on by default for a new station, shows the station's own time on the on-air clock, keeps a power cut from breaking caption scans, and stops a slate channel from making `/health` say `degraded`. Like RC6, it puts AC-3 sound and a constant bit rate on a cable output while the web output stays AAC. Like RC5, it keeps live captions ahead of programme preparation on a busy station and refuses XML documents at media intake. Like RC4, it retains RC1 agenda setup, offline English OCR and managed agenda recovery, and updates first-install permissions, caption diagnostics, second-level durations, resident guide visibility and operator error guidance. It also covers: remote guests in channel output, bulletin-board live video and audio, native viewer improvements, and the publication, import and underwriting work shipped in Beta 17 and 18. The manual also covers staff accounts, station backup and restore, network access, the restricted service account, station-local scheduling, worker recovery, broadcast outputs and recorded captions. The [Beta 18 package record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.18-verification.md) remains historical. For publication, download, installation, and acceptance status, use the matching release page and the version-specific verification record for the package you use.
+This RC9 source edition adds the station logo controls described in the operator chapter; the published RC8 edition keeps a channel from staying dark when a content reload overruns its preparation window, and stops the audio timestamps stepping backwards on an immediate finite source reload. Like RC7, it turns live captions on by default for a new station, shows the station's own time on the on-air clock, keeps a power cut from breaking caption scans, and stops a slate channel from making `/health` say `degraded`. Like RC6, it puts AC-3 sound and a constant bit rate on a cable output while the web output stays AAC. Like RC5, it keeps live captions ahead of programme preparation on a busy station and refuses XML documents at media intake. Like RC4, it retains RC1 agenda setup, offline English OCR and managed agenda recovery, and updates first-install permissions, caption diagnostics, second-level durations, resident guide visibility and operator error guidance. It also covers: remote guests in channel output, bulletin-board live video and audio, native viewer improvements, and the publication, import and underwriting work shipped in Beta 17 and 18. The manual also covers staff accounts, station backup and restore, network access, the restricted service account, station-local scheduling, worker recovery, broadcast outputs and recorded captions. The [Beta 18 package record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-beta.18-verification.md) remains historical. For publication, download, installation, and acceptance status, use the matching release page and the version-specific verification record for the package you use.
 
 Check the [releases page](https://github.com/scottconverse/civiccast/releases) for available downloads. For an installed package, use its matching Help and verification record. A **historical observation** describes behavior or evidence from the named earlier release. A **Known issue (version)** names the version in which the behavior was checked; the label alone does not say whether it remains true now. Historical host measurements remain distinct from installation checks of any package.
 
@@ -1183,7 +1183,7 @@ This chapter is for the people who work the room on meeting night: the camera op
 | Take a channel live, return to schedule (Channels) | Meeting operator or Setup admin |
 | Approve a program to air, take it off (Channels) | Publish operator or Setup admin |
 | Change "Keep this channel on air" and other 24/7 settings | Setup admin |
-| Lower-third banner (Channels) | Meeting operator (the screen only enables it for this role) |
+| Lower-third banner and station logo (Channels) | Meeting operator (the screen only enables it for this role) |
 | Open a Control Room session and fire cues | Meeting operator |
 | Create a remote-guest room | Setup admin |
 | Open a room, invite, admit, put guests on air | Meeting operator |
@@ -1448,6 +1448,16 @@ A *lower third* is the strip of text across the lower part of the picture, such 
 3. Click **Confirm: put on air**, or **Cancel**.
 4. To remove it, click **Take off air**, then **Confirm: take off air**.
 
+### Put a station logo on air
+
+The same box holds the channel's station logo: a small picture shown in the top-left corner of the program. Each channel has one logo, and the station stores the file for you; you never type a file path.
+
+1. Under **Station logo**, choose a PNG or JPEG image in **Logo image** (up to 2 MB, no larger than 1920 x 1080). A small preview appears beside it once the station has saved it.
+2. Tick **Show logo on air**. The logo shows only while the overlay above is on air.
+3. To change it, upload a new image: it replaces the old one. To take it off, click **Remove logo**.
+
+The station refuses a file that is not a PNG or JPEG, is larger than 2 MB, is bigger than 1920 x 1080, damaged, or cannot be read, and the box shows the reason in plain words under the buttons. If the logo is switched on but the file is missing or damaged, the channel still goes on air, without a logo.
+
 > **Warning:** this changes what is on the air, but not at once. The confirmation line explains that the change applies "to this channel's next pipeline build (a fresh start or a scheduled content swap)" and "Does not hot-change an already-live broadcast's on-screen text." ("Pipeline" here means the chain of software steps that builds the channel's picture.)
 
 > **Known issue (beta.11):** the tag beside the heading says **On air** as soon as you save, even though the picture has not changed. Treat it as "Saved: on". The banner reaches the picture only when the channel next restarts or swaps content. For this chapter we have not watched a banner appear on a live channel. The box works only for a channel that has an outgoing-feed configuration. Otherwise it says there is none yet. The screen's note says a Setup admin may also change the banner, but the button is enabled only for a Meeting operator.
@@ -1597,7 +1607,7 @@ To send a bulletin back, click **Request changes**, type a note and click **Send
 1. In the left menu, under **Run Meeting**, click **CG Designer**. You can see this item only with the Publish operator, Setup admin or Support admin role.
 2. Choose a **Channel**.
 3. If the channel has no board, choose a **Template** and click **Create board**.
-4. To add a zone, click **Add zone**, fill in **Region**, **Zone kind** and **Content source**, then click **Add zone** again. To delete a zone, click **Delete**, then **Confirm delete?**.
+4. To add a zone, click **Add zone**, fill in **Region**, **Zone kind** and **Content source**, then click **Add zone** again. To delete a zone, click **Delete**, then **Confirm delete?**. For a zone whose **Content source** is **Image**, choose **Station logo** under **Image** to show the logo uploaded on the **Channels** screen. If no logo has been uploaded yet, the form says so, and the zone shows nothing until one is.
 5. To bring in an outside source such as a news feed or a calendar, click **Add feed**, fill in **Feed kind**, **Trust tier**, **Feed label**, **Source URL** and **Refresh (minutes)**, and click **Register feed**.
 6. To vet individual feed items, click **Review items** on a feed and click **Approve** on each item you want to allow.
 7. Use **Board background audio** to choose an uploaded track with a measured duration and reduce its level if needed. The track plays across board slides while the board fills a gap between programs. **Delete** removes the selection. The visual preview does not play sound.
@@ -4080,7 +4090,7 @@ A channel has an **egress configuration**, stored in the database. "Egress" mean
 - **slate message** (1 to 240 characters), optional **NDI output name** and **SDI output device**.
 - **sinks**: one or more output targets (below).
 - **loudness target and tolerance** and the **canonical profile** (picture size, frame rate, codec, bitrates): see [Loudness](#configuration-loudness).
-- the **lower-third banner** switch and text (up to 240 characters).
+- the **lower-third banner** switch and text (up to 240 characters), and the **station logo** switch (the image itself is uploaded separately on the Channels screen).
 
 A new channel has no configuration until you create one. The Start button is disabled with "No outgoing-feed configuration for &lt;id&gt;. Apply a headend preset or the local rehearsal preset first." The normal way to create one is to apply a preset (next section). Creating it by preset gives the channel `enabled: true` and the slate message "CivicCast is preparing the channel."
 
@@ -8058,6 +8068,9 @@ Staff routes (`/api/staff/*`) require a bearer token and a role; public routes d
 | POST | `/api/staff/egress/channels/{channel_id}/config/headend-profile` | Apply a headend delivery profile to a channel's egress config | application/json | 200, 401, 404, 422, 429, 503 |
 | GET | `/api/staff/egress/channels/{channel_id}/graphics-overlay` | Read the S15 graphics-overlay (lower-third) state for a channel |  | 200, 401, 404, 422, 429, 503 |
 | PUT | `/api/staff/egress/channels/{channel_id}/graphics-overlay` | Set the S15 graphics-overlay (lower-third) state for a channel | application/json | 200, 401, 404, 422, 429, 503 |
+| GET | `/api/staff/egress/channels/{channel_id}/graphics-overlay/logo` | Read this channel's uploaded station logo image |  | 200, 401, 404, 429 |
+| PUT | `/api/staff/egress/channels/{channel_id}/graphics-overlay/logo` | Upload this channel's station logo (PNG or JPEG, up to 2 MB) | multipart/form-data | 200, 401, 404, 413, 422, 429, 503 |
+| DELETE | `/api/staff/egress/channels/{channel_id}/graphics-overlay/logo` | Remove this channel's uploaded station logo |  | 204, 401, 404, 429 |
 | GET | `/api/staff/egress/channels/{channel_id}/health` | Read recent egress health samples |  | 200, 401, 422, 429, 503 |
 | GET | `/api/staff/egress/channels/{channel_id}/loudness-plan` | Resolve the per-sink loudness plan for a channel (S11b) |  | 200, 401, 404, 422, 429, 503 |
 | GET | `/api/staff/egress/channels/{channel_id}/proof` | Read recent egress as-aired proof events |  | 200, 401, 422, 429, 503 |

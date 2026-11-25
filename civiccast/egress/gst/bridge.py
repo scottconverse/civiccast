@@ -38,7 +38,10 @@ from civiccast.egress.gst.graph import (
     caption_embed_leg_live,
     encode_chain_specs,
 )
-from civiccast.egress.gst.graphics_overlay import render_lower_third_png
+from civiccast.egress.gst.graphics_overlay import (
+    render_lower_third_png,
+    station_bug_and_lower_third_leg,
+)
 from civiccast.egress.gst.pipeline import _is_multicast
 from civiccast.egress.hls_relay import hls_relay_uri_for
 from civiccast.egress.loudness_plan import SinkLoudnessResolution, build_loudness_plan
@@ -51,6 +54,10 @@ from civiccast.egress.models import (
     EgressSourceSegment,
 )
 from civiccast.egress.sinks import SecretResolver
+from civiccast.egress.station_logo import (
+    logo_file_looks_like_an_image,
+    station_logo_path_in_channel_dir,
+)
 
 _LOG = logging.getLogger(__name__)
 
@@ -735,12 +742,14 @@ def graphics_overlay_leg_from_config(
     render_dir: Path,
     sweep_stale: bool = False,
 ) -> GraphicsOverlayLeg | None:
-    """Build the S15 graphics-overlay leg's lower-third layer from
-    ``EgressConfig``'s operator-facing toggle (``graphics_overlay_enabled`` +
-    ``graphics_overlay_lower_third_text``), or ``None`` when the toggle is off or
-    the text is blank -- so an unconfigured channel's graph is byte-identical to
-    before this field existed (matches the ``cg_overlay_image`` / caption-embed
-    opt-in pattern elsewhere in this module).
+    """Build the S15 graphics-overlay leg (station logo and/or lower-third
+    banner) from ``EgressConfig``'s operator-facing switches
+    (``graphics_overlay_enabled`` + ``graphics_overlay_lower_third_text`` +
+    ``graphics_overlay_logo_enabled``), or ``None`` when the overlay is off or
+    it has nothing to draw -- so an unconfigured channel's graph is
+    byte-identical to before these fields existed (matches the
+    ``cg_overlay_image`` / caption-embed opt-in pattern elsewhere in this
+    module).
 
     Renders a fresh banner PNG into ``render_dir`` on every call (the caller passes
     the channel's own work dir), so a channel that is STARTED or CONTENT-RELOADED
@@ -767,23 +776,55 @@ def graphics_overlay_leg_from_config(
     banner this channel's dir accumulated from a PREVIOUS (now-exited) worker
     process, keeping only the one this call just rendered.
 
-    Only the lower-third banner is wired here. ``station_bug_and_lower_third_leg``
-    (the same PR's station-bug/logo layer) requires a ``logo_path``, and there is no
-    operator-facing station-logo config surface yet -- that layer is out of scope
-    for this slice.
+    Issue #348 wires the station bug/logo layer too: when
+    ``graphics_overlay_logo_enabled`` is on AND the operator has uploaded a
+    logo (the fixed file ``<channel dir>/branding/logo.png`` the staff API
+    owns), the same leg carries ``station_bug_and_lower_third_leg``'s logo
+    layer. A missing or unreadable logo never takes a channel off air -- this
+    falls back to no logo and logs one warning.
     """
     render_dir_path = Path(render_dir)
-    if not config.graphics_overlay_enabled or not config.graphics_overlay_lower_third_text.strip():
+    if not config.graphics_overlay_enabled:
         if sweep_stale:
             sweep_stale_lower_third_banners(render_dir_path, keep=None)
         return None
     text = config.graphics_overlay_lower_third_text.strip()
     profile = config.canonical_profile
+    logo_file = station_logo_path_in_channel_dir(render_dir_path)
+    show_logo = False
+    if config.graphics_overlay_logo_enabled:
+        show_logo = logo_file.is_file() and logo_file_looks_like_an_image(logo_file)
+        if not show_logo:
+            _LOG.warning(
+                "channel %s: the station logo is switched on but %s is missing or is not a "
+                "readable image; airing without the logo",
+                config.channel_id,
+                logo_file,
+            )
+    if not text and not show_logo:
+        if sweep_stale:
+            sweep_stale_lower_third_banners(render_dir_path, keep=None)
+        return None
     render_dir_path.mkdir(parents=True, exist_ok=True)
     # ENG-005 (mirrored from strategy.reload_content's reload-graph filename): a
     # unique per-call filename so a concurrent build (a crash-relaunch racing a
     # reload) can never read a partially-written PNG on a clobbered fixed path.
     banner_path = render_dir_path / f"graphics-overlay-lower-third.{uuid.uuid4().hex}.png"
+    if show_logo:
+        # ``station_bug_and_lower_third_leg`` renders the banner itself when
+        # ``banner_text`` is given, into the per-call path above; with no text
+        # it returns a logo-only leg.
+        leg = station_bug_and_lower_third_leg(
+            logo_path=logo_file,
+            canvas_width=profile.width,
+            canvas_height=profile.height,
+            banner_text=text or None,
+            banner_path=banner_path,
+            banner_height=GRAPHICS_OVERLAY_LOWER_THIRD_HEIGHT,
+        )
+        if sweep_stale:
+            sweep_stale_lower_third_banners(render_dir_path, keep=banner_path if text else None)
+        return leg
     render_lower_third_png(
         banner_path,
         text,
