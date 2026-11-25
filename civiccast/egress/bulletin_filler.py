@@ -244,9 +244,7 @@ class BulletinFillerSourceGenerator:
                 audio_offset_seconds=audio_offset,
                 # Issue #348: a board that shows the station logo must
                 # re-render when the operator uploads or removes it.
-                image_asset_version=station_logo_version(
-                    board, self._work_dir, config.channel_id
-                ),
+                image_asset_version=station_logo_version(board, self._work_dir, config.channel_id),
             )
             segment_path = board_dir / f"{'audio-' if audio_bed else ''}{key}.ts"
             if not segment_path.exists():

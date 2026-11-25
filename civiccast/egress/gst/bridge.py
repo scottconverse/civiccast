@@ -819,9 +819,7 @@ def graphics_overlay_leg_from_config(
                 banner_height=GRAPHICS_OVERLAY_LOWER_THIRD_HEIGHT,
             )
         if sweep_stale:
-            sweep_stale_lower_third_banners(
-                render_dir_path, keep=banner_path if text else None
-            )
+            sweep_stale_lower_third_banners(render_dir_path, keep=banner_path if text else None)
         # ``station_bug_and_lower_third_leg`` renders the banner itself when
         # ``banner_text`` is given, into the per-call path above; with no text
         # it returns a logo-only leg.

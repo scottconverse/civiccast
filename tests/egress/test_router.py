@@ -385,9 +385,7 @@ def test_staff_egress_station_logo_upload_read_and_remove(
     assert client.get("/api/staff/egress/channels/gov/graphics-overlay/logo").status_code == 404
 
 
-def test_staff_egress_station_logo_refuses_bad_images(
-    client: TestClient, tmp_path: Path
-) -> None:
+def test_staff_egress_station_logo_refuses_bad_images(client: TestClient, tmp_path: Path) -> None:
     """SVG, over-size, and undecodable uploads are refused with the server's
     plain message, and nothing is written."""
     client.app.dependency_overrides[get_egress_work_dir] = lambda: tmp_path  # type: ignore[attr-defined]
@@ -396,7 +394,8 @@ def test_staff_egress_station_logo_refuses_bad_images(
     good = _logo_png_bytes()
 
     r = client.put(
-        url, files={"file": ("logo.svg", b'<svg xmlns="http://www.w3.org/2000/svg"/>', "image/svg+xml")}
+        url,
+        files={"file": ("logo.svg", b'<svg xmlns="http://www.w3.org/2000/svg"/>', "image/svg+xml")},
     )
     assert r.status_code == 422, r.text
     assert "PNG or JPEG" in r.json()["detail"]

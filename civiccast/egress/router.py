@@ -705,9 +705,7 @@ def get_graphics_overlay(
     return _graphics_overlay_state(config, work_dir)
 
 
-def _graphics_overlay_state(
-    config: EgressConfig, work_dir: Path
-) -> GraphicsOverlayStateResponse:
+def _graphics_overlay_state(config: EgressConfig, work_dir: Path) -> GraphicsOverlayStateResponse:
     """Build the state response, including the station logo's file facts.
 
     Only presence/size/updated time are exposed -- never the path the service
@@ -816,7 +814,9 @@ async def upload_graphics_overlay_logo(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
         ) from exc
     except StationLogoCheckerUnavailableError as exc:
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)
+        ) from exc
     except OSError as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,

@@ -278,7 +278,9 @@ def board_uses_station_logo(board: ResolvedBoard | None) -> bool:
     )
 
 
-def station_logo_version(board: ResolvedBoard | None, work_dir: Path | str, channel_id: str) -> str | None:
+def station_logo_version(
+    board: ResolvedBoard | None, work_dir: Path | str, channel_id: str
+) -> str | None:
     """A cache-busting version string for a board that shows the station logo.
 
     Folded into the board segment cache key so an operator's new logo (or a
