@@ -1258,8 +1258,22 @@ entries:
         # test_gst_engine_reload_commit_ordering.py. Source-tripwire rebind
         # only, not installed/release proof. Blob IDs re-hashed with
         # `git hash-object <file>`.
+        # Re-provisioned again (fix/cable-mux-arrival-guard, 2026-11-26):
+        # every TS mux (cable and udp-ts) now refuses a future-dated closing
+        # video frame, so a PTS jump from the cable source can no longer tear
+        # the pipeline down (gstudp.dll 0xC00000FD). Only engine.py changed;
+        # worker.py, caption_flow.py, decode_policy.py, graph.py, control.py
+        # and audio_tap.py are byte-identical and keep their recorded blobs.
+        # Current-source proof: tests/egress/test_gst_engine_cable_mux_guard.py
+        # (4 tests; fail on the old engine, pass on the new) and the 12 h
+        # six-station Windows run in docs/evidence/
+        # cable-mux-guard-2026-11-26.md. Historical spike and installed-service
+        # evidence is NOT renewed; this binds current source only, not
+        # installed-service, boot or pre-login proof. Blob IDs re-hashed with
+        # `git hash-object --path <file> <file>` per D2; other files are
+        # byte-identical and keep their recorded blobs.
         - path: civiccast/egress/gst/engine.py
-          blob: e6967303258a9bbeaf14b8bca79ac95fa1882042
+          blob: cd4b00281ca064127da1445078c30dbd04e8ea74
         - path: civiccast/egress/gst/caption_flow.py
           blob: c0c981dfa050e8ca196533c791a99028302c5ca5
         - path: civiccast/egress/gst/decode_policy.py
@@ -2256,8 +2270,22 @@ entries:
         # test_gst_engine_reload_commit_ordering.py. Source-tripwire rebind
         # only, not installed/release proof. Blob IDs re-hashed with
         # `git hash-object <file>`.
+        # Re-provisioned again (fix/cable-mux-arrival-guard, 2026-11-26):
+        # every TS mux (cable and udp-ts) now refuses a future-dated closing
+        # video frame, so a PTS jump from the cable source can no longer tear
+        # the pipeline down (gstudp.dll 0xC00000FD). Only engine.py changed;
+        # worker.py, caption_flow.py, decode_policy.py, graph.py, control.py
+        # and audio_tap.py are byte-identical and keep their recorded blobs.
+        # Current-source proof: tests/egress/test_gst_engine_cable_mux_guard.py
+        # (4 tests; fail on the old engine, pass on the new) and the 12 h
+        # six-station Windows run in docs/evidence/
+        # cable-mux-guard-2026-11-26.md. Historical spike and installed-service
+        # evidence is NOT renewed; this binds current source only, not
+        # installed-service, boot or pre-login proof. Blob IDs re-hashed with
+        # `git hash-object --path <file> <file>` per D2; other files are
+        # byte-identical and keep their recorded blobs.
         - path: civiccast/egress/gst/engine.py
-          blob: e6967303258a9bbeaf14b8bca79ac95fa1882042
+          blob: cd4b00281ca064127da1445078c30dbd04e8ea74
         - path: civiccast/egress/gst/caption_flow.py
           blob: c0c981dfa050e8ca196533c791a99028302c5ca5
         - path: civiccast/egress/gst/decode_policy.py
