@@ -1250,6 +1250,10 @@ class GstPlayoutEngine:
         self.preroll_timeout_s = _resolve_preroll_timeout_s(preroll_timeout_s)
         self.pipeline = Gst.Pipeline.new("civiccast-playout")
         self.mux: Gst.Element | None = None
+        # Every mpegtsmux in the output graph, in build order -- ``self.mux`` is
+        # the first of these. Kept so the U44 arrival guard can cover the cable
+        # muxes too, not just the one the watchdog counts.
+        self._ts_muxes: list[Gst.Element] = []
         self.selector: Gst.Element | None = None
         # S11a: the live caption appsrc (set when the graph has a live caption embed
         # leg) the daemon pushes timed-text cues into via the ``caption`` control command.
@@ -2611,6 +2615,7 @@ class GstPlayoutEngine:
         else:
             mux = self._make(self.graph.mux)
             self.mux = mux  # S9-5: the stall watchdog counts buffers on the mux src pad
+            self._ts_muxes = [mux] if self.graph.mux.factory == "mpegtsmux" else []
             self._link(prev, mux)
 
             if self.graph.audio_encoder:
@@ -2734,12 +2739,12 @@ class GstPlayoutEngine:
                 self._link(sink_tail, element)
                 sink_tail = element
 
+        # Every TS mux, in build order: the U44 arrival guard must cover the
+        # cable muxes too (the 2026-11-25 cable crash), not only ``self.mux``.
+        self._ts_muxes = [mux for spec, mux in muxes if spec.factory == "mpegtsmux"]
         # The watchdog observes one actual mux output. Prefer TS when the graph
         # has one; it carries the existing buffer-list counter contract.
-        self.mux = next(
-            (mux for spec, mux in muxes if spec.factory == "mpegtsmux"),
-            muxes[0][1] if muxes else None,
-        )
+        self.mux = self._ts_muxes[0] if self._ts_muxes else (muxes[0][1] if muxes else None)
 
     def _set_board_output_gain(self, gain_db: float) -> None:
         """Preserve board-bed level after per-output loudness normalization."""
@@ -3284,50 +3289,119 @@ class GstPlayoutEngine:
         self._mux_pad_arrival_rt = {}
         self._mux_pad_arrival_drops = {}
         mux = getattr(self, "mux", None)
-        if mux is None:
-            return
+        # The guard for the OTHER TS muxes must be armed on every exit from the
+        # primary-mux arming below, including its early returns: a start path
+        # that bailed on one primary pad must not leave the cable mux unguarded.
         try:
-            iterator = mux.iterate_sink_pads()
-        except Exception:
-            return
-        if iterator is None:
-            return
-        while True:
-            try:
-                result, pad = iterator.next()
-            except Exception:
-                return
-            if result != Gst.IteratorResult.OK or pad is None:
+            if mux is None:
                 return
             try:
-                pad_name = pad.get_name()
+                iterator = mux.iterate_sink_pads()
             except Exception:
-                pad_name = "unknown"
-            self._mux_input_pads[pad_name] = pad
-            self._mux_input_buffers[pad_name] = 0
-            try:
-                pad.add_probe(Gst.PadProbeType.BUFFER, self._make_mux_input_counter(pad_name))
-            except Exception:
-                # Could not be counted -> must not be listed (see docstring).
-                self._mux_input_pads.pop(pad_name, None)
-                self._mux_input_buffers.pop(pad_name, None)
-            else:
-                # U37: the per-stream watchdog's AIRING frontier, for the
-                # registered pads only -- a pad that is not listed is not judged,
-                # so a recorder for it would be dead weight. Outside the try
-                # above for the same reason ``_install_eos_observer`` is: a
-                # refused recorder must not un-register a counter that IS
-                # installed (the flow ladder must keep counting this pad).
-                self._install_mux_pad_airing_frontier(pad, pad_name)
-                # U44: and the data-path guard for these same pads. Inside this
-                # ``else`` on purpose: a pad whose BUFFER probe was refused is not
-                # registered, so it is neither counted, nor judged, nor guarded --
-                # and it is named by the WARN that already fired above.
-                self._install_mux_pad_arrival_guard(pad, pad_name)
-            # U30: armed after the counter (never inside its try -- a refused
-            # observer must not un-register a counter that IS installed), and
-            # labelled lazily: this runs before caps are negotiated.
-            self._install_eos_observer(pad, self._make_mux_sink_eos_label(pad))
+                return
+            if iterator is None:
+                return
+            while True:
+                try:
+                    result, pad = iterator.next()
+                except Exception:
+                    return
+                if result != Gst.IteratorResult.OK or pad is None:
+                    return
+                try:
+                    pad_name = pad.get_name()
+                except Exception:
+                    pad_name = "unknown"
+                self._mux_input_pads[pad_name] = pad
+                self._mux_input_buffers[pad_name] = 0
+                try:
+                    pad.add_probe(Gst.PadProbeType.BUFFER, self._make_mux_input_counter(pad_name))
+                except Exception:
+                    # Could not be counted -> must not be listed (see docstring).
+                    self._mux_input_pads.pop(pad_name, None)
+                    self._mux_input_buffers.pop(pad_name, None)
+                else:
+                    # U37: the per-stream watchdog's AIRING frontier, for the
+                    # registered pads only -- a pad that is not listed is not judged,
+                    # so a recorder for it would be dead weight. Outside the try
+                    # above for the same reason ``_install_eos_observer`` is: a
+                    # refused recorder must not un-register a counter that IS
+                    # installed (the flow ladder must keep counting this pad).
+                    self._install_mux_pad_airing_frontier(pad, pad_name)
+                    # U44: and the data-path guard for these same pads. Inside this
+                    # ``else`` on purpose: a pad whose BUFFER probe was refused is not
+                    # registered, so it is neither counted, nor judged, nor guarded --
+                    # and it is named by the WARN that already fired above.
+                    self._install_mux_pad_arrival_guard(pad, pad_name)
+                # U30: armed after the counter (never inside its try -- a refused
+                # observer must not un-register a counter that IS installed), and
+                # labelled lazily: this runs before caps are negotiated.
+                self._install_eos_observer(pad, self._make_mux_sink_eos_label(pad))
+        finally:
+            # U44 on EVERY TS mux: the cable muxes share the primary's sink pad
+            # names but not its guard -- see ``_install_arrival_guards_on_all_ts_muxes``.
+            self._install_arrival_guards_on_all_ts_muxes()
+
+    def _install_arrival_guards_on_all_ts_muxes(self) -> None:
+        """U44: arm the future-dated-arrival guard on every TS mux, not just the first.
+
+        ``_install_mux_input_counters`` guards ``self.mux`` -- the FIRST
+        mpegtsmux, i.e. the web-preview HLS mux. The cable branch's own
+        ``mpegtsmux`` has no such guard, so at each program change its
+        ``videorate`` closing duplicate (one subchain in the future, 1s to
+        1800s) makes that mux wait, and the filler it builds for the wait
+        overflows udpsink's stack (0xC00000FD in gstudp.dll): the worker crashes.
+
+        Only the GUARD is installed here -- the counters, airing frontier and EOS
+        observer in ``_install_mux_input_counters`` stay scoped to the one mux the
+        watchdog counts, deliberately. Guard state is keyed ``"<mux name>:<pad
+        name>"`` because both muxes use the same pad names (``sink_65`` video,
+        ``sink_66`` audio); a bare pad-name key would let one mux's future frame
+        re-seed the other's reference.
+
+        Sink pads that exist now, plus any ``pad-added`` later (mpegtsmux's sink
+        pads are request pads). Silent and safe with no TS-mux list; each mux is
+        guarded independently so one bad element cannot skip the rest."""
+        for mux in getattr(self, "_ts_muxes", None) or ():
+            if mux is getattr(self, "mux", None):
+                # Already guarded by ``_install_mux_input_counters``, with the
+                # bare pad-name keys its existing tests and logs expect.
+                continue
+            mux_name = "ts-mux"
+            with contextlib.suppress(Exception):
+                mux_name = str(mux.get_name())
+            with contextlib.suppress(Exception):
+                iterator = mux.iterate_sink_pads()
+                while True:
+                    result, pad = iterator.next()
+                    if result != Gst.IteratorResult.OK or pad is None:
+                        break
+                    self._install_ts_mux_pad_arrival_guard(mux_name, pad)
+            with contextlib.suppress(Exception):
+                mux.connect("pad-added", self._make_ts_mux_pad_added_guard(mux_name))
+
+    def _install_ts_mux_pad_arrival_guard(self, mux_name: str, pad: Any) -> None:
+        """Guard one sink pad of a non-primary TS mux, keyed ``"<mux>:<pad>"``."""
+        pad_name = "unknown"
+        with contextlib.suppress(Exception):
+            pad_name = str(pad.get_name())
+        self._install_mux_pad_arrival_guard(pad, f"{mux_name}:{pad_name}")
+
+    def _make_ts_mux_pad_added_guard(self, mux_name: str) -> Any:
+        """A ``pad-added`` handler that guards a TS mux sink pad appearing later."""
+
+        def _on_ts_mux_pad_added(_mux: Any, pad: Any) -> None:
+            # A pad-added on an mpegtsmux is always a request SINK pad, but check
+            # when the enum is available so a stray src pad is never probed.
+            direction = None
+            with contextlib.suppress(Exception):
+                direction = pad.get_direction()
+            sink = getattr(getattr(Gst, "PadDirection", None), "SINK", None)
+            if direction is not None and sink is not None and direction != sink:
+                return
+            self._install_ts_mux_pad_arrival_guard(mux_name, pad)
+
+        return _on_ts_mux_pad_added
 
     def _install_mux_pad_airing_frontier(self, pad: Any, pad_name: str) -> None:
         """U37: record when the mux last AIRED a buffer off ``pad``, and at what running time.
