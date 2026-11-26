@@ -137,7 +137,7 @@ def decide_encoder(
         # Declarative H.264 requests automatic selection. Explicit encoder names
         # continue to pin the operator's choice. Media Foundation is tried first: on an
         # NVIDIA box mfh264enc is the Media Foundation NVIDIA H.264 Encoder MFT, so the
-        # GPU is still used, and nvh264enc caused CTRL stall worker restarts in the field.
+        # GPU is still used. In the Nov 2026 field test only nvh264enc stations had CTRL stall restarts.
         for candidate in ("mfh264enc", "nvh264enc"):
             if probe(candidate):
                 return EncoderDecision(encoder_override=candidate, warning=None)
