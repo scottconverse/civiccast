@@ -1258,8 +1258,28 @@ entries:
         # test_gst_engine_reload_commit_ordering.py. Source-tripwire rebind
         # only, not installed/release proof. Blob IDs re-hashed with
         # `git hash-object <file>`.
+        # 2026-11-26 (feat/cable-output-stall-alarm, cable mux stall alarm,
+        # engine.py drift): the stall watchdog now also watches every
+        # mpegtsmux other than the watched web preview mux (for example the
+        # cable ``udp-ts`` mux). If such a mux's audio pad keeps advancing
+        # while its video pad has not advanced for ``stall_timeout_s``, after a
+        # 60 s grace from arming and never during a reload commit, the engine
+        # prints a ``CTRL stall:`` line and quits for a daemon restart -- the
+        # same action as the existing watchdog. Only engine.py changed;
+        # worker.py, caption_flow.py, decode_policy.py, graph.py, control.py
+        # and audio_tap.py are byte-identical and keep their recorded blobs.
+        # Current-source proof: tests/egress/test_gst_engine_cable_stall_alarm.py
+        # (5 gi-free tests with a fake Gst; 3 fail on the old engine and all 5
+        # pass on the new one), plus existing stall tests in
+        # tests/egress/test_gst_engine_reload_commit_ordering.py -k stall.
+        # Unit tests only: not run on a real GStreamer runtime, a station, an
+        # installed service, boot or pre-login; historical spike and
+        # installed-service evidence is NOT renewed. See
+        # docs/evidence/cable-stall-alarm-2026-11-26.md. Source-tripwire rebind
+        # only, not installed/release proof. engine.py blob re-hashed with
+        # `git hash-object --path <file> <file>` per D2.
         - path: civiccast/egress/gst/engine.py
-          blob: e6967303258a9bbeaf14b8bca79ac95fa1882042
+          blob: a01c905fc480ee370264d6c5625304638b88e7d6
         - path: civiccast/egress/gst/caption_flow.py
           blob: c0c981dfa050e8ca196533c791a99028302c5ca5
         - path: civiccast/egress/gst/decode_policy.py
@@ -2256,8 +2276,28 @@ entries:
         # test_gst_engine_reload_commit_ordering.py. Source-tripwire rebind
         # only, not installed/release proof. Blob IDs re-hashed with
         # `git hash-object <file>`.
+        # 2026-11-26 (feat/cable-output-stall-alarm, cable mux stall alarm,
+        # engine.py drift): the stall watchdog now also watches every
+        # mpegtsmux other than the watched web preview mux (for example the
+        # cable ``udp-ts`` mux). If such a mux's audio pad keeps advancing
+        # while its video pad has not advanced for ``stall_timeout_s``, after a
+        # 60 s grace from arming and never during a reload commit, the engine
+        # prints a ``CTRL stall:`` line and quits for a daemon restart -- the
+        # same action as the existing watchdog. Only engine.py changed;
+        # worker.py, caption_flow.py, decode_policy.py, graph.py, control.py
+        # and audio_tap.py are byte-identical and keep their recorded blobs.
+        # Current-source proof: tests/egress/test_gst_engine_cable_stall_alarm.py
+        # (5 gi-free tests with a fake Gst; 3 fail on the old engine and all 5
+        # pass on the new one), plus existing stall tests in
+        # tests/egress/test_gst_engine_reload_commit_ordering.py -k stall.
+        # Unit tests only: not run on a real GStreamer runtime, a station, an
+        # installed service, boot or pre-login; historical spike and
+        # installed-service evidence is NOT renewed. See
+        # docs/evidence/cable-stall-alarm-2026-11-26.md. Source-tripwire rebind
+        # only, not installed/release proof. engine.py blob re-hashed with
+        # `git hash-object --path <file> <file>` per D2.
         - path: civiccast/egress/gst/engine.py
-          blob: e6967303258a9bbeaf14b8bca79ac95fa1882042
+          blob: a01c905fc480ee370264d6c5625304638b88e7d6
         - path: civiccast/egress/gst/caption_flow.py
           blob: c0c981dfa050e8ca196533c791a99028302c5ca5
         - path: civiccast/egress/gst/decode_policy.py
