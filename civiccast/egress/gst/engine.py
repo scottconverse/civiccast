@@ -372,6 +372,14 @@ _FIRST_OUTPUT_TIMEOUT_ENV_VAR = "CIVICCAST_GST_FIRST_OUTPUT_TIMEOUT_S"
 # far more often than table refreshes once a source is actually flowing).
 _FIRST_OUTPUT_MIN_BUFFERS_AFTER_ARM = 2
 
+# The cable/secondary-TS-mux stall check ignores the first 60 s after it is
+# armed (worker start or a reload-commit settlement). That window covers the
+# legitimate reasons a cable mux can carry audio before its video arrives:
+# preroll, the FALLBACK_SLATE a channel airs while its program is "preparing",
+# and the drain of a switch. The ordinary ``stall_timeout_s`` bound (10 s
+# default) then applies unchanged once the window closes.
+_CABLE_STALL_GRACE_S = 60.0
+
 # Round-2 finding 4: the audio tap writer's OWN close budget on ``stop()``,
 # deliberately independent of the pipeline teardown deadline it used to share.
 # Closing a rolling WAV segment is a flush + header rewrite + rename of an
@@ -2740,6 +2748,19 @@ class GstPlayoutEngine:
             (mux for spec, mux in muxes if spec.factory == "mpegtsmux"),
             muxes[0][1] if muxes else None,
         )
+        # Cable/headend stall watchdog: the S9-5 watchdog above watches only
+        # ``self.mux``. A SECOND mpegtsmux (the cable headend branch) can air
+        # audio alone -- its video pad waiting on a future-dated frame -- for
+        # the whole bound while the first mux keeps flowing, so nothing
+        # alarmed (measured 2026-11-25: cable audio-only for 1-1800 s, then the
+        # cable worker crashed). Keep the other TS muxes so
+        # ``_check_cable_stall`` can judge their own sink pads. Keyed per mux
+        # AND pad: both muxes name their pads ``sink_65``/``sink_66``.
+        self._cable_muxes = [
+            (spec.name or f"mux_{index}", mux)
+            for index, (spec, mux) in enumerate(muxes)
+            if spec.factory == "mpegtsmux" and mux is not self.mux
+        ]
 
     def _set_board_output_gain(self, gain_db: float) -> None:
         """Preserve board-bed level after per-output loudness normalization."""
@@ -4088,6 +4109,11 @@ class GstPlayoutEngine:
         # U34: the per-stream references start at the same moment and against
         # the same baseline as the aggregate one -- see ``_check_stream_stalls``.
         self._arm_stream_stall_reference(self._stall_last_advance_t)
+        # The cable/secondary-TS-mux watchdog shares the same 10s
+        # ``stall_timeout_s`` bound but measures its OWN pads: install their
+        # counters once here (the output half is built before this call and
+        # never rebuilt) and baseline the references beside the others.
+        self._arm_cable_stall_reference(self._stall_last_advance_t)
         GLib.timeout_add_seconds(1, self._check_stall)
 
     def _maybe_print_first_output_marker(self) -> None:
@@ -4981,6 +5007,12 @@ class GstPlayoutEngine:
         every advance). The worker exits non-zero on either budget and the
         daemon restarts it to a known state."""
         now = time.monotonic()
+        # A second TS mux (the cable headend branch) can stall in a shape the
+        # aggregate below is blind to: audio keeps arriving while video is
+        # held. Judged on its own pads, first, so this tick's answer owns the
+        # quit rather than being masked by the watched mux still advancing.
+        if not self._check_cable_stall(now):
+            return False
         if self._output_buffers != self._stall_last_count:
             self._stall_last_count = self._output_buffers
             self._stall_last_advance_t = now
@@ -5101,6 +5133,165 @@ class GstPlayoutEngine:
             return False  # one-shot: stop the watchdog
         return True
 
+    # -- cable / secondary-TS-mux stall judgement ------------------------------
+
+    def _install_cable_stall_counters(self) -> None:
+        """Arm one BUFFER counter per sink pad of every non-watched TS mux.
+
+        The existing S9-5 watchdog watches only ``self.mux``. A second
+        mpegtsmux (the cable headend branch, ``mux_cable_headend_*``) can keep
+        taking audio while its video pad receives nothing -- the 2026-11-25
+        cable stall, where cable aired audio only for up to 30 minutes while
+        HLS flowed and nothing alarmed.
+
+        Keyed per mux AND pad because both muxes use the same pad names
+        (``sink_65`` video, ``sink_66`` audio). Deliberately does NOT reuse
+        ``_install_mux_input_counters`` over every mux: what that method counts
+        for ``self.mux`` is the existing watchdog's contract and is left
+        untouched. Silent and safe with no cable mux or an unprobeable pad."""
+        self._cable_mux_pads = {}
+        self._cable_mux_buffers = {}
+        for mux_name, mux in getattr(self, "_cable_muxes", None) or ():
+            iterator = None
+            with contextlib.suppress(Exception):
+                iterator = mux.iterate_sink_pads()
+            if iterator is None:
+                continue
+            while True:
+                try:
+                    result, pad = iterator.next()
+                except Exception:
+                    break
+                if result != Gst.IteratorResult.OK or pad is None:
+                    break
+                try:
+                    pad_name = pad.get_name()
+                except Exception:
+                    pad_name = "unknown"
+                key = (mux_name, pad_name)
+                probe_installed = True
+                try:
+                    pad.add_probe(Gst.PadProbeType.BUFFER, self._make_cable_stall_counter(key))
+                except Exception:
+                    # Not counted -> not judged; the pad's silence is then an
+                    # honest gap rather than an accusation.
+                    probe_installed = False
+                if not probe_installed:
+                    continue
+                self._cable_mux_pads[key] = pad
+                self._cable_mux_buffers[key] = 0
+
+    def _make_cable_stall_counter(self, key: tuple[str, str]) -> Any:
+        """A per-mux-per-pad BUFFER counter closing over ITS OWN key.
+
+        Same factory rationale and guarded contract as
+        ``_make_mux_input_counter``: this runs on a streaming thread and must
+        never be able to take a channel off air."""
+
+        def _count_cable_input(_pad: Gst.Pad, _info: Gst.PadProbeInfo) -> Gst.PadProbeReturn:
+            with contextlib.suppress(Exception):
+                self._cable_mux_buffers[key] = self._cable_mux_buffers.get(key, 0) + 1
+            return Gst.PadProbeReturn.OK
+
+        return _count_cable_input
+
+    def _arm_cable_stall_reference(self, now: float) -> None:
+        """Install (once) and re-baseline the cable mux counters at ``now``.
+
+        Called from ``_arm_stall_watchdog`` and ``_reset_stall_reference`` --
+        the same two moments the aggregate and per-stream references restart --
+        so the 60 s grace and the ``stall_timeout_s`` bound both start over
+        after a reload commit instead of inheriting the commit's silence."""
+        if not getattr(self, "_cable_counters_installed", False):
+            self._install_cable_stall_counters()
+            self._cable_counters_installed = True
+        self._cable_stall_armed_t = now
+        counters = getattr(self, "_cable_mux_buffers", None) or {}
+        self._cable_stall_last_count = dict(counters)
+        self._cable_stall_last_advance_t = dict.fromkeys(counters, now)
+
+    def _check_cable_stall(self, now: float) -> bool:
+        """Quit on a cable/secondary TS mux that gets audio but no video.
+
+        The same action as the existing stall watchdog -- print a ``CTRL
+        stall:`` line on stderr, set the ``("stall", ...)`` error and quit the
+        run loop so worker.py exits non-zero for the daemon restart -- but
+        judged on EACH non-watched mpegtsmux's OWN sink pads, keyed per mux and
+        pad. A video pad that has not advanced for ``stall_timeout_s`` while
+        that mux's audio pad is still advancing is the 2026-11-25 shape: the
+        cable output airs audio alone and, before this check, nothing noticed
+        because the watched HLS mux was still healthy.
+
+        Silent no-op when:
+
+        * the channel has no second TS mux (attribute absent or empty);
+        * ``stall_timeout_s <= 0`` (the same operator opt-out as the aggregate
+          check);
+        * the first 60 s after arming, which covers preroll, the FALLBACK_SLATE
+          a channel airs while its program is "preparing", and switch drains;
+        * a reload commit is in progress -- the commit watchdog owns that
+          window and ``_reset_stall_reference`` restarts this one afterwards;
+        * the mux has no video pad registered (honest gap, not an accusation).
+
+        Returns True to keep watching, False when this watchdog quit the loop.
+        Lock-free on the same single-writer-per-pad contract as the other
+        counters."""
+        muxes = getattr(self, "_cable_muxes", None) or []
+        pads = getattr(self, "_cable_mux_pads", None) or {}
+        if not muxes or not pads or self.stall_timeout_s <= 0:
+            return True
+        armed_t = getattr(self, "_cable_stall_armed_t", None)
+        if armed_t is None or now - armed_t < _CABLE_STALL_GRACE_S:
+            return True
+        pending = getattr(self, "_pending_reload", None)
+        suspended = pending is not None and pending.get("commit_in_progress", False)
+        counters = self._cable_mux_buffers
+        last_count = self._cable_stall_last_count
+        last_advance = self._cable_stall_last_advance_t
+        for mux_name, _mux in muxes:
+            video_keys = [
+                key
+                for key, pad in pads.items()
+                if key[0] == mux_name and self._mux_pad_stream_label(pad) == "video"
+            ]
+            if not video_keys:
+                continue
+            audio_keys = [
+                key
+                for key, pad in pads.items()
+                if key[0] == mux_name and self._mux_pad_stream_label(pad) == "audio"
+            ]
+            for key in (*video_keys, *audio_keys):
+                current = counters.get(key, 0)
+                if current != last_count.get(key, current):
+                    last_count[key] = current
+                    last_advance[key] = now
+            if suspended:
+                # The commit watchdog owns this window; ``_reset_stall_reference``
+                # re-baselines both this clock and the grace when it settles.
+                continue
+            # "Gets audio" means the audio pad advanced within this same bound,
+            # not merely that audio exists: a mux that lost both streams is the
+            # aggregate's question, and this check must not name it.
+            audio_advancing = any(
+                now - last_advance.get(key, now) <= self.stall_timeout_s for key in audio_keys
+            )
+            video_flat_s = min(now - last_advance.get(key, now) for key in video_keys)
+            if audio_advancing and video_flat_s >= self.stall_timeout_s:
+                # ASCII only -- the daemon folds stderr into the state row's
+                # last_error, written to Postgres (see ``_check_stall``).
+                print(
+                    f"CTRL stall: no video on cable mux {mux_name} for "
+                    f"{int(video_flat_s)}s while audio advances - quitting for daemon restart",
+                    file=sys.stderr,
+                    flush=True,
+                )
+                self._error = ("stall", f"cable mux {mux_name} audio-only")
+                if self._loop is not None:
+                    self._loop.quit()
+                return False  # one-shot: stop the watchdog
+        return True
+
     def _reset_stall_reference(self) -> None:
         """Round-2 finding 2: start the post-first-output stall budget over.
 
@@ -5127,6 +5318,8 @@ class GstPlayoutEngine:
         # only just begun to have a chance to feed the mux, and it must get the
         # full per-stream budget rather than inherit the commit's silence.
         self._arm_stream_stall_reference(now)
+        # Cable/secondary-TS-mux watchdog: same clean hand-back, same grace.
+        self._arm_cable_stall_reference(now)
 
     # -- U34 per-stream stall judgement ---------------------------------------
 
