@@ -130,7 +130,15 @@ def test_windows_h264_works_when_only_hevc_absent() -> None:
 
 
 @pytest.mark.parametrize(
-    "available,expected", [(("nvh264enc", "mfh264enc"), "nvh264enc"), (("mfh264enc",), "mfh264enc")]
+    "available,expected",
+    [
+        # Media Foundation first: on an NVIDIA box mfh264enc is the Media Foundation
+        # NVIDIA H.264 Encoder MFT, so the GPU is still used. nvh264enc caused CTRL
+        # stall worker restarts in the field; it is now the second choice.
+        (("nvh264enc", "mfh264enc"), "mfh264enc"),
+        (("nvh264enc",), "nvh264enc"),
+        (("mfh264enc",), "mfh264enc"),
+    ],
 )
 def test_declarative_h264_automatically_prefers_available_hardware(available, expected):
     decision = decide_encoder(

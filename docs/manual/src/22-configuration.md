@@ -217,7 +217,7 @@ TSDuck is found in this order: `CIVICCAST_TSDUCK_PATH` (a folder or the file), t
 
 ### Encoders: hardware and software {#configuration-encoders}
 
-The picture is encoded by a GStreamer encoder named from the profile's codec. The default `h264` (and `libx264`, `openh264`) maps to **`openh264enc`**, a software (CPU) encoder bundled with CivicCast. Other mapped names are `x264enc`, `x265enc` and, for hardware, `nvh264enc`/`nvh265enc` (NVIDIA) and, on Windows, `mfh264enc`/`mfh265enc` (Media Foundation, which stands in for the VAAPI names).
+The picture is encoded by a GStreamer encoder named from the profile's codec. The default `h264` (and `libx264`, `openh264`) maps to **`openh264enc`**, a software (CPU) encoder bundled with CivicCast. Other mapped names are `x264enc`, `x265enc` and, for hardware, on Windows the Media Foundation `mfh264enc`/`mfh265enc` (which stand in for the VAAPI names) and then the NVIDIA `nvh264enc`/`nvh265enc`. The order is Windows Media Foundation hardware first, then NVIDIA NVENC: on an NVIDIA computer the Media Foundation encoder is the Media Foundation NVIDIA H.264 encoder, so the graphics card is still used.
 
 On Windows CivicCast runs a pre-flight before each start:
 

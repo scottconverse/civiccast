@@ -120,7 +120,7 @@ def decide_encoder(
     """Pure native-Windows encoder-selection policy (no gi, no platform read).
 
     ``codec`` is the channel's configured ffmpeg codec name (e.g. ``h264_vaapi``).
-    Declarative ``h264`` automatically selects NVIDIA then Windows hardware;
+    Declarative ``h264`` automatically selects Windows hardware then NVIDIA;
     explicit encoder names retain their configured selection.
     ``probe`` reports whether a GStreamer factory is available hardware on this box.
 
@@ -135,8 +135,10 @@ def decide_encoder(
         return EncoderDecision(encoder_override=None, warning=None)
     if codec.strip().lower() == "h264":
         # Declarative H.264 requests automatic selection. Explicit encoder names
-        # continue to pin the operator's choice.
-        for candidate in ("nvh264enc", "mfh264enc"):
+        # continue to pin the operator's choice. Media Foundation is tried first: on an
+        # NVIDIA box mfh264enc is the Media Foundation NVIDIA H.264 Encoder MFT, so the
+        # GPU is still used, and nvh264enc caused CTRL stall worker restarts in the field.
+        for candidate in ("mfh264enc", "nvh264enc"):
             if probe(candidate):
                 return EncoderDecision(encoder_override=candidate, warning=None)
         # Automatic H.264 previously selected software unconditionally. Preserve
