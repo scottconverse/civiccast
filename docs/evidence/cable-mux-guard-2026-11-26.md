@@ -15,7 +15,7 @@ old engine and pass on the new one.
 
 ## Station run
 
-Six Windows test stations, cable output on all three channels, running from
+Six Windows test stations, cable output on all three channels (one station had its government channel stopped), running from
 2026-11-25 22:45 to 2026-11-26 10:28 (about 12 h):
 
 - 0 worker crashes.

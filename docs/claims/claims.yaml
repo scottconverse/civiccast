@@ -1259,9 +1259,9 @@ entries:
         # only, not installed/release proof. Blob IDs re-hashed with
         # `git hash-object <file>`.
         # Re-provisioned again (fix/cable-mux-arrival-guard, 2026-11-26):
-        # every TS mux (cable and udp-ts) now refuses a future-dated closing
-        # video frame, so a PTS jump from the cable source can no longer tear
-        # the pipeline down (gstudp.dll 0xC00000FD). Only engine.py changed;
+        # every TS mux (web preview HLS and cable udp-ts) now drops the future-dated
+        # videorate closing-duplicate frame, so the cable mux no longer stalls and
+        # then crashes udpsink (gstudp.dll 0xC00000FD). Only engine.py changed;
         # worker.py, caption_flow.py, decode_policy.py, graph.py, control.py
         # and audio_tap.py are byte-identical and keep their recorded blobs.
         # Current-source proof: tests/egress/test_gst_engine_cable_mux_guard.py
@@ -2271,9 +2271,9 @@ entries:
         # only, not installed/release proof. Blob IDs re-hashed with
         # `git hash-object <file>`.
         # Re-provisioned again (fix/cable-mux-arrival-guard, 2026-11-26):
-        # every TS mux (cable and udp-ts) now refuses a future-dated closing
-        # video frame, so a PTS jump from the cable source can no longer tear
-        # the pipeline down (gstudp.dll 0xC00000FD). Only engine.py changed;
+        # every TS mux (web preview HLS and cable udp-ts) now drops the future-dated
+        # videorate closing-duplicate frame, so the cable mux no longer stalls and
+        # then crashes udpsink (gstudp.dll 0xC00000FD). Only engine.py changed;
         # worker.py, caption_flow.py, decode_policy.py, graph.py, control.py
         # and audio_tap.py are byte-identical and keep their recorded blobs.
         # Current-source proof: tests/egress/test_gst_engine_cable_mux_guard.py
