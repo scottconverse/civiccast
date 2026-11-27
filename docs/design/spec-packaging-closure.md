@@ -41,7 +41,7 @@ Charter §7 "Runtime packaging": minimal, checksum-locked, license-reviewed.
   acceptance before the beta ships — the spec does not settle them.**
   CVE policy: BOM records versions; closure script re-run is the update path.
 - **D4. Conditional-encoder guard/remap with a REAL probe (SDR-008):**
-  remap table (vah264enc → nvh264enc → mfh264enc → openh264enc; vah265enc →
+  remap table (vah264enc → mfh264enc → nvh264enc → openh264enc; vah265enc →
   nvh265enc → mfh265enc → honest HEVC-unavailable error). Selection requires
   factory presence AND a successful 1-second real encode probe (caps
   negotiated on the actual adapter) at doctor time — `ElementFactory.find`
