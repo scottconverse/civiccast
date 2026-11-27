@@ -1258,6 +1258,9 @@ entries:
         # test_gst_engine_reload_commit_ordering.py. Source-tripwire rebind
         # only, not installed/release proof. Blob IDs re-hashed with
         # `git hash-object <file>`.
+        # 2026-11-27 (merge of main into feat/cable-output-stall-alarm):
+        # this engine.py blob now covers BOTH the cable mux arrival guard
+        # (PR 400) and the cable mux stall alarm (PR 401) after the merge.
         # 2026-11-26 (feat/cable-output-stall-alarm, cable mux stall alarm,
         # engine.py drift): the stall watchdog now also watches every
         # mpegtsmux other than the watched web preview mux (for example the
@@ -1278,8 +1281,22 @@ entries:
         # docs/evidence/cable-stall-alarm-2026-11-26.md. Source-tripwire rebind
         # only, not installed/release proof. engine.py blob re-hashed with
         # `git hash-object --path <file> <file>` per D2.
+        # Re-provisioned again (fix/cable-mux-arrival-guard, 2026-11-26):
+        # every TS mux (web preview HLS and cable udp-ts) now drops the future-dated
+        # videorate closing-duplicate frame, so the cable mux no longer stalls and
+        # then crashes udpsink (gstudp.dll 0xC00000FD). Only engine.py changed;
+        # worker.py, caption_flow.py, decode_policy.py, graph.py, control.py
+        # and audio_tap.py are byte-identical and keep their recorded blobs.
+        # Current-source proof: tests/egress/test_gst_engine_cable_mux_guard.py
+        # (4 tests; fail on the old engine, pass on the new) and the 12 h
+        # six-station Windows run in docs/evidence/
+        # cable-mux-guard-2026-11-26.md. Historical spike and installed-service
+        # evidence is NOT renewed; this binds current source only, not
+        # installed-service, boot or pre-login proof. Blob IDs re-hashed with
+        # `git hash-object --path <file> <file>` per D2; other files are
+        # byte-identical and keep their recorded blobs.
         - path: civiccast/egress/gst/engine.py
-          blob: a01c905fc480ee370264d6c5625304638b88e7d6
+          blob: babff24d3340c43e54aee9f68480fdf11d8fc758
         - path: civiccast/egress/gst/caption_flow.py
           blob: c0c981dfa050e8ca196533c791a99028302c5ca5
         - path: civiccast/egress/gst/decode_policy.py
@@ -2276,6 +2293,9 @@ entries:
         # test_gst_engine_reload_commit_ordering.py. Source-tripwire rebind
         # only, not installed/release proof. Blob IDs re-hashed with
         # `git hash-object <file>`.
+        # 2026-11-27 (merge of main into feat/cable-output-stall-alarm):
+        # this engine.py blob now covers BOTH the cable mux arrival guard
+        # (PR 400) and the cable mux stall alarm (PR 401) after the merge.
         # 2026-11-26 (feat/cable-output-stall-alarm, cable mux stall alarm,
         # engine.py drift): the stall watchdog now also watches every
         # mpegtsmux other than the watched web preview mux (for example the
@@ -2296,8 +2316,22 @@ entries:
         # docs/evidence/cable-stall-alarm-2026-11-26.md. Source-tripwire rebind
         # only, not installed/release proof. engine.py blob re-hashed with
         # `git hash-object --path <file> <file>` per D2.
+        # Re-provisioned again (fix/cable-mux-arrival-guard, 2026-11-26):
+        # every TS mux (web preview HLS and cable udp-ts) now drops the future-dated
+        # videorate closing-duplicate frame, so the cable mux no longer stalls and
+        # then crashes udpsink (gstudp.dll 0xC00000FD). Only engine.py changed;
+        # worker.py, caption_flow.py, decode_policy.py, graph.py, control.py
+        # and audio_tap.py are byte-identical and keep their recorded blobs.
+        # Current-source proof: tests/egress/test_gst_engine_cable_mux_guard.py
+        # (4 tests; fail on the old engine, pass on the new) and the 12 h
+        # six-station Windows run in docs/evidence/
+        # cable-mux-guard-2026-11-26.md. Historical spike and installed-service
+        # evidence is NOT renewed; this binds current source only, not
+        # installed-service, boot or pre-login proof. Blob IDs re-hashed with
+        # `git hash-object --path <file> <file>` per D2; other files are
+        # byte-identical and keep their recorded blobs.
         - path: civiccast/egress/gst/engine.py
-          blob: a01c905fc480ee370264d6c5625304638b88e7d6
+          blob: babff24d3340c43e54aee9f68480fdf11d8fc758
         - path: civiccast/egress/gst/caption_flow.py
           blob: c0c981dfa050e8ca196533c791a99028302c5ca5
         - path: civiccast/egress/gst/decode_policy.py
