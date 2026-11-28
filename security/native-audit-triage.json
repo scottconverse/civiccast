@@ -9979,6 +9979,384 @@
         "docs/ops/evidence/rc1-native-security/secured-capabilities.json",
         "docs/ops/evidence/rc1-native-security/gstreamer-ffmpeg-applicability.json"
       ]
+    },
+    {
+      "package": "ffmpeg",
+      "version": "N-129333-g7fdb4c2341",
+      "id": "CVE-2026-135705",
+      "reviewed": "2026-11-28",
+      "review_by": "2026-12-28",
+      "reason": "Fixed in the shipped source. Upstream fix commit e5fe2cbebcb666bb132ab26d8dacbace383936c7 (2026-10-11) is an ancestor of the pinned snapshot 7fdb4c23411c8dc0342f19b85a8729cd22afa0dc (2026-11-27), proved with git merge-base --is-ancestor in a clone of FFmpeg master; the GitHub compare of the fix against the snapshot reports behind by 0. The scanner matches the release 9.0.2 baseline, not the shipped revision.",
+      "evidence": [
+        "https://github.com/FFmpeg/FFmpeg/commit/e5fe2cbebcb666bb132ab26d8dacbace383936c7",
+        "https://github.com/FFmpeg/FFmpeg/compare/e5fe2cbebcb666bb132ab26d8dacbace383936c7...7fdb4c23411c8dc0342f19b85a8729cd22afa0dc",
+        "native-windows-runtime-dependencies.lock.json",
+        "scripts/build_native_ffmpeg_pack.py"
+      ]
+    },
+    {
+      "package": "ffmpeg",
+      "version": "N-129333-g7fdb4c2341",
+      "id": "CVE-2026-135713",
+      "reviewed": "2026-11-28",
+      "review_by": "2026-12-28",
+      "reason": "Fixed in the shipped source. Upstream fix commit 94c3187ef7384735b2902abb34a95cbe2400a159 (2026-10-11) is an ancestor of the pinned snapshot 7fdb4c23411c8dc0342f19b85a8729cd22afa0dc (2026-11-27), proved with git merge-base --is-ancestor in a clone of FFmpeg master; the GitHub compare of the fix against the snapshot reports behind by 0. The scanner matches the release 9.0.2 baseline, not the shipped revision.",
+      "evidence": [
+        "https://github.com/FFmpeg/FFmpeg/commit/94c3187ef7384735b2902abb34a95cbe2400a159",
+        "https://github.com/FFmpeg/FFmpeg/compare/94c3187ef7384735b2902abb34a95cbe2400a159...7fdb4c23411c8dc0342f19b85a8729cd22afa0dc",
+        "native-windows-runtime-dependencies.lock.json",
+        "scripts/build_native_ffmpeg_pack.py"
+      ]
+    },
+    {
+      "package": "ffmpeg",
+      "version": "N-129333-g7fdb4c2341",
+      "id": "CVE-2026-135714",
+      "reviewed": "2026-11-28",
+      "review_by": "2026-12-28",
+      "reason": "Fixed in the shipped source. Upstream fix commit 09282853e82a1a881e7e5b061030063f48df2b95 (2026-10-11) is an ancestor of the pinned snapshot 7fdb4c23411c8dc0342f19b85a8729cd22afa0dc (2026-11-27), proved with git merge-base --is-ancestor in a clone of FFmpeg master; the GitHub compare of the fix against the snapshot reports behind by 0. The scanner matches the release 9.0.2 baseline, not the shipped revision.",
+      "evidence": [
+        "https://github.com/FFmpeg/FFmpeg/commit/09282853e82a1a881e7e5b061030063f48df2b95",
+        "https://github.com/FFmpeg/FFmpeg/compare/09282853e82a1a881e7e5b061030063f48df2b95...7fdb4c23411c8dc0342f19b85a8729cd22afa0dc",
+        "native-windows-runtime-dependencies.lock.json",
+        "scripts/build_native_ffmpeg_pack.py"
+      ]
+    },
+    {
+      "package": "ffmpeg",
+      "version": "N-129333-g7fdb4c2341",
+      "id": "CVE-2026-135715",
+      "reviewed": "2026-11-28",
+      "review_by": "2026-12-28",
+      "reason": "Fixed in the shipped source. Upstream fix commit 6fdfafa31a535c5a6b50712ee85f59c0a7a02bd4 (2026-10-13) is an ancestor of the pinned snapshot 7fdb4c23411c8dc0342f19b85a8729cd22afa0dc (2026-11-27), proved with git merge-base --is-ancestor in a clone of FFmpeg master; the GitHub compare of the fix against the snapshot reports behind by 0. The scanner matches the release 9.0.2 baseline, not the shipped revision.",
+      "evidence": [
+        "https://github.com/FFmpeg/FFmpeg/commit/6fdfafa31a535c5a6b50712ee85f59c0a7a02bd4",
+        "https://github.com/FFmpeg/FFmpeg/compare/6fdfafa31a535c5a6b50712ee85f59c0a7a02bd4...7fdb4c23411c8dc0342f19b85a8729cd22afa0dc",
+        "native-windows-runtime-dependencies.lock.json",
+        "scripts/build_native_ffmpeg_pack.py"
+      ]
+    },
+    {
+      "package": "ffmpeg",
+      "version": "N-129333-g7fdb4c2341",
+      "id": "CVE-2026-135721",
+      "reviewed": "2026-11-28",
+      "review_by": "2026-12-28",
+      "reason": "Fixed in the shipped source. Upstream fix commit 7a4da23a852b88f2b29187a0c908dc0b911612f9 (2026-10-11) is an ancestor of the pinned snapshot 7fdb4c23411c8dc0342f19b85a8729cd22afa0dc (2026-11-27), proved with git merge-base --is-ancestor in a clone of FFmpeg master; the GitHub compare of the fix against the snapshot reports behind by 0. The scanner matches the release 9.0.2 baseline, not the shipped revision.",
+      "evidence": [
+        "https://github.com/FFmpeg/FFmpeg/commit/7a4da23a852b88f2b29187a0c908dc0b911612f9",
+        "https://github.com/FFmpeg/FFmpeg/compare/7a4da23a852b88f2b29187a0c908dc0b911612f9...7fdb4c23411c8dc0342f19b85a8729cd22afa0dc",
+        "native-windows-runtime-dependencies.lock.json",
+        "scripts/build_native_ffmpeg_pack.py"
+      ]
+    },
+    {
+      "package": "ffmpeg",
+      "version": "N-129333-g7fdb4c2341",
+      "id": "CVE-2026-137908",
+      "reviewed": "2026-11-28",
+      "review_by": "2026-12-28",
+      "reason": "Fixed in the shipped source. Upstream fix commit c67ac1bc34440829de4ef3b9d15206bb095eed11 (2026-10-28) is an ancestor of the pinned snapshot 7fdb4c23411c8dc0342f19b85a8729cd22afa0dc (2026-11-27), proved with git merge-base --is-ancestor in a clone of FFmpeg master; the GitHub compare of the fix against the snapshot reports behind by 0. The scanner matches the release 9.0.2 baseline, not the shipped revision.",
+      "evidence": [
+        "https://github.com/FFmpeg/FFmpeg/commit/c67ac1bc34440829de4ef3b9d15206bb095eed11",
+        "https://github.com/FFmpeg/FFmpeg/compare/c67ac1bc34440829de4ef3b9d15206bb095eed11...7fdb4c23411c8dc0342f19b85a8729cd22afa0dc",
+        "native-windows-runtime-dependencies.lock.json",
+        "scripts/build_native_ffmpeg_pack.py"
+      ]
+    },
+    {
+      "package": "ffmpeg",
+      "version": "N-129333-g7fdb4c2341",
+      "id": "CVE-2026-137909",
+      "reviewed": "2026-11-28",
+      "review_by": "2026-12-28",
+      "reason": "Fixed in the shipped source. Upstream fix commit c4a4d5f72a7d89de23043415a0a45090c51c502a (2026-10-19) is an ancestor of the pinned snapshot 7fdb4c23411c8dc0342f19b85a8729cd22afa0dc (2026-11-27), proved with git merge-base --is-ancestor in a clone of FFmpeg master; the GitHub compare of the fix against the snapshot reports behind by 0. The scanner matches the release 9.0.2 baseline, not the shipped revision.",
+      "evidence": [
+        "https://github.com/FFmpeg/FFmpeg/commit/c4a4d5f72a7d89de23043415a0a45090c51c502a",
+        "https://github.com/FFmpeg/FFmpeg/compare/c4a4d5f72a7d89de23043415a0a45090c51c502a...7fdb4c23411c8dc0342f19b85a8729cd22afa0dc",
+        "native-windows-runtime-dependencies.lock.json",
+        "scripts/build_native_ffmpeg_pack.py"
+      ]
+    },
+    {
+      "package": "ffmpeg",
+      "version": "N-129333-g7fdb4c2341",
+      "id": "CVE-2026-137910",
+      "reviewed": "2026-11-28",
+      "review_by": "2026-12-28",
+      "reason": "Fixed in the shipped source. Upstream fix commit b47e96b4eb50fef52cf1a9c7b0100a34cc05cce0 (2026-11-03) is an ancestor of the pinned snapshot 7fdb4c23411c8dc0342f19b85a8729cd22afa0dc (2026-11-27), proved with git merge-base --is-ancestor in a clone of FFmpeg master; the GitHub compare of the fix against the snapshot reports behind by 0. The scanner matches the release 9.0.2 baseline, not the shipped revision.",
+      "evidence": [
+        "https://github.com/FFmpeg/FFmpeg/commit/b47e96b4eb50fef52cf1a9c7b0100a34cc05cce0",
+        "https://github.com/FFmpeg/FFmpeg/compare/b47e96b4eb50fef52cf1a9c7b0100a34cc05cce0...7fdb4c23411c8dc0342f19b85a8729cd22afa0dc",
+        "native-windows-runtime-dependencies.lock.json",
+        "scripts/build_native_ffmpeg_pack.py"
+      ]
+    },
+    {
+      "package": "ffmpeg",
+      "version": "N-129333-g7fdb4c2341",
+      "id": "CVE-2026-137911",
+      "reviewed": "2026-11-28",
+      "review_by": "2026-12-28",
+      "reason": "Fixed in the shipped source. Upstream fix commit f26d201dd87f36e89ab77b5f689765604c9b06bc (2026-11-03) is an ancestor of the pinned snapshot 7fdb4c23411c8dc0342f19b85a8729cd22afa0dc (2026-11-27), proved with git merge-base --is-ancestor in a clone of FFmpeg master; the GitHub compare of the fix against the snapshot reports behind by 0. The scanner matches the release 9.0.2 baseline, not the shipped revision.",
+      "evidence": [
+        "https://github.com/FFmpeg/FFmpeg/commit/f26d201dd87f36e89ab77b5f689765604c9b06bc",
+        "https://github.com/FFmpeg/FFmpeg/compare/f26d201dd87f36e89ab77b5f689765604c9b06bc...7fdb4c23411c8dc0342f19b85a8729cd22afa0dc",
+        "native-windows-runtime-dependencies.lock.json",
+        "scripts/build_native_ffmpeg_pack.py"
+      ]
+    },
+    {
+      "package": "gstreamer-ffmpeg",
+      "version": "7.1.5-security1",
+      "id": "CVE-2026-135705",
+      "reviewed": "2026-11-28",
+      "review_by": "2026-12-28",
+      "reason": "The affected code (ff_h264_parse_framesize() in libavformat/rtpdec_h264.c) is excluded. Actual binary enumeration confirms no FFmpeg demuxers, muxers, input protocols or output protocols in this 7.1.5-security1 build; av_demuxer_iterate is empty and network/autodetection is disabled. The affected container, protocol, filter or encoder code cannot run.",
+      "evidence": [
+        "docs/ops/evidence/rc1-native-security/secured-capabilities.json",
+        "docs/ops/evidence/rc1-native-security/gstreamer-ffmpeg-applicability.json"
+      ]
+    },
+    {
+      "package": "gstreamer-ffmpeg",
+      "version": "7.1.5-security1",
+      "id": "CVE-2026-135713",
+      "reviewed": "2026-11-28",
+      "review_by": "2026-12-28",
+      "reason": "The affected code (the MMS demuxer/protocol in libavformat/mmst.c) is excluded. Actual binary enumeration confirms no FFmpeg demuxers, muxers, input protocols or output protocols in this 7.1.5-security1 build; av_demuxer_iterate is empty and network/autodetection is disabled. The affected container, protocol, filter or encoder code cannot run.",
+      "evidence": [
+        "docs/ops/evidence/rc1-native-security/secured-capabilities.json",
+        "docs/ops/evidence/rc1-native-security/gstreamer-ffmpeg-applicability.json"
+      ]
+    },
+    {
+      "package": "gstreamer-ffmpeg",
+      "version": "7.1.5-security1",
+      "id": "CVE-2026-135714",
+      "reviewed": "2026-11-28",
+      "review_by": "2026-12-28",
+      "reason": "The affected code (amf_get_field_value2() in libavformat/rtmppkt.c) is excluded. Actual binary enumeration confirms no FFmpeg demuxers, muxers, input protocols or output protocols in this 7.1.5-security1 build; av_demuxer_iterate is empty and network/autodetection is disabled. The affected container, protocol, filter or encoder code cannot run.",
+      "evidence": [
+        "docs/ops/evidence/rc1-native-security/secured-capabilities.json",
+        "docs/ops/evidence/rc1-native-security/gstreamer-ffmpeg-applicability.json"
+      ]
+    },
+    {
+      "package": "gstreamer-ffmpeg",
+      "version": "7.1.5-security1",
+      "id": "CVE-2026-135715",
+      "reviewed": "2026-11-28",
+      "review_by": "2026-12-28",
+      "reason": "The affected code (the AVIF muxer in libavformat/movenc.c) is excluded. Actual binary enumeration confirms no FFmpeg demuxers, muxers, input protocols or output protocols in this 7.1.5-security1 build; no demuxer, muxer or protocol is registered and network/autodetection is disabled. The affected container, protocol, filter or encoder code cannot run.",
+      "evidence": [
+        "docs/ops/evidence/rc1-native-security/secured-capabilities.json",
+        "docs/ops/evidence/rc1-native-security/gstreamer-ffmpeg-applicability.json"
+      ]
+    },
+    {
+      "package": "gstreamer-ffmpeg",
+      "version": "7.1.5-security1",
+      "id": "CVE-2026-135721",
+      "reviewed": "2026-11-28",
+      "review_by": "2026-12-28",
+      "reason": "The affected code (ff_rtp_send_vc2hq() in libavformat/rtpenc_vc2hq.c) is excluded. Actual binary enumeration confirms no FFmpeg demuxers, muxers, input protocols or output protocols in this 7.1.5-security1 build; no demuxer, muxer or protocol is registered and network/autodetection is disabled. The affected container, protocol, filter or encoder code cannot run.",
+      "evidence": [
+        "docs/ops/evidence/rc1-native-security/secured-capabilities.json",
+        "docs/ops/evidence/rc1-native-security/gstreamer-ffmpeg-applicability.json"
+      ]
+    },
+    {
+      "package": "gstreamer-ffmpeg",
+      "version": "7.1.5-security1",
+      "id": "CVE-2026-137905",
+      "reviewed": "2026-11-28",
+      "review_by": "2026-12-28",
+      "reason": "The affected code (parse_imf_asset_map_from_xml_dom() in libavformat/imfdec.c) is excluded. Actual binary enumeration confirms no FFmpeg demuxers, muxers, input protocols or output protocols in this 7.1.5-security1 build; av_demuxer_iterate is empty and network/autodetection is disabled. The affected container, protocol, filter or encoder code cannot run.",
+      "evidence": [
+        "docs/ops/evidence/rc1-native-security/secured-capabilities.json",
+        "docs/ops/evidence/rc1-native-security/gstreamer-ffmpeg-applicability.json"
+      ]
+    },
+    {
+      "package": "gstreamer-ffmpeg",
+      "version": "7.1.5-security1",
+      "id": "CVE-2026-137906",
+      "reviewed": "2026-11-28",
+      "review_by": "2026-12-28",
+      "reason": "The affected code (open_virtual_track() in libavformat/imfdec.c) is excluded. Actual binary enumeration confirms no FFmpeg demuxers, muxers, input protocols or output protocols in this 7.1.5-security1 build; av_demuxer_iterate is empty and network/autodetection is disabled. The affected container, protocol, filter or encoder code cannot run.",
+      "evidence": [
+        "docs/ops/evidence/rc1-native-security/secured-capabilities.json",
+        "docs/ops/evidence/rc1-native-security/gstreamer-ffmpeg-applicability.json"
+      ]
+    },
+    {
+      "package": "gstreamer-ffmpeg",
+      "version": "7.1.5-security1",
+      "id": "CVE-2026-137907",
+      "reviewed": "2026-11-28",
+      "review_by": "2026-12-28",
+      "reason": "The affected code (query_formats() in libavfilter/vf_boxblur.c) is excluded. The retained binary enumeration confirms the compiled filter registry contains only null,psnr,scale,ssim,yadif,nullsrc,nullsink,abuffer,buffer,abuffersink,buffersink. The affected container, protocol, filter or encoder code cannot run.",
+      "evidence": [
+        "docs/ops/evidence/rc1-native-security/secured-capabilities.json",
+        "docs/ops/evidence/rc1-native-security/gstreamer-ffmpeg-applicability.json"
+      ]
+    },
+    {
+      "package": "gstreamer-ffmpeg",
+      "version": "7.1.5-security1",
+      "id": "CVE-2026-137908",
+      "reviewed": "2026-11-28",
+      "review_by": "2026-12-28",
+      "reason": "The affected code (eb_receive_packet() in libavcodec/libsvtav1.c) is excluded. Only the H264 and AAC decoders and the AAC encoder are compiled in this 7.1.5-security1 build (--disable-everything, --enable-decoder=h264,aac, --enable-encoder=aac). The affected container, protocol, filter or encoder code cannot run.",
+      "evidence": [
+        "docs/ops/evidence/rc1-native-security/secured-capabilities.json",
+        "docs/ops/evidence/rc1-native-security/gstreamer-ffmpeg-applicability.json"
+      ]
+    },
+    {
+      "package": "gstreamer-ffmpeg",
+      "version": "7.1.5-security1",
+      "id": "CVE-2026-137909",
+      "reviewed": "2026-11-28",
+      "review_by": "2026-12-28",
+      "reason": "The affected code (xsub_encode() in libavcodec/xsubenc.c) is excluded. Only the H264 and AAC decoders and the AAC encoder are compiled in this 7.1.5-security1 build (--disable-everything, --enable-decoder=h264,aac, --enable-encoder=aac). The affected container, protocol, filter or encoder code cannot run.",
+      "evidence": [
+        "docs/ops/evidence/rc1-native-security/secured-capabilities.json",
+        "docs/ops/evidence/rc1-native-security/gstreamer-ffmpeg-applicability.json"
+      ]
+    },
+    {
+      "package": "gstreamer-ffmpeg",
+      "version": "7.1.5-security1",
+      "id": "CVE-2026-137910",
+      "reviewed": "2026-11-28",
+      "review_by": "2026-12-28",
+      "reason": "The affected code (pcx_encode_frame() in libavcodec/pcxenc.c) is excluded. Only the H264 and AAC decoders and the AAC encoder are compiled in this 7.1.5-security1 build (--disable-everything, --enable-decoder=h264,aac, --enable-encoder=aac). The affected container, protocol, filter or encoder code cannot run.",
+      "evidence": [
+        "docs/ops/evidence/rc1-native-security/secured-capabilities.json",
+        "docs/ops/evidence/rc1-native-security/gstreamer-ffmpeg-applicability.json"
+      ]
+    },
+    {
+      "package": "gstreamer-ffmpeg",
+      "version": "7.1.5-security1",
+      "id": "CVE-2026-137911",
+      "reviewed": "2026-11-28",
+      "review_by": "2026-12-28",
+      "reason": "The affected code (xwd_encode_frame() in libavcodec/xwdenc.c) is excluded. Only the H264 and AAC decoders and the AAC encoder are compiled in this 7.1.5-security1 build (--disable-everything, --enable-decoder=h264,aac, --enable-encoder=aac). The affected container, protocol, filter or encoder code cannot run.",
+      "evidence": [
+        "docs/ops/evidence/rc1-native-security/secured-capabilities.json",
+        "docs/ops/evidence/rc1-native-security/gstreamer-ffmpeg-applicability.json"
+      ]
+    },
+    {
+      "package": "pyav-ffmpeg",
+      "version": "611cec792a-security1-minimal-msvc",
+      "id": "CVE-2026-135705",
+      "reviewed": "2026-11-28",
+      "review_by": "2026-12-28",
+      "reason": "The affected code (ff_h264_parse_framesize() in libavformat/rtpdec_h264.c) is excluded from this exact minimal MSVC build: FFMPEG_CONFIGURE_OPTIONS uses --disable-everything and --disable-network and enables only the listed components; it also enables only the wav, mov, matroska, mp3, flac, ogg, mpegts and aac demuxers, so the demuxer named here is not built. Applies only to the separately identified PyAV FFmpeg build.",
+      "evidence": [
+        "scripts/build_native_pyav_wheel.py:FFMPEG_CONFIGURE_OPTIONS",
+        "https://github.com/FFmpeg/FFmpeg/blob/611cec792aa54e2e53dbc1be95dcf5955d9a99ba/configure"
+      ]
+    },
+    {
+      "package": "pyav-ffmpeg",
+      "version": "611cec792a-security1-minimal-msvc",
+      "id": "CVE-2026-135713",
+      "reviewed": "2026-11-28",
+      "review_by": "2026-12-28",
+      "reason": "The affected code (the MMS demuxer/protocol in libavformat/mmst.c) is excluded from this exact minimal MSVC build: FFMPEG_CONFIGURE_OPTIONS uses --disable-everything and --disable-network and enables only the listed components; it also enables only the wav, mov, matroska, mp3, flac, ogg, mpegts and aac demuxers, so the demuxer named here is not built. Applies only to the separately identified PyAV FFmpeg build.",
+      "evidence": [
+        "scripts/build_native_pyav_wheel.py:FFMPEG_CONFIGURE_OPTIONS",
+        "https://github.com/FFmpeg/FFmpeg/blob/611cec792aa54e2e53dbc1be95dcf5955d9a99ba/configure"
+      ]
+    },
+    {
+      "package": "pyav-ffmpeg",
+      "version": "611cec792a-security1-minimal-msvc",
+      "id": "CVE-2026-135714",
+      "reviewed": "2026-11-28",
+      "review_by": "2026-12-28",
+      "reason": "The affected code (amf_get_field_value2() in libavformat/rtmppkt.c) is excluded from this exact minimal MSVC build: FFMPEG_CONFIGURE_OPTIONS uses --disable-everything and --disable-network and enables only the listed components; it also enables only the wav, mov, matroska, mp3, flac, ogg, mpegts and aac demuxers, so the demuxer named here is not built. Applies only to the separately identified PyAV FFmpeg build.",
+      "evidence": [
+        "scripts/build_native_pyav_wheel.py:FFMPEG_CONFIGURE_OPTIONS",
+        "https://github.com/FFmpeg/FFmpeg/blob/611cec792aa54e2e53dbc1be95dcf5955d9a99ba/configure"
+      ]
+    },
+    {
+      "package": "pyav-ffmpeg",
+      "version": "611cec792a-security1-minimal-msvc",
+      "id": "CVE-2026-135715",
+      "reviewed": "2026-11-28",
+      "review_by": "2026-12-28",
+      "reason": "The affected code (the AVIF muxer in libavformat/movenc.c) is excluded from this exact minimal MSVC build: FFMPEG_CONFIGURE_OPTIONS uses --disable-everything and --disable-network and enables only the listed components; it also enables no muxer at all, so the muxer named here is not built. Applies only to the separately identified PyAV FFmpeg build.",
+      "evidence": [
+        "scripts/build_native_pyav_wheel.py:FFMPEG_CONFIGURE_OPTIONS",
+        "https://github.com/FFmpeg/FFmpeg/blob/611cec792aa54e2e53dbc1be95dcf5955d9a99ba/configure"
+      ]
+    },
+    {
+      "package": "pyav-ffmpeg",
+      "version": "611cec792a-security1-minimal-msvc",
+      "id": "CVE-2026-135721",
+      "reviewed": "2026-11-28",
+      "review_by": "2026-12-28",
+      "reason": "The affected code (ff_rtp_send_vc2hq() in libavformat/rtpenc_vc2hq.c) is excluded from this exact minimal MSVC build: FFMPEG_CONFIGURE_OPTIONS uses --disable-everything and --disable-network and enables only the listed components; it also enables no muxer at all, so the muxer named here is not built. Applies only to the separately identified PyAV FFmpeg build.",
+      "evidence": [
+        "scripts/build_native_pyav_wheel.py:FFMPEG_CONFIGURE_OPTIONS",
+        "https://github.com/FFmpeg/FFmpeg/blob/611cec792aa54e2e53dbc1be95dcf5955d9a99ba/configure"
+      ]
+    },
+    {
+      "package": "pyav-ffmpeg",
+      "version": "611cec792a-security1-minimal-msvc",
+      "id": "CVE-2026-137908",
+      "reviewed": "2026-11-28",
+      "review_by": "2026-12-28",
+      "reason": "The affected code (eb_receive_packet() in libavcodec/libsvtav1.c) is excluded from this exact minimal MSVC build: FFMPEG_CONFIGURE_OPTIONS uses --disable-everything and --disable-network and enables only the listed components; it also enables no encoder at all, so the encoder named here is not built. Applies only to the separately identified PyAV FFmpeg build.",
+      "evidence": [
+        "scripts/build_native_pyav_wheel.py:FFMPEG_CONFIGURE_OPTIONS",
+        "https://github.com/FFmpeg/FFmpeg/blob/611cec792aa54e2e53dbc1be95dcf5955d9a99ba/configure"
+      ]
+    },
+    {
+      "package": "pyav-ffmpeg",
+      "version": "611cec792a-security1-minimal-msvc",
+      "id": "CVE-2026-137909",
+      "reviewed": "2026-11-28",
+      "review_by": "2026-12-28",
+      "reason": "The affected code (xsub_encode() in libavcodec/xsubenc.c) is excluded from this exact minimal MSVC build: FFMPEG_CONFIGURE_OPTIONS uses --disable-everything and --disable-network and enables only the listed components; it also enables no encoder at all, so the encoder named here is not built. Applies only to the separately identified PyAV FFmpeg build.",
+      "evidence": [
+        "scripts/build_native_pyav_wheel.py:FFMPEG_CONFIGURE_OPTIONS",
+        "https://github.com/FFmpeg/FFmpeg/blob/611cec792aa54e2e53dbc1be95dcf5955d9a99ba/configure"
+      ]
+    },
+    {
+      "package": "pyav-ffmpeg",
+      "version": "611cec792a-security1-minimal-msvc",
+      "id": "CVE-2026-137910",
+      "reviewed": "2026-11-28",
+      "review_by": "2026-12-28",
+      "reason": "The affected code (pcx_encode_frame() in libavcodec/pcxenc.c) is excluded from this exact minimal MSVC build: FFMPEG_CONFIGURE_OPTIONS uses --disable-everything and --disable-network and enables only the listed components; it also enables no encoder at all, so the encoder named here is not built. Applies only to the separately identified PyAV FFmpeg build.",
+      "evidence": [
+        "scripts/build_native_pyav_wheel.py:FFMPEG_CONFIGURE_OPTIONS",
+        "https://github.com/FFmpeg/FFmpeg/blob/611cec792aa54e2e53dbc1be95dcf5955d9a99ba/configure"
+      ]
+    },
+    {
+      "package": "pyav-ffmpeg",
+      "version": "611cec792a-security1-minimal-msvc",
+      "id": "CVE-2026-137911",
+      "reviewed": "2026-11-28",
+      "review_by": "2026-12-28",
+      "reason": "The affected code (xwd_encode_frame() in libavcodec/xwdenc.c) is excluded from this exact minimal MSVC build: FFMPEG_CONFIGURE_OPTIONS uses --disable-everything and --disable-network and enables only the listed components; it also enables no encoder at all, so the encoder named here is not built. Applies only to the separately identified PyAV FFmpeg build.",
+      "evidence": [
+        "scripts/build_native_pyav_wheel.py:FFMPEG_CONFIGURE_OPTIONS",
+        "https://github.com/FFmpeg/FFmpeg/blob/611cec792aa54e2e53dbc1be95dcf5955d9a99ba/configure"
+      ]
     }
   ]
 }
