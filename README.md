@@ -19,6 +19,16 @@ system. Staff use one operator console; residents watch through a separate
 portal. Optional cloud services may charge their own usage fees, while CivicCast
 has no per-minute software fee.
 
+## Unpublished source candidate
+
+`v1.0.0-rc.9` is an unpublished candidate and is not available as a public
+release. It carries the egress fixes since rc.8: every TS mux now guards against
+a future-dated closing frame so the cable output no longer crashes on it (#400),
+automatic H.264 encoding prefers the Media Foundation encoder over nvh264enc
+(#402), and the stall watchdog now sees a cable mux that has audio but no video
+(#401). Its CHANGELOG entry lists the rest. Source changes do not update an
+installed station or replace the published downloads below.
+
 ## Current published package
 
 [`v1.0.0-rc.8`](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-rc.8)
