@@ -137,8 +137,20 @@ FFMPEG_RUNTIME_COMPONENT: Final[str] = "native-ffmpeg-runtime"
 #: hit HTTP 404, and no mirror held the bytes). Re-pinned to the 2026-10-31
 #: MONTHLY build (``autobuild-2026-10-31-12-59``), which upstream keeps. It is
 #: the same master line, 85 commits ahead and 0 behind, so every security fix
-#: named above is still present. Always pin a monthly build, never a daily.
-FFMPEG_VERSION: Final[str] = "N-128227-g4811625b5f"
+#: named above is still present. Prefer a monthly build, which survives pruning;
+#: a daily is acceptable only when no published monthly build carries a
+#: required security fix -- see the next note.
+#: RE-PINNED 2026-11-27: the 2026-11-24 FFmpeg advisories (CVE-2026-135703 ..
+#: -135745) are fixed only after the 9.1 tag, and thirteen of them (the filter
+#: fixes and the zmq loopback default) landed upstream on 2026-11-17/19, after
+#: the previous pin. No 9.1-named or newer monthly BtbN asset exists yet, so
+#: this pin is the newest dated autobuild (``autobuild-2026-11-27-12-42``,
+#: ``N-129333-g7fdb4c2341``). Every CVE's upstream fix commit is an ancestor of
+#: this commit (per-ID proof in ``security/native-audit-triage.json``). It is
+#: the same master line, 1106 commits ahead of the previous pin and 0 behind.
+#: Pruning risk: this is a daily tag, so the next monthly repin should replace
+#: it as soon as a monthly build past 9.1 is published.
+FFMPEG_VERSION: Final[str] = "N-129333-g7fdb4c2341"
 
 #: The reviewed SPDX identifier for this artifact, cross-checked three ways
 #: (see ``civiccast.native.runtime_licenses``'s Category 7 header): the
@@ -191,42 +203,44 @@ class FfmpegPackBuildError(RuntimeError):
 #: release (``autobuild-2026-08-31-13-27``) so the exact bytes survive pruning.
 #: Re-derived 2026-11-12 against the 2026-10-31 monthly archive: same nine-file
 #: set and the same DLL names; new bytes and hashes.
+#: Re-derived 2026-11-27 against the 2026-11-27 autobuild: same nine-file set
+#: and the same DLL SONAMEs; new bytes and hashes.
 FFMPEG_BIN_PINS: Final[dict[str, tuple[int, str]]] = {
     "avcodec-63.dll": (
-        92660736,
-        "4a3298d98ac0bdac118e6a35ab0b9cfbce444eb216d239158423ebbfd878fc99",
+        94981632,
+        "beafa8dba9edbe58d38b09c1a2b61a0cbdb1c42b5d9b95507c5b96fe5ce3d8fa",
     ),
     "avdevice-63.dll": (
-        5008384,
-        "329571b290276b545de9de305be6888952d6c26de5f6bca839b1961b519f168a",
+        4950528,
+        "0ec9dfa753729359b796ac21ccebb40c34b7d480a41b3308dcd669b566c2dbb4",
     ),
     "avfilter-12.dll": (
-        32043520,
-        "aaabf8f5a478fbbae46a77a3108f1822284e5dca0eaac421667ccc609d6d0652",
+        32378368,
+        "4f667619827bb50ed97f68fd03d4af275f0dac7297c99964f7814022e3accfb7",
     ),
     "avformat-63.dll": (
-        22864896,
-        "86fef2b27f95ca82554b8b249bcc67c36c608b1b8219cbee0de57ec8c78ad67c",
+        23047168,
+        "da65c71b76b43813fab8f407559fe0873be8ffaa31dc29b1e8f7f8c2605cec77",
     ),
     "avutil-61.dll": (
-        3049984,
-        "562f3d5dc56d973e7a82d64d34680a847a28e112f899c1afc513dc088027cbee",
+        3061248,
+        "30e7cb2f2742ae55b958a95533dc5157e7e8c766f6801ee7e4e75060461baf08",
     ),
     "ffmpeg.exe": (
-        573952,
-        "86b4c2a73482b84b63d1603668056c1ced6bb8031b49fe8b6fecf3d3f283acd8",
+        578048,
+        "d5b72ccdb9a2ac81b35d55b4ad2a25c8f9557c0a6de8c546eb52bd0293f7816b",
     ),
     "ffprobe.exe": (
-        276480,
-        "f25a19327fbc58e0645a5da466f9455395c101bd9c38c35ccd94cf0d6cdfc6dd",
+        279040,
+        "464a2360a53fc55727d4ee5498f486547fdbaf4c1ba5a70e6c425a753c170e32",
     ),
     "swresample-7.dll": (
-        751616,
-        "6af4e626521e8c29f42a50f149d12158b383ea9c79ac91d6c7759889bb0a7391",
+        754688,
+        "748285f306f89202973e1424c32ea5014fae73ee5f57bc9731555a33f0803df2",
     ),
     "swscale-10.dll": (
-        2417664,
-        "9ae223e63ca0b8d5fa82248e25fccbdb7e03b02678f58c082d29864e94a7d4e9",
+        2528768,
+        "3f44939803cfa5b5adbf72000e1f81d50fa612b7805d6fdafd756f22ab95ecbf",
     ),
 }
 
