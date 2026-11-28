@@ -12,7 +12,7 @@ without the checks below all passing. `scripts/release/publish_beta_candidate.py
 is fail-closed at every step (see its module docstring) -- it refuses rather
 than proceeds past any failed check.
 
-Current published package: [v1.0.0-rc.8](../releases/v1.0.0-rc.8-verification.md) (published 2026-11-23). Its release assets, checksums and package results are bound to the signed source named in that record. v1.0.0-rc.7 is superseded. Prior package receipts remain historical. Documentation-only corrections do not require rebuilding an existing signed installer.
+Current published package: [v1.0.0-rc.9](../releases/v1.0.0-rc.9-verification.md) (published 2026-11-28). Its release assets, checksums and package results are bound to the signed source named in that record. v1.0.0-rc.8 is superseded. Prior package receipts remain historical. Documentation-only corrections do not require rebuilding an existing signed installer.
 
 ## 1. Build
 

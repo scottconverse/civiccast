@@ -8,8 +8,8 @@
 > private `scottconverse/civiccast-wsl-legacy` repository and does not apply here.
 > The native line's station-acceptance gate is Gate A -- see
 > [docs/ops/gate-a.md](https://github.com/scottconverse/civiccast/blob/main/docs/ops/gate-a.md). For current Beta 20 guidance, use the
-> [current User Manual](https://github.com/scottconverse/civiccast/blob/main/docs/USER-MANUAL.md), [rc.8 verification
-> record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-rc.8-verification.md), and [tester start
+> [current User Manual](https://github.com/scottconverse/civiccast/blob/main/docs/USER-MANUAL.md), [rc.9 verification
+> record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-rc.9-verification.md), and [tester start
 > page](START-HERE.md). This remains a historical reference.
 
 Use this walkthrough when CivicCast is ready for a station-side hands-on pass.

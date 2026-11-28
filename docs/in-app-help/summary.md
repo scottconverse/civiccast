@@ -2,7 +2,7 @@
 
 Console group: Review Records. The page label on screen is "Summary + signed records". Current operator guidance is followed by the beta.10 audit snapshot kept for traceability. Paths are under `civiccast/apps/portal-operator/src/`. The part that makes a summary is the "AI summary" card on an asset page; see assets.md.
 
-## Current operator guidance (rc.8)
+## Current operator guidance (rc.9)
 
 A records clerk reviews a computer-written meeting summary against the caption cues listed under **Sourced claims**. The cue buttons show cue IDs and times; they do not show caption words or play audio, so open the recording or Review queue to check the text.
 

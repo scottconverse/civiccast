@@ -3,9 +3,9 @@
 CivicCast brings station scheduling, channel playout, meeting recording,
 caption review, and resident publication into one native Windows system.
 
-## Current release state (November 23, 2026)
+## Current release state (November 28, 2026)
 
-- Published: [v1.0.0-rc.8](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-rc.8) (November 23, 2026). Its [verification record](releases/v1.0.0-rc.8-verification.md) documents the package and its [release notes](releases/v1.0.0-rc.8-release-notes.md) list the changes and the soak table. It is a release candidate, not a 48-hour soak. Release candidates rc.1 to rc.7 came out between October 30 and November 19, 2026.
+- Published: [v1.0.0-rc.9](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-rc.9) (November 28, 2026). Its [verification record](releases/v1.0.0-rc.9-verification.md) documents the package and its [release notes](releases/v1.0.0-rc.9-release-notes.md) list the changes and the station check. It is a release candidate, not a 48-hour soak. Release candidates rc.1 to rc.8 came out between October 30 and November 23, 2026.
 - The Beta releases below are history.
 
 ## Sprint 6 source work shipped in Beta 20
@@ -73,8 +73,8 @@ is not a Beta 15 field result or Beta 16 package qualification.
 
 ## Roadmap ownership and evidence
 
-The owner sets implementation and release scope. The [v1.0.0-rc.8 verification
-record](releases/v1.0.0-rc.8-verification.md) documents the current package. The [Beta 20 verification
+The owner sets implementation and release scope. The [v1.0.0-rc.9 verification
+record](releases/v1.0.0-rc.9-verification.md) documents the current package. The [Beta 20 verification
 record](releases/v1.0.0-beta.20-verification.md) documents the last Beta package. The [Beta 15 verification record](releases/v1.0.0-beta.15-verification.md) documents that older package's exact
 identity and installation observations. The [Beta 17 deferred
 backlog](ops/beta17-deferred.md) cites the separate Beta 15 R9 field report and

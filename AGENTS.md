@@ -7,7 +7,7 @@ generic audit ladder for both Codex and Claude; it does not waive product accept
 Start with `docs/handoff/CURRENT.md` for the portable project state, exact release
 identity, remaining work, and build-asset inventory. Use your checkout's root;
 the previous machine's absolute paths are not prerequisites.
-v1.0.0-rc.8 is the current published release (2026-11-23); Beta20 and earlier
+v1.0.0-rc.9 is the current published release (2026-11-28); Beta20 and earlier
 releases are history. This handoff does not authorize a new release,
 installer rebuild, or reopening completed acceptance. Scott's latest assignment
 defines what to do next. Do not modify frozen candidate worktrees.

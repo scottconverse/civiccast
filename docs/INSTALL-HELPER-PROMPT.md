@@ -2,9 +2,9 @@
 
 Use this guide only for an owner-authorized Windows beta field test. It is
 candidate-neutral: the tester handoff and release verification record identify
-the approved installer and procedure. v1.0.0-rc.8 is the current public
-pre-release, published 2026-11-23 from signed source d125c16d94402ce242363ba1bb9aadd39c1f2387 (tag target
-d125c16d94402ce242363ba1bb9aadd39c1f2387). See the [RC8 verification record](releases/v1.0.0-rc.8-verification.md)
+the approved installer and procedure. v1.0.0-rc.9 is the current public
+pre-release, published 2026-11-28 from signed source 559f28a4f7b6bf7e83106e647df4c07d808d3f5e (tag target
+559f28a4f7b6bf7e83106e647df4c07d808d3f5e). See the [RC9 verification record](releases/v1.0.0-rc.9-verification.md)
 for its exact package identity and scoped checks. This guide does not itself
 authorize an installation, upgrade, release or station cutover.
 

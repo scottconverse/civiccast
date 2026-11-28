@@ -2,7 +2,10 @@
 
 ## [Unreleased]
 
-Release candidate **v1.0.0-rc.9** (unpublished candidate).
+## [1.0.0-rc.9] - 2026-11-28
+
+Release candidate **v1.0.0-rc.9**, published November 28, 2026. Full notes, verification and known issues:
+`docs/releases/v1.0.0-rc.9-release-notes.md`.
 
 - Every TS mux now guards against a future-dated closing frame, so the cable output no longer crashes on it (#400).
 - Automatic H.264 encoding prefers the Media Foundation encoder over nvh264enc (#402).

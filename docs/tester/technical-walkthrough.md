@@ -1,6 +1,6 @@
 # Beta 18 Technical Tester Walkthrough (historical)
 
-For the current v1.0.0-rc.8 package and feature paths, start with the
+For the current v1.0.0-rc.9 package and feature paths, start with the
 [tester quickstart](START-HERE.md) and its linked manual. This page
 preserves the Beta 18 test scope.
 

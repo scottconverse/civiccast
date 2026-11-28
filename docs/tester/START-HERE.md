@@ -1,19 +1,19 @@
-> **Current release:** the current public download is v1.0.0-rc.8. For an
+> **Current release:** the current public download is v1.0.0-rc.9. For an
 > operator run, use its matching packaged manual and built-in Help to install,
 > set up and run Public, Education and Government from the normal UI. Use
 > [the operator quick start](https://github.com/scottconverse/civiccast/blob/main/docs/QUICKSTART-OPERATOR.md) as the entry point.
 > Do not substitute API calls or environment edits for an operator task that
 > the manual says is available in the UI. The Beta20 instructions below are historical.
 
-# Tester quickstart (v1.0.0-rc.8)
+# Tester quickstart (v1.0.0-rc.9)
 
 The minimum machine is 32 GB of RAM.
 
-Use the complete kit from the [v1.0.0-rc.8 release page](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-rc.8). Check the [RC8 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-rc.8-verification.md) for the exact signed installer and scoped results. Earlier Beta 20 instructions are kept as history below.
+Use the complete kit from the [v1.0.0-rc.9 release page](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-rc.9). Check the [RC9 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-rc.9-verification.md) for the exact signed installer and scoped results. Earlier Beta 20 instructions are kept as history below.
 
 ## Install, open, and check
 
-1. **Confirm package identity.** Use the published v1.0.0-rc.8 release and compare its installer with the verification record before testing. The published release holds the downloader `download_windows_release_artifacts.ps1`, `setup.exe`, `SHA256SUMS.txt`, the five `native-*.ccpack` runtime packs, and the `station-models` parts; the downloader assembles them into the `packs\` and `station\` folders below. `setup.exe` SHA-256 is `452a08cc76eb29b378539dc07858c6a0d0c7f727884c899377dd620e2fc24c86`.
+1. **Confirm package identity.** Use the published v1.0.0-rc.9 release and compare its installer with the verification record before testing. The published release holds the downloader `download_windows_release_artifacts.ps1`, `setup.exe`, `SHA256SUMS.txt`, the five `native-*.ccpack` runtime packs, and the `station-models` parts; the downloader assembles them into the `packs\` and `station\` folders below. `setup.exe` SHA-256 is `fd5b9e118b414ed009ed22391c59bbf15ca2f8bddb72af3b70d4a9d889dd168a`.
 2. **Prepare the complete kit.** Run the [Windows install guide](https://github.com/scottconverse/civiccast/blob/main/INSTALL-WINDOWS.md) download command, which fetches every part and verifies hashes and the signature; keep `setup.exe`, `packs\`, and `station\`
    together. Compare its manifest, installer hash, and signature with the active
    handoff using [Windows release trust](https://github.com/scottconverse/civiccast/blob/main/docs/install/windows-release-trust.md).
@@ -70,7 +70,7 @@ live caption-input coverage and 216 healthy scheduled checkpoints. See the
 [72-hour host report](https://github.com/scottconverse/civiccast/blob/main/docs/ops/beta11-host-caption-performance-72-hour-2026-10-11.md).
 
 The current release verification record is
-[`v1.0.0-rc.8-verification.md`](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-rc.8-verification.md). Older
+[`v1.0.0-rc.9-verification.md`](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-rc.9-verification.md). Older
 Beta10 and earlier verification records describe their specific packages and do
 not establish Beta 20 results. Current native Windows source is in
 [civiccast](https://github.com/scottconverse/civiccast) (formerly `civiccast-native`). The

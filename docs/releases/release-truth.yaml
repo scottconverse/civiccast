@@ -21,7 +21,7 @@ schema_version: 1
 repository: scottconverse/civiccast
 
 # The tag that public surfaces may present as the current install target.
-current: v1.0.0-rc.8
+current: v1.0.0-rc.9
 # Live tags matching these regexes predate this manifest and are exempt from
 # per-entry listing (they remain visible on GitHub as history). Anything else
 # unlisted is drift.
@@ -37,8 +37,13 @@ historical_unlisted_patterns:
   - '^v4\.0\.0-rc\.'
 
 entries:
-  - tag: v1.0.0-rc.8
+  - tag: v1.0.0-rc.9
     status: current
+    notes: >-
+      Published by publish_beta_candidate.py, artifact source 559f28a4f7b6bf7e83106e647df4c07d808d3f5e, tag target 559f28a4f7b6bf7e83106e647df4c07d808d3f5e, build run 46172249755. Owner decision (Scott, 2026-11-28): published without the physical-host consumer receipt; installer hash, version, signature and manual checks passed; station evidence is a short four-station check of cable, captions and real video. See docs/releases/v1.0.0-rc.9-verification.md. Gate A not run.
+  - tag: v1.0.0-rc.8
+    status: superseded
+    superseded_by: v1.0.0-rc.9
     notes: >-
       Published by publish_beta_candidate.py, artifact source d125c16d94402ce242363ba1bb9aadd39c1f2387, tag target d125c16d94402ce242363ba1bb9aadd39c1f2387, build run 44968448604. Owner decision (Scott, 2026-11-23): published without the physical-host consumer receipt; installer hash, version, signature and manual checks passed; station evidence is the rc.8 soak report. See docs/releases/v1.0.0-rc.8-verification.md. Gate A not run.
   - tag: v1.0.0-rc.7
