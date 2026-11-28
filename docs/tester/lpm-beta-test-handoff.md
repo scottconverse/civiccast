@@ -1,10 +1,10 @@
 # CivicCast Beta Test Handoff For Longmont Public Media
 
 > **Archived Beta 10 handoff.** This document records the Beta 10 tester
-> packet and is not a current release guide. v1.0.0-rc.8 is the current release;
+> packet and is not a current release guide. v1.0.0-rc.9 is the current release;
 > use the [current User Manual](https://github.com/scottconverse/civiccast/blob/main/docs/USER-MANUAL.md), [Windows install
 > guide](https://github.com/scottconverse/civiccast/blob/main/INSTALL-WINDOWS.md), [tester start page](START-HERE.md), and
-> [RC8 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-rc.8-verification.md).
+> [RC9 verification record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-rc.9-verification.md).
 
 ## Historical Beta 10 Release Record
 

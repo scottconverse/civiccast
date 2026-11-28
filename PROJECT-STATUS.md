@@ -10,14 +10,14 @@
 > are historical Beta 10 audit records; the linked Beta 11 inventory is a dated
 > source audit, not the current defect list.
 
-## Current release: RC8
+## Current release: RC9
 
-v1.0.0-rc.8 is the current published native Windows package, published
-2026-11-23. It keeps a channel from staying dark when a content reload overruns
-its preparation window, stops audio timestamps stepping backwards on an
-immediate finite source reload, and carries the rc.7 fixes forward. The minimum
-machine is 32 GB of RAM.
-Its signed package and scoped checks are in the [RC8 record](docs/releases/v1.0.0-rc.8-verification.md); the [RC8 release notes](docs/releases/v1.0.0-rc.8-release-notes.md) list known issues. RC7, RC6, RC5, Beta 20 and Beta 19 remain historical.
+v1.0.0-rc.9 is the current published native Windows package, published
+2026-11-28. It stops the cable output crashing on a future-dated closing frame,
+prefers the Media Foundation H.264 encoder, lets the stall watchdog see a cable
+feed with audio but no video, adds the station logo control, and carries the
+rc.8 fixes forward. The minimum machine is 32 GB of RAM.
+Its signed package and scoped checks are in the [RC9 record](docs/releases/v1.0.0-rc.9-verification.md); the [RC9 release notes](docs/releases/v1.0.0-rc.9-release-notes.md) list known issues. RC8, RC7, RC6, RC5, Beta 20 and Beta 19 remain historical.
 
 ## Historical Beta 17 release
 

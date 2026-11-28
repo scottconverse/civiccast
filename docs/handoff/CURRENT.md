@@ -6,8 +6,8 @@ Everything before 2026-11-05 is in [CURRENT-HISTORY-to-2026-11-05.md](CURRENT-HI
 
 ## Release state
 
-- Current release: **v1.0.0-rc.8** (published 2026-11-23, owner decision). Record: `docs/releases/v1.0.0-rc.8-verification.md`.
-- v1.0.0-rc.7 is superseded. rc.8 signed kit from source `d125c16d94402ce242363ba1bb9aadd39c1f2387`, build run 44968448604. Details: `docs/releases/v1.0.0-rc.8-release-notes.md`.
+- Current release: **v1.0.0-rc.9** (published 2026-11-28, owner decision). Record: `docs/releases/v1.0.0-rc.9-verification.md`.
+- v1.0.0-rc.8 is superseded. rc.9 signed kit from source `559f28a4f7b6bf7e83106e647df4c07d808d3f5e`, build run 46172249755. Details: `docs/releases/v1.0.0-rc.9-release-notes.md`.
 - No release, tag or station upgrade is authorized by this note. Publishing needs Scott's word "publish".
 
 ## Machines (checked 2026-11-15, 07:50 local time)

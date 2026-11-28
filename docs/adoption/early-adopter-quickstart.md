@@ -38,14 +38,14 @@ This whole document is historical (retired WSL2 line). For the native line
 this repository ships, read [START-HERE](../tester/START-HERE.md),
 [INSTALL-WINDOWS.md](../../INSTALL-WINDOWS.md), and
 [Windows Release Trust And Verification](../install/windows-release-trust.md)
-instead -- they carry the latest published `v1.0.0-rc.8` release guidance.
-The [RC8 verification record](../releases/v1.0.0-rc.8-verification.md)
+instead -- they carry the latest published `v1.0.0-rc.9` release guidance.
+The [RC9 verification record](../releases/v1.0.0-rc.9-verification.md)
 is the current package record for this native line. The historical native
 release identities below remain background only.
 
 The supported minimum for the native line is **32 GB of RAM**, with a processor
 whose integrated graphics are enough; no separate graphics card is required. A
-16 GB machine is below the minimum. The [rc.8 release notes](../releases/v1.0.0-rc.8-release-notes.md)
+16 GB machine is below the minimum. The [rc.9 release notes](../releases/v1.0.0-rc.9-release-notes.md)
 carry the candidate's soak evidence and open items.
 
 ## Historical: Installer Status (retired WSL2 line)

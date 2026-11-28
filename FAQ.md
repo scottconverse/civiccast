@@ -1,8 +1,8 @@
 # CivicCast FAQ
 
 Questions and practical answers for CivicCast. The current published package is
-[v1.0.0-rc.8](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-rc.8);
-see its [release notes](docs/releases/v1.0.0-rc.8-release-notes.md).
+[v1.0.0-rc.9](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-rc.9);
+see its [release notes](docs/releases/v1.0.0-rc.9-release-notes.md).
 
 ## What is CivicCast?
 
@@ -178,7 +178,7 @@ tokens, passwords, private keys, resident data, or private meeting content.
 
 ## Release status and evidence
 
-v1.0.0-rc.8 is the [published release](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-rc.8); its [verification record](docs/releases/v1.0.0-rc.8-verification.md) identifies the signed package and scoped checks. v1.0.0-rc.7 is the previous published package.
+v1.0.0-rc.9 is the [published release](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-rc.9); its [verification record](docs/releases/v1.0.0-rc.9-verification.md) identifies the signed package and scoped checks. v1.0.0-rc.8 is the previous published package.
 
 Beta 15 passed Windows Sandbox installation, first-admin setup, built-in Help and built-in uninstall checks. Its corrected installer also restored a working station automatically after a simulated activation failure. The bundled Welcome programme aired and returned to slate in the short-programme rollover check. The [Beta 15 verification record](docs/releases/v1.0.0-beta.15-verification.md) identifies each tested package and its results.
 

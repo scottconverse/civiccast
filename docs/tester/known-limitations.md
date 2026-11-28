@@ -1,11 +1,11 @@
 # Known Limitations For Early-Adopter Builds
 
 > **Historical Beta 10 limitation record.** This page records evidence and
-> limits for Beta 10 only. v1.0.0-rc.8 is the current published release; Beta 20
+> limits for Beta 10 only. v1.0.0-rc.9 is the current published release; Beta 20
 > is history. For current operating guidance, use the
 > [current User Manual](https://github.com/scottconverse/civiccast/blob/main/docs/USER-MANUAL.md), [Windows install guide](https://github.com/scottconverse/civiccast/blob/main/INSTALL-WINDOWS.md),
-> [tester start page](START-HERE.md), and [rc.8 verification
-> record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-rc.8-verification.md). The Beta 10 results below
+> [tester start page](START-HERE.md), and [rc.9 verification
+> record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-rc.9-verification.md). The Beta 10 results below
 > remain historical and do not establish Beta 20 behavior.
 
 ## Release State
@@ -191,8 +191,8 @@ repository's native Windows line. Its cited verification documents
 (`docs/releases/v1.0.0-rc{13,17,18}-verification.md`) are not present in this
 repository and are not linked here for that reason. `v1.0.0-beta.1` (the
 first native release) was USB-delivered; the current native-line package
-evidence is in the [rc.8 verification
-record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-rc.8-verification.md).
+evidence is in the [rc.9 verification
+record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-rc.9-verification.md).
 
 <details>
 <summary>Expand: retired WSL2-line (rc13-rc18) clean-machine proof record</summary>

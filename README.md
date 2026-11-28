@@ -19,51 +19,51 @@ system. Staff use one operator console; residents watch through a separate
 portal. Optional cloud services may charge their own usage fees, while CivicCast
 has no per-minute software fee.
 
-## Unpublished source candidate
-
-`v1.0.0-rc.9` is an unpublished candidate and is not available as a public
-release. It carries the egress fixes since rc.8: every TS mux now guards against
-a future-dated closing frame so the cable output no longer crashes on it (#400),
-automatic H.264 encoding prefers the Media Foundation encoder over nvh264enc
-(#402), and the stall watchdog now sees a cable mux that has audio but no video
-(#401). Its CHANGELOG entry lists the rest. Source changes do not update an
-installed station or replace the published downloads below.
-
 ## Current published package
 
-[`v1.0.0-rc.8`](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-rc.8)
-is the current published native Windows release candidate (published November 23, 2026).
-Its source tag and the signed artifacts are commit `d125c16d`; the build run was
-44968448604. The signed `setup.exe` has SHA-256
-`452a08cc76eb29b378539dc07858c6a0d0c7f727884c899377dd620e2fc24c86`
+[`v1.0.0-rc.9`](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-rc.9)
+is the current published native Windows release candidate (published November 28, 2026).
+Its source tag and the signed artifacts are commit `559f28a4`; the build run was
+46172249755. The signed `setup.exe` has SHA-256
+`fd5b9e118b414ed009ed22391c59bbf15ca2f8bddb72af3b70d4a9d889dd168a`
 and a valid Authenticode signature. The
-[rc.8 release notes](docs/releases/v1.0.0-rc.8-release-notes.md) identify the package and its known issues; the
-[rc.8 verification record](docs/releases/v1.0.0-rc.8-verification.md) lists the checks behind it.
-It replaces [`v1.0.0-rc.7`](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-rc.7)
-(November 19, 2026), whose release notes and verification record are kept as history.
+[rc.9 release notes](docs/releases/v1.0.0-rc.9-release-notes.md) identify the package and its known issues; the
+[rc.9 verification record](docs/releases/v1.0.0-rc.9-verification.md) lists the checks behind it.
+It replaces [`v1.0.0-rc.8`](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-rc.8)
+(November 23, 2026), whose release notes and verification record are kept as history.
 
-What changed since rc.7, in plain words:
+What changed since rc.8, in plain words:
 
-- **A programme change stays on air on a busy or hybrid station.** A preparation
-  step that overran its window no longer leaves a channel dark.
-- **The cable output no longer takes the public channel off the air** on some
-  NVIDIA cards.
-- **Audio timestamps never step back** after an immediate short source reload.
-- **A deferred rollover is driven from the end of stream**, so the next programme
-  is ready when the current one ends.
-- **Live caption recognition runs on the processor's performance cores**, so it
-  keeps its share of the CPU when background work competes for it.
-- **Install no longer fails with "Access is denied"** on a Dell, because setup now
-  grants the installing account the PostgreSQL bin rights it needs.
+- **The cable output no longer crashes** when a stream ends with a future-dated
+  closing frame. Every TS mux now guards against it.
+- **Automatic H.264 encoding prefers the Media Foundation encoder** over
+  `nvh264enc`.
+- **The stall watchdog now sees a cable feed that has audio but no video.**
+- **An operator can put a station logo on air.** Upload a PNG or JPEG on the
+  **Channels** page.
+- **The FFmpeg runtime is newer**, and the native vulnerability audit is clean
+  against the November 28, 2026 scanner database.
 
-The smallest supported machine is now **32 GB of RAM**. A processor with
+The smallest supported machine is still **32 GB of RAM**. A processor with
 integrated graphics is enough; no separate graphics card is required. A 16 GB
 machine is **below the minimum and is not a supported configuration**.
 
-This is a **release candidate, not a 48-hour soak**. Four stations ran on air for
-36 to 39 hours in one stretch and one for about 22 hours; no Intel
-integrated-graphics station was tested. The [rc.8 release notes](docs/releases/v1.0.0-rc.8-release-notes.md)
+This is a **release candidate, not a 48-hour soak**. Four development stations
+(two NVIDIA, two AMD integrated graphics) were upgraded to this exact build and
+checked for cable output, captions and real video on all three channels. That was
+a short check. No Intel integrated-graphics station was tested. The
+[rc.9 release notes](docs/releases/v1.0.0-rc.9-release-notes.md)
 list the full results and the open OpenSSL advisory.
+
+## Previous published package (RC8)
+
+[`v1.0.0-rc.8`](https://github.com/scottconverse/civiccast/releases/tag/v1.0.0-rc.8)
+was the published native Windows pre-release from November 23, 2026 until rc.9
+replaced it. Its source tag and the signed artifacts are commit `d125c16d`; the
+build run was 44968448604. Its [release notes](docs/releases/v1.0.0-rc.8-release-notes.md)
+and [verification record](docs/releases/v1.0.0-rc.8-verification.md) are kept as history.
+Windows 11 is the verified platform. Source changes after publication do not
+update an installed station.
 
 ## Previous published package (RC7)
 
@@ -117,12 +117,12 @@ identities are recorded in
 
 ## Install and run
 
-Download the signed RC8 station with the Windows helper. It obtains the installer, runtime packs and required station models, verifies them, and installs without separately installed development tools. Use Windows 11 x64, a Windows administrator account, and a machine with at least **32 GB of RAM**. A processor with integrated graphics is enough; no separate graphics card is required. A 16 GB machine is below the supported minimum. Allow about **100 GB free** when preparation and installation share a drive (including roughly **22 GB of model downloads**), plus recording space. Keep the complete kit for offline installation:
+Download the signed RC9 station with the Windows helper. It obtains the installer, runtime packs and required station models, verifies them, and installs without separately installed development tools. Use Windows 11 x64, a Windows administrator account, and a machine with at least **32 GB of RAM**. A processor with integrated graphics is enough; no separate graphics card is required. A 16 GB machine is below the supported minimum. Allow about **100 GB free** when preparation and installation share a drive (including roughly **22 GB of model downloads**), plus recording space. Keep the complete kit for offline installation:
 
 ```powershell
-$installerScript = Join-Path $env:TEMP 'CivicCast-Install-RC8.ps1'
-Invoke-WebRequest -UseBasicParsing -Uri 'https://github.com/scottconverse/civiccast/releases/download/v1.0.0-rc.8/download_windows_release_artifacts.ps1' -OutFile $installerScript
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installerScript -Tag v1.0.0-rc.8 -Version 1.0.0-rc.8 -Install -Destination "$env:USERPROFILE\Downloads\CivicCast-RC8"
+$installerScript = Join-Path $env:TEMP 'CivicCast-Install-RC9.ps1'
+Invoke-WebRequest -UseBasicParsing -Uri 'https://github.com/scottconverse/civiccast/releases/download/v1.0.0-rc.9/download_windows_release_artifacts.ps1' -OutFile $installerScript
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installerScript -Tag v1.0.0-rc.9 -Version 1.0.0-rc.9 -Install -Destination "$env:USERPROFILE\Downloads\CivicCast-RC9"
 ```
 
 Keep the PowerShell window open until it reports **Done**. During silent setup,
@@ -132,14 +132,14 @@ names the step in progress. If a download is interrupted, rerun the same command
 
 See [Install CivicCast on Windows](INSTALL-WINDOWS.md) for first setup, existing installations, offline copies and password recovery. Open **CivicCast Operator Console** after setup finishes.
 
-The [source manual](docs/USER-MANUAL.md) describes the current controls. The published RC8 manual ([PDF](https://github.com/scottconverse/civiccast/releases/download/v1.0.0-rc.8/USER-MANUAL.pdf), [Word](https://github.com/scottconverse/civiccast/releases/download/v1.0.0-rc.8/USER-MANUAL.docx)) covers that package's operation, installation and architecture. Online manual revisions reach installed copies with a replacement application package. Additional guides: [Admin](docs/admin-guide.md), [Meeting Operator](docs/meeting-operator-guide.md), [Records Clerk](docs/records-clerk-guide.md) and [Tester Start Here](docs/tester/START-HERE.md).
+The [source manual](docs/USER-MANUAL.md) describes the current controls. The published RC9 manual ([PDF](https://github.com/scottconverse/civiccast/releases/download/v1.0.0-rc.9/USER-MANUAL.pdf), [Word](https://github.com/scottconverse/civiccast/releases/download/v1.0.0-rc.9/USER-MANUAL.docx)) covers that package's operation, installation and architecture. Online manual revisions reach installed copies with a replacement application package. Additional guides: [Admin](docs/admin-guide.md), [Meeting Operator](docs/meeting-operator-guide.md), [Records Clerk](docs/records-clerk-guide.md) and [Tester Start Here](docs/tester/START-HERE.md).
 
 ### Developer — run from source, contribute
 
 Source contributors can inspect the [station operations record](docs/ops/station-operations-goal.md),
 [Sprint 2](docs/ops/sprint2-unattended.md), and
 [Sprint 3](docs/ops/sprint3-output-completion.md) for the implementation scope
-and focused evidence behind Beta 16. Use the current published RC8
+and focused evidence behind Beta 16. Use the current published RC9
 release page for installation.
 
 ```bash
@@ -211,7 +211,7 @@ apps. The [Roadmap Status Manifest](docs/spec/3.0/ROADMAP.status.yaml) is a
 repo-verified, fail-closed manifest that checks each spec item's claimed
 status against evidence that actually exists on disk; treat "Built" there
 as "the code and its tests exist," not as a field-proven claim for this
-release. The [rc.8 release notes](docs/releases/v1.0.0-rc.8-release-notes.md)
+release. The [rc.9 release notes](docs/releases/v1.0.0-rc.9-release-notes.md)
 describe the current published package boundary, verification and known issues, and the Beta 11
 host report is separately scoped historical runtime evidence.
 

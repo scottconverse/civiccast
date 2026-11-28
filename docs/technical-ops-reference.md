@@ -1349,9 +1349,9 @@ This reference is maintained in `docs/technical-ops-reference.md`. The user-faci
 
 ## Published package evidence and historical release identity
 
-This reference describes CivicCast `1.0.0-rc.9`, an unpublished source
-candidate; the published package remains `1.0.0-rc.8`. The
-[RC8 verification record](releases/v1.0.0-rc.8-verification.md)
+This reference describes CivicCast `1.0.0-rc.9`, the current published
+package. The
+[RC9 verification record](releases/v1.0.0-rc.9-verification.md)
 identifies the signed package and its scoped checks. The [Beta 20 verification record](releases/v1.0.0-beta.20-verification.md)
 and the [Beta 19 verification record](releases/v1.0.0-beta.19-verification.md)
 remain historical. Earlier results remain tied to their own release records.

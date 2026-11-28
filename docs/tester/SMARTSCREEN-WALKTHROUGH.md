@@ -7,7 +7,7 @@ exact filename, SHA-256, and signature status in the active handoff first.
 see `docs/tester/START-HERE.md` if you don't have one.)
 
 This walkthrough explains how to handle that screen and check the actual file
-before running it. v1.0.0-rc.8 is the current published native release.
+before running it. v1.0.0-rc.9 is the current published native release.
 
 ---
 
@@ -96,7 +96,7 @@ for the signing posture, and verify the actual downloaded executable.
 
 ## Release context
 
-The current published native installer is `v1.0.0-rc.8`, a signed GitHub
+The current published native installer is `v1.0.0-rc.9`, a signed GitHub
 pre-release. Follow the [current User Manual](https://github.com/scottconverse/civiccast/blob/main/docs/USER-MANUAL.md),
 [Windows install guide](https://github.com/scottconverse/civiccast/blob/main/INSTALL-WINDOWS.md), [Windows release-trust guide](https://github.com/scottconverse/civiccast/blob/main/docs/install/windows-release-trust.md),
 and exact owner-authorized handoff. The Beta 10 details below are historical

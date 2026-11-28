@@ -1,9 +1,9 @@
 # Non-Technical Tester Walkthrough
 
 > **Historical Beta 10 walkthrough.** The procedure below describes Beta 10
-> only. For current v1.0.0-rc.8 guidance, use the [tester start page](START-HERE.md),
-> [Windows install guide](https://github.com/scottconverse/civiccast/blob/main/INSTALL-WINDOWS.md), and [RC8 verification
-> record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-rc.8-verification.md).
+> only. For current v1.0.0-rc.9 guidance, use the [tester start page](START-HERE.md),
+> [Windows install guide](https://github.com/scottconverse/civiccast/blob/main/INSTALL-WINDOWS.md), and [RC9 verification
+> record](https://github.com/scottconverse/civiccast/blob/main/docs/releases/v1.0.0-rc.9-verification.md).
 
 Use this path if your job is to see whether CivicCast makes sense for a clerk,
 meeting operator, AV helper, or public-access volunteer.

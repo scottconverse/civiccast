@@ -1,8 +1,8 @@
 # Current checkpoint: October 19, 2026 - resumed acceptance source corrections
 
 > **Historical record.** This file is a dated October 2026 checkpoint chain, not
-> current release state. The current published release is `v1.0.0-rc.8`
-> (2026-11-23); see `docs/handoff/CURRENT.md` for the portable project state.
+> current release state. The current published release is `v1.0.0-rc.9`
+> (2026-11-28); see `docs/handoff/CURRENT.md` for the portable project state.
 
 Scott explicitly resumed the finite nine-outcome assignment. Both isolated VMs
 were observed Off; production service Running. No production upgrade or verified
@@ -218,7 +218,7 @@ are in the Sprint 6 record above. No package build or production cutover occurre
 
 Publication branch was `main`. Read current branch and HEAD from Git.
 Current published tag at that time: `v1.0.0-beta.19` (historical; the current
-published tag is `v1.0.0-rc.8`).
+published tag is `v1.0.0-rc.9`).
 PR #257: https://github.com/scottconverse/civiccast/pull/257;
 merge/tag target `b5204750bd96986dcde1adadffc0fe4b4e81f695`.
 Current source includes Sprint 5 remote-guest composition and relay
